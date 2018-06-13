@@ -16,6 +16,10 @@ from pydub import AudioSegment
 def standardize_sample_rate(sig, orig_rate, new_rate):
     """ Resample the signal sig to the sampling rate new_rate.
 
+    Note: Code adapted from Kahl et al. (2017)
+          Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
+          Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
+
     Args:
         sig : numpy array
             The signal to be resampled.
