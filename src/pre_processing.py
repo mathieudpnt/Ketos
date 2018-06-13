@@ -57,6 +57,10 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT):
     First, the signal is framed into overlapping frames.
     Second, creates the spectogram 
 
+    Note: Code adapted from Kahl et al. (2017)
+        Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
+        Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
+
 Args:
     sig : numpy array
         Audio signal.
