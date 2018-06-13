@@ -45,4 +45,36 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
     
     return new_rate, sig
 
-    
+
+#TODO: Confirm the meaning of winlen and winstep in the paper. Are these in seconds?
+def magnitude_spec(sig, rate, winlen, winstep, NFFT):
+""" Create a magnitute spectogram.
+
+    First, the signal is framed into overlapping frames.
+    Second, creates the spectogram 
+
+Args:
+    sig : numpy array
+        Audio signal.
+    rate : int
+        Sampling rate of the audio signal
+    winlen : float
+        Length of each frame (in seconds)
+    winstep : float
+        Time (in seconds) after the start of the previous frame that the next frame should start
+    NFTT : int
+        The FFT (Fast Fourier Transform) length to use
+
+Returns:
+    spec: numpy array
+        Magnitude spectogram
+"""    
+
+#get frames
+winfunc = lambda x:np.ones((x,))
+frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)        
+
+#Magnitude Spectrogram
+spec = np.rot90(psf.sigproc.magspec(frames, NFFT))
+
+return spec
