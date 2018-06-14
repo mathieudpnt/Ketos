@@ -26,13 +26,13 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
         orig_rate: int
             Sampling rate of sig.
         new_rate: int
-            New sampling rate
+            New sampling rate.
     
     Returns:
         rate : int
-            New sampling rate
+            New sampling rate.
         sig : mumpy array
-            resampled signal
+            resampled signal.
     """
 
 
@@ -65,17 +65,17 @@ Args:
     sig : numpy array
         Audio signal.
     rate : int
-        Sampling rate of the audio signal
+        Sampling rate of the audio signal.
     winlen : float
         Length of each frame (in seconds)
     winstep : float
-        Time (in seconds) after the start of the previous frame that the next frame should start
+        Time (in seconds) after the start of the previous frame that the next frame should start.
     NFTT : int
-        The FFT (Fast Fourier Transform) length to use
+        The FFT (Fast Fourier Transform) length to use.
 
 Returns:
     spec: numpy array
-        Magnitude spectogram
+        Magnitude spectogram.
 """    
 
 #get frames
@@ -86,3 +86,22 @@ frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)
 spec = np.rot90(psf.sigproc.magspec(frames, NFFT))
 
 return spec
+
+
+def normalize_spec(spec):
+"""Normalize spectogram so that values range from 0 to 1
+
+Args:
+    spec : numpy array
+        Spectogram to be normalized.
+
+Returns:
+    normalized_spec : numpy array
+        The normalized spectogram, with same shape as the input
+
+"""
+
+normalized_spec = spec - spec.min(axis=None)
+normalized_spec = normalized / spec.max(axis=None)
+
+return normalized_spec
