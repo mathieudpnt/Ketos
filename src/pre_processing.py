@@ -106,21 +106,21 @@ def normalize_spec(spec):
 
 
 def crop_high_freq_spec(spec, threshhold):
-""" Discard high frequencies
+    """ Discard high frequencies
 
-Args:
-    spec : numpy array
-        Spectogram.
-    threshold: int
-        Number of rows (starting from the top) to exclude from spectogram.
+    Args:
+        spec : numpy array
+            Spectogram.
+        threshold: int
+            Number of rows (starting from the top) to exclude from spectogram.
 
-Returns:
-    cropped_spec: numpy array
-        Spectogram without high frequencies. Shape will be (spec.shape[0]-threshold,spec.shape[1])
-"""
-cropped_spec = spec[(spec.shape[0] - threshold):, :]
+    Returns:
+        cropped_spec: numpy array
+            Spectogram without high frequencies. Shape will be (spec.shape[0]-threshold,spec.shape[1])
+    """
+    cropped_spec = spec[(spec.shape[0] - threshold):, :]
 
-return cropped_spec
+    return cropped_spec
 
 
 def filter_isolated_cells(img, struct):
