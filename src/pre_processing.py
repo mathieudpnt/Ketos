@@ -146,18 +146,18 @@ def filter_isolated_cells(img, struct):
 
 #TODO: Check if it's necessary to create a deep copy of the input array.
 def blur_img(img,ksize=5):
-""" Smooth the input image using a median blur filter.
+    """ Smooth the input image using a median blur filter.
 
-Args:
-    img : numpy array
-        Image to be processed.
-    ksize: int 
-        Aperture linear size. Must be ood and greater than 1 (3,5,7,...)
+    Args:
+        img : numpy array
+            Image to be processed.
+        ksize: int 
+            Aperture linear size. Must be ood and greater than 1 (3,5,7,...)
 
-Returns:
-    blur_img: numpy array
-        Blurred image
-"""
+    Returns:
+        blur_img: numpy array
+            Blurred image
+    """
     try:
         assert img.dtype == "float32"#, "img type {0} shoult be 'float32'".format(img.dtype)
     except AssertionError:
