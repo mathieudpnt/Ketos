@@ -204,7 +204,7 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
 #TODO: Refactor. Breack this function into smaller functions
 #  and possibly reuse some of the functions already defined in this module
 #TODO: Improve docstring
-def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512, n_filters=40, n_ceps=20, cep_lifter=20 ):
+def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
@@ -233,7 +233,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512
     """
     #sample_rate, signal = wavfile.read(path_file)
     pre_emphasis = 0.97
-    emphasized_signal = np.append(sigl[0], sig[1:] - pre_emphasis * sig[:-1])
+    emphasized_signal = np.append(sig[0], sig[1:] - pre_emphasis * sig[:-1])
 
     # params
     '''frame_size = 0.025
