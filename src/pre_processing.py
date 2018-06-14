@@ -168,7 +168,7 @@ def blur_img(img,ksize=5):
     return blur_img
 
 
-    def apply_median_thresh(img,row_factor=3, col_factor=4):
+def apply_median_thresh(img,row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 
 
         The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
