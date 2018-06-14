@@ -143,3 +143,28 @@ Returns:
     filtered_array[area_mask[id_regions]] = 0
     
     return filtered_array
+
+
+def blur_img(img,ksize=5):
+""" Smooth the input image using a median blur filter.
+
+Args:
+    img : numpy array
+        Image to be processed.
+    ksize: int 
+        Aperture linear size. Must be ood and greater than 1 (3,5,7,...)
+
+Returns:
+    blur_img: numpy array
+        Blurred image
+"""
+    try:
+        assert img.dtype == "float32"#, "img type {0} shoult be 'float32'".format(img.dtype)
+    except AssertionError:
+        img.dtype = np.float32    
+    
+    blur_img = cv2.medianBlur(img,ksize)
+
+    return blur_img
+
+    
