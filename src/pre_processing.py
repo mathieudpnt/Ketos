@@ -8,6 +8,7 @@ import cv2
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
+from scipy.fftpack import dct
 from scipy import interpolate
 
 import python_speech_features as psf
