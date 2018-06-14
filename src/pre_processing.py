@@ -88,21 +88,21 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT):
 
 
 def normalize_spec(spec):
-"""Normalize spectogram so that values range from 0 to 1
+    """Normalize spectogram so that values range from 0 to 1
 
-Args:
-    spec : numpy array
-        Spectogram to be normalized.
+    Args:
+        spec : numpy array
+            Spectogram to be normalized.
 
-Returns:
-    normalized_spec : numpy array
-        The normalized spectogram, with same shape as the input
+    Returns:
+        normalized_spec : numpy array
+            The normalized spectogram, with same shape as the input
 
-"""
-normalized_spec = spec - spec.min(axis=None)
-normalized_spec = normalized / spec.max(axis=None)
+    """
+    normalized_spec = spec - spec.min(axis=None)
+    normalized_spec = normalized / spec.max(axis=None)
 
-return normalized_spec
+    return normalized_spec
 
 
 def crop_high_freq_spec(spec, threshhold):
