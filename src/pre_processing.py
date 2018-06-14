@@ -201,15 +201,32 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
 
     return filtered_img
 
-def extract_mfcc_features(sample_rate,signal, frame_size, frame_stride):
+def extract_mfcc_features(rate,sig, frame_size, frame_stride):
+    """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
+    
+        Args:
+            rate : int
+                The sampling rate of the signal (in Hz).                
+            sig : numpy array
+                The input signal
+            frame_size : float
+                Length of each frame (in seconds)
+            frame_stride : float
+                The length od the stride (in seconds).
+        Returns:
+            filter_banks : numpy array
+                Array containing the filter banks.
+            mfcc : numpy array
+                Array containing the MFCCs.
+    """
     #sample_rate, signal = wavfile.read(path_file)
     pre_emphasis = 0.97
-    emphasized_signal = np.append(signal[0], signal[1:] - pre_emphasis * signal[:-1])
+    emphasized_signal = np.append(sigl[0], sig[1:] - pre_emphasis * sig[:-1])
 
     # params
     '''frame_size = 0.025
     frame_stride = 0.01'''
-    frame_length, frame_step = frame_size * sample_rate, frame_stride * sample_rate  # Convert from seconds to samples
+    frame_length, frame_step = frame_size * rate, frame_stride * rate  # Convert from seconds to samples
     signal_length = len(emphasized_signal)
     frame_length = int(round(frame_length))
     frame_step = int(round(frame_step))
@@ -232,10 +249,10 @@ def extract_mfcc_features(sample_rate,signal, frame_size, frame_stride):
 
     nfilt = 40
     low_freq_mel = 0
-    high_freq_mel = (2595 * np.log10(1 + (sample_rate / 2) / 700))  # Convert Hz to Mel
+    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
     mel_points = np.linspace(low_freq_mel, high_freq_mel, nfilt + 2)  # Equally spaced in Mel scale
     hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-    bin = np.floor((NFFT + 1) * hz_points / sample_rate)
+    bin = np.floor((NFFT + 1) * hz_points / rate)
 
     fbank = np.zeros((nfilt, int(np.floor(NFFT / 2 + 1))))
     for m in range(1, nfilt + 1):
