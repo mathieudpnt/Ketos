@@ -201,18 +201,30 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
 
     return filtered_img
 
-def extract_mfcc_features(rate,sig, frame_size, frame_stride):
+#TODO: Refactor. Breack this function into smaller functions
+#  and possibly reuse some of the functions already defined in this module
+#TODO: Improve docstring
+def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512, n_filters=40, n_ceps=20, cep_lifter=20 ):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
             rate : int
                 The sampling rate of the signal (in Hz).                
             sig : numpy array
-                The input signal
+                The input signal.
             frame_size : float
-                Length of each frame (in seconds)
+                Length of each frame (in seconds).
             frame_stride : float
                 The length od the stride (in seconds).
+            NFTT : int
+                The FFT (Fast Fourier Transform) length to use.
+            n_filters: int
+                The number of filters in the filter bank.
+            n_ceps: int
+                The number of Mel-frequency cepstrums.
+            cep_lifters: int
+                The number of cepstum filters.
+
         Returns:
             filter_banks : numpy array
                 Array containing the filter banks.
@@ -275,7 +287,8 @@ def extract_mfcc_features(rate,sig, frame_size, frame_stride):
     (nframes, ncoeff) = mfcc.shape
     n = np.arange(ncoeff)
     lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
-    mfcc *= lift  #*
+    mfcc *= lift  
     
     return filter_banks, mfcc
+
 
