@@ -121,3 +121,25 @@ Returns:
 cropped_spec = spec[(spec.shape[0] - threshold):, :]
 
 return cropped_spec
+
+
+def filter_isolated_cells(img, struct):
+"""Remove isolated spots from the img
+
+Args:
+    img : numpy array
+        An array like object representing an image. 
+    struct :numpy array
+        A structuring pattern that defines feature connections.
+        Must be symmetric.
+Returns:
+    filtered_array : numpy array
+        An array containing the input image without the isolated spots.
+"""
+    filtered_array = np.copy(img)
+    id_regions, num_ids = ndimage.label(filtered_array, structure=struct)
+    id_sizes = np.array(ndimage.sum(array, id_regions, range(num_ids + 1)))
+    area_mask = (id_sizes == 1)
+    filtered_array[area_mask[id_regions]] = 0
+    
+    return filtered_array
