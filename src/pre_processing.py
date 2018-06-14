@@ -77,14 +77,14 @@ Returns:
     spec: numpy array
         Magnitude spectogram.
 """    
-#get frames
-winfunc = lambda x:np.ones((x,))
-frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)        
+    #get frames
+    winfunc = lambda x:np.ones((x,))
+    frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)        
 
-#Magnitude Spectrogram
-spec = np.rot90(psf.sigproc.magspec(frames, NFFT))
+    #Magnitude Spectrogram
+    spec = np.rot90(psf.sigproc.magspec(frames, NFFT))
 
-return spec
+    return spec
 
 
 def normalize_spec(spec):
@@ -197,3 +197,6 @@ Returns:
     filtered_img[filtered_img > 0] = 1
 
     return filtered_img
+
+
+
