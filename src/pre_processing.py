@@ -100,7 +100,7 @@ def normalize_spec(spec):
 
     """
     normalized_spec = spec - spec.min(axis=None)
-    normalized_spec = normalized / spec.max(axis=None)
+    normalized_spec = normalized_spec / spec.max(axis=None)
 
     return normalized_spec
 
