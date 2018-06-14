@@ -144,7 +144,7 @@ Returns:
     
     return filtered_array
 
-
+#TODO: Check if it's necessary to create a deep copy of the input array.
 def blur_img(img,ksize=5):
 """ Smooth the input image using a median blur filter.
 
@@ -167,4 +167,33 @@ Returns:
 
     return blur_img
 
-    
+
+def apply_median_thresh(img,row_factor=3, col_factor=4):
+""" Discard pixels that are lower than the median threshold. 
+
+    The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
+
+    Note: Code adapted from Kahl et al. (2017)
+        Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
+        Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
+Args:
+    img : numpy array
+        Array containing the img to be filtered.blur_img
+    row_factor: int or float
+        Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.blur_img
+    col_factor: int or float
+        Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
+
+Returns:
+    filtered_img: numpy array
+        The filtered image with 0s and 1s.
+"""
+
+    col_median = np.median(img, axis=0, keepdims=True)
+    row_median = np.median(img, axis=1, keepdims=True)
+
+    filtered_img = img[img < row_median * row_factor] = 0
+    filtered_img = filtered_img[ filtered_img < col_median * col_factor] = 0 
+    filtered_img[filtered_img > 0] = 1
+
+    return filtered_img
