@@ -77,7 +77,6 @@ Returns:
     spec: numpy array
         Magnitude spectogram.
 """    
-
 #get frames
 winfunc = lambda x:np.ones((x,))
 frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)        
@@ -100,7 +99,6 @@ Returns:
         The normalized spectogram, with same shape as the input
 
 """
-
 normalized_spec = spec - spec.min(axis=None)
 normalized_spec = normalized / spec.max(axis=None)
 
@@ -120,7 +118,6 @@ Returns:
     cropped_spec: numpy array
         Spectogram without high frequencies. Shape will be (spec.shape[0]-threshold,spec.shape[1])
 """
-
 cropped_spec = spec[(spec.shape[0] - threshold):, :]
 
-return cropped
+return cropped_spec
