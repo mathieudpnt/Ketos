@@ -138,7 +138,7 @@ def filter_isolated_cells(img, struct):
     """
     filtered_array = np.copy(img)
     id_regions, num_ids = ndimage.label(filtered_array, structure=struct)
-    id_sizes = np.array(ndimage.sum(array, id_regions, range(num_ids + 1)))
+    id_sizes = np.array(ndimage.sum(img, id_regions, range(num_ids + 1)))
     area_mask = (id_sizes == 1)
     filtered_array[area_mask[id_regions]] = 0
     
@@ -192,9 +192,12 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
     col_median = np.median(img, axis=0, keepdims=True)
     row_median = np.median(img, axis=1, keepdims=True)
 
-    filtered_img = img[img < row_median * row_factor] = 0
-    filtered_img = filtered_img[ filtered_img < col_median * col_factor] = 0 
+
+    img[img < row_median * row_factor] = 0
+    img[img < col_median * col_factor] = 0 
+    filtered_img = img
     filtered_img[filtered_img > 0] = 1
+
 
     return filtered_img
 
