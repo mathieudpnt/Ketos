@@ -319,7 +319,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
 def filter_narrowband_noise(spec, frame_stride, T):
     """ Subtract the running mean from the rows
 
-        The subtraction results in a reduction of narrowband
+        The horizontal subtraction results in a reduction of narrowband
         long-duration noise.
 
     Args:
@@ -330,11 +330,11 @@ def filter_narrowband_noise(spec, frame_stride, T):
             The noise filtered spectogram.
     """
     dt  = frame_stride
-    eps = 1 - scipy.exp((scipy.log(0.15) * dt / T))
-    nx,nx = spec.shape[0]
-    rmean = numpy.zeros(ny)
-    rmean = numpy.average(spec, 0)
-    filtered_spec = numpy.zeros(shape=(nx,ny))
+    eps = 1 - np.exp((np.log(0.15) * dt / T))
+    nx,nx = spec.shape
+    rmean = np.zeros(ny)
+    rmean = np.average(spec, 0)
+    filtered_spec = np.zeros(shape=(nx,ny))
     for ix in range(nx):
         for iy in range(ny):    
             filtered_spec[ix,iy] = spec[ix,iy] - rmean[iy] # subtract running mean
@@ -343,3 +343,28 @@ def filter_narrowband_noise(spec, frame_stride, T):
     return filtered_spec
 
 
+def filter_broadband_noise(spec, frame_stride, T):
+    """ Subtract the running mean from the columns 
+
+        The vertical subtraction results in a reduction of broadband
+        sort-duration noise.
+
+    Args:
+        spec : numpy array
+
+    Returns:
+        filtered_spec: numpy array
+            The noise filtered spectogram.
+    """
+
+    eps = 0.01
+    nx,ny = spec.shape
+    rmean = np.zeros(nx)
+    rmean = np.average(spec, 1)
+    filtered_spec = np.zeros(shape=(nx,ny))
+    for iy in range(ny):
+        for ix in range(nx):    
+            filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix] # subtract running mean
+            rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
+
+    return filtered_spec
