@@ -106,7 +106,7 @@ def normalize_spec(spec):
     return normalized_spec
 
 
-def crop_high_freq_spec(spec, threshhold):
+def crop_high_freq_spec(spec, threshold):
     """ Discard high frequencies
 
     Args:
