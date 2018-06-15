@@ -331,7 +331,7 @@ def filter_narrowband_noise(spec, frame_stride, T):
     """
     dt  = frame_stride
     eps = 1 - np.exp((np.log(0.15) * dt / T))
-    nx,nx = spec.shape
+    nx,ny = spec.shape
     rmean = np.zeros(ny)
     rmean = np.average(spec, 0)
     filtered_spec = np.zeros(shape=(nx,ny))
@@ -368,3 +368,37 @@ def filter_broadband_noise(spec, frame_stride, T):
             rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
 
     return filtered_spec
+
+
+
+# Smoothing 
+
+def apply_smoothing(spec):
+    """ Apply a smoothing filter to the spectogram
+
+        Args:
+            spec : numpy array
+                The spectogram to be filtered.
+
+        Returns:
+            filtered_spec : numpy array
+                The filtered spectogram.
+    """
+
+
+    nx, ny = spec.shape
+    smooth_spec = np.zeros(shape=(nx,ny))
+    M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.int32)
+    for ix in range(nx):
+        for iy in range(ny):    
+            for di in range(-1,2):
+                for dj in range(-1,2):
+                    ix1 = ix+di
+                    iy1 = iy+dj
+                    if (ix1 >= 0 and ix1 < nx and iy1 >= 0 and iy1 < ny):
+                        i = 1 + di
+                        j = 1 + dj
+                        smooth_spec[ix,iy] += spec[ix1,iy1] * M[i,j]
+
+    return smooth_spec
+
