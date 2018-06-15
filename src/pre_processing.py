@@ -123,7 +123,6 @@ def crop_high_freq_spec(spec, threshold):
 
     return cropped_spec
 
-
 def filter_isolated_cells(img, struct):
     """Remove isolated spots from the img
 
@@ -312,5 +311,35 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
     mfcc *= lift  
     
     return filter_banks, mfcc
+
+
+
+# Subtract running mean (removes narrowband long-duration noise)
+
+def filter_narrowband_noise(spec, frame_stride, T):
+    """ Subtract the running mean from the rows
+
+        The subtraction results in a reduction of narrowband
+        long-duration noise.
+
+    Args:
+        spec : numpy array
+
+    Returns:
+        filtered_spec: numpy array
+            The noise filtered spectogram.
+    """
+    dt  = frame_stride
+    eps = 1 - scipy.exp((scipy.log(0.15) * dt / T))
+    nx,nx = spec.shape[0]
+    rmean = numpy.zeros(ny)
+    rmean = numpy.average(spec, 0)
+    filtered_spec = numpy.zeros(shape=(nx,ny))
+    for ix in range(nx):
+        for iy in range(ny):    
+            filtered_spec[ix,iy] = spec[ix,iy] - rmean[iy] # subtract running mean
+            rmean[iy] = (1 - eps) * rmean[iy] + eps * spec[ix,iy] # update running mean
+
+    return filtered_spec
 
 
