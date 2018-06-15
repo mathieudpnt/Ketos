@@ -224,7 +224,7 @@ def preemphasis(sig,coeff=0.97):
 #TODO: Refactor. Break this function into smaller functions
 #  and possibly reuse some of the functions already defined in this module
 #TODO: Improve docstring
-def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
+def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preemphasis_coeff = 0.97, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
@@ -236,6 +236,8 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFFT=512
                 Length of each frame (in seconds).
             frame_stride : float
                 The length od the stride (in seconds).
+            preemphasis_coeff : float
+                The preemphasis coefficient. If 0, preemphasis is not applied.
             NFFT : int
                 The FFT (Fast Fourier Transform) length to use.
             n_filters: int
@@ -245,6 +247,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFFT=512
             cep_lifters: int
                 The number of cepstum filters.
 
+
         Returns:
             filter_banks : numpy array
                 Array containing the filter banks.
@@ -252,8 +255,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFFT=512
                 Array containing the MFCCs.
     """
     #sample_rate, signal = wavfile.read(path_file)
-    pre_emphasis = 0.97
-    emphasized_signal = np.append(sig[0], sig[1:] - pre_emphasis * sig[:-1])
+    emphasized_signal = preemphasis(sig, preemphasis_coeff)
 
     # params
     '''frame_size = 0.025
