@@ -202,10 +202,29 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
 
     return filtered_img
 
-#TODO: Refactor. Breack this function into smaller functions
+def preemphasis(sig,coeff=0.97):
+    """Apply pre-emphasis to signal
+
+        Args:
+            sig : numpy array
+                1-d array containing the signal.
+            coeff: float
+                The preemphasis coefficient. If set to 0,
+                 no preemphasis is applied (the output will be the same as the input).
+        Returns:
+            emphasized_signal : numpy array
+                The filtered signal.
+    """
+    emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
+    
+    return emphasized_signal
+
+
+
+#TODO: Refactor. Break this function into smaller functions
 #  and possibly reuse some of the functions already defined in this module
 #TODO: Improve docstring
-def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512, n_filters=40, n_ceps=20, cep_lifter=20):
+def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
@@ -217,7 +236,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512
                 Length of each frame (in seconds).
             frame_stride : float
                 The length od the stride (in seconds).
-            NFTT : int
+            NFFT : int
                 The FFT (Fast Fourier Transform) length to use.
             n_filters: int
                 The number of filters in the filter bank.
@@ -256,19 +275,19 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512
     # hamming window
     frames *= np.hamming(frame_length)
 
-    NFFT = 512
+    #NFFT = 512
     mag_frames = np.absolute(np.fft.rfft(frames, NFFT))  # Magnitude of the FFT
     pow_frames = ((1.0 / NFFT) * ((mag_frames) ** 2))  # Power Spectrum
 
-    nfilt = 40
+    #nfilt = 40
     low_freq_mel = 0
     high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
-    mel_points = np.linspace(low_freq_mel, high_freq_mel, nfilt + 2)  # Equally spaced in Mel scale
+    mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
     hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
     bin = np.floor((NFFT + 1) * hz_points / rate)
 
-    fbank = np.zeros((nfilt, int(np.floor(NFFT / 2 + 1))))
-    for m in range(1, nfilt + 1):
+    fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
+    for m in range(1, n_filters + 1):
         f_m_minus = int(bin[m - 1])   # left
         f_m = int(bin[m])             # center
         f_m_plus = int(bin[m + 1])    # right
@@ -281,10 +300,10 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, NFTT=512
     filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
     filter_banks = 20 * np.log10(filter_banks)  # dB
     
-    num_ceps = 20
-    mfcc = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (num_ceps + 1)] # Keep 2-13
+    #num_ceps = 20
+    mfcc = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
     
-    cep_lifter = 22
+    #cep_lifter = 22
     (nframes, ncoeff) = mfcc.shape
     n = np.arange(ncoeff)
     lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
