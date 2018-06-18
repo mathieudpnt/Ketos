@@ -50,6 +50,44 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
     
     return new_rate, sig
 
+def pad_signal(sig,rate, winlen, winstep)
+    """ Pad signal to make sure that all frames have equal number of samples.
+    
+        This assures that sample are not truncaed from the original signal.
+
+    Args: 
+        sig: numpy array
+            1-d array containing signal.
+        rate : int
+            The sampling rate of the signal.
+        winlen: float
+            The window length in seconds.
+        winstep: float
+            The window step (or stride) in seconds.
+
+    Returns:
+        frames: numpy array
+            2-d array with padded frames.
+    """
+
+    signal_length = len(sig)
+    winlen  = int(round(winlen * rate))
+    winstep = int(round(winstep * rate))
+    # Make sure that we have at least 1 frame
+    n_frames = int(np.ceil(float(np.abs(signal_length - winlen)) / winstep))
+    
+
+    pad_signal_length = n_frames * winstep + winlen
+    z = np.zeros((pad_signal_length - signal_length))
+    pad_signal = np.append(signal, z) 
+
+    indices = np.tile(np.arange(0, winlen), (num_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
+    frames = pad_signal[indices.astype(np.int32, copy=False)]
+
+    return frames
+
+
+
 
 #TODO: Confirm the meaning of winlen and winstep in the paper. Are these in seconds?
 def magnitude_spec(sig, rate, winlen, winstep, NFFT):
@@ -341,10 +379,10 @@ def filter_narrowband_noise(spec, frame_stride, T):
             rmean[iy] = (1 - eps) * rmean[iy] + eps * spec[ix,iy] # update running mean
 
     return filtered_spec
-
+>
 
 def filter_broadband_noise(spec, frame_stride, T):
-    """ Subtract the running mean from the columns 
+    """ Subtract the running mean from the columns
 
         The vertical subtraction results in a reduction of broadband
         sort-duration noise.
@@ -361,9 +399,9 @@ def filter_broadband_noise(spec, frame_stride, T):
     nx,ny = spec.shape
     rmean = np.zeros(nx)
     rmean = np.average(spec, 1)
-    filtered_spec = np.zeros(shape=(nx,ny))
+    filtered_spec = np.zeros(shape=(nx, ny))
     for iy in range(ny):
-        for ix in range(nx):    
+        for ix in range(nx):   
             filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix] # subtract running mean
             rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
 
@@ -384,8 +422,6 @@ def apply_smoothing(spec):
             filtered_spec : numpy array
                 The filtered spectogram.
     """
-
-
     nx, ny = spec.shape
     smooth_spec = np.zeros(shape=(nx,ny))
     M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.int32)
