@@ -50,10 +50,10 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
     
     return new_rate, sig
 
-def pad_signal(sig,rate, winlen, winstep)
+def pad_signal(sig, rate, winlen, winstep):
     """ Pad signal to make sure that all frames have equal number of samples.
     
-        This assures that sample are not truncaed from the original signal.
+        This assures that sample are not truncated from the original signal.
 
     Args: 
         sig: numpy array
@@ -71,11 +71,10 @@ def pad_signal(sig,rate, winlen, winstep)
     """
 
     signal_length = len(sig)
-    winlen  = int(round(winlen * rate))
+    winlen = int(round(winlen * rate))
     winstep = int(round(winstep * rate))
     # Make sure that we have at least 1 frame
     n_frames = int(np.ceil(float(np.abs(signal_length - winlen)) / winstep))
-    
 
     pad_signal_length = n_frames * winstep + winlen
     z = np.zeros((pad_signal_length - signal_length))
@@ -86,15 +85,16 @@ def pad_signal(sig,rate, winlen, winstep)
 
     return frames
 
+def 
 
 
 
 #TODO: Confirm the meaning of winlen and winstep in the paper. Are these in seconds?
-def magnitude_spec(sig, rate, winlen, winstep, NFFT):
+def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
     """ Create a magnitute spectogram.
 
         First, the signal is framed into overlapping frames.
-        Second, creates the spectogram 
+        Second, creates the spectogram
 
         Note: Code adapted from Kahl et al. (2017)
             Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
@@ -117,12 +117,12 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT):
             Magnitude spectogram.
     """    
     #get frames
-    winfunc = lambda x:np.ones((x,))
-    frames = psf.sigproc.framesig(sig, winlen*rate, winstep*rate, winfunc)        
+    frames = pad_signal(sig, rate, winlen, winstep)        
 
     #Magnitude Spectrogram
-    spec = np.rot90(psf.sigproc.magspec(frames, NFFT))
-
+    spec = np.abs(np.fft.rfft(frames, NFTT=NFTT))  # Magnitude of the FFT
+    if log_scale:
+            spec = 20 * np.log10(spec)       # Convert to dB
     return spec
 
 
