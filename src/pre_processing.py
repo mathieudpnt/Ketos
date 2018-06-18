@@ -85,10 +85,6 @@ def pad_signal(sig, rate, winlen, winstep):
 
     return frames
 
-def 
-
-
-
 #TODO: Confirm the meaning of winlen and winstep in the paper. Are these in seconds?
 def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
     """ Create a magnitute spectogram.
