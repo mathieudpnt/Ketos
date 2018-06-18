@@ -375,7 +375,6 @@ def filter_narrowband_noise(spec, frame_stride, T):
             rmean[iy] = (1 - eps) * rmean[iy] + eps * spec[ix,iy] # update running mean
 
     return filtered_spec
->
 
 def filter_broadband_noise(spec, frame_stride, T):
     """ Subtract the running mean from the columns
