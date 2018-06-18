@@ -78,7 +78,7 @@ def pad_signal(sig, rate, winlen, winstep):
 
     pad_signal_length = n_frames * winstep + winlen
     z = np.zeros((pad_signal_length - signal_length))
-    pad_signal = np.append(signal, z) 
+    pad_signal = np.append(sig, z) 
 
     indices = np.tile(np.arange(0, winlen), (num_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = pad_signal[indices.astype(np.int32, copy=False)]
