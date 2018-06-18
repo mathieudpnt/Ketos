@@ -92,10 +92,6 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
         First, the signal is framed into overlapping frames.
         Second, creates the spectogram
 
-        Note: Code adapted from Kahl et al. (2017)
-            Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
-            Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
-
     Args:
         sig : numpy array
             Audio signal.
@@ -106,7 +102,9 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
         winstep : float
             Time (in seconds) after the start of the previous frame that the next frame should start.
         NFTT : int
-            The FFT (Fast Fourier Transform) length to use.
+            The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
+        log_scale: bool
+            If True, convert spectogram to decibels using a logarithm scale.. Default is False.
 
     Returns:
         spec: numpy array
@@ -119,7 +117,7 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
     spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
     if log_scale:
             spec = 20 * np.log10(spec)       # Convert to dB
-    spec = np.rot90(spec)
+    spec = np.rot90
     return spec
 
 
