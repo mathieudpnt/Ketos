@@ -116,7 +116,7 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
     frames = pad_signal(sig, rate, winlen, winstep)        
 
     #Magnitude Spectrogram
-    spec = np.abs(np.fft.rfft(frames, NFTT=NFTT))  # Magnitude of the FFT
+    spec = np.abs(np.fft.rfft(frames, NFTT=NFFT))  # Magnitude of the FFT
     if log_scale:
             spec = 20 * np.log10(spec)       # Convert to dB
     return spec
