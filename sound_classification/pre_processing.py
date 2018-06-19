@@ -418,7 +418,7 @@ def apply_smoothing(spec):
     """
     nx, ny = spec.shape
     smooth_spec = np.zeros(shape=(nx,ny))
-    M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.int32)
+    M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.float32)
     for ix in range(nx):
         for iy in range(ny):    
             for di in range(-1,2):
