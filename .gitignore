@@ -13,3 +13,8 @@ src/__pycache__
 /*.egg-info
 /*.egg
 /.eggs
+
+#Virtual env
+/dev_env
+
+/docs
