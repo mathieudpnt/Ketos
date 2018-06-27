@@ -14,7 +14,7 @@ setup(name='sound_classification',
           'numpy',
           'tables',
           'scipy',
-          'cv2',
+          'opencv-python',
           'pandas',
           'tensorflow'
           ],
