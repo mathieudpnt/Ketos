@@ -1,0 +1,15 @@
+#src/Untitled.ipynb
+#src/.ipynb_checkpoints/Untitled-checkpoint.ipynb
+#src/__pycache__/pre_processing.cpython-36.pyc
+#.gitignore
+#.vscode/settings.json
+
+# Compiled python modules.
+*.pyc
+
+# Setuptools distribution folder.
+/dist/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
+/*.egg
