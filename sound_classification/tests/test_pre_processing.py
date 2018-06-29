@@ -54,8 +54,9 @@ def sine_wave_file(sine_wave):
                 A string containing the path to the .wav file.
     """
     wav_file = "./assets/sine_wave.wav"
-    pp.wave.write(wav_file, rate=44100, data=sine_wave)
-
+    rate, sig = square_wave
+    pp.wave.write(wav_file, rate=rate, data=sig)
+    
     yield wav_file
     os.remove(wav_file)
 
