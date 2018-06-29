@@ -80,3 +80,24 @@ def square_wave_file(square_wave):
 
     yield wav_file
     os.remove(wav_file)
+
+
+@pytest.fixture
+def sawtooth_wave_file(sawtooth_wave):
+    """Create a .wav with the 'sawtooth_wave()' fixture
+    
+       The file is saved as ./assets/sawtooth_wave.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file = "./assets/sawtooth_wave.wav"
+    rate, sig = sawtooth_wave
+    pp.wave.write(wav_file, rate=rate, data=sig)
+
+    yield wav_file
+    os.remove(wav_file)
