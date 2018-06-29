@@ -13,8 +13,8 @@ Welcome to sound_classification's documentation!
    introduction
    installation
    modules
-   contribution guidelines
-    
+   contribution_guidelines
+
 
 
 Indices and tables
