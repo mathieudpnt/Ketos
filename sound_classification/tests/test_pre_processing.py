@@ -75,7 +75,7 @@ def square_wave_file(sine_wave):
     """
     wav_file = "./assets/square_wave.wav"
     rate, sig = square_wave
-    pp.wave.write(wav_file, rate=rate, data=signal)
+    pp.wave.write(wav_file, rate=rate, data=sig)
 
     yield wav_file
     os.remove(wav_file)
