@@ -26,7 +26,7 @@ def square_wave():
 
     signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
 
-    return signal
+    return sampling_rate, signal
 
 @pytest.fixture
 def square_wave():
