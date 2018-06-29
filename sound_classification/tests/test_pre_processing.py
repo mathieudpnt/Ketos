@@ -1,3 +1,17 @@
+""" Unit tests for the the 'pre_processing' module in the 'sound_classification' package
+
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
+    Organization: MERIDIAN-Intitute for Big Data Analytics
+    Team: Acoustic data Analytics, Dalhousie University
+    Project: packages/sound_classification
+             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+     
+    License:
+
+"""
+
 import pytest
 import os
 import numpy as np
@@ -45,7 +59,7 @@ def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
     
        The file is saved as ./assets/sine_wave.wav.
-       When the tests using this fixture are done, 
+       When the tests using this fixture are done,
        the file is deleted.
 
 
