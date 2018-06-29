@@ -17,4 +17,4 @@ src/__pycache__
 #Virtual env
 /dev_env
 
-/docs
+#/docs
