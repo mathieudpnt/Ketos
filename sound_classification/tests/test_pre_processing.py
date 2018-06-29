@@ -54,7 +54,7 @@ def sine_wave_file(sine_wave):
                 A string containing the path to the .wav file.
     """
     wav_file = "./assets/sine_wave.wav"
-    rate, sig = square_wave
+    rate, sig = sine_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
     
     yield wav_file
@@ -62,7 +62,7 @@ def sine_wave_file(sine_wave):
 
 
 @pytest.fixture
-def square_wave_file(sine_wave):
+def square_wave_file(square_wave):
     """Create a .wav with the 'square_wave()' fixture
     
        The file is saved as ./assets/square_wave.wav.
