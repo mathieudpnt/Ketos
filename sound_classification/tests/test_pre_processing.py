@@ -38,7 +38,8 @@ def sawtooth_wave():
     signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
 
     return signal
-    
+   
+
 @pytest.fixture
 def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
@@ -54,6 +55,27 @@ def sine_wave_file(sine_wave):
     """
     wav_file = "./assets/sine_wave.wav"
     pp.wave.write(wav_file, rate=44100, data=sine_wave)
+
+    yield wav_file
+    os.remove(wav_file)
+
+
+@pytest.fixture
+def square_wave_file(sine_wave):
+    """Create a .wav with the 'square_wave()' fixture
+    
+       The file is saved as ./assets/square_wave.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file = "./assets/square_wave.wav"
+    rate, sig = square_wave
+    pp.wave.write(wav_file, rate=rate, data=signal)
 
     yield wav_file
     os.remove(wav_file)
