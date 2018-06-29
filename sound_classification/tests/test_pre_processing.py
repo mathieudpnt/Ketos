@@ -14,3 +14,15 @@ def sine_wave():
     signal = 32600*np.sin(2 * np.pi * frequency * x / sampling_rate) 
 
     return signal
+
+
+@pytest.fixture
+def square_wave():
+    sampling_rate = 44100
+    frequency = 20
+    duration = 3
+    x = np.arange(duration * sampling_rate)
+
+    signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
+
+    return signal
