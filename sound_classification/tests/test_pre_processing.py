@@ -29,7 +29,7 @@ def square_wave():
     return sampling_rate, signal
 
 @pytest.fixture
-def square_wave():
+def sawtooth_wave():
     sampling_rate = 44100
     frequency = 20
     duration = 3
