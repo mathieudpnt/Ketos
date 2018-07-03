@@ -12,6 +12,7 @@
 
 """
 
+
 import pytest
 import os
 import numpy as np
@@ -59,7 +60,7 @@ def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
     
        The file is saved as ./assets/sine_wave.wav.
-       When the tests using this fixture are done,
+       When the tests using this fixture are done, 
        the file is deleted.
 
 
@@ -116,4 +117,22 @@ def sawtooth_wave_file(sawtooth_wave):
     yield wav_file
     os.remove(wav_file)
 
+
+def test_standardize_sample_rate(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+
+    duration = 3
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+    assert new_rate == 22000
+    assert len(new_sig) == duration * new_rate 
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
+    assert new_rate == 2000
+    assert len(new_sig) == duration * new_rate 
+
+    pp.wave.write(filename="./assets/tmp_sig.wav", rate=new_rate, data=new_sig)
+    read_rate, read_sig = pp.wave.read("./assets/tmp_sig.wav")
+
+    assert read_rate == new_rate
 
