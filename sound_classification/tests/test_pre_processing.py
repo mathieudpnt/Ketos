@@ -50,7 +50,7 @@ def sawtooth_wave():
     duration = 3
     x = np.arange(duration * sampling_rate)
 
-    signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
+    signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
 
     return sampling_rate, signal
    
