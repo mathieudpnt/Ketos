@@ -7,11 +7,12 @@ In order to install the sound_classification package, clone the repository::
 
 From the cloned repository, run the setup.py script to a tarball::
 
+    cd <path/to/sound_classification>
     python setup.py sdist
 
-And installl using pip::
+And install using pip::
 
-    pip install <path/to/repository_clone/dist/sound_classification-x.y.z/tar.gz
+    pip install /dist/sound_classification-x.y.z/tar.gz
 
 Where <path/to/repository_clone corresponds to your local copy of the repository and x.y.z is the package version.
 
