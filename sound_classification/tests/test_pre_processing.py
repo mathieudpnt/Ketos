@@ -82,7 +82,7 @@ def sine_wave_file(sine_wave):
 def square_wave_file(square_wave):
     """Create a .wav with the 'square_wave()' fixture
     
-       The file is saved as ./assets/square_wave.wav.
+       The file is saved as tests/assets/square_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -91,7 +91,7 @@ def square_wave_file(square_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/square_wave.wav"
+    wav_file =  os.path.join(path_to_assets, "square_wave.wav")
     rate, sig = square_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
 
