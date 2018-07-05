@@ -55,7 +55,16 @@ def sawtooth_wave():
     signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
 
     return sampling_rate, signal
-   
+
+@pytest.fixture
+def const_wave():
+    sampling_rate = 44100
+    duration = 3
+    x = np.arange(duration * sampling_rate)
+    signal = np.ones(len(x))
+
+    return sampling_rate, signal
+
 
 @pytest.fixture
 def sine_wave_file(sine_wave):
@@ -119,6 +128,28 @@ def sawtooth_wave_file(sawtooth_wave):
     yield wav_file
     os.remove(wav_file)
 
+
+@pytest.fixture
+def const_wave_file(const_wave):
+    """Create a .wav with the 'const_wave()' fixture
+    
+       The file is saved as tests/assets/const_wave.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file =  os.path.join(path_to_assets, "const_wave.wav")
+    rate, sig = const_wave
+    pp.wave.write(wav_file, rate=rate, data=sig)
+
+    yield wav_file
+    os.remove(wav_file)
+
+
 @pytest.mark.test_standardize_sample_rate
 def test_resampled_signal_has_correct_rate(sine_wave_file):
     rate, sig = pp.wave.read(sine_wave_file)
@@ -148,6 +179,15 @@ def test_resampled_signal_has_correct_length(sine_wave_file):
 
     new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
     assert len(new_sig) == duration * new_rate 
+
+@pytest.mark.test_standardize_sample_rate
+def test_resampling_preserves_signal_shape(const_wave_file):
+    rate, sig = pp.wave.read(const_wave_file)
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+
+    n = min(len(sig), len(new_sig))
+    for i in range(n):
+        assert sig[i] == new_sig[i]
 
 if __name__=="__main__":
     print(path_to_assets)
