@@ -70,7 +70,7 @@ def sine_wave_file(sine_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = os.path.join(path_to_assets,"sine_wave.wav")
+    wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
     
@@ -133,8 +133,9 @@ def test_standardize_sample_rate(sine_wave_file):
     assert new_rate == 2000
     assert len(new_sig) == duration * new_rate 
 
-    pp.wave.write(filename="./assets/tmp_sig.wav", rate=new_rate, data=new_sig)
-    read_rate, read_sig = pp.wave.read("./assets/tmp_sig.wav")
+    tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
+    pp.wave.write(filename=tmp_file, rate=new_rate, data=new_sig)
+    read_rate, read_sig = pp.wave.read(tmp_file)
 
     assert read_rate == new_rate
 
