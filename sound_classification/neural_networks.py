@@ -146,3 +146,6 @@ class CNNWhale():
 
         print("\nTraining complete!")
         self.writer.add_graph(sess.graph)
+
+    def save_model(self, destination):
+        self.saver.save(self.sess, destination)
