@@ -40,6 +40,21 @@ class CNNWhale():
         self.seed = seed
         self.train_size = self.train_y.shape[0]
 
+        tf_operations = self.create_net_structure()
+
+        self.sess = tf.Session()
+        self.x = tf_operations['x']
+        self.y = tf_operations['y']
+        self.cost_function = tf_operations['cost_function']
+        self.optimiser = tf_operations['optimiser']
+        self.predict = tf_operations['predict']
+        self.correct_prediction = tf_operations['correct_prediction']
+        self.accuracy = tf_operations['accuracy']
+        self.init_op = tf_operations['init_op']
+        self.merged = tf_operations['merged']
+        self.writer = tf_operations['writer']
+        self.saver = tf_operations['saver']
+
 
 
 def create_net_structure(self):
