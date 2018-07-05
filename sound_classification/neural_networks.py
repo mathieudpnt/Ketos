@@ -191,3 +191,7 @@ class CNNWhale():
         if row[1] == 1.0:
             value = 1.0
         return value
+
+    def check_accuracy(self, x, y):
+        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
+        return results
