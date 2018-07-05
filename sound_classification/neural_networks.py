@@ -181,3 +181,7 @@ class CNNWhale():
     def save_model(self, destination):
         self.saver.save(self.sess, destination)
 
+    def to1hot(self,row):
+        one_hot = np.zeros(2)
+        one_hot[row] = 1.0
+        return one_hot
