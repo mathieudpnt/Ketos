@@ -19,6 +19,8 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 
+path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+
 
 @pytest.fixture
 def sine_wave():
@@ -136,3 +138,5 @@ def test_standardize_sample_rate(sine_wave_file):
 
     assert read_rate == new_rate
 
+if __name__=="__main__":
+    print(path_to_assets)
