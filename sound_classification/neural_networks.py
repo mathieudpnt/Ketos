@@ -57,7 +57,7 @@ class CNNWhale():
 
 
 
-def create_net_structure(self):
+    def create_net_structure(self):
         train_data_node = tf.placeholder(tf.float32, shape=(self.batch_size,
                                          self.input_shape[0], self.input_shape[1], 1))
         train_labels_node = tf.placeholder(tf.float32, shape=(self.batch_size, self.num_labels))
@@ -119,3 +119,30 @@ def create_net_structure(self):
                 'writer': writer,
                 'saver': saver,
                 }
+
+    def train(self):
+        print("=============================================")
+        print("Training  started")
+        sess = self.sess
+        # initialise the variables
+        sess.run(self.init_op)
+        total_batch = int(self.train_size / self.batch_size)
+        for epoch in range(self.num_epochs):
+            avg_cost = 0
+            for i in range(total_batch):
+                offset = i*self.batch_size
+                batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
+                batch_x_reshaped = self.reshape_x(batch_x)
+                batch_y = self.train_y[offset:(offset + self.batch_size)]
+                _, c = sess.run([self.optimiser, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
+                avg_cost += c / total_batch
+            
+            validation_x_reshaped = self.reshape_x(self.validation_x)
+            train_acc = self.train_accuracy()
+            print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc))
+            summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
+            self.writer.add_summary(summary, epoch)
+
+
+        print("\nTraining complete!")
+        self.writer.add_graph(sess.graph)
