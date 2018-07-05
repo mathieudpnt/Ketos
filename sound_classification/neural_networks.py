@@ -195,3 +195,7 @@ class CNNWhale():
     def check_accuracy(self, x, y):
         results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
         return results
+
+    def _get_predictions(self, x ,y):
+        results = self.sess.run(self.predict, feed_dict={self.x:x, self.y:y})
+        return results
