@@ -119,25 +119,35 @@ def sawtooth_wave_file(sawtooth_wave):
     yield wav_file
     os.remove(wav_file)
 
-
-def test_standardize_sample_rate(sine_wave_file):
+@pytest.mark.test_standardize_sample_rate
+def test_resampled_signal_has_correct_rate(sine_wave_file):
     rate, sig = pp.wave.read(sine_wave_file)
 
-    duration = 3
+    duration = len(sig) / rate
 
     new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
     assert new_rate == 22000
-    assert len(new_sig) == duration * new_rate 
 
     new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
     assert new_rate == 2000
-    assert len(new_sig) == duration * new_rate 
 
     tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
     pp.wave.write(filename=tmp_file, rate=new_rate, data=new_sig)
     read_rate, read_sig = pp.wave.read(tmp_file)
 
     assert read_rate == new_rate
+
+@pytest.mark.test_standardize_sample_rate
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+
+    duration = len(sig) / rate
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+    assert len(new_sig) == duration * new_rate 
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
+    assert len(new_sig) == duration * new_rate 
 
 if __name__=="__main__":
     print(path_to_assets)
