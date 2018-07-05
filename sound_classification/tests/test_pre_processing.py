@@ -103,7 +103,7 @@ def square_wave_file(square_wave):
 def sawtooth_wave_file(sawtooth_wave):
     """Create a .wav with the 'sawtooth_wave()' fixture
     
-       The file is saved as ./assets/sawtooth_wave.wav.
+       The file is saved as tests/assets/sawtooth_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -112,7 +112,7 @@ def sawtooth_wave_file(sawtooth_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/sawtooth_wave.wav"
+    wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
     rate, sig = sawtooth_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
 
