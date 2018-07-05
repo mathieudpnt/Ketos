@@ -185,3 +185,9 @@ class CNNWhale():
         one_hot = np.zeros(2)
         one_hot[row] = 1.0
         return one_hot
+
+    def from1hot(self,row):
+        value=0.0
+        if row[1] == 1.0:
+            value = 1.0
+        return value
