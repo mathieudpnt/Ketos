@@ -3,21 +3,24 @@ stages:
 - test
 - deploy
 
-.run-tests:
+#before_script:
+# - apt-get install python
+
+run-tests:
  type: test
  script:
   - pytest
  only:
   - master
 
-.create-docs:
+create-docs:
  type: deploy
  script:
   - cd docs/ && make html && cd ..
  only:
   - master
 
-.create-package:
+create-package:
  type: deploy
  script:
   - python setup.py sdist
