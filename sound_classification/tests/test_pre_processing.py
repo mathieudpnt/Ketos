@@ -61,7 +61,7 @@ def sawtooth_wave():
 def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
     
-       The file is saved as ./assets/sine_wave.wav.
+       The file is saved as tests/assets/sine_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -70,7 +70,7 @@ def sine_wave_file(sine_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/sine_wave.wav"
+    wav_file = os.path.join(path_to_assets,"sine_wave.wav")
     rate, sig = sine_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
     
