@@ -189,5 +189,17 @@ def test_resampling_preserves_signal_shape(const_wave_file):
     for i in range(n):
         assert sig[i] == new_sig[i]
 
-if __name__=="__main__":
-    print(path_to_assets)
+@pytest.mark.test_standardize_sample_rate
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+    y = abs(np.fft.rfft(sig))
+    freq = np.argmax(y)
+    freqHz = freq * rate / len(sig)
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+    new_y = abs(np.fft.rfft(new_sig))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_rate / len(new_sig)
+
+    assert freqHz == new_freqHz
+
