@@ -19,6 +19,8 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 
+path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+
 
 @pytest.fixture
 def sine_wave():
@@ -59,7 +61,7 @@ def sawtooth_wave():
 def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
     
-       The file is saved as ./assets/sine_wave.wav.
+       The file is saved as tests/assets/sine_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -68,7 +70,7 @@ def sine_wave_file(sine_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/sine_wave.wav"
+    wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
     
@@ -80,7 +82,7 @@ def sine_wave_file(sine_wave):
 def square_wave_file(square_wave):
     """Create a .wav with the 'square_wave()' fixture
     
-       The file is saved as ./assets/square_wave.wav.
+       The file is saved as tests/assets/square_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -89,7 +91,7 @@ def square_wave_file(square_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/square_wave.wav"
+    wav_file =  os.path.join(path_to_assets, "square_wave.wav")
     rate, sig = square_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
 
@@ -101,7 +103,7 @@ def square_wave_file(square_wave):
 def sawtooth_wave_file(sawtooth_wave):
     """Create a .wav with the 'sawtooth_wave()' fixture
     
-       The file is saved as ./assets/sawtooth_wave.wav.
+       The file is saved as tests/assets/sawtooth_wave.wav.
        When the tests using this fixture are done, 
        the file is deleted.
 
@@ -110,7 +112,7 @@ def sawtooth_wave_file(sawtooth_wave):
             wav_file : str
                 A string containing the path to the .wav file.
     """
-    wav_file = "./assets/sawtooth_wave.wav"
+    wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
     rate, sig = sawtooth_wave
     pp.wave.write(wav_file, rate=rate, data=sig)
 
@@ -131,8 +133,11 @@ def test_standardize_sample_rate(sine_wave_file):
     assert new_rate == 2000
     assert len(new_sig) == duration * new_rate 
 
-    pp.wave.write(filename="./assets/tmp_sig.wav", rate=new_rate, data=new_sig)
-    read_rate, read_sig = pp.wave.read("./assets/tmp_sig.wav")
+    tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
+    pp.wave.write(filename=tmp_file, rate=new_rate, data=new_sig)
+    read_rate, read_sig = pp.wave.read(tmp_file)
 
     assert read_rate == new_rate
 
+if __name__=="__main__":
+    print(path_to_assets)
