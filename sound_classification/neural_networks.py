@@ -147,5 +147,37 @@ class CNNWhale():
         print("\nTraining complete!")
         self.writer.add_graph(sess.graph)
 
+    def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
+        # setup the filter input shape for tf.nn.conv_2d
+        conv_filt_shape = [filter_shape[0], filter_shape[1], num_input_channels, num_filters]
+
+        # initialise weights and bias for the filter
+        weights = tf.Variable(tf.truncated_normal(conv_filt_shape, stddev=0.03), name=name+'_W')
+        bias = tf.Variable(tf.truncated_normal([num_filters]), name=name+'_b')
+
+        # setup the convolutional layer operation
+        out_layer = tf.nn.conv2d(input_data, weights, [1, 1, 1, 1], padding='SAME')
+
+        # add the bias
+        out_layer += bias
+
+        # apply a ReLU non-linear activation
+        out_layer = tf.nn.relu(out_layer)
+
+        # now perform max pooling
+        # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
+        # calculated).  It must be 4D to match the convolution - in this case, for each image we want to use a 2 x 2 area
+        # applied to each channel
+        ksize = [1, pool_shape[0], pool_shape[1], 1]
+        # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
+        # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
+        # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
+        # to do strides of 2 in the x and y directions.
+        strides = [1, 2, 2, 1]
+        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='SAME')
+
+        return out_layer
+    
     def save_model(self, destination):
         self.saver.save(self.sess, destination)
+
