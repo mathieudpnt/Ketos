@@ -199,3 +199,7 @@ class CNNWhale():
     def _get_predictions(self, x ,y):
         results = self.sess.run(self.predict, feed_dict={self.x:x, self.y:y})
         return results
+
+    def reshape_x(self, x):
+        reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
+        return reshaped_x
