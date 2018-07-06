@@ -343,6 +343,17 @@ class CNNWhale():
         return results
 
     def _get_predictions(self, x ,y):
+        """ Predict labels by running the model on x
+
+        Args:
+            x:tensor
+                Tensor containing the input data.
+            y: tensor
+                Tensor containing the one hot encoded labels.
+        Returns:
+            results: vector
+                A vector containing the predicted labels.                
+        """
         results = self.sess.run(self.predict, feed_dict={self.x:x, self.y:y})
         return results
 
