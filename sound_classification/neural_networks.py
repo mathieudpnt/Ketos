@@ -21,7 +21,7 @@ import pandas as pd
 
 
 class CNNWhale():
-    """ Create a Convolution Neural Network.
+    """ Create a Convolutional Neural Network.
 
         The Network has two convolutional layers
         and two fully connected layers with ReLU activation functions.
@@ -114,6 +114,21 @@ class CNNWhale():
 
 
     def create_net_structure(self):
+        """Create the Neural Network structure.
+
+            The Network has two convolutional layers
+            and two fully connected layers with ReLU activation functions.
+
+            Returns:
+                tf_objects: dict
+                    A dictionary with the tensorflow objects necessary
+                    to train and run the model.
+                    sess, x, y, cost_function, optimiser, predict, correct_prediction,
+                    accuracy,init_op, merged, writer, saver
+                    These objects are stored as
+                    instance attributes when the class is instantiated.
+
+        """
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]])
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels])
@@ -157,7 +172,7 @@ class CNNWhale():
         writer = tf.summary.FileWriter('summaries')
         saver = tf.train.Saver()
 
-        return {'x': x,
+        tf_objects = {'x': x,
                 'y':y,            
                 'cost_function': cross_entropy,
                 'optimiser': optimiser,
@@ -169,6 +184,8 @@ class CNNWhale():
                 'writer': writer,
                 'saver': saver,
                 }
+
+        return tf_objects
 
     def train(self):
         print("=============================================")
