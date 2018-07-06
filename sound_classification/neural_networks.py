@@ -327,6 +327,18 @@ class CNNWhale():
         return value
 
     def check_accuracy(self, x, y):
+        """ Check accuracy of the model by checking how close
+         to y the models predictions are when fed x
+
+        Args:
+            x:tensor
+                Tensor containing the input data
+            y: tensor
+                Tensor containing the one hot encoded labels
+        Returns:
+            results: float
+                The accuracy value
+        """
         results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
         return results
 
