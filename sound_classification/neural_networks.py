@@ -248,3 +248,9 @@ class CNNWhale():
     def mislabelled_on_test(self, print_report=False):
         report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
         return report
+
+    def train_accuracy(self):
+        train_x_reshaped = self.reshape_x(self.train_x)
+        #validation_x_reshaped = reshape_x(x, input_shape)
+        results = self.check_accuracy(train_x_reshaped, self.train_y)
+        return results
