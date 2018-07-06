@@ -4,7 +4,7 @@ stages:
 - deploy
 
 before_script:
- - apt-get install pytest
+ - pip install pytest
 
 run-tests:
  type: test
