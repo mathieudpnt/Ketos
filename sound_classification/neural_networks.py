@@ -382,6 +382,12 @@ class CNNWhale():
         return results
 
     def predict_on_test(self):
+        """ Predict labels by running the model on the test set.
+        
+        Returns:
+            results: vector
+                A vector containing the predicted labels.                
+        """
         test_x_reshaped = self.reshape_x(self.test_x)
         results = self._get_predictions(test_x_reshaped, self.test_y)
         return results
