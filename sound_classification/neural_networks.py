@@ -188,6 +188,16 @@ class CNNWhale():
         return tf_objects
 
     def train(self):
+        """Train the neural network. on the training set.
+
+           Devide the training set in batches in orther to train.
+           Once training is done, check the accuracy on the validation set.
+           Record summary statics during training. 
+
+
+        Returns:
+            None
+        """
         print("=============================================")
         print("Training  started")
         sess = self.sess
