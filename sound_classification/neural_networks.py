@@ -240,3 +240,9 @@ class CNNWhale():
             print("=============================================") 
         
         return report
+
+    def mislabelled_on_validation(self, print_report=False):
+        report = self._get_mislabelled(x=self.validation_x,y=self.validation_y, print_report=print_report)
+        return report
+
+    
