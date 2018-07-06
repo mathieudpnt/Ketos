@@ -203,3 +203,45 @@ def test_resampling_preserves_signal_frequency(sine_wave_file):
 
     assert freqHz == new_freqHz
 
+@pytest.mark.test_make_frames
+def test_signal_is_padded():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = 2*duration
+    winstep = 2*duration
+    frames = pp.make_frames(sig, rate, winlen, winstep)
+    assert frames.shape[0] == 1
+    assert frames.shape[1] == 2*len(sig)
+    assert frames[0, len(sig)] == 0
+    assert frames[0, 2*len(sig)-1] == 0
+
+@pytest.mark.test_make_frames
+def test_can_make_overlapping_frames():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/2
+    winstep = duration/4
+    frames = pp.make_frames(sig, rate, winlen, winstep)
+    assert frames.shape[0] == 4
+    assert frames.shape[1] == len(sig)/2
+
+@pytest.mark.test_make_frames
+def test_can_make_non_overlapping_frames():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/2
+    frames = pp.make_frames(sig, rate, winlen, winstep)
+    assert frames.shape[0] == 2
+    assert frames.shape[1] == len(sig)/4
+
+@pytest.mark.test_make_frames
+def test_first_frame_matches_original_signal():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    frames = pp.make_frames(sig, rate, winlen, winstep)
+    assert frames.shape[0] == 10
+    for i in range(int(winlen*rate)):
+        assert sig[i] == frames[0,i]

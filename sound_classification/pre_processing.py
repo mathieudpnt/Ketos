@@ -72,18 +72,18 @@ def make_frames(sig, rate, winlen, winstep):
             2-d array with padded frames.
     """
 
-    signal_length = len(sig)
+    totlen = len(sig)
     winlen = int(round(winlen * rate))
     winstep = int(round(winstep * rate))
-    # Make sure that we have at least 1 frame
-    n_frames = int(np.ceil(float(np.abs(signal_length - winlen)) / winstep))
 
-    pad_signal_length = n_frames * winstep + winlen
-    z = np.zeros((pad_signal_length - signal_length))
-    pad_signal = np.append(sig, z) 
+    n_frames = int(np.ceil(totlen / winstep))
+    n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
+    
+    z = np.zeros(n_zeros)
+    padded_signal = np.append(sig, z)
 
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
-    frames = pad_signal[indices.astype(np.int32, copy=False)]
+    frames = padded_signal[indices.astype(np.int32, copy=False)]
 
     return frames
 
