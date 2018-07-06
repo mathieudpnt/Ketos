@@ -50,9 +50,11 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
     
     return new_rate, sig
 
-def pad_signal(sig, rate, winlen, winstep):
-    """ Pad signal to make sure that all frames have equal number of samples.
-    
+def make_frames(sig, rate, winlen, winstep):
+    """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
+        frames. If winstep < winlen, the frames overlap.
+
+        If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
         This assures that sample are not truncated from the original signal.
 
     Args: 
