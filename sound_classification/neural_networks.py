@@ -203,3 +203,8 @@ class CNNWhale():
     def reshape_x(self, x):
         reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
         return reshaped_x
+
+    def predict_on_validation(self):
+        validation_x_reshaped = self.reshape_x(self.validation_x)
+        results = self._get_predictions(validation_x_reshaped, self.validation_y)
+        return results
