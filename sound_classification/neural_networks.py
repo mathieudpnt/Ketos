@@ -21,6 +21,62 @@ import pandas as pd
 
 
 class CNNWhale():
+    """ Create a Convolution Neural Network.
+
+        The Network has two convolutional layers
+        and two fully connected layers with ReLU activation functions.
+
+        Args:
+            train_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image. 
+            train_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            validation_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
+
+            validation_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            test_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
+            test_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            batch_size: int
+                The number of examples in each batch
+            num_labels: int
+                The number of possible values for the labels
+            input_shape: tuple (int)
+                A tuple of ints specifying the input shape. Example: (60,20)
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            num_epochs: int
+                The number of epochs
+            
+        Attributes:
+            sess: tensorflow Session
+                The session object that will run operations in the network's graph.
+            x: tensorflow tensor
+                The input images.
+            y: tensorflow tensor
+                The labels.
+            cost_function: tensorflow operation
+                The cost function node in the network's graph.
+            optimiser: tensorflow operation
+                The optimizer that optimizes the weights.
+            predict: tensorflow operation
+                The prediction operation. Uses the trained model to predict labels.
+            correct_prediction: tensorflow operation
+                The operation that verifies if a prediction is correct.
+            accuracy: tensorflow operation
+                The operation that computes the predictions accuracy.
+            init_op: tensorflow operation
+                Initializer.
+            merged: tensorflow summary
+                The merged version of all summary statiscs collected. 
+            writer: tensorflow writer
+                Writer object that records model information on the saved model file.
+            saver: tensorflow saver
+                Saver object that save model information to a file.
+    """
 
     def __init__(self, train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
