@@ -55,7 +55,16 @@ def sawtooth_wave():
     signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
 
     return sampling_rate, signal
-   
+
+@pytest.fixture
+def const_wave():
+    sampling_rate = 44100
+    duration = 3
+    x = np.arange(duration * sampling_rate)
+    signal = np.ones(len(x))
+
+    return sampling_rate, signal
+
 
 @pytest.fixture
 def sine_wave_file(sine_wave):
@@ -120,18 +129,38 @@ def sawtooth_wave_file(sawtooth_wave):
     os.remove(wav_file)
 
 
-def test_standardize_sample_rate(sine_wave_file):
+@pytest.fixture
+def const_wave_file(const_wave):
+    """Create a .wav with the 'const_wave()' fixture
+    
+       The file is saved as tests/assets/const_wave.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file =  os.path.join(path_to_assets, "const_wave.wav")
+    rate, sig = const_wave
+    pp.wave.write(wav_file, rate=rate, data=sig)
+
+    yield wav_file
+    os.remove(wav_file)
+
+
+@pytest.mark.test_standardize_sample_rate
+def test_resampled_signal_has_correct_rate(sine_wave_file):
     rate, sig = pp.wave.read(sine_wave_file)
 
-    duration = 3
+    duration = len(sig) / rate
 
     new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
     assert new_rate == 22000
-    assert len(new_sig) == duration * new_rate 
 
     new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
     assert new_rate == 2000
-    assert len(new_sig) == duration * new_rate 
 
     tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
     pp.wave.write(filename=tmp_file, rate=new_rate, data=new_sig)
@@ -139,5 +168,38 @@ def test_standardize_sample_rate(sine_wave_file):
 
     assert read_rate == new_rate
 
-if __name__=="__main__":
-    print(path_to_assets)
+@pytest.mark.test_standardize_sample_rate
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+
+    duration = len(sig) / rate
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+    assert len(new_sig) == duration * new_rate 
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=2000)
+    assert len(new_sig) == duration * new_rate 
+
+@pytest.mark.test_standardize_sample_rate
+def test_resampling_preserves_signal_shape(const_wave_file):
+    rate, sig = pp.wave.read(const_wave_file)
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+
+    n = min(len(sig), len(new_sig))
+    for i in range(n):
+        assert sig[i] == new_sig[i]
+
+@pytest.mark.test_standardize_sample_rate
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+    y = abs(np.fft.rfft(sig))
+    freq = np.argmax(y)
+    freqHz = freq * rate / len(sig)
+
+    new_rate, new_sig = pp.standardize_sample_rate(sig=sig, orig_rate=rate, new_rate=22000)
+    new_y = abs(np.fft.rfft(new_sig))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_rate / len(new_sig)
+
+    assert freqHz == new_freqHz
+
