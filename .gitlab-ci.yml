@@ -3,11 +3,11 @@ stages:
 - test
 - deploy
 
-before_script:
- image: python:3-alpine
- - pip install pytest
+#before_script:
+# - pip install pytest
 
 run-tests:
+ image: python:3-alpine
  type: test
  script:
   - pytest
