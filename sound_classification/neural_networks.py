@@ -371,6 +371,12 @@ class CNNWhale():
         return reshaped_x
 
     def predict_on_validation(self):
+        """ Predict labels by running the model on the validation set.
+        
+        Returns:
+            results: vector
+                A vector containing the predicted labels.                
+        """
         validation_x_reshaped = self.reshape_x(self.validation_x)
         results = self._get_predictions(validation_x_reshaped, self.validation_y)
         return results
