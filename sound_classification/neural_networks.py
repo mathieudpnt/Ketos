@@ -214,3 +214,29 @@ class CNNWhale():
         results = self._get_predictions(test_x_reshaped, self.test_y)
         return results
     
+    def _get_mislabelled(self, x, y, print_report=False):
+        x_reshaped = self.reshape_x(x)
+        predicted = self._get_predictions(x_reshaped,y)
+        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,test_y))), "pred": predicted})
+       
+        n_predictions = len(pred_df)
+        n_correct = sum(pred_df.label == pred_df.pred)
+        perc_correct = round(n_correct/n_predictions * 100, 2)
+        incorrect = pred_df[pred_df.label != pred_df.pred]
+        n_incorrect = len(incorrect)  
+        perc_incorrect = round(n_incorrect/n_predictions * 100, 2)
+        
+        #pred_df.to_csv("predictions.csv")
+        report = pd.DataFrame({"correct":[n_correct], "incorrect":[n_incorrect],
+                            "%correct":[perc_correct],"%incorrect":[perc_incorrect],
+                            "total":[n_predictions]})
+
+        if print_report:
+            print("=============================================")
+            print("Correct classifications: {0} of {1} ({2}%)".format(n_correct, n_predictions, perc_correct))
+            print("Incorrect classifications: {0} of {1} ({2})%".format(n_incorrect, n_predictions, perc_incorrect))
+            print("These were the incorrect classifications:")
+            print(incorrect)
+            print("=============================================") 
+        
+        return report
