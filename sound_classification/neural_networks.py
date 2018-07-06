@@ -58,12 +58,6 @@ class CNNWhale():
 
 
     def create_net_structure(self):
-        train_data_node = tf.placeholder(tf.float32, shape=(self.batch_size,
-                                         self.input_shape[0], self.input_shape[1], 1))
-        train_labels_node = tf.placeholder(tf.float32, shape=(self.batch_size, self.num_labels))
-        validation_data_node = tf.constant(self.validation_x)
-        test_data_node = tf.constant(self.test_x)
-
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]])
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels])
