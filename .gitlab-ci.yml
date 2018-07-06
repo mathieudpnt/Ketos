@@ -10,15 +10,13 @@ run-tests:
  type: test
  script:
   - pytest
- only:
-  - branches
 
 create-docs:
  type: deploy
  script:
   - cd docs/ && make html && cd ..
  only:
-  - branches
+  - master
 
 create-package:
  type: deploy
@@ -26,4 +24,4 @@ create-package:
   - python setup.py sdist
   - pip install dist/*
  only:
-  - branches
+  - master
