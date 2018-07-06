@@ -4,6 +4,7 @@ stages:
 - deploy
 
 before_script:
+ image: python:3-alpine
  - pip install pytest
 
 run-tests:
