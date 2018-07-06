@@ -225,6 +225,29 @@ class CNNWhale():
         self.writer.add_graph(sess.graph)
 
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
+        """Create a convolutional layer.
+
+            Args:
+                input_data: tensorflow tensor
+                    The input nodes for the convolutional layer
+                num_input_channels: int
+                    The number of input channels in input image
+                num_filters: int
+                    Number of filters to be used in the convolution
+                filter_shape: list (int)
+                    List of integers defining the shape of the filters.
+                    Example: [2,8]
+                pool_shape: list (int)
+                    List of integers defining the shape of the pooling window.
+                    Example: [2,8]
+                name: str
+                    Name by which the layer will be identified in the graph.
+
+            Returns:
+                out_layer: tensorflow layer
+                    The convolutional layer.
+
+        """
         # setup the filter input shape for tf.nn.conv_2d
         conv_filt_shape = [filter_shape[0], filter_shape[1], num_input_channels, num_filters]
 
