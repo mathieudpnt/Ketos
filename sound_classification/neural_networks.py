@@ -358,6 +358,15 @@ class CNNWhale():
         return results
 
     def reshape_x(self, x):
+        """ Reshape input data from a 2s matrix to a 1d vector.
+
+        Args:
+            x: numpy array
+                2d array containing the input data.
+        Returns:
+            results: vector
+                A vector containing the flattened inputs.                
+        """
         reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
         return reshaped_x
 
