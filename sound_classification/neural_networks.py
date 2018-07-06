@@ -308,6 +308,19 @@ class CNNWhale():
         return one_hot
 
     def from1hot(self,row):
+        """Converts one hot encoding (two values) to binary label (one value).
+
+         
+            Args:
+                row: bool/int(0 or 1)
+                    The the label to be converted.
+            
+            Returns:
+                value:float
+                    a scalar of value 0.0 if row was [1,0] and 1.0 
+                    if row was [0,1].
+        """
+        
         value=0.0
         if row[1] == 1.0:
             value = 1.0
