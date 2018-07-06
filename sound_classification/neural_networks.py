@@ -279,6 +279,16 @@ class CNNWhale():
         return out_layer
     
     def save_model(self, destination):
+        """ Save the model to destination
+
+            Args:
+                destination: str
+                    Path to the file in which the model will be saved. 
+
+            Returns:
+                None.
+        
+        """
         self.saver.save(self.sess, destination)
 
     def to1hot(self,row):
