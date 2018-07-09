@@ -35,6 +35,18 @@ def to1hot(row):
 
 
 def from1hot(row):
+    """Converts the one hot label to binary format
+
+            Args:
+                row: numpy array
+                    The the label to be converted. ([0,1] or [1,0])
+            
+            Returns:
+                one_hot:float
+                    A scalar of value 0.0 if row was [1,0] and 1.0 
+                    if row was [0,1].
+     """
+     
     value=0.0
     if row[1] == 1.0:
         value = 1.0
