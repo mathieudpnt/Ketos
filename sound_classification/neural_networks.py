@@ -460,6 +460,22 @@ class CNNWhale():
         return results
 
     def mislabelled_on_test(self, print_report=False):
+            """ Report the number of examples mislabelled by the trained model on
+            the test set.
+
+            This method wraps around the '_get_mislabelled()' method in the same class.
+
+            Args:
+                print_report:bool
+                    If True, prints the percentage of correct and incorrect
+                    and the index of examples misclassified examples with the
+                    correct and predicted labels.
+            Returns:
+                results: tuple (pandas DataFrames)
+                Tuple with two  DataFrames. The first contains
+                number and percentage of correct/incorrect classification. The second,
+                the incorrect examples indices with incorrect and correct labels. 
+        """
         report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
         return report
 
