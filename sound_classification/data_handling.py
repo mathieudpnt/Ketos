@@ -54,6 +54,25 @@ def from1hot(row):
 
 
 def encode_database(database, x_column, y_column):
+    """ Encodes database so that it has flatten inputs and one hot labels.
+
+    Args:
+        database: pandas DataFrame
+            A the database containing at least one column of input images
+            and one column of labels
+        x_column: str
+            The name of the column to be used as input
+        y_column: str
+            The name of the column to be used as label.
+            Must be binary (only have 1s or 0s).
+
+        Returns:
+            database: pandas DataFrame
+                The encoded database with two columns: 'x_flatten' containing
+                the flatten input images (as vectors instead of matrices) and
+                'one_hot_encoding' containing the one hot version of the labels.
+    """
+    
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
     return database
