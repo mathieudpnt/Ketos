@@ -110,8 +110,8 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
     Returns:
         spec: numpy array
             Magnitude spectogram.
-        freqMax: float
-            Maximum frequency of fourier transform in Hz.
+        index_to_Hz: float
+            Index to Hz conversion factor.
     """    
     #get frames
     frames = make_frames(sig, rate, winlen, winstep)        
@@ -124,10 +124,9 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
             spec = 20 * np.log10(spec)
 
     #Frequency range (Hz)
-    dim = spec.shape[1]
-    freqMax = dim * rate / frames.shape[1]
+    index_to_Hz = rate / frames.shape[1]
 
-    return spec, freqMax
+    return spec, index_to_Hz
 
 
 def normalize_spec(spec):

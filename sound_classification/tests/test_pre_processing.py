@@ -252,8 +252,8 @@ def test_magnitude_spec_of_sine_wave_is_delta_function():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, freqMax = pp.magnitude_spec(sig, rate, winlen, winstep)
+    mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep)
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
-        freqHz = freq/len(mag[i]) * freqMax
+        freqHz = freq * Hz
         assert freqHz == 20
