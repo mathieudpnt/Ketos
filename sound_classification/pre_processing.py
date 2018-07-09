@@ -118,10 +118,10 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
 
     #Magnitude Spectrogram
     spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
-    if decibel_scale:
-            spec = 20 * np.log10(spec)       # Convert to dB
 
-    spec = np.rot90
+    # Convert to dB
+    if decibel_scale:
+            spec = 20 * np.log10(spec)
 
     #Frequency range (Hz)
     dim = spec.shape[1]

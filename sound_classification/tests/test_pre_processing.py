@@ -245,3 +245,15 @@ def test_first_frame_matches_original_signal():
     assert frames.shape[0] == 10
     for i in range(int(winlen*rate)):
         assert sig[i] == frames[0,i]
+
+@pytest.mark.test_magnitude_spec
+def test_magnitude_spec_of_sine_wave_is_delta_function():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, freqMax = pp.magnitude_spec(sig, rate, winlen, winstep)
+    for i in range(mag.shape[0]):
+        freq   = np.argmax(mag[i])
+        freqHz = freq/len(mag[i]) * freqMax
+        assert freqHz == 20
