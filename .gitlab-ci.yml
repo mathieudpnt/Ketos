@@ -6,8 +6,8 @@ stages:
 - deploy
 
 before_script:
- - apt update
- - apt install libhdf5-serial-dev
+ - apt update -y
+ - apt install libhdf5-serial-dev -y
  - pip install --upgrade pip
  - pip install -r requirements.txt
 
