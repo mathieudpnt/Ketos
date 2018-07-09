@@ -77,6 +77,7 @@ def encode_database(database, x_column, y_column):
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
     return database
 
+
 def split_database(database, boundaries):
     """ Split the database into 3 datasets: train, validation, test.
 
@@ -91,8 +92,8 @@ def split_database(database, boundaries):
             Example: {"train":(0,1000),
                         "validation": (1000,1200),
                         "test": (1200:1400)}
-    
-        Returns: 
+                        
+        Returns:
             datasets : dict
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
@@ -102,9 +103,18 @@ def split_database(database, boundaries):
     validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
     test_data = database[boundaries["test"][0]:boundaries["test"][1]]
 
-    datasets = {"train":train_data,
-                "validation":validation_data,
-                "test":test_data}
+    datasets = {"train": train_data,
+                "validation": validation_data,
+                "test": test_data}
 
     return datasets
 
+
+def stack_dataset(dataset, input_shape):
+    x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
+    y = np.vstack(dataset.one_hot_encoding)
+
+    stacked_dataset = {'x':x,
+                        'y':y}
+
+    return stacked_dataset
