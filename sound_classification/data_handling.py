@@ -78,6 +78,25 @@ def encode_database(database, x_column, y_column):
     return database
 
 def split_database(database, boundaries):
+    """ Split the database into 3 datasets: train, validation, test.
+
+        Args: 
+        database : pandas.DataFrame
+            The database to be split. Must contain at least 2 colummns (x, y).
+            Each row is an example.
+        boundaries: dict
+            Dictionary indicating the initial and final rows for each dataset.
+            Keys must be "train", "validation" and "test".
+            values are tuples with initial and final rows.
+            Example: {"train":(0,1000),
+                        "validation": (1000,1200),
+                        "test": (1200:1400)}
+    
+        Returns: 
+            datasets : dict
+                Dictionary with "train", "validation" and "test" as keys
+                and the respective datasets (pandas.Dataframes) as values.
+    """
     
     train_data = database[boundaries["train"][0]:boundaries["train"][1]]
     validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
@@ -88,3 +107,4 @@ def split_database(database, boundaries):
                 "test":test_data}
 
     return datasets
+
