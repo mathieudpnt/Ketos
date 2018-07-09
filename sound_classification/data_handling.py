@@ -134,3 +134,21 @@ def stack_dataset(dataset, input_shape):
                        'y': y}
 
     return stacked_dataset
+
+
+def prepare_database(database, x_column, y_column, boundaries, input_shape):
+    encoded_data = encode_database(database=database, x_column=x_column, y_column=y_column)
+    datasets = split_database(database=encoded_data, boundaries=boundaries)
+    
+    stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
+    stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
+    stacked_test = stack_dataset(dataset=datasets["test"], input_shape=input_shape)
+    
+    stacked_datasets = {"train_x":stacked_train["x"],
+                        "train_y":stacked_train["y"],
+                        "validation_x":stacked_validation["x"],
+                        "validation_y":stacked_validation["y"],
+                        "test_x":stacked_test["x"],
+                        "test_y":stacked_test["y"]}
+
+    return stacked_datasets
