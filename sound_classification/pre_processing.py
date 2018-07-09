@@ -87,7 +87,7 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
+def magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
     """ Create a magnitute spectogram.
 
         First, the signal is framed into overlapping frames.
@@ -102,10 +102,10 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
             Length of each frame (in seconds)
         winstep : float
             Time (in seconds) after the start of the previous frame that the next frame should start.
-        NFTT : int
-            The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
         decibel_scale: bool
             If True, convert spectogram to decibels using a logarithm scale.. Default is False.
+        NFTT : int
+            The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
 
     Returns:
         spec: numpy array

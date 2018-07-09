@@ -257,3 +257,13 @@ def test_magnitude_spec_of_sine_wave_is_delta_function():
         freq   = np.argmax(mag[i])
         freqHz = freq * Hz
         assert freqHz == 20
+
+@pytest.mark.test_magnitude_spec
+def test_magnitude_spec_returns_decibels():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep)
+    mag_dB, Hz = pp.magnitude_spec(sig, rate, winlen, winstep, True)
+    assert np.max(mag_dB[0]) == 20 * np.log10(np.max(mag[0])) 
