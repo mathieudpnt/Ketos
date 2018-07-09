@@ -5,5 +5,3 @@ scipy
 opencv-python
 pandas
 tensorflow
-python_speech_features
-pydub

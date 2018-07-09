@@ -1,6 +1,3 @@
-import os
-import traceback
-import operator
 
 import numpy as np
 import cv2
@@ -10,9 +7,6 @@ import scipy.ndimage as ndimage
 import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
-
-import python_speech_features as psf
-from pydub import AudioSegment
 
 def standardize_sample_rate(sig, orig_rate, new_rate):
     """ Resample the signal sig to the sampling rate new_rate.
