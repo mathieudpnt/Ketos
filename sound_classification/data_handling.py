@@ -76,3 +76,15 @@ def encode_database(database, x_column, y_column):
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
     return database
+
+def split_database(database, boundaries):
+    
+    train_data = database[boundaries["train"][0]:boundaries["train"][1]]
+    validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
+    test_data = database[boundaries["test"][0]:boundaries["test"][1]]
+
+    datasets = {"train":train_data,
+                "validation":validation_data,
+                "test":test_data}
+
+    return datasets
