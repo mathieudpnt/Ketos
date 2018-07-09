@@ -47,7 +47,13 @@ def from1hot(row):
                     if row was [0,1].
      """
      
-    value=0.0
+    value = 0.0
     if row[1] == 1.0:
         value = 1.0
     return value
+
+
+def encode_database(database, x_column, y_column):
+    database["one_hot_encoding"] = database[y_column].apply(to1hot)
+    database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
+    return database
