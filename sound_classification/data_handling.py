@@ -137,6 +137,40 @@ def stack_dataset(dataset, input_shape):
 
 
 def prepare_database(database, x_column, y_column, boundaries, input_shape):
+    """ Encode data base, split it into training, validation and test sets
+        and stack those sets.
+
+        This function is a wrap around the 'encode_database', 'split_databases'
+        and 'stack_datasets'
+
+        Args:
+            database: pandas DataFrame
+                A the database containing at least one column of input images
+                and one column of labels
+            x_column: str
+                The name of the column to be used as input
+            y_column: str
+                The name of the column to be used as label.
+                Must be binary (only have 1s or 0s).
+            boundaries: dict
+                Dictionary indicating the initial and final rows for each dataset.
+                Keys must be "train", "validation" and "test".
+                values are tuples with initial and final rows.
+                Example: {"train":(0,1000),
+                            "validation": (1000,1200),
+                            "test": (1200:1400)}
+            input_shape: tuple (int,int)
+                A tuple specifying the shape of the input images in pixels.
+                Example: (128,128)
+
+        Returns:
+            stacked_datasets: dict
+                A dictionary containing the stacked datasets.
+                Keys are: train_x, train_y, validation_x, validation_y
+                          test_x and test_y. Values are the respective
+                                             stacked datasets (numpy arrays)
+    """
+
     encoded_data = encode_database(database=database, x_column=x_column, y_column=y_column)
     datasets = split_database(database=encoded_data, boundaries=boundaries)
     
@@ -144,11 +178,11 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
     stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
     stacked_test = stack_dataset(dataset=datasets["test"], input_shape=input_shape)
     
-    stacked_datasets = {"train_x":stacked_train["x"],
-                        "train_y":stacked_train["y"],
-                        "validation_x":stacked_validation["x"],
-                        "validation_y":stacked_validation["y"],
-                        "test_x":stacked_test["x"],
-                        "test_y":stacked_test["y"]}
+    stacked_datasets = {"train_x": stacked_train["x"],
+                        "train_y": stacked_train["y"],
+                        "validation_x": stacked_validation["x"],
+                        "validation_y": stacked_validation["y"],
+                        "test_x": stacked_test["x"],
+                        "test_y": stacked_test["y"]}
 
     return stacked_datasets
