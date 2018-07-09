@@ -91,7 +91,7 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
     """ Create a magnitute spectogram.
 
         First, the signal is framed into overlapping frames.
-        Second, creates the spectogram
+        Second, creates the spectogram using FFT.
 
     Args:
         sig : numpy array
@@ -110,6 +110,8 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
     Returns:
         spec: numpy array
             Magnitude spectogram.
+        freqMax: float
+            Maximum frequency of fourier transform in Hz.
     """    
     #get frames
     frames = make_frames(sig, rate, winlen, winstep)        
@@ -118,8 +120,14 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, decibel_scale=False):
     spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
     if decibel_scale:
             spec = 20 * np.log10(spec)       # Convert to dB
+
     spec = np.rot90
-    return spec
+
+    #Frequency range (Hz)
+    dim = spec.shape[1]
+    freqMax = dim * rate / frames.shape[1]
+
+    return spec, freqMax
 
 
 def normalize_spec(spec):
