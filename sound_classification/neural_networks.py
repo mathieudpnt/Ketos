@@ -309,7 +309,6 @@ class CNNWhale():
 
     def from1hot(self,row):
         """Converts one hot encoding (two values) to binary label (one value).
-
          
             Args:
                 row: bool/int(0 or 1)
@@ -393,6 +392,25 @@ class CNNWhale():
         return results
     
     def _get_mislabelled(self, x, y, print_report=False):
+        """ Report the number of examples mislabelled by the model.
+
+            Args:
+                x:tensor
+                    Tensor containing the input data.
+                y: tensor
+                    Tensor containing the one hot encoded labels.
+                print_report:bool
+                    If True, prints the percentage of correct and incorrect
+                    and the index of examples misclassified examples with the
+                    correct and predicted labels.
+            Returns:
+                results: tuple (pandas DataFrames)
+                Tuple with two  DataFrames (report, incorrect). The first contains
+                number and percentage of correct/incorrect classification. The second,
+                the incorrect examples indices with incorrect and correct labels. 
+        
+        """
+
         x_reshaped = self.reshape_x(x)
         predicted = self._get_predictions(x_reshaped,y)
         pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,test_y))), "pred": predicted})
@@ -417,7 +435,8 @@ class CNNWhale():
             print(incorrect)
             print("=============================================") 
         
-        return report
+        results =(report,incorrect)    
+        return results
 
     def mislabelled_on_validation(self, print_report=False):
         report = self._get_mislabelled(x=self.validation_x,y=self.validation_y, print_report=print_report)
