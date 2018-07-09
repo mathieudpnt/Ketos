@@ -14,3 +14,10 @@ Authors: Fabio Frazao and Oliver Kirsebom
     License:
 
 """
+
+
+def to1hot(row):
+    one_hot = np.zeros(2)
+    one_hot[row] = 1.0
+    return one_hot
+
