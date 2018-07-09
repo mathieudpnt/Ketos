@@ -3,8 +3,8 @@ stages:
 - test
 - deploy
 
-#before_script:
-# - apt-get install python
+before_script:
+ - pip install pytest
 
 run-tests:
  type: test

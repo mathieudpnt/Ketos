@@ -50,9 +50,11 @@ def standardize_sample_rate(sig, orig_rate, new_rate):
     
     return new_rate, sig
 
-def pad_signal(sig, rate, winlen, winstep):
-    """ Pad signal to make sure that all frames have equal number of samples.
-    
+def make_frames(sig, rate, winlen, winstep):
+    """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
+        frames. If winstep < winlen, the frames overlap.
+
+        If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
         This assures that sample are not truncated from the original signal.
 
     Args: 
@@ -70,18 +72,18 @@ def pad_signal(sig, rate, winlen, winstep):
             2-d array with padded frames.
     """
 
-    signal_length = len(sig)
+    totlen = len(sig)
     winlen = int(round(winlen * rate))
     winstep = int(round(winstep * rate))
-    # Make sure that we have at least 1 frame
-    n_frames = int(np.ceil(float(np.abs(signal_length - winlen)) / winstep))
 
-    pad_signal_length = n_frames * winstep + winlen
-    z = np.zeros((pad_signal_length - signal_length))
-    pad_signal = np.append(sig, z) 
+    n_frames = int(np.ceil(totlen / winstep))
+    n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
+    
+    z = np.zeros(n_zeros)
+    padded_signal = np.append(sig, z)
 
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
-    frames = pad_signal[indices.astype(np.int32, copy=False)]
+    frames = padded_signal[indices.astype(np.int32, copy=False)]
 
     return frames
 
