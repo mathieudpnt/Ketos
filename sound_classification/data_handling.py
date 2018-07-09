@@ -33,3 +33,9 @@ def to1hot(row):
     one_hot[row] = 1.0
     return one_hot
 
+
+def from1hot(row):
+    value=0.0
+    if row[1] == 1.0:
+        value = 1.0
+    return value
