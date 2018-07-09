@@ -8,6 +8,7 @@ stages:
 before_script:
  - apt update -y
  - apt install libhdf5-serial-dev -y
+ - apt install python-opencv -y
  - pip install --upgrade pip
  - pip install -r requirements.txt
 
