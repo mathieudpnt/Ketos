@@ -490,7 +490,6 @@ class CNNWhale():
             Returns:
                 results: float
                     The accuracy on the training set.
-        
         """
         train_x_reshaped = self.reshape_x(self.train_x)
         #validation_x_reshaped = reshape_x(x, input_shape)
@@ -498,8 +497,16 @@ class CNNWhale():
         return results
 
     def validation_accuracy(self):
+         """Report the model accuracy on the validation set
+
+            This method wraps around 'check_accuracy()' in the same class.
+
+            Returns:
+                results: float
+                    The accuracy on the validation set.
+        """
+
         validation_x_reshaped = self.reshape_x(self.validation_x)
-        #validation_x_reshaped = reshape_x(x, input_shape)
         results = self.check_accuracy(validation_x_reshaped, self.validation_y)
         return results
 
