@@ -111,10 +111,26 @@ def split_database(database, boundaries):
 
 
 def stack_dataset(dataset, input_shape):
+    """ Stack and reshape a dataset.
+
+        
+        Args:
+            dataset: pandas DataFrame
+                A pandas dataset with two columns:'x_flatten'and
+                'one_hot_encoding' (the output of the 'encode_database' function)
+            input_shape: tuple (int,int)
+                A tuple specifying the shape of the input images in pixels. Example: (128,128)
+
+        Results:
+            stacked_dataset: dict (of numpy arrays)
+            A dictionary containing the stacked versions of the input and labels, 
+            respectively under the keys 'x' and 'y'
+    """
+
     x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
     y = np.vstack(dataset.one_hot_encoding)
 
-    stacked_dataset = {'x':x,
-                        'y':y}
+    stacked_dataset = {'x': x,
+                       'y': y}
 
     return stacked_dataset
