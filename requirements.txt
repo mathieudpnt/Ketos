@@ -3,4 +3,5 @@ numpy
 tables
 scipy
 pandas
+opencv-python
 tensorflow
