@@ -61,7 +61,7 @@ def make_frames(sig, rate, winlen, winstep):
         sig: numpy array
             1-d array containing signal.
         rate : int
-            The sampling rate of the signal.
+            The sampling rate of the signal in Hz.
         winlen: float
             The window length in seconds.
         winstep: float
@@ -87,8 +87,7 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-#TODO: Confirm the meaning of winlen and winstep in the paper. Are these in seconds?
-def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
+def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, dB_scale=False):
     """ Create a magnitute spectogram.
 
         First, the signal is framed into overlapping frames.
@@ -105,7 +104,7 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
             Time (in seconds) after the start of the previous frame that the next frame should start.
         NFTT : int
             The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
-        log_scale: bool
+        dB_scale: bool
             If True, convert spectogram to decibels using a logarithm scale.. Default is False.
 
     Returns:
@@ -113,11 +112,11 @@ def magnitude_spec(sig, rate, winlen, winstep, NFFT=None, log_scale=False):
             Magnitude spectogram.
     """    
     #get frames
-    frames = pad_signal(sig, rate, winlen, winstep)        
+    frames = make_frames(sig, rate, winlen, winstep)        
 
     #Magnitude Spectrogram
     spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
-    if log_scale:
+    if dB_scale:
             spec = 20 * np.log10(spec)       # Convert to dB
     spec = np.rot90
     return spec
