@@ -325,9 +325,12 @@ class CNNWhale():
             value = 1.0
         return value
 
-    def check_accuracy(self, x, y):
+    def _check_accuracy(self, x, y):
         """ Check accuracy of the model by checking how close
          to y the models predictions are when fed x
+
+            Based on the accuracy operation stored in the attribute 'self.accuracy'),
+            which is defined by the 'create_net_structure()' method.
 
         Args:
             x:tensor
