@@ -279,3 +279,15 @@ def test_user_can_set_number_of_points_for_FFT():
         freq   = np.argmax(mag[i])
         freqHz = freq * Hz
         assert freqHz == pytest.approx(2000, Hz)
+
+@pytest.mark.test_normalize_spec
+def test_normalized_spectrum_has_values_between_0_and_1():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep)
+    mag_norm = pp.normalize_spec(mag)
+    for i in range(mag_norm.shape[0]):
+        val = mag_norm[0,i]
+        assert 0 <= val <= 1
