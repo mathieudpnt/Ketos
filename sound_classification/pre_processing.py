@@ -141,20 +141,25 @@ def normalize_spec(spec):
     return normalized_spec
 
 
-def crop_high_freq_spec(spec, threshold):
+def crop_high_freq(spec, index_max):
     """ Discard high frequencies
 
     Args:
         spec : numpy array
             Spectogram.
-        threshold: int
-            Number of rows (starting from the top) to exclude from spectogram.
+        index_max: int
+            Remove rows with index >= index_max from spectogram.
 
     Returns:
         cropped_spec: numpy array
-            Spectogram without high frequencies. Shape will be (spec.shape[0]-threshold,spec.shape[1])
+            Spectogram without high frequencies.
     """
-    cropped_spec = spec[(spec.shape[0] - threshold):, :]
+    if (index_max < 0):
+        index_max = 0
+    if (index_max >= spec.shape[1]):
+        index_max = spec.shape[1] - 1
+
+    cropped_spec = spec[:, :index_max]
 
     return cropped_spec
 
