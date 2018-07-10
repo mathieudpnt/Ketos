@@ -463,7 +463,7 @@ class CNNWhale():
         return results
 
     def mislabelled_on_test(self, print_report=False):
-            """ Report the number of examples mislabelled by the trained model on
+        """ Report the number of examples mislabelled by the trained model on
             the test set.
 
             This method wraps around the '_get_mislabelled()' method in the same class.
@@ -482,7 +482,7 @@ class CNNWhale():
         report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
         return report
 
-    def train_accuracy(self):
+    def accuracy_on_train(self):
         """ Report the model accuracy on the training set
 
             This method wraps around 'check_accuracy()' in the same class.
@@ -496,8 +496,8 @@ class CNNWhale():
         results = self.check_accuracy(train_x_reshaped, self.train_y)
         return results
 
-    def validation_accuracy(self):
-         """Report the model accuracy on the validation set
+    def accuracy_on_validation(self):
+        """Report the model accuracy on the validation set
 
             This method wraps around 'check_accuracy()' in the same class.
 
@@ -510,8 +510,8 @@ class CNNWhale():
         results = self.check_accuracy(validation_x_reshaped, self.validation_y)
         return results
 
-    def test_accuracy(self):
-         """Report the model accuracy on the test set
+    def accuracy_on_test(self):
+        """Report the model accuracy on the test set
 
             This method wraps around 'check_accuracy()' in the same class.
 
