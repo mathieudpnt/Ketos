@@ -317,3 +317,9 @@ def test_uniform_image_is_unchanged_by_blurring():
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_gaussian[i,j] == img[i,j]
+            
+@pytest.mark.test_blur_img
+def test_median_filter_can_work_with_kernel_size_greater_than_five():
+    img = np.ones(shape=(10,10), dtype=np.float32)
+    img_median = pp.blur_image(img,13,Gaussian=False)
+
