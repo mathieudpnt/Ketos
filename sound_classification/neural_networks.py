@@ -507,7 +507,7 @@ class CNNWhale():
         """
 
         validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self.check_accuracy(validation_x_reshaped, self.validation_y)
+        results = self._check_accuracy(validation_x_reshaped, self.validation_y)
         return results
 
     def accuracy_on_test(self):
