@@ -156,6 +156,7 @@ def crop_high_freq(spec, index_max):
     """
     if (index_max < 0):
         index_max = 0
+        
     if (index_max >= spec.shape[1]):
         index_max = spec.shape[1] - 1
 

@@ -291,3 +291,15 @@ def test_normalized_spectrum_has_values_between_0_and_1():
     for i in range(mag_norm.shape[0]):
         val = mag_norm[0,i]
         assert 0 <= val <= 1
+
+@pytest.mark.test_crop_high_freq
+def test_cropped_spectrogram_has_correct_size_and_content():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep)
+    cut = int(0.7 * mag.shape[1])
+    mag_cropped = pp.crop_high_freq(mag, cut)
+    assert mag_cropped.shape[1] == cut
+    assert mag_cropped[0,0] == mag[0,0]
