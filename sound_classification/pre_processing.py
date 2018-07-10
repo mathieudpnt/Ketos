@@ -188,28 +188,33 @@ def filter_isolated_cells(img, struct):
     return filtered_array
 
 #TODO: Check if it's necessary to create a deep copy of the input array.
-def blur_img(img,ksize=5):
-    """ Smooth the input image using a median blur filter.
+#TODO: Currently, this function crashes for any other values than ksize = 1, 3, 5
+def blur_image(img,ksize=3,Gaussian=False):
+    """ Smooth the input image using a median or Gaussian blur filter.
 
     Args:
         img : numpy array
-            Image to be processed.
+            Image to be processed. Obs: Contents of img are modified by call to the function. 
         ksize: int 
-            Aperture linear size. Must be ood and greater than 1 (3,5,7,...)
+            Aperture linear size. Must be odd and greater than or equal to 1 (1,3,5,7,...) 
+        Gaussian: bool
+            Switch between median (default) and Gaussian filter
 
     Returns:
         blur_img: numpy array
-            Blurred image
+            Blurred image.
     """
     try:
         assert img.dtype == "float32"#, "img type {0} shoult be 'float32'".format(img.dtype)
     except AssertionError:
         img.dtype = np.float32    
     
-    blur_img = cv2.medianBlur(img,ksize)
+    if (Gaussian):
+        img_blur = cv2.GaussianBlur(img,(ksize,ksize),0)
+    else:
+        img_blur = cv2.medianBlur(img,ksize)
 
-    return blur_img
-
+    return img_blur
 
 def apply_median_thresh(img,row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 

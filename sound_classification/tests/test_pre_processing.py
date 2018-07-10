@@ -19,6 +19,8 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 
+import cv2
+
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
 
@@ -303,3 +305,15 @@ def test_cropped_spectrogram_has_correct_size_and_content():
     mag_cropped = pp.crop_high_freq(mag, cut)
     assert mag_cropped.shape[1] == cut
     assert mag_cropped[0,0] == mag[0,0]
+
+@pytest.mark.test_blur_img
+def test_uniform_image_is_unchanged_by_blurring():
+    img = np.ones(shape=(10,10), dtype=np.float32)
+    img_median = pp.blur_image(img,3,Gaussian=False)
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            assert img_median[i,j] == img[i,j]
+    img_gaussian = pp.blur_image(img,5,Gaussian=True)
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            assert img_gaussian[i,j] == img[i,j]
