@@ -463,7 +463,7 @@ class CNNWhale():
         return results
 
     def mislabelled_on_test(self, print_report=False):
-            """ Report the number of examples mislabelled by the trained model on
+        """ Report the number of examples mislabelled by the trained model on
             the test set.
 
             This method wraps around the '_get_mislabelled()' method in the same class.
