@@ -19,7 +19,6 @@ cache:
   paths:
     - .cache/
     - venv/
-    - vendor/
     - .apt/
 
 before_script:
