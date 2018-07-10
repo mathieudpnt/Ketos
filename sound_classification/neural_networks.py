@@ -520,5 +520,5 @@ class CNNWhale():
                     The accuracy on the test set.
         """
         test_x_reshaped = self.reshape_x(self.test_x)
-        results = self.check_accuracy(test_x_reshaped, self.test_y)
+        results = self._check_accuracy(test_x_reshaped, self.test_y)
         return results
