@@ -8,7 +8,7 @@ stages:
 before_script:
  - apt update -y
  - apt install libhdf5-serial-dev -y
- - apt install python-sphinx
+ - apt install python-sphinx -y
  - pip install --upgrade pip
  - pip install -r requirements.txt
 
