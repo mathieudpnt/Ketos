@@ -510,7 +510,7 @@ class CNNWhale():
         results = self.check_accuracy(validation_x_reshaped, self.validation_y)
         return results
 
-    def test_accuracy(self):
+    def accuracy_on_test(self):
         """Report the model accuracy on the test set
 
             This method wraps around 'check_accuracy()' in the same class.
