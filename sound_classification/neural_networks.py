@@ -416,7 +416,7 @@ class CNNWhale():
 
         x_reshaped = self.reshape_x(x)
         predicted = self._get_predictions(x_reshaped,y)
-        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,test_y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,y))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
@@ -493,7 +493,7 @@ class CNNWhale():
         """
         train_x_reshaped = self.reshape_x(self.train_x)
         #validation_x_reshaped = reshape_x(x, input_shape)
-        results = self.check_accuracy(train_x_reshaped, self.train_y)
+        results = self._check_accuracy(train_x_reshaped, self.train_y)
         return results
 
     def accuracy_on_validation(self):
@@ -507,7 +507,7 @@ class CNNWhale():
         """
 
         validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self.check_accuracy(validation_x_reshaped, self.validation_y)
+        results = self._check_accuracy(validation_x_reshaped, self.validation_y)
         return results
 
     def accuracy_on_test(self):
@@ -520,5 +520,5 @@ class CNNWhale():
                     The accuracy on the test set.
         """
         test_x_reshaped = self.reshape_x(self.test_x)
-        results = self.check_accuracy(test_x_reshaped, self.test_y)
+        results = self._check_accuracy(test_x_reshaped, self.test_y)
         return results
