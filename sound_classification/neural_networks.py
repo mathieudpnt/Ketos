@@ -215,7 +215,7 @@ class CNNWhale():
                 avg_cost += c / total_batch
             
             validation_x_reshaped = self.reshape_x(self.validation_x)
-            train_acc = self.train_accuracy()
+            train_acc = self.accuracy_on_train()
             print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc))
             summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
             self.writer.add_summary(summary, epoch)
