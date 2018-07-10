@@ -14,7 +14,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
     License:
 
 """
-
+import numpy as np
 
 def to1hot(row):
     """Converts the binary label to one hot format
