@@ -497,7 +497,7 @@ class CNNWhale():
         return results
 
     def validation_accuracy(self):
-         """Report the model accuracy on the validation set
+        """Report the model accuracy on the validation set
 
             This method wraps around 'check_accuracy()' in the same class.
 
