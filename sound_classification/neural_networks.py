@@ -511,7 +511,7 @@ class CNNWhale():
         return results
 
     def test_accuracy(self):
-         """Report the model accuracy on the test set
+        """Report the model accuracy on the test set
 
             This method wraps around 'check_accuracy()' in the same class.
 
