@@ -482,7 +482,7 @@ class CNNWhale():
         report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
         return report
 
-    def train_accuracy(self):
+    def accuracy_on_train(self):
         """ Report the model accuracy on the training set
 
             This method wraps around 'check_accuracy()' in the same class.
