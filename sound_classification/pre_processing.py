@@ -187,14 +187,13 @@ def filter_isolated_cells(img, struct):
     
     return filtered_array
 
-#TODO: Check if it's necessary to create a deep copy of the input array.
-#TODO: Currently, this function crashes for any other values than ksize = 1, 3, 5 when median filter is used
 def blur_image(img,ksize=3,Gaussian=True):
     """ Smooth the input image using a median or Gaussian blur filter.
+        Note that the input image is recasted as np.float32.
 
     Args:
         img : numpy array
-            Image to be processed. Obs: Contents of img are modified by call to the function. 
+            Image to be processed. 
         ksize: int 
             Aperture linear size. Must be odd integer greater than or equal to 1. For the median filter, the only allowed values are 1, 3, 5. 
         Gaussian: bool
@@ -246,12 +245,10 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
     col_median = np.median(img, axis=0, keepdims=True)
     row_median = np.median(img, axis=1, keepdims=True)
 
-
     img[img < row_median * row_factor] = 0
     img[img < col_median * col_factor] = 0 
     filtered_img = img
     filtered_img[filtered_img > 0] = 1
-
 
     return filtered_img
 
@@ -421,35 +418,4 @@ def filter_broadband_noise(spec, frame_stride, T):
             rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
 
     return filtered_spec
-
-
-
-# Smoothing 
-
-def apply_smoothing(spec):
-    """ Apply a smoothing filter to the spectogram
-
-        Args:
-            spec : numpy array
-                The spectogram to be filtered.
-
-        Returns:
-            filtered_spec : numpy array
-                The filtered spectogram.
-    """
-    nx, ny = spec.shape
-    smooth_spec = np.zeros(shape=(nx,ny))
-    M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.float32)
-    for ix in range(nx):
-        for iy in range(ny):    
-            for di in range(-1,2):
-                for dj in range(-1,2):
-                    ix1 = ix+di
-                    iy1 = iy+dj
-                    if (ix1 >= 0 and ix1 < nx and iy1 >= 0 and iy1 < ny):
-                        i = 1 + di
-                        j = 1 + dj
-                        smooth_spec[ix,iy] += spec[ix1,iy1] * M[i,j]
-
-    return smooth_spec
 
