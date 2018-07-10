@@ -152,11 +152,13 @@ def crop_high_freq(spec, index_max):
 
     Returns:
         cropped_spec: numpy array
-            Spectogram without high frequencies.
+            Spectogram without high frequencies. 
+            Note that the dimension of the array is reduced by the number 
+            of rows removed.
     """
     if (index_max < 0):
         index_max = 0
-        
+
     if (index_max >= spec.shape[1]):
         index_max = spec.shape[1] - 1
 
