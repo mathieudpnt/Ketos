@@ -309,11 +309,11 @@ def test_cropped_spectrogram_has_correct_size_and_content():
 @pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = pp.blur_image(img,3,Gaussian=False)
+    img_median = pp.blur_image(img,5,Gaussian=False)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
-    img_gaussian = pp.blur_image(img,5,Gaussian=True)
+    img_gaussian = pp.blur_image(img,9,Gaussian=True)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_gaussian[i,j] == img[i,j]
