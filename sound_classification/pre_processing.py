@@ -118,7 +118,7 @@ def magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
             spec = 20 * np.log10(spec)
 
     #Frequency range (Hz)
-    index_to_Hz = rate / frames.shape[1]
+    index_to_Hz = rate / spec.shape[1]
 
     return spec, index_to_Hz
 

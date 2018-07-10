@@ -25,7 +25,7 @@ path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 @pytest.fixture
 def sine_wave():
     sampling_rate = 44100
-    frequency = 20
+    frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
 
@@ -37,7 +37,7 @@ def sine_wave():
 @pytest.fixture
 def square_wave():
     sampling_rate = 44100
-    frequency = 20
+    frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
 
@@ -48,7 +48,7 @@ def square_wave():
 @pytest.fixture
 def sawtooth_wave():
     sampling_rate = 44100
-    frequency = 20
+    frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
 
@@ -256,7 +256,7 @@ def test_magnitude_spec_of_sine_wave_is_delta_function():
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
         freqHz = freq * Hz
-        assert freqHz == 20
+        assert freqHz == pytest.approx(2000, Hz)
 
 @pytest.mark.test_magnitude_spec
 def test_magnitude_spec_returns_decibels():
@@ -267,3 +267,15 @@ def test_magnitude_spec_returns_decibels():
     mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep)
     mag_dB, Hz = pp.magnitude_spec(sig, rate, winlen, winstep, True)
     assert np.max(mag_dB[0]) == 20 * np.log10(np.max(mag[0])) 
+
+@pytest.mark.test_magnitude_spec
+def test_user_can_set_number_of_points_for_FFT():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz = pp.magnitude_spec(sig, rate, winlen, winstep, False, 512)
+    for i in range(mag.shape[0]):
+        freq   = np.argmax(mag[i])
+        freqHz = freq * Hz
+        assert freqHz == pytest.approx(2000, Hz)
