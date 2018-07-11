@@ -397,6 +397,7 @@ def filter_narrowband_noise(spec, time_res, time_const):
 
     return filtered_spec
 
+#TODO: Modify implementation to have fixed-width running mean window
 def filter_broadband_noise(spec, epsilon=0.01):
     """ Subtract the running mean from the columns
 
