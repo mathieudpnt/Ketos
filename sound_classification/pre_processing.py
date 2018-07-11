@@ -101,13 +101,15 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
         hamming: bool
             If True, apply hamming window before FFT. Default is True.
         NFTT : int
-            The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
+            Number of points for the FFT (Fast Fourier Transform). If None (default), the signal length is used.
 
     Returns:
         mag_spec: numpy array
             Magnitude spectogram.
         index_to_Hz: float
             Index to Hz conversion factor.
+        NFTT : int
+            Number of points used for FFT.
     """    
     #make frames
     frames = make_frames(sig, rate, winlen, winstep)     
@@ -126,7 +128,7 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
     #Frequency range (Hz)
     index_to_Hz = rate / mag_spec.shape[1]
 
-    return mag_spec, index_to_Hz
+    return mag_spec, index_to_Hz, NFFT
 
 
 def normalize_spec(spec):
@@ -277,27 +279,16 @@ def apply_preemphasis(sig,coeff=0.97):
     return emphasized_signal
 
 
-#TODO: Refactor. Break this function into smaller functions
-#  and possibly reuse some of the functions already defined in this module
-#TODO: Improve docstring
-def extract_mfcc_features(pow_frames, rate,sig, frame_size=0.05, frame_stride=0.03, preemphasis_coeff = 0.97, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
+def extract_mfcc_features(mag_frames, NFFT, rate, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
             pow_frames : numpy array
                 Power spectrogram.
+            NFFT : int
+                The number of points used for creating the magnitude spectrogram.
             rate : int
                 The sampling rate of the signal (in Hz).                
-            sig : numpy array
-                The input signal.
-            frame_size : float
-                Length of each frame (in seconds).
-            frame_stride : float
-                The length od the stride (in seconds).
-            preemphasis_coeff : float
-                The preemphasis coefficient. If 0, preemphasis is not applied.
-            NFFT : int
-                The FFT (Fast Fourier Transform) length to use.
             n_filters: int
                 The number of filters in the filter bank.
             n_ceps: int
@@ -305,20 +296,21 @@ def extract_mfcc_features(pow_frames, rate,sig, frame_size=0.05, frame_stride=0.
             cep_lifters: int
                 The number of cepstum filters.
 
-
         Returns:
             filter_banks : numpy array
                 Array containing the filter banks.
             mfcc : numpy array
                 Array containing the MFCCs.
     """
-    #number of points used for FFT
-    if (NFFT == None):
-        NFFT = frames.shape[1]
+    #check that NFFT has sensible value
+    try:
+        n = mag_frames.shape[1] - 1
+        assert (NFFT == 2*n or NFFT == 2*n+1), "NFFT does not agree with size of magnitude spectrogram"
+    except AssertionError:
+            NFFT = 2*n
 
     #make Power Spectrogram
-    pow_spec = (1.0 / NFFT) * (mag_spec**2)  # Power Spectrum
-
+    pow_frames = (1.0 / NFFT) * (mag_frames**2)  # Power Spectrum
 
     low_freq_mel = 0
     high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
@@ -336,6 +328,7 @@ def extract_mfcc_features(pow_frames, rate,sig, frame_size=0.05, frame_stride=0.
             fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
         for k in range(f_m, f_m_plus):
             fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
     filter_banks = np.dot(pow_frames, fbank.T)
     filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
     filter_banks = 20 * np.log10(filter_banks)  # dB

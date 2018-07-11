@@ -254,7 +254,7 @@ def test_make_magnitude_spec_of_sine_wave_is_delta_function():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep)
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep)
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
         freqHz = freq * Hz
@@ -266,8 +266,8 @@ def test_make_magnitude_spec_returns_decibels():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep)
-    mag_dB, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep, True)
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep)
+    mag_dB, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep, True)
     assert np.max(mag_dB[0]) == 20 * np.log10(np.max(mag[0])) 
 
 @pytest.mark.test_make_magnitude_spec
@@ -276,7 +276,7 @@ def test_user_can_set_number_of_points_for_FFT():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep, False, True, 512)
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep, False, True, 512)
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
         freqHz = freq * Hz
@@ -288,7 +288,7 @@ def test_normalized_spectrum_has_values_between_0_and_1():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep)
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep)
     mag_norm = pp.normalize_spec(mag)
     for i in range(mag_norm.shape[0]):
         val = mag_norm[0,i]
@@ -300,7 +300,7 @@ def test_cropped_spectrogram_has_correct_size_and_content():
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    mag, Hz = pp.make_magnitude_spec(sig, rate, winlen, winstep)
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep)
     cut = int(0.7 * mag.shape[1])
     mag_cropped = pp.crop_high_freq(mag, cut)
     assert mag_cropped.shape[1] == cut
@@ -394,5 +394,12 @@ def test_filter_isolated_spots_removes_single_pixels():
 
     assert np.array_equal(filtered_img, expected)
 
-
+@pytest.mark.test_extract_mfcc_features
+def test_extract_mfcc_features_from_sine_wave():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep, False, True, 512)
+    filter_banks, mfcc = pp.extract_mfcc_features(mag, NFFT, rate)
     
