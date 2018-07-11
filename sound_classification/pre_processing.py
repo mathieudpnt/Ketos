@@ -8,8 +8,8 @@ import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
 
-def standardize_sample_rate(sig, orig_rate, new_rate):
-    """ Resample the signal sig to the sampling rate new_rate.
+def resample(sig, orig_rate, new_rate):
+    """ Resample the signal with an arbitrary sampling rate.
 
     Note: Code adapted from Kahl et al. (2017)
           Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
@@ -81,8 +81,8 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
-    """ Create a magnitute spectogram.
+def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
+    """ Make a magnitude spectogram.
 
         First, the signal is framed into overlapping frames.
         Second, creates the spectogram using FFT.
@@ -166,7 +166,7 @@ def crop_high_freq(spec, index_max):
 
     return cropped_spec
 
-def filter_isolated_cells(img, struct):
+def filter_isolated_spots(img, struct):
     """Remove isolated spots from the img
 
     Args:
@@ -221,7 +221,7 @@ def blur_image(img,ksize=3,Gaussian=True):
 
     return img_blur
 
-def median_filter(img,row_factor=3, col_factor=4):
+def apply_median_filter(img,row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 
 
         The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
@@ -253,7 +253,7 @@ def median_filter(img,row_factor=3, col_factor=4):
 
     return filtered_img
 
-def preemphasis(sig,coeff=0.97):
+def apply_preemphasis(sig,coeff=0.97):
     """Apply pre-emphasis to signal
 
         Args:
@@ -363,7 +363,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
     
     return filter_banks, mfcc
 
-def narrowband_filter(spec, time_res, time_const):
+def apply_narrowband_filter(spec, time_res, time_const):
     """ Subtract the running mean from the rows.
     
         The weights used to calculate the running mean decrease exponentially over the time elapsed since the current time. 
@@ -397,7 +397,7 @@ def narrowband_filter(spec, time_res, time_const):
 
     return filtered_spec
 
-def broadband_filter(spec):
+def apply_broadband_filter(spec):
     """ Subtract the median from the columns
 
         The vertical subtraction results in a reduction of broadband
