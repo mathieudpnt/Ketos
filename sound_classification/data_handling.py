@@ -54,6 +54,22 @@ def slice_ffmpeg(file,start,end, out_name):
 
 
 def create_segments(audio_file, seg_duration, destination, prefix=None):
+    """ Creates a series of segments of the same length
+
+        Args:
+            audio_file: str
+                Path to the original audio file.
+            seg_duration:float
+                Duration of each segment (in seconds).
+            destination:str
+                Path to the folder where the segments will be saved.
+            prefix: str
+                The prefix to be used in the name of segment files.
+                The file name will have the format <prefix>_xx.wav,
+                where 'xx' is the segment number in the sequence.
+                If set to none, the prefix will be the name of the original file.
+
+    """
 
     create_dir(destination)
     orig_audio_duration = librosa.get_duration(filename=audio_file)
