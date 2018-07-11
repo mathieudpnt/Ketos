@@ -15,6 +15,11 @@ Authors: Fabio Frazao and Oliver Kirsebom
 
 """
 import numpy as np
+import librosa
+import os
+import errno
+from subprocess import call
+
 
 def to1hot(row):
     """Converts the binary label to one hot format
@@ -81,7 +86,7 @@ def encode_database(database, x_column, y_column):
 def split_database(database, boundaries):
     """ Split the database into 3 datasets: train, validation, test.
 
-        Args: 
+        Args:
         database : pandas.DataFrame
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
@@ -92,13 +97,12 @@ def split_database(database, boundaries):
             Example: {"train":(0,1000),
                         "validation": (1000,1200),
                         "test": (1200:1400)}
-                        
-        Returns:
+         Returns:
             datasets : dict
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
     """
-    
+
     train_data = database[boundaries["train"][0]:boundaries["train"][1]]
     validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
     test_data = database[boundaries["test"][0]:boundaries["test"][1]]
@@ -113,7 +117,7 @@ def split_database(database, boundaries):
 def stack_dataset(dataset, input_shape):
     """ Stack and reshape a dataset.
 
-        
+     
         Args:
             dataset: pandas DataFrame
                 A pandas dataset with two columns:'x_flatten'and
