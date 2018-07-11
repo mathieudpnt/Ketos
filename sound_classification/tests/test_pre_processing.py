@@ -402,4 +402,6 @@ def test_extract_mfcc_features_from_sine_wave():
     winstep = duration/10
     mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep, False, True, 512)
     filter_banks, mfcc = pp.extract_mfcc_features(mag, NFFT, rate)
+    with pytest.raises(AssertionError):
+        filter_banks, mfcc = pp.extract_mfcc_features(mag, 1, rate)
     

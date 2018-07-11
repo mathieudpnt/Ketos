@@ -303,11 +303,8 @@ def extract_mfcc_features(mag_frames, NFFT, rate, n_filters=40, n_ceps=20, cep_l
                 Array containing the MFCCs.
     """
     #check that NFFT has sensible value
-    try:
-        n = mag_frames.shape[1] - 1
-        assert (NFFT == 2*n or NFFT == 2*n+1), "NFFT does not agree with size of magnitude spectrogram"
-    except AssertionError:
-            NFFT = 2*n
+    n = mag_frames.shape[1] - 1
+    assert (NFFT == 2*n or NFFT == 2*n+1), "NFFT does not agree with size of magnitude spectrogram"
 
     #make Power Spectrogram
     pow_frames = (1.0 / NFFT) * (mag_frames**2)  # Power Spectrum
