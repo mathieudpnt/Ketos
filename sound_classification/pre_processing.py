@@ -363,24 +363,28 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
     
     return filter_banks, mfcc
 
-
-
-# Subtract running mean (removes narrowband long-duration noise)
-
-def filter_narrowband_noise(spec, frame_stride, T):
-    """ Subtract the running mean from the rows
+def filter_narrowband_noise(spec, time_res, time_const):
+    """ Subtract the running mean from the rows.
+    
+        The weights used to calculate the running mean decrease exponentially over the time elapsed since the current time. 
 
         The horizontal subtraction results in a reduction of narrowband
         long-duration noise.
 
     Args:
         spec : numpy array
-
+            Spectrogram
+        time_res : float
+            Time resolution of the spectrogram
+        time_const : float
+            The time constant indicates the time (in seconds) at which weight becomes 15% of the weight applied to the current value.
+        
     Returns:
         filtered_spec: numpy array
             The noise filtered spectogram.
     """
-    dt  = frame_stride
+    dt = time_res
+    T = time_const
     eps = 1 - np.exp((np.log(0.15) * dt / T))
     nx,ny = spec.shape
     rmean = np.zeros(ny)
@@ -393,21 +397,26 @@ def filter_narrowband_noise(spec, frame_stride, T):
 
     return filtered_spec
 
-def filter_broadband_noise(spec, frame_stride, T):
+def filter_broadband_noise(spec, epsilon=0.01):
     """ Subtract the running mean from the columns
+
+        The weights used to calculate the running mean decrease exponentially over the frequency difference. 
 
         The vertical subtraction results in a reduction of broadband
         sort-duration noise.
 
     Args:
         spec : numpy array
+            Spectrogram
+        epsilon : float
+            Parameter used to control exponential weightning ... 
 
     Returns:
         filtered_spec: numpy array
             The noise filtered spectogram.
     """
 
-    eps = 0.01
+    eps = epsilon
     nx,ny = spec.shape
     rmean = np.zeros(nx)
     rmean = np.average(spec, 1)
