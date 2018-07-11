@@ -363,7 +363,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
     
     return filter_banks, mfcc
 
-def filter_narrowband_noise(spec, time_res, time_const):
+def narrowband_filter(spec, time_res, time_const):
     """ Subtract the running mean from the rows.
     
         The weights used to calculate the running mean decrease exponentially over the time elapsed since the current time. 
@@ -387,7 +387,7 @@ def filter_narrowband_noise(spec, time_res, time_const):
     T = time_const
     eps = 1 - np.exp((np.log(0.15) * dt / T))
     nx,ny = spec.shape
-    rmean = np.zeros(ny)
+#    rmean = np.zeros(ny)
     rmean = np.average(spec, 0)
     filtered_spec = np.zeros(shape=(nx,ny))
     for ix in range(nx):
@@ -397,11 +397,8 @@ def filter_narrowband_noise(spec, time_res, time_const):
 
     return filtered_spec
 
-#TODO: Modify implementation to have fixed-width running mean window
-def filter_broadband_noise(spec, epsilon=0.01):
-    """ Subtract the running mean from the columns
-
-        The weights used to calculate the running mean decrease exponentially over the frequency difference. 
+def broadband_filter(spec):
+    """ Subtract the median from the columns
 
         The vertical subtraction results in a reduction of broadband
         sort-duration noise.
@@ -409,23 +406,17 @@ def filter_broadband_noise(spec, epsilon=0.01):
     Args:
         spec : numpy array
             Spectrogram
-        epsilon : float
-            Parameter used to control exponential weightning ... 
 
     Returns:
         filtered_spec: numpy array
             The noise filtered spectogram.
     """
-
-    eps = epsilon
     nx,ny = spec.shape
-    rmean = np.zeros(nx)
-    rmean = np.average(spec, 1)
+    rmean = np.median(spec, 1)
     filtered_spec = np.zeros(shape=(nx, ny))
-    for iy in range(ny):
-        for ix in range(nx):   
-            filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix] # subtract running mean
-            rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
+    for iy in range(ny): # loop over time bins
+        for ix in range(nx): # loop over frequency bins
+            filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix]
 
     return filtered_spec
 
