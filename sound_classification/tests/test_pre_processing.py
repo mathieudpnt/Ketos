@@ -343,10 +343,19 @@ def test_broadband_filter_works_as_expected_for_non_uniform_columns():
     assert img_fil[1,2] == 9
 
 @pytest.mark.test_narrowband_filter
-def test_broadband_filter_works_as_expected_for_uniform_rows():
+def test_narrowband_filter_works_as_expected_for_uniform_rows():
     img = np.array([[1,3],[1,3],[1,3],[1,3]], dtype=np.float32)
     img_fil = pp.narrowband_filter(img,time_res=1,time_const=1)
     for i in range(img_fil.shape[0]):
         for j in range(img_fil.shape[1]):
             assert img_fil[i,j] == 0
+
+@pytest.mark.test_median_filter
+def test_median_filter_works_as_expected():
+    img = np.array([[1,1],[1,10]], dtype=np.float32)
+    img_fil = pp.median_filter(img,row_factor=1,col_factor=1)
+    assert img_fil[0,0] == 0
+    assert img_fil[0,1] == 0
+    assert img_fil[1,0] == 0
+    assert img_fil[1,1] == 1
 
