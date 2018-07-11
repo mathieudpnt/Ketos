@@ -36,6 +36,11 @@ def create_dir(dir):
         if e.errno != errno.EEXIST:
             raise
 
+def slice_ffmpeg(file,start,end, out_name):
+    call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
+
+
+
 def to1hot(row):
     """Converts the binary label to one hot format
 
