@@ -369,4 +369,11 @@ def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
     img_fil = pp.median_filter(img,row_factor=1,col_factor=15)
     assert img_fil[2,2] == 0
+    
+@pytest.mark.test_preemphasis
+def test_preemphasis_has_no_effect_if_coefficient_is_zero():
+    sig = np.array([1,2,3,4,5], np.float32)
+    sig_new = pp.preemphasis(sig,coeff=0)
+    for i in range(len(sig)):
+        assert sig[i] == sig_new[i]
 

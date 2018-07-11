@@ -271,7 +271,6 @@ def preemphasis(sig,coeff=0.97):
     return emphasized_signal
 
 
-
 #TODO: Refactor. Break this function into smaller functions
 #  and possibly reuse some of the functions already defined in this module
 #TODO: Improve docstring
