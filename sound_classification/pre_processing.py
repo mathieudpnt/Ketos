@@ -172,7 +172,7 @@ def filter_isolated_cells(img, struct):
     Args:
         img : numpy array
             An array like object representing an image. 
-        struct :numpy array
+        struct : numpy array
             A structuring pattern that defines feature connections.
             Must be symmetric.
     Returns:
