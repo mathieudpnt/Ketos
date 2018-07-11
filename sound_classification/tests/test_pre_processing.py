@@ -314,9 +314,7 @@ def test_uniform_image_is_unchanged_by_blurring():
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
     img_gaussian = pp.blur_image(img,9,Gaussian=True)
-    for i in range(img.shape[0]):
-        for j in range(img.shape[1]):
-            assert img_gaussian[i,j] == img[i,j]
+    np.testing.assert_array_equal(img, img_gaussian)
             
 @pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
@@ -354,15 +352,8 @@ def test_narrowband_filter_works_as_expected_for_uniform_rows():
 def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
     img_fil = pp.median_filter(img,row_factor=1,col_factor=1)
-    assert img_fil[0,0] == 0
-    assert img_fil[0,1] == 0
-    assert img_fil[0,2] == 0
-    assert img_fil[1,0] == 0
-    assert img_fil[1,1] == 0
-    assert img_fil[1,2] == 0
-    assert img_fil[2,0] == 0
-    assert img_fil[2,1] == 0
-    assert img_fil[2,2] == 1
+    img_res = np.array([[0,0,0],[0,0,0],[0,0,1]], dtype=np.float32)
+    np.testing.assert_array_equal(img_fil,img_res)
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
     img_fil = pp.median_filter(img,row_factor=15,col_factor=1)
     assert img_fil[2,2] == 0
