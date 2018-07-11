@@ -81,7 +81,7 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
+def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
     """ Make a magnitude spectogram.
 
         First, the signal is framed into overlapping frames.
@@ -98,29 +98,44 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=No
             Time (in seconds) after the start of the previous frame that the next frame should start.
         decibel_scale: bool
             If True, convert spectogram to decibels using a logarithm scale.. Default is False.
+        hamming: bool
+            If True, apply hamming window before FFT. Default is True.
         NFTT : int
             The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
 
     Returns:
-        spec: numpy array
+        mag_spec: numpy array
             Magnitude spectogram.
+        pow_spec: numpy array
+            Power spectogram.
         index_to_Hz: float
             Index to Hz conversion factor.
     """    
-    #get frames
-    frames = make_frames(sig, rate, winlen, winstep)        
+    #make frames
+    frames = make_frames(sig, rate, winlen, winstep)     
 
-    #Magnitude Spectrogram
-    spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
+    #apply Hamming window    
+    if hamming:
+        frames *= np.hamming(frames.shape[1])
+
+    #make Magnitude Spectrogram
+    mag_spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
+
+    #number of points used for FFT
+    if (NFFT == None):
+        NFFT = frames.shape[1]
+
+    #make Power Spectrogram
+    pow_spec = (1.0 / NFFT) * (mag_spec**2)  # Power Spectrum
 
     # Convert to dB
     if decibel_scale:
-            spec = 20 * np.log10(spec)
+            mag_spec = 20 * np.log10(mag_spec)
 
     #Frequency range (Hz)
-    index_to_Hz = rate / spec.shape[1]
+    index_to_Hz = rate / mag_spec.shape[1]
 
-    return spec, index_to_Hz
+    return mag_spec, pow_spec, index_to_Hz
 
 
 def normalize_spec(spec):
