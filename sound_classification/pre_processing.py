@@ -127,6 +127,10 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
 
     #Frequency range (Hz)
     index_to_Hz = rate / mag_spec.shape[1]
+    
+    #Number of points used for FFT
+    if NFFT is None:
+        NFFT = frames.shape[1]
 
     return mag_spec, index_to_Hz, NFFT
 

@@ -282,6 +282,15 @@ def test_user_can_set_number_of_points_for_FFT():
         freqHz = freq * Hz
         assert freqHz == pytest.approx(2000, Hz)
 
+@pytest.mark.test_make_magnitude_spec
+def test_make_magnitude_spec_returns_correct_NFFT_value():
+    rate, sig = sine_wave()
+    duration = len(sig) / rate
+    winlen = duration/4
+    winstep = duration/10
+    mag, Hz, NFFT = pp.make_magnitude_spec(sig, rate, winlen, winstep, False, True)
+    assert NFFT == int(round(winlen * rate))
+
 @pytest.mark.test_normalize_spec
 def test_normalized_spectrum_has_values_between_0_and_1():
     rate, sig = sine_wave()
