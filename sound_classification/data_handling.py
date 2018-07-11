@@ -21,6 +21,13 @@ import errno
 from subprocess import call
 
 
+def create_dir(dir):
+    try:
+        os.makedirs(dir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
 def to1hot(row):
     """Converts the binary label to one hot format
 
