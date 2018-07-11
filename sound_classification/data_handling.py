@@ -22,6 +22,14 @@ from subprocess import call
 
 
 def create_dir(dir):
+    """ Create a new directory only if it does not exist
+
+        Args:
+            dir: str
+                The path to the new directory
+        Raises:
+                EEXIST (17) if dir already exists
+    """
     try:
         os.makedirs(dir)
     except OSError as e:
