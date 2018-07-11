@@ -369,7 +369,7 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
         assert sig[i] == sig_new[i]
 
 @pytest.mark.test_filter_isolated_cells
-def test_filter_isolated_cells_removes_single_pixels():
+def test_filter_isolated_spots_removes_single_pixels():
     img = np.array([[0,0,1,1,0,0],
                     [0,0,0,1,0,0],
                     [0,1,0,0,0,0],
@@ -390,7 +390,7 @@ def test_filter_isolated_cells_removes_single_pixels():
                     [1,1,1],
                     [1,1,1]])
 
-    filtered_img = pp.filter_isolated_cells(img,struct)
+    filtered_img = pp.filter_isolated_spots(img,struct)
 
     assert np.array_equal(filtered_img, expected)
 
