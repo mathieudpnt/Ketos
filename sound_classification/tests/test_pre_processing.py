@@ -368,3 +368,31 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
+@pytest.mark.test_filter_isolated_cells
+def test_filter_isolated_cells_removes_single_pixels():
+    img = np.array([[0,0,1,1,0,0],
+                    [0,0,0,1,0,0],
+                    [0,1,0,0,0,0],
+                    [0,0,0,0,0,0],
+                    [0,0,0,1,0,0]])
+    
+    expected = np.array([[0,0,1,1,0,0],
+                        [0,0,0,1,0,0],
+                        [0,0,0,0,0,0],
+                        [0,0,0,0,0,0],
+                        [0,0,0,0,0,0]])
+    
+
+    #Struct defines the relationship between a pixel and its neighbors.
+    #If a pixel complies with this relationship, it is not removed
+    #in this case, if the pixel has any neighbors, it will not be removed.
+    struct=np.array([[1,1,1],
+                    [1,1,1],
+                    [1,1,1]])
+
+    filtered_img = pp.filter_isolated_cells(img,struct)
+
+    assert np.array_equal(filtered_img, expected)
+
+
+    
