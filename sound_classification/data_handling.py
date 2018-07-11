@@ -53,6 +53,25 @@ def slice_ffmpeg(file,start,end, out_name):
     call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
 
 
+def create_segments(audio_file, seg_duration, destination, prefix=None):
+
+    create_dir(destination)
+    orig_audio_duration = librosa.get_duration(filename=audio_file)
+    n_seg = round(orig_audio_duration/seg_duration)
+    
+    for s in range(n_seg):
+        start = str(s)
+        end = str(s + seg_duration)
+
+        if prefix is None:
+            prefix = os.path.basename(audio_file).split(".wav")[0]
+
+        out_name = prefix + "_" + str(s) + ".wav"
+        path_to_seg = os.path.join(destination, out_name)    
+        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
+        print("Creating segment......", path_to_seg)
+    
+
 
 def to1hot(row):
     """Converts the binary label to one hot format
