@@ -37,6 +37,19 @@ def create_dir(dir):
             raise
 
 def slice_ffmpeg(file,start,end, out_name):
+    """ Creates an audio segment from a longer audio file
+
+        Args:
+            file: str
+                The path to the original file.
+            start: str
+                The start time in seconds.
+            end: str
+                The end time in seconds.
+            out_name: str
+                The path to the autput file.
+        
+    """
     call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
 
 
