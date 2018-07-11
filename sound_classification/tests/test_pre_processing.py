@@ -352,10 +352,21 @@ def test_narrowband_filter_works_as_expected_for_uniform_rows():
 
 @pytest.mark.test_median_filter
 def test_median_filter_works_as_expected():
-    img = np.array([[1,1],[1,10]], dtype=np.float32)
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
     img_fil = pp.median_filter(img,row_factor=1,col_factor=1)
     assert img_fil[0,0] == 0
     assert img_fil[0,1] == 0
+    assert img_fil[0,2] == 0
     assert img_fil[1,0] == 0
-    assert img_fil[1,1] == 1
+    assert img_fil[1,1] == 0
+    assert img_fil[1,2] == 0
+    assert img_fil[2,0] == 0
+    assert img_fil[2,1] == 0
+    assert img_fil[2,2] == 1
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
+    img_fil = pp.median_filter(img,row_factor=15,col_factor=1)
+    assert img_fil[2,2] == 0
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
+    img_fil = pp.median_filter(img,row_factor=1,col_factor=15)
+    assert img_fil[2,2] == 0
 

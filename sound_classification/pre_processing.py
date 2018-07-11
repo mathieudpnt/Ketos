@@ -231,7 +231,8 @@ def median_filter(img,row_factor=3, col_factor=4):
             Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
     Args:
         img : numpy array
-            Array containing the img to be filtered.
+            Array containing the img to be filtered. 
+            OBS: Note that contents of img are modified by call to function.
         row_factor: int or float
             Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
         col_factor: int or float
@@ -245,8 +246,8 @@ def median_filter(img,row_factor=3, col_factor=4):
     col_median = np.median(img, axis=0, keepdims=True)
     row_median = np.median(img, axis=1, keepdims=True)
 
-    img[img < row_median * row_factor] = 0
-    img[img < col_median * col_factor] = 0 
+    img[img <= row_median * row_factor] = 0
+    img[img <= col_median * col_factor] = 0 
     filtered_img = img
     filtered_img[filtered_img > 0] = 1
 
