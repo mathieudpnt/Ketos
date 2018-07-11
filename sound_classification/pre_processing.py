@@ -221,7 +221,7 @@ def blur_image(img,ksize=3,Gaussian=True):
 
     return img_blur
 
-def apply_median_thresh(img,row_factor=3, col_factor=4):
+def median_filter(img,row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 
 
         The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
@@ -231,9 +231,9 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
             Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
     Args:
         img : numpy array
-            Array containing the img to be filtered.blur_img
+            Array containing the img to be filtered.
         row_factor: int or float
-            Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.blur_img
+            Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
         col_factor: int or float
             Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
 
