@@ -106,8 +106,6 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
     Returns:
         mag_spec: numpy array
             Magnitude spectogram.
-        pow_spec: numpy array
-            Power spectogram.
         index_to_Hz: float
             Index to Hz conversion factor.
     """    
@@ -121,13 +119,6 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
     #make Magnitude Spectrogram
     mag_spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
 
-    #number of points used for FFT
-    if (NFFT == None):
-        NFFT = frames.shape[1]
-
-    #make Power Spectrogram
-    pow_spec = (1.0 / NFFT) * (mag_spec**2)  # Power Spectrum
-
     # Convert to dB
     if decibel_scale:
             mag_spec = 20 * np.log10(mag_spec)
@@ -135,7 +126,7 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
     #Frequency range (Hz)
     index_to_Hz = rate / mag_spec.shape[1]
 
-    return mag_spec, pow_spec, index_to_Hz
+    return mag_spec, index_to_Hz
 
 
 def normalize_spec(spec):
@@ -289,10 +280,12 @@ def apply_preemphasis(sig,coeff=0.97):
 #TODO: Refactor. Break this function into smaller functions
 #  and possibly reuse some of the functions already defined in this module
 #TODO: Improve docstring
-def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preemphasis_coeff = 0.97, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
+def extract_mfcc_features(pow_frames, rate,sig, frame_size=0.05, frame_stride=0.03, preemphasis_coeff = 0.97, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
+            pow_frames : numpy array
+                Power spectrogram.
             rate : int
                 The sampling rate of the signal (in Hz).                
             sig : numpy array
@@ -319,34 +312,14 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
             mfcc : numpy array
                 Array containing the MFCCs.
     """
-    #sample_rate, signal = wavfile.read(path_file)
-    emphasized_signal = preemphasis(sig, preemphasis_coeff)
+    #number of points used for FFT
+    if (NFFT == None):
+        NFFT = frames.shape[1]
 
-    # params
-    '''frame_size = 0.025
-    frame_stride = 0.01'''
-    frame_length, frame_step = frame_size * rate, frame_stride * rate  # Convert from seconds to samples
-    signal_length = len(emphasized_signal)
-    frame_length = int(round(frame_length))
-    frame_step = int(round(frame_step))
-    num_frames = int(np.ceil(float(np.abs(signal_length - frame_length)) / frame_step))  # Make sure that we have at least 1 frame
+    #make Power Spectrogram
+    pow_spec = (1.0 / NFFT) * (mag_spec**2)  # Power Spectrum
 
-    pad_signal_length = num_frames * frame_step + frame_length
-    z = np.zeros((pad_signal_length - signal_length))
-    pad_signal = np.append(emphasized_signal, z) # Pad Signal to make sure that all frames have equal number of samples without truncating any samples from the original signal
 
-    indices = np.tile(np.arange(0, frame_length), (num_frames, 1)) +\
-        np.tile(np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)).T
-    frames = pad_signal[indices.astype(np.int32, copy=False)]
-
-    # hamming window
-    frames *= np.hamming(frame_length)
-
-    #NFFT = 512
-    mag_frames = np.absolute(np.fft.rfft(frames, NFFT))  # Magnitude of the FFT
-    pow_frames = ((1.0 / NFFT) * ((mag_frames) ** 2))  # Power Spectrum
-
-    #nfilt = 40
     low_freq_mel = 0
     high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
     mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
