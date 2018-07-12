@@ -16,6 +16,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
+import sound_classification.pre_processing as pp
 import os
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -100,13 +101,25 @@ def test_prepare_database_executes():
 @pytest.mark.test_create_segments
 def test_creates_correct_number_of_segments(sine_wave_file):
     prefix="halifax123456789"
-    # clean asset directory
-    n = count_files_that_contain_string(path_to_assets,prefix,delete=True)
-    # create segment files
-    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix)
-    # count number of created files and delete them
-    n = count_files_that_contain_string(path_to_assets,prefix,delete=True)
+    n = count_files_that_contain_string(path_to_assets,prefix,delete=True) # clean asset directory
+    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix) # create segment files
+    n = count_files_that_contain_string(path_to_assets,prefix,delete=True) # count number of created files and delete them
     assert n == 6
+
+@pytest.mark.test_def_slice_ffmpeg
+def test_sliced_audio_file_has_correct_properties(sine_wave_file):
+    prefix="halifax123456789"
+    out_name = path_to_assets + "/" + prefix + ".wav"
+    dh.slice_ffmpeg(sine_wave_file, 0.0, 1.7, out_name)
+    rate_orig, sig_orig = pp.wave.read(sine_wave_file)
+    rate, sig = pp.wave.read(out_name)
+    duration = len(sig) / rate
+    assert rate == rate_orig
+    assert duration == 1.7
+#    for i in range(len(sig)):
+#        assert sig[i] == sig_orig[i]
+    count_files_that_contain_string(path_to_assets,prefix,delete=True) # clean up
+
 
 def count_files_that_contain_string(dir, substr, delete=False):
     """ Counts and then deletes all files in a certain directory which 

@@ -36,21 +36,21 @@ def create_dir(dir):
         if e.errno != errno.EEXIST:
             raise
 
-def slice_ffmpeg(file,start,end, out_name):
-    """ Creates an audio segment from a longer audio file
+def slice_ffmpeg(file,start,end,out_name):
+    """ Creates an audio segment from a longer audio file using ffmpeg package.
 
         Args:
             file: str
                 The path to the original file.
-            start: str
+            start: float
                 The start time in seconds.
-            end: str
+            end: float
                 The end time in seconds.
             out_name: str
-                The path to the autput file.
+                The path to the output file.
         
     """
-    call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
+    call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
 
 def create_segments(audio_file, seg_duration, destination, prefix=None):
