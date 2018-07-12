@@ -146,13 +146,22 @@ def encode_database(database, x_column, y_column):
                 The encoded database with two columns: 'x_flatten' containing
                 the flatten input images (as vectors instead of matrices) and
                 'one_hot_encoding' containing the one hot version of the labels.
+            image_shape: tuple (int,int)
+                Tuple specifying the shape of the input images in pixels. Example: (128,128)
     """
+
+    # assert that columns exist
     assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
     assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
 
+    # determine image size and check that all images have same size
+    image_shape = database[x_column][0].shape
+    assert all(x.shape == image_shape for x in database[x_column])     
+
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
-    return database
+
+    return database, image_shape
 
 
 def split_database(database, divisions):
@@ -195,16 +204,20 @@ def stack_dataset(dataset, input_shape):
      
         Args:
             dataset: pandas DataFrame
-                A pandas dataset with two columns:'x_flatten'and
+                A pandas dataset with two columns:'x_flatten' and
                 'one_hot_encoding' (the output of the 'encode_database' function)
-            input_shape: tuple (int,int)
-                A tuple specifying the shape of the input images in pixels. Example: (128,128)
 
         Results:
             stacked_dataset: dict (of numpy arrays)
             A dictionary containing the stacked versions of the input and labels, 
             respectively under the keys 'x' and 'y'
     """
+
+#            input_shape: tuple (int,int)
+#                A tuple specifying the shape of the input images in pixels. Example: (128,128)
+
+    assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
+    assert "one_hot_encoding" in dataset.columns, "'dataset' does not contain column named 'one_hot_encoding'"
 
     x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
     y = np.vstack(dataset.one_hot_encoding)
@@ -215,7 +228,7 @@ def stack_dataset(dataset, input_shape):
     return stacked_dataset
 
 
-def prepare_database(database, x_column, y_column, divisions, input_shape):
+def prepare_database(database, x_column, y_column, divisions):
     """ Encode data base, split it into training, validation and test sets
         and stack those sets.
 
@@ -238,9 +251,6 @@ def prepare_database(database, x_column, y_column, divisions, input_shape):
                 Example: {"train":(0,1000),
                             "validation": (1000,1200),
                             "test": (1200:1400)}
-            input_shape: tuple (int,int)
-                A tuple specifying the shape of the input images in pixels.
-                Example: (128,128)
 
         Returns:
             stacked_datasets: dict
@@ -250,7 +260,7 @@ def prepare_database(database, x_column, y_column, divisions, input_shape):
                                              stacked datasets (numpy arrays)
     """
 
-    encoded_data = encode_database(database=database, x_column=x_column, y_column=y_column)
+    encoded_data, input_shape = encode_database(database=database, x_column=x_column, y_column=y_column)
     datasets = split_database(database=encoded_data, divisions=divisions)
     
     stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
