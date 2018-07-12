@@ -16,6 +16,9 @@ import pytest
 import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
+import os
+
+path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
 
 @pytest.fixture
@@ -95,5 +98,36 @@ def test_prepare_database_executes():
     dh.prepare_database(raw, "image", "label", divisions) 
 
 @pytest.mark.test_create_segments
-def test_create_segments_from_sine_wave_file(sine_wave_file):
-    x = 1
+def test_creates_correct_number_of_segments(sine_wave_file):
+    prefix="halifax123456789"
+    # clean asset directory
+    n = count_files_that_contain_string(path_to_assets,prefix,delete=True)
+    # create segment files
+    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix)
+    # count number of created files and delete them
+    n = count_files_that_contain_string(path_to_assets,prefix,delete=True)
+    assert n == 6
+
+def count_files_that_contain_string(dir, substr, delete=False):
+    """ Counts and then deletes all files in a certain directory which 
+        have a certain character sequence in the file name.
+
+            Args:
+                dir : str
+                    Path to directory.
+                substr : str
+                    Character sequence that appears in the file name.
+                delete : bool
+                    Remove the files that match the search criteria.
+
+            Returns:
+                count : int
+                    Number of files that match search criteria.
+    """
+    files = os.listdir(dir)
+    count = 0
+    for file in files:
+        if (substr in file) & delete:
+            os.remove(dir+"/"+file)
+            count += 1
+    return count
