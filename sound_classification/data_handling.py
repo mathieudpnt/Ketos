@@ -15,6 +15,79 @@ Authors: Fabio Frazao and Oliver Kirsebom
 
 """
 import numpy as np
+import librosa
+import os
+import errno
+from subprocess import call
+
+
+def create_dir(dir):
+    """ Create a new directory only if it does not exist
+
+        Args:
+            dir: str
+                The path to the new directory
+        Raises:
+                EEXIST (17) if dir already exists
+    """
+    try:
+        os.makedirs(dir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+def slice_ffmpeg(file,start,end, out_name):
+    """ Creates an audio segment from a longer audio file
+
+        Args:
+            file: str
+                The path to the original file.
+            start: str
+                The start time in seconds.
+            end: str
+                The end time in seconds.
+            out_name: str
+                The path to the autput file.
+        
+    """
+    call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
+
+
+def create_segments(audio_file, seg_duration, destination, prefix=None):
+    """ Creates a series of segments of the same length
+
+        Args:
+            audio_file: str
+                Path to the original audio file.
+            seg_duration:float
+                Duration of each segment (in seconds).
+            destination:str
+                Path to the folder where the segments will be saved.
+            prefix: str
+                The prefix to be used in the name of segment files.
+                The file name will have the format <prefix>_xx.wav,
+                where 'xx' is the segment number in the sequence.
+                If set to none, the prefix will be the name of the original file.
+
+    """
+
+    create_dir(destination)
+    orig_audio_duration = librosa.get_duration(filename=audio_file)
+    n_seg = round(orig_audio_duration/seg_duration)
+    
+    for s in range(n_seg):
+        start = str(s)
+        end = str(s + seg_duration)
+
+        if prefix is None:
+            prefix = os.path.basename(audio_file).split(".wav")[0]
+
+        out_name = prefix + "_" + str(s) + ".wav"
+        path_to_seg = os.path.join(destination, out_name)    
+        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
+        print("Creating segment......", path_to_seg)
+    
+
 
 def to1hot(row):
     """Converts the binary label to one hot format
@@ -81,7 +154,7 @@ def encode_database(database, x_column, y_column):
 def split_database(database, boundaries):
     """ Split the database into 3 datasets: train, validation, test.
 
-        Args: 
+        Args:
         database : pandas.DataFrame
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
@@ -92,13 +165,12 @@ def split_database(database, boundaries):
             Example: {"train":(0,1000),
                         "validation": (1000,1200),
                         "test": (1200:1400)}
-                        
-        Returns:
+         Returns:
             datasets : dict
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
     """
-    
+
     train_data = database[boundaries["train"][0]:boundaries["train"][1]]
     validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
     test_data = database[boundaries["test"][0]:boundaries["test"][1]]
@@ -113,7 +185,7 @@ def split_database(database, boundaries):
 def stack_dataset(dataset, input_shape):
     """ Stack and reshape a dataset.
 
-        
+     
         Args:
             dataset: pandas DataFrame
                 A pandas dataset with two columns:'x_flatten'and
