@@ -17,3 +17,9 @@ import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
 import sound_classification.neural_networks as nn
+
+
+@pytest.mark.test_CNNWhale
+def test_initialize_CNNWhale_with_default_args(database_prepared_for_NN):
+    network = nn.CNNWhale.from_prepared_data(database_prepared_for_NN, batch_size=1, num_channels=1, num_labels=1, input_shape=(2,2))
+

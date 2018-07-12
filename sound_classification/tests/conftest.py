@@ -168,7 +168,7 @@ def datebase_with_two_image_cols_and_one_label_col():
 
 
 @pytest.fixture
-def datebase_prepared_for_NN():
+def database_prepared_for_NN():
     img = image_2x2()
     d = {'image': [img,img,img,img,img,img], 'label': [1,1,1,1,1,1]}
     df = pd.DataFrame(data=d)

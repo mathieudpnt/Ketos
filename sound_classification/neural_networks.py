@@ -112,6 +112,22 @@ class CNNWhale():
         self.saver = tf_operations['saver']
 
 
+    @classmethod
+    def from_prepared_data(cls, prepared_data, 
+                           batch_size, num_channels, num_labels, 
+                           input_shape, learning_rate=0.01, 
+                           num_epochs=10, seed=42):
+        train_x = prepared_data["train_x"]
+        train_y = prepared_data["train_y"]
+        validation_x = prepared_data["validation_x"]
+        validation_y = prepared_data["validation_y"]
+        test_x = prepared_data["test_x"]
+        test_y = prepared_data["test_y"]
+
+        return cls(train_x, train_y, validation_x, validation_y,
+                 test_x, test_y, batch_size, num_channels, num_labels,
+                 input_shape, learning_rate, num_epochs, seed)
+
 
     def create_net_structure(self):
         """Create the Neural Network structure.
