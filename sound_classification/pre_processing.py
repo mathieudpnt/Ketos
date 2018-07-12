@@ -8,8 +8,8 @@ import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
 
-def standardize_sample_rate(sig, orig_rate, new_rate):
-    """ Resample the signal sig to the sampling rate new_rate.
+def resample(sig, orig_rate, new_rate):
+    """ Resample the signal with an arbitrary sampling rate.
 
     Note: Code adapted from Kahl et al. (2017)
           Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
@@ -81,8 +81,8 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
-    """ Create a magnitute spectogram.
+def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
+    """ Make a magnitude spectogram.
 
         First, the signal is framed into overlapping frames.
         Second, creates the spectogram using FFT.
@@ -98,29 +98,41 @@ def magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, NFFT=None):
             Time (in seconds) after the start of the previous frame that the next frame should start.
         decibel_scale: bool
             If True, convert spectogram to decibels using a logarithm scale.. Default is False.
+        hamming: bool
+            If True, apply hamming window before FFT. Default is True.
         NFTT : int
-            The FFT (Fast Fourier Transform) length to use. If None (default), the signal length is used.
+            Number of points for the FFT (Fast Fourier Transform). If None (default), the signal length is used.
 
     Returns:
-        spec: numpy array
+        mag_spec: numpy array
             Magnitude spectogram.
         index_to_Hz: float
             Index to Hz conversion factor.
+        NFTT : int
+            Number of points used for FFT.
     """    
-    #get frames
-    frames = make_frames(sig, rate, winlen, winstep)        
+    #make frames
+    frames = make_frames(sig, rate, winlen, winstep)     
 
-    #Magnitude Spectrogram
-    spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
+    #apply Hamming window    
+    if hamming:
+        frames *= np.hamming(frames.shape[1])
+
+    #make Magnitude Spectrogram
+    mag_spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
 
     # Convert to dB
     if decibel_scale:
-            spec = 20 * np.log10(spec)
+            mag_spec = 20 * np.log10(mag_spec)
 
     #Frequency range (Hz)
-    index_to_Hz = rate / spec.shape[1]
+    index_to_Hz = rate / mag_spec.shape[1]
+    
+    #Number of points used for FFT
+    if NFFT is None:
+        NFFT = frames.shape[1]
 
-    return spec, index_to_Hz
+    return mag_spec, index_to_Hz, NFFT
 
 
 def normalize_spec(spec):
@@ -166,13 +178,13 @@ def crop_high_freq(spec, index_max):
 
     return cropped_spec
 
-def filter_isolated_cells(img, struct):
+def filter_isolated_spots(img, struct):
     """Remove isolated spots from the img
 
     Args:
         img : numpy array
             An array like object representing an image. 
-        struct :numpy array
+        struct : numpy array
             A structuring pattern that defines feature connections.
             Must be symmetric.
     Returns:
@@ -187,31 +199,41 @@ def filter_isolated_cells(img, struct):
     
     return filtered_array
 
-#TODO: Check if it's necessary to create a deep copy of the input array.
-def blur_img(img,ksize=5):
-    """ Smooth the input image using a median blur filter.
+def blur_image(img,ksize=3,Gaussian=True):
+    """ Smooth the input image using a median or Gaussian blur filter.
+        Note that the input image is recasted as np.float32.
 
     Args:
         img : numpy array
-            Image to be processed.
+            Image to be processed. 
         ksize: int 
-            Aperture linear size. Must be ood and greater than 1 (3,5,7,...)
+            Aperture linear size. Must be odd integer greater than or equal to 1. For the median filter, the only allowed values are 1, 3, 5. 
+        Gaussian: bool
+            Switch between median (default) and Gaussian filter
 
     Returns:
         blur_img: numpy array
-            Blurred image
+            Blurred image.
     """
+
     try:
-        assert img.dtype == "float32"#, "img type {0} shoult be 'float32'".format(img.dtype)
+        assert img.dtype == "float32", "img type {0} shoult be 'float32'".format(img.dtype)
     except AssertionError:
-        img.dtype = np.float32    
+        numpy.ndarray.astype(dtype = np.float32)    
     
-    blur_img = cv2.medianBlur(img,ksize)
+    if (Gaussian):
+        img_blur = cv2.GaussianBlur(img,(ksize,ksize),0)
+    else:
+        try:
+            assert ksize < 6, "ksize must be 1, 3, or 5"
+        except AssertionError:
+            ksize = 5
 
-    return blur_img
+        img_blur = cv2.medianBlur(img,ksize)
 
+    return img_blur
 
-def apply_median_thresh(img,row_factor=3, col_factor=4):
+def apply_median_filter(img,row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 
 
         The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
@@ -221,9 +243,10 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
             Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
     Args:
         img : numpy array
-            Array containing the img to be filtered.blur_img
+            Array containing the img to be filtered. 
+            OBS: Note that contents of img are modified by call to function.
         row_factor: int or float
-            Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.blur_img
+            Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
         col_factor: int or float
             Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
 
@@ -235,16 +258,14 @@ def apply_median_thresh(img,row_factor=3, col_factor=4):
     col_median = np.median(img, axis=0, keepdims=True)
     row_median = np.median(img, axis=1, keepdims=True)
 
-
-    img[img < row_median * row_factor] = 0
-    img[img < col_median * col_factor] = 0 
+    img[img <= row_median * row_factor] = 0
+    img[img <= col_median * col_factor] = 0 
     filtered_img = img
     filtered_img[filtered_img > 0] = 1
 
-
     return filtered_img
 
-def preemphasis(sig,coeff=0.97):
+def apply_preemphasis(sig,coeff=0.97):
     """Apply pre-emphasis to signal
 
         Args:
@@ -262,26 +283,16 @@ def preemphasis(sig,coeff=0.97):
     return emphasized_signal
 
 
-
-#TODO: Refactor. Break this function into smaller functions
-#  and possibly reuse some of the functions already defined in this module
-#TODO: Improve docstring
-def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preemphasis_coeff = 0.97, NFFT=512, n_filters=40, n_ceps=20, cep_lifter=20):
+def extract_mfcc_features(mag_frames, NFFT, rate, n_filters=40, n_ceps=20, cep_lifter=20):
     """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
     
         Args:
+            pow_frames : numpy array
+                Power spectrogram.
+            NFFT : int
+                The number of points used for creating the magnitude spectrogram.
             rate : int
                 The sampling rate of the signal (in Hz).                
-            sig : numpy array
-                The input signal.
-            frame_size : float
-                Length of each frame (in seconds).
-            frame_stride : float
-                The length od the stride (in seconds).
-            preemphasis_coeff : float
-                The preemphasis coefficient. If 0, preemphasis is not applied.
-            NFFT : int
-                The FFT (Fast Fourier Transform) length to use.
             n_filters: int
                 The number of filters in the filter bank.
             n_ceps: int
@@ -289,41 +300,19 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
             cep_lifters: int
                 The number of cepstum filters.
 
-
         Returns:
             filter_banks : numpy array
                 Array containing the filter banks.
             mfcc : numpy array
                 Array containing the MFCCs.
     """
-    #sample_rate, signal = wavfile.read(path_file)
-    emphasized_signal = preemphasis(sig, preemphasis_coeff)
+    #check that NFFT has sensible value
+    n = mag_frames.shape[1] - 1
+    assert (NFFT == 2*n or NFFT == 2*n+1), "NFFT does not agree with size of magnitude spectrogram"
 
-    # params
-    '''frame_size = 0.025
-    frame_stride = 0.01'''
-    frame_length, frame_step = frame_size * rate, frame_stride * rate  # Convert from seconds to samples
-    signal_length = len(emphasized_signal)
-    frame_length = int(round(frame_length))
-    frame_step = int(round(frame_step))
-    num_frames = int(np.ceil(float(np.abs(signal_length - frame_length)) / frame_step))  # Make sure that we have at least 1 frame
+    #make Power Spectrogram
+    pow_frames = (1.0 / NFFT) * (mag_frames**2)  # Power Spectrum
 
-    pad_signal_length = num_frames * frame_step + frame_length
-    z = np.zeros((pad_signal_length - signal_length))
-    pad_signal = np.append(emphasized_signal, z) # Pad Signal to make sure that all frames have equal number of samples without truncating any samples from the original signal
-
-    indices = np.tile(np.arange(0, frame_length), (num_frames, 1)) +\
-        np.tile(np.arange(0, num_frames * frame_step, frame_step), (frame_length, 1)).T
-    frames = pad_signal[indices.astype(np.int32, copy=False)]
-
-    # hamming window
-    frames *= np.hamming(frame_length)
-
-    #NFFT = 512
-    mag_frames = np.absolute(np.fft.rfft(frames, NFFT))  # Magnitude of the FFT
-    pow_frames = ((1.0 / NFFT) * ((mag_frames) ** 2))  # Power Spectrum
-
-    #nfilt = 40
     low_freq_mel = 0
     high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
     mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
@@ -340,6 +329,7 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
             fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
         for k in range(f_m, f_m_plus):
             fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
     filter_banks = np.dot(pow_frames, fbank.T)
     filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
     filter_banks = 20 * np.log10(filter_banks)  # dB
@@ -355,27 +345,31 @@ def extract_mfcc_features(rate,sig, frame_size=0.05, frame_stride=0.03, preempha
     
     return filter_banks, mfcc
 
-
-
-# Subtract running mean (removes narrowband long-duration noise)
-
-def filter_narrowband_noise(spec, frame_stride, T):
-    """ Subtract the running mean from the rows
+def apply_narrowband_filter(spec, time_res, time_const):
+    """ Subtract the running mean from the rows.
+    
+        The weights used to calculate the running mean decrease exponentially over the time elapsed since the current time. 
 
         The horizontal subtraction results in a reduction of narrowband
         long-duration noise.
 
     Args:
         spec : numpy array
-
+            Spectrogram
+        time_res : float
+            Time resolution of the spectrogram
+        time_const : float
+            The time constant indicates the time (in seconds) at which weight becomes 15% of the weight applied to the current value.
+        
     Returns:
         filtered_spec: numpy array
             The noise filtered spectogram.
     """
-    dt  = frame_stride
+    dt = time_res
+    T = time_const
     eps = 1 - np.exp((np.log(0.15) * dt / T))
     nx,ny = spec.shape
-    rmean = np.zeros(ny)
+#    rmean = np.zeros(ny)
     rmean = np.average(spec, 0)
     filtered_spec = np.zeros(shape=(nx,ny))
     for ix in range(nx):
@@ -385,60 +379,26 @@ def filter_narrowband_noise(spec, frame_stride, T):
 
     return filtered_spec
 
-def filter_broadband_noise(spec, frame_stride, T):
-    """ Subtract the running mean from the columns
+def apply_broadband_filter(spec):
+    """ Subtract the median from the columns
 
         The vertical subtraction results in a reduction of broadband
         sort-duration noise.
 
     Args:
         spec : numpy array
+            Spectrogram
 
     Returns:
         filtered_spec: numpy array
             The noise filtered spectogram.
     """
-
-    eps = 0.01
     nx,ny = spec.shape
-    rmean = np.zeros(nx)
-    rmean = np.average(spec, 1)
+    rmean = np.median(spec, 1)
     filtered_spec = np.zeros(shape=(nx, ny))
-    for iy in range(ny):
-        for ix in range(nx):   
-            filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix] # subtract running mean
-            rmean[ix] = (1 - eps) * rmean[ix] + eps * spec[ix,iy] # update running mean
+    for iy in range(ny): # loop over time bins
+        for ix in range(nx): # loop over frequency bins
+            filtered_spec[ix,iy] = spec[ix,iy] - rmean[ix]
 
     return filtered_spec
-
-
-
-# Smoothing 
-
-def apply_smoothing(spec):
-    """ Apply a smoothing filter to the spectogram
-
-        Args:
-            spec : numpy array
-                The spectogram to be filtered.
-
-        Returns:
-            filtered_spec : numpy array
-                The filtered spectogram.
-    """
-    nx, ny = spec.shape
-    smooth_spec = np.zeros(shape=(nx,ny))
-    M = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], np.float32)
-    for ix in range(nx):
-        for iy in range(ny):    
-            for di in range(-1,2):
-                for dj in range(-1,2):
-                    ix1 = ix+di
-                    iy1 = iy+dj
-                    if (ix1 >= 0 and ix1 < nx and iy1 >= 0 and iy1 < ny):
-                        i = 1 + di
-                        j = 1 + dj
-                        smooth_spec[ix,iy] += spec[ix1,iy1] * M[i,j]
-
-    return smooth_spec
 
