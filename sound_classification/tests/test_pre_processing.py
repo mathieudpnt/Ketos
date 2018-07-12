@@ -18,138 +18,9 @@ import os
 import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
-
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
-
-
-@pytest.fixture
-def sine_wave():
-    sampling_rate = 44100
-    frequency = 2000
-    duration = 3
-    x = np.arange(duration * sampling_rate)
-
-    signal = 32600*np.sin(2 * np.pi * frequency * x / sampling_rate) 
-
-    return sampling_rate, signal
-
-
-@pytest.fixture
-def square_wave():
-    sampling_rate = 44100
-    frequency = 2000
-    duration = 3
-    x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
-
-    return sampling_rate, signal
-
-@pytest.fixture
-def sawtooth_wave():
-    sampling_rate = 44100
-    frequency = 2000
-    duration = 3
-    x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
-
-    return sampling_rate, signal
-
-@pytest.fixture
-def const_wave():
-    sampling_rate = 44100
-    duration = 3
-    x = np.arange(duration * sampling_rate)
-    signal = np.ones(len(x))
-
-    return sampling_rate, signal
-
-
-@pytest.fixture
-def sine_wave_file(sine_wave):
-    """Create a .wav with the 'sine_wave()' fixture
-    
-       The file is saved as tests/assets/sine_wave.wav.
-       When the tests using this fixture are done, 
-       the file is deleted.
-
-
-       Yields:
-            wav_file : str
-                A string containing the path to the .wav file.
-    """
-    wav_file = os.path.join(path_to_assets, "sine_wave.wav")
-    rate, sig = sine_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
-    
-    yield wav_file
-    os.remove(wav_file)
-
-
-@pytest.fixture
-def square_wave_file(square_wave):
-    """Create a .wav with the 'square_wave()' fixture
-    
-       The file is saved as tests/assets/square_wave.wav.
-       When the tests using this fixture are done, 
-       the file is deleted.
-
-
-       Yields:
-            wav_file : str
-                A string containing the path to the .wav file.
-    """
-    wav_file =  os.path.join(path_to_assets, "square_wave.wav")
-    rate, sig = square_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
-
-    yield wav_file
-    os.remove(wav_file)
-
-
-@pytest.fixture
-def sawtooth_wave_file(sawtooth_wave):
-    """Create a .wav with the 'sawtooth_wave()' fixture
-    
-       The file is saved as tests/assets/sawtooth_wave.wav.
-       When the tests using this fixture are done, 
-       the file is deleted.
-
-
-       Yields:
-            wav_file : str
-                A string containing the path to the .wav file.
-    """
-    wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
-    rate, sig = sawtooth_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
-
-    yield wav_file
-    os.remove(wav_file)
-
-
-@pytest.fixture
-def const_wave_file(const_wave):
-    """Create a .wav with the 'const_wave()' fixture
-    
-       The file is saved as tests/assets/const_wave.wav.
-       When the tests using this fixture are done, 
-       the file is deleted.
-
-
-       Yields:
-            wav_file : str
-                A string containing the path to the .wav file.
-    """
-    wav_file =  os.path.join(path_to_assets, "const_wave.wav")
-    rate, sig = const_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
-
-    yield wav_file
-    os.remove(wav_file)
 
 
 @pytest.mark.test_resample
@@ -206,8 +77,8 @@ def test_resampling_preserves_signal_frequency(sine_wave_file):
     assert freqHz == new_freqHz
 
 @pytest.mark.test_make_frames
-def test_signal_is_padded():
-    rate, sig = sine_wave()
+def test_signal_is_padded(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = 2*duration
     winstep = 2*duration
@@ -218,8 +89,8 @@ def test_signal_is_padded():
     assert frames[0, 2*len(sig)-1] == 0
 
 @pytest.mark.test_make_frames
-def test_can_make_overlapping_frames():
-    rate, sig = sine_wave()
+def test_can_make_overlapping_frames(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/2
     winstep = duration/4
@@ -228,8 +99,8 @@ def test_can_make_overlapping_frames():
     assert frames.shape[1] == len(sig)/2
 
 @pytest.mark.test_make_frames
-def test_can_make_non_overlapping_frames():
-    rate, sig = sine_wave()
+def test_can_make_non_overlapping_frames(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/2
@@ -238,8 +109,8 @@ def test_can_make_non_overlapping_frames():
     assert frames.shape[1] == len(sig)/4
 
 @pytest.mark.test_make_frames
-def test_first_frame_matches_original_signal():
-    rate, sig = sine_wave()
+def test_first_frame_matches_original_signal(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -249,8 +120,8 @@ def test_first_frame_matches_original_signal():
         assert sig[i] == frames[0,i]
 
 @pytest.mark.test_make_magnitude_spec
-def test_make_magnitude_spec_of_sine_wave_is_delta_function():
-    rate, sig = sine_wave()
+def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -261,8 +132,8 @@ def test_make_magnitude_spec_of_sine_wave_is_delta_function():
         assert freqHz == pytest.approx(2000, Hz)
 
 @pytest.mark.test_make_magnitude_spec
-def test_make_magnitude_spec_returns_decibels():
-    rate, sig = sine_wave()
+def test_make_magnitude_spec_returns_decibels(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -271,8 +142,8 @@ def test_make_magnitude_spec_returns_decibels():
     assert np.max(mag_dB[0]) == 20 * np.log10(np.max(mag[0])) 
 
 @pytest.mark.test_make_magnitude_spec
-def test_user_can_set_number_of_points_for_FFT():
-    rate, sig = sine_wave()
+def test_user_can_set_number_of_points_for_FFT(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -283,8 +154,8 @@ def test_user_can_set_number_of_points_for_FFT():
         assert freqHz == pytest.approx(2000, Hz)
 
 @pytest.mark.test_make_magnitude_spec
-def test_make_magnitude_spec_returns_correct_NFFT_value():
-    rate, sig = sine_wave()
+def test_make_magnitude_spec_returns_correct_NFFT_value(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -292,8 +163,8 @@ def test_make_magnitude_spec_returns_correct_NFFT_value():
     assert NFFT == int(round(winlen * rate))
 
 @pytest.mark.test_normalize_spec
-def test_normalized_spectrum_has_values_between_0_and_1():
-    rate, sig = sine_wave()
+def test_normalized_spectrum_has_values_between_0_and_1(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -304,8 +175,8 @@ def test_normalized_spectrum_has_values_between_0_and_1():
         assert 0 <= val <= 1
 
 @pytest.mark.test_crop_high_freq
-def test_cropped_spectrogram_has_correct_size_and_content():
-    rate, sig = sine_wave()
+def test_cropped_spectrogram_has_correct_size_and_content(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
@@ -404,8 +275,8 @@ def test_filter_isolated_spots_removes_single_pixels():
     assert np.array_equal(filtered_img, expected)
 
 @pytest.mark.test_extract_mfcc_features
-def test_extract_mfcc_features_from_sine_wave():
-    rate, sig = sine_wave()
+def test_extract_mfcc_features_from_sine_wave(sine_wave):
+    rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10

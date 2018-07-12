@@ -36,21 +36,21 @@ def create_dir(dir):
         if e.errno != errno.EEXIST:
             raise
 
-def slice_ffmpeg(file,start,end, out_name):
-    """ Creates an audio segment from a longer audio file
+def slice_ffmpeg(file,start,end,out_name):
+    """ Creates an audio segment from a longer audio file using ffmpeg package.
 
         Args:
             file: str
                 The path to the original file.
-            start: str
+            start: float
                 The start time in seconds.
-            end: str
+            end: float
                 The end time in seconds.
             out_name: str
-                The path to the autput file.
+                The path to the output file.
         
     """
-    call(["ffmpeg","-loglevel", "quiet", "-i", file, "-ss", start, "-to", end, "-y", out_name])
+    call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
 
 def create_segments(audio_file, seg_duration, destination, prefix=None):
@@ -127,7 +127,9 @@ def from1hot(row):
 
 
 def encode_database(database, x_column, y_column):
-    """ Encodes database so that it has flatten inputs and one hot labels.
+    """ Encodes database in a format suitable for machine learning:
+         - the input images are flattened (i.e. matrices converted to row vectors).
+         - the labels are one-hot encoded.
 
     Args:
         database: pandas DataFrame
@@ -144,21 +146,32 @@ def encode_database(database, x_column, y_column):
                 The encoded database with two columns: 'x_flatten' containing
                 the flatten input images (as vectors instead of matrices) and
                 'one_hot_encoding' containing the one hot version of the labels.
+            image_shape: tuple (int,int)
+                Tuple specifying the shape of the input images in pixels. Example: (128,128)
     """
-    
+
+    # assert that columns exist
+    assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
+    assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
+
+    # determine image size and check that all images have same size
+    image_shape = database[x_column][0].shape
+    assert all(x.shape == image_shape for x in database[x_column])     
+
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
-    return database
+
+    return database, image_shape
 
 
-def split_database(database, boundaries):
+def split_database(database, divisions):
     """ Split the database into 3 datasets: train, validation, test.
 
         Args:
         database : pandas.DataFrame
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
-        boundaries: dict
+        divisions: dict
             Dictionary indicating the initial and final rows for each dataset.
             Keys must be "train", "validation" and "test".
             values are tuples with initial and final rows.
@@ -170,10 +183,13 @@ def split_database(database, boundaries):
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
     """
+    assert "train" in divisions, "'divisions' does not contain key 'train'"   
+    assert "validation" in divisions, "'divisions' does not contain key 'validation'"   
+    assert "test" in divisions, "'divisions' does not contain key 'test'"   
 
-    train_data = database[boundaries["train"][0]:boundaries["train"][1]]
-    validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
-    test_data = database[boundaries["test"][0]:boundaries["test"][1]]
+    train_data = database[divisions["train"][0]:divisions["train"][1]]
+    validation_data = database[divisions["validation"][0]:divisions["validation"][1]]
+    test_data = database[divisions["test"][0]:divisions["test"][1]]
 
     datasets = {"train": train_data,
                 "validation": validation_data,
@@ -188,16 +204,20 @@ def stack_dataset(dataset, input_shape):
      
         Args:
             dataset: pandas DataFrame
-                A pandas dataset with two columns:'x_flatten'and
+                A pandas dataset with two columns:'x_flatten' and
                 'one_hot_encoding' (the output of the 'encode_database' function)
-            input_shape: tuple (int,int)
-                A tuple specifying the shape of the input images in pixels. Example: (128,128)
 
         Results:
             stacked_dataset: dict (of numpy arrays)
             A dictionary containing the stacked versions of the input and labels, 
             respectively under the keys 'x' and 'y'
     """
+
+#            input_shape: tuple (int,int)
+#                A tuple specifying the shape of the input images in pixels. Example: (128,128)
+
+    assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
+    assert "one_hot_encoding" in dataset.columns, "'dataset' does not contain column named 'one_hot_encoding'"
 
     x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
     y = np.vstack(dataset.one_hot_encoding)
@@ -208,7 +228,7 @@ def stack_dataset(dataset, input_shape):
     return stacked_dataset
 
 
-def prepare_database(database, x_column, y_column, boundaries, input_shape):
+def prepare_database(database, x_column, y_column, divisions):
     """ Encode data base, split it into training, validation and test sets
         and stack those sets.
 
@@ -217,23 +237,20 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
 
         Args:
             database: pandas DataFrame
-                A the database containing at least one column of input images
+                A database containing at least one column of input images
                 and one column of labels
             x_column: str
                 The name of the column to be used as input
             y_column: str
                 The name of the column to be used as label.
                 Must be binary (only have 1s or 0s).
-            boundaries: dict
+            divisions: dict
                 Dictionary indicating the initial and final rows for each dataset.
                 Keys must be "train", "validation" and "test".
                 values are tuples with initial and final rows.
                 Example: {"train":(0,1000),
                             "validation": (1000,1200),
                             "test": (1200:1400)}
-            input_shape: tuple (int,int)
-                A tuple specifying the shape of the input images in pixels.
-                Example: (128,128)
 
         Returns:
             stacked_datasets: dict
@@ -243,8 +260,8 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
                                              stacked datasets (numpy arrays)
     """
 
-    encoded_data = encode_database(database=database, x_column=x_column, y_column=y_column)
-    datasets = split_database(database=encoded_data, boundaries=boundaries)
+    encoded_data, input_shape = encode_database(database=database, x_column=x_column, y_column=y_column)
+    datasets = split_database(database=encoded_data, divisions=divisions)
     
     stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
     stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
