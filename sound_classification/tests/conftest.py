@@ -134,3 +134,33 @@ def const_wave_file(const_wave):
     yield wav_file
     os.remove(wav_file)
 
+
+@pytest.fixture
+def image_2x2():
+    image = np.array([[1,2],[3,4]], np.float32)
+    return image
+
+
+@pytest.fixture
+def datebase_with_one_image_col_and_one_label_col():
+    img = image_2x2()
+    d = {'image': [img], 'label': [1]}
+    df = pd.DataFrame(data=d)
+    return df
+
+
+@pytest.fixture
+def datebase_with_one_image_col_and_no_label_col():
+    img = image_2x2()
+    d = {'image': [img]}
+    df = pd.DataFrame(data=d)
+    return df
+
+
+@pytest.fixture
+def datebase_with_two_image_cols_and_one_label_col():
+    img = image_2x2()
+    d = {'image1': [img], 'image2': [img], 'label': [1]}
+    df = pd.DataFrame(data=d)
+    return df
+
