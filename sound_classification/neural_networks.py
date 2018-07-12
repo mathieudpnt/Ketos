@@ -133,14 +133,20 @@ class CNNWhale():
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels])
 
+        pool_shape=[2,2]
 
-        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], [2, 2], name='layer1')
-        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], [2, 2], name='layer2')
+        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
+        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
 
-        flattened = tf.reshape(layer2, [-1, 5 * 15 * 64])
+        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape*2)))
+        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape*2)))
+        
+        flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
+
+        
 
         # setup some weights and bias values for this layer, then activate with ReLU
-        wd1 = tf.Variable(tf.truncated_normal([5* 15 * 64, 512], stddev=0.03), name='wd1')
+        wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, 512], stddev=0.03), name='wd1')
         bd1 = tf.Variable(tf.truncated_normal([512], stddev=0.01), name='bd1')
         dense_layer1 = tf.matmul(flattened, wd1) + bd1
         dense_layer1 = tf.nn.relu(dense_layer1)
