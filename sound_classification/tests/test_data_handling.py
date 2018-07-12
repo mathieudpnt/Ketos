@@ -93,3 +93,7 @@ def test_prepare_database_executes():
     raw = datebase_with_one_image_col_and_one_label_col()
     divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
     dh.prepare_database(raw, "image", "label", divisions) 
+
+@pytest.mark.test_create_segments
+def test_create_segments_from_sine_wave_file(sine_wave_file):
+    x = 1
