@@ -127,7 +127,9 @@ def from1hot(row):
 
 
 def encode_database(database, x_column, y_column):
-    """ Encodes database so that it has flatten inputs and one hot labels.
+    """ Encodes database in a format suitable for machine learning:
+         - the input images are flattened (i.e. matrices converted to row vectors).
+         - the labels are one-hot encoded.
 
     Args:
         database: pandas DataFrame
@@ -145,7 +147,9 @@ def encode_database(database, x_column, y_column):
                 the flatten input images (as vectors instead of matrices) and
                 'one_hot_encoding' containing the one hot version of the labels.
     """
-    
+    assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
+    assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
+
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
     return database
@@ -217,7 +221,7 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
 
         Args:
             database: pandas DataFrame
-                A the database containing at least one column of input images
+                A database containing at least one column of input images
                 and one column of labels
             x_column: str
                 The name of the column to be used as input
