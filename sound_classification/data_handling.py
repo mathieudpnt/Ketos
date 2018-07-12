@@ -172,7 +172,7 @@ def split_database(database, divisions):
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
         divisions: dict
-            Dictionary indicating the initial and final rows for each dataset.
+            Dictionary indicating the initial and final rows for each dataset (Obs: final row is *not* included).
             Keys must be "train", "validation" and "test".
             values are tuples with initial and final rows.
             Example: {"train":(0,1000),

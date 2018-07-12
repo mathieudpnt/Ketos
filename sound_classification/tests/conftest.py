@@ -2,7 +2,9 @@ import pytest
 import os
 import numpy as np
 import scipy.signal as sg
+import pandas as pd
 import sound_classification.pre_processing as pp
+import sound_classification.data_handling as dh
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -163,4 +165,14 @@ def datebase_with_two_image_cols_and_one_label_col():
     d = {'image1': [img], 'image2': [img], 'label': [1]}
     df = pd.DataFrame(data=d)
     return df
+
+
+@pytest.fixture
+def datebase_prepared_for_NN():
+    img = image_2x2()
+    d = {'image': [img,img,img,img,img,img], 'label': [1,1,1,1,1,1]}
+    df = pd.DataFrame(data=d)
+    divisions = {"train":(0,3),"validation":(3,4),"test":(4,6)}
+    prepared = dh.prepare_database(df, "image", "label", divisions)     
+    return prepared
 
