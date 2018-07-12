@@ -138,8 +138,8 @@ class CNNWhale():
         layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
         layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
 
-        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape*2)))
-        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape*2)))
+        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape[0]*2)))
+        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape[1]*2)))
         
         flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
 
