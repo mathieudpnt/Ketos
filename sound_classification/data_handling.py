@@ -155,14 +155,14 @@ def encode_database(database, x_column, y_column):
     return database
 
 
-def split_database(database, boundaries):
+def split_database(database, divisions):
     """ Split the database into 3 datasets: train, validation, test.
 
         Args:
         database : pandas.DataFrame
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
-        boundaries: dict
+        divisions: dict
             Dictionary indicating the initial and final rows for each dataset.
             Keys must be "train", "validation" and "test".
             values are tuples with initial and final rows.
@@ -174,10 +174,13 @@ def split_database(database, boundaries):
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
     """
+    assert "train" in divisions, "'divisions' does not contain key 'train'"   
+    assert "validation" in divisions, "'divisions' does not contain key 'validation'"   
+    assert "test" in divisions, "'divisions' does not contain key 'test'"   
 
-    train_data = database[boundaries["train"][0]:boundaries["train"][1]]
-    validation_data = database[boundaries["validation"][0]:boundaries["validation"][1]]
-    test_data = database[boundaries["test"][0]:boundaries["test"][1]]
+    train_data = database[divisions["train"][0]:divisions["train"][1]]
+    validation_data = database[divisions["validation"][0]:divisions["validation"][1]]
+    test_data = database[divisions["test"][0]:divisions["test"][1]]
 
     datasets = {"train": train_data,
                 "validation": validation_data,
@@ -212,7 +215,7 @@ def stack_dataset(dataset, input_shape):
     return stacked_dataset
 
 
-def prepare_database(database, x_column, y_column, boundaries, input_shape):
+def prepare_database(database, x_column, y_column, divisions, input_shape):
     """ Encode data base, split it into training, validation and test sets
         and stack those sets.
 
@@ -228,7 +231,7 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
             y_column: str
                 The name of the column to be used as label.
                 Must be binary (only have 1s or 0s).
-            boundaries: dict
+            divisions: dict
                 Dictionary indicating the initial and final rows for each dataset.
                 Keys must be "train", "validation" and "test".
                 values are tuples with initial and final rows.
@@ -248,7 +251,7 @@ def prepare_database(database, x_column, y_column, boundaries, input_shape):
     """
 
     encoded_data = encode_database(database=database, x_column=x_column, y_column=y_column)
-    datasets = split_database(database=encoded_data, boundaries=boundaries)
+    datasets = split_database(database=encoded_data, divisions=divisions)
     
     stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
     stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
