@@ -189,8 +189,8 @@ def test_to1hot_works_with_multiple_categories(input,depth, expected):
               [0., 1., 0., 0., 0., 0.],
               [0., 0., 0., 0., 0., 1.]])),
     (np.array([0,1]),3,
-     np.array([[0., 1., 0.],
-               [0., 0., 1.]])),
+     np.array([[1., 0., 0.],
+               [0., 1., 0.]])),
     ])
 @pytest.mark.test_to1hot
 def test_to1hot_works_with_multiple_input_values_at_once(input,depth, expected):
