@@ -89,41 +89,61 @@ def create_segments(audio_file, seg_duration, destination, prefix=None):
     
 
 
-def to1hot(row):
+def to1hot(value,depth):
     """Converts the binary label to one hot format
 
             Args:
-                row: bool/int(0 or 1)
+                value: scalar or numpy.array | int or float
                     The the label to be converted.
+                depth: int
+                    The number of possible values for the labels 
+                    (number of categories).
+                    
             
             Returns:
-                one_hot:numpy array
-                    A 1 by 2 array containg [1,0] if row was 0
-                    and [0,1] if it was 1.
-     """
+                one_hot:numpy array (dtype=float64)
+                    A len(value) by depth array containg the one hot encoding
+                    for the given value(s).
 
-    one_hot = np.zeros(2)
-    one_hot[row] = 1.0
+            Example:
+                >>> values = np.array([0,1])
+                >>> to1hot(values,depth=2)
+                array([[1., 0.],
+                      [0., 1.]])
+     """
+    value = np.int64(value)
+    one_hot = np.eye(depth)[value]
     return one_hot
 
 
-def from1hot(row):
+def from1hot(value):
     """Converts the one hot label to binary format
 
             Args:
-                row: numpy array
-                    The the label to be converted. ([0,1] or [1,0])
+                value: scalar or numpy.array | int or float
+                    The the label to be converted.
             
             Returns:
-                one_hot:float
-                    A scalar of value 0.0 if row was [1,0] and 1.0 
-                    if row was [0,1].
+                output: int or numpy array (dtype=int64)
+                    An int representing the category if 'value' has 1 dimension or an
+                    array of m ints if  input values is an n by m array.
+
+            Example:
+                >>> from1hot(np.array([0,0,0,1,0]))
+                3
+                >>> from1hot(np.array([[0,0,0,1,0],
+                   [0,1,0,0,0]]))
+                array([3, 1])
+
      """
-     
-    value = 0.0
-    if row[1] == 1.0:
-        value = 1.0
-    return value
+
+    if value.ndim > 1:
+        output = np.apply_along_axis(arr=value, axis=1, func1d=np.argmax)
+        output.dtype = np.int64
+    else:
+        output = np.argmax(value)
+
+    return output
 
 
 def encode_database(database, x_column, y_column):
@@ -158,7 +178,8 @@ def encode_database(database, x_column, y_column):
     image_shape = database[x_column][0].shape
     assert all(x.shape == image_shape for x in database[x_column])     
 
-    database["one_hot_encoding"] = database[y_column].apply(to1hot)
+    depth = database[y_column].max() + 1 #number of classes
+    database["one_hot_encoding"] = database[y_column].apply(to1hot,depth=depth)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
 
     return database, image_shape
