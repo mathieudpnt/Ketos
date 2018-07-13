@@ -179,7 +179,7 @@ def test_to1hot_output_has_correct_depth(input,depth, expected):
 @pytest.mark.test_to1hot
 def test_to1hot_works_with_multiple_categories(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
-    assert len(one_hot == expected).all()
+    assert (one_hot == expected).all()
 
 
 @pytest.mark.parametrize("input,depth,expected",[
