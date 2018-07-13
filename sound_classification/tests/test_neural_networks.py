@@ -20,6 +20,16 @@ import sound_classification.neural_networks as nn
 
 
 @pytest.mark.test_CNNWhale
-def test_initialize_CNNWhale_with_default_args(database_prepared_for_NN):
-    network = nn.CNNWhale.from_prepared_data(database_prepared_for_NN, batch_size=1, num_channels=1, num_labels=1)
+def test_initialize_CNNWhale_with_class_method_and_default_args(database_prepared_for_NN):
+    d = database_prepared_for_NN
+    network = nn.CNNWhale.from_prepared_data(d, batch_size=1, num_channels=1, num_labels=1)
 
+def test_initialize_CNNWhale_with_default_constructor_and_default_args(database_prepared_for_NN):
+    d = database_prepared_for_NN
+    train_x = d["train_x"]
+    train_y = d["train_y"]
+    validation_x = d["validation_x"]
+    validation_y = d["validation_y"]
+    test_x = d["test_x"]
+    test_y = d["test_y"]
+    network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=1, num_labels=1)
