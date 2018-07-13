@@ -180,3 +180,19 @@ def test_to1hot_output_has_correct_depth(input,depth, expected):
 def test_to1hot_works_with_multiple_categories(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
     assert len(one_hot == expected).all()
+
+
+@pytest.mark.parametrize("input,depth,expected",[
+    (np.array([3,0,1,5]),6,
+     np.array([[0., 0., 0., 1., 0., 0.],
+              [1., 0., 0., 0., 0., 0.],
+              [0., 1., 0., 0., 0., 0.],
+              [0., 0., 0., 0., 0., 1.]])),
+    (np.array([0,1]),3,
+     np.array([[0., 1., 0.],
+               [0., 0., 1.]])),
+    ])
+@pytest.mark.test_to1hot
+def test_to1hot_works_with_multiple_input_values_at_once(input,depth, expected):
+    one_hot = dh.to1hot(input,depth)
+    assert len(one_hot == expected).all()
