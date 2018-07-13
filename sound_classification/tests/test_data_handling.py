@@ -159,10 +159,10 @@ def test_to1hot_works_with_floats_and_ints(input, depth, expected):
 
 
 @pytest.mark.parametrize("input,depth,expected",[
-    (3,4,np.array([0,0,0,1])),
-    (0,4,np.array([1,0,0,0])),
-    (1.0,2,np.array([0,1])),
-    (5.0,10,np.array([0,0,0,0,0,1,0,0,0,0])),
+    (1,4,np.array([0,1,0,0])),
+    (1,4,np.array([0,1,0,0])),
+    (1,2,np.array([0,1])),
+    (1,10,np.array([0,1,0,0,0,0,0,0,0,0])),
     ])
 @pytest.mark.test_to1hot
 def test_to1hot_output_has_correct_depth(input,depth, expected):
