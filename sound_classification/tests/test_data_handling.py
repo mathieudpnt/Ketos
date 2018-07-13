@@ -145,14 +145,26 @@ def count_files_that_contain_string(dir, substr, delete=False):
             count += 1
     return count
 
-@pytest.mark.test_to1hot
-@pytest.mark.parametrize("input,expected",[
-    (1,np.array([0,1])),
-    (0,np.array([1,0])),
-    (1.0,np.array([1,0])),
-    (0.0,np.array([1,0])),
+
+@pytest.mark.parametrize("input,depth,expected",[
+    (1,2,np.array([0,1])),
+    (0,2,np.array([1,0])),
+    (1.0,2,np.array([1,0])),
+    (0.0,2,np.array([1,0])),
     ])
-def test_to1hot_works_with_floats_and_ints(input,expected):
-    one_hot = dh.to1hot(input)
+@pytest.mark.test_to1hot
+def test_to1hot_works_with_floats_and_ints(input, depth, expected):
+    one_hot = dh.to1hot(input, depth)
     assert (one_hot == expected).all()
-    print()
+
+
+@pytest.mark.parametrize("input,depth,expected",[
+    (3,4,np.array([0,0,0,1])),
+    (0,4,np.array([1,0,0,0])),
+    (1.0,2,np.array([0,1])),
+    (5.0,10,np.array([0,0,0,0,0,1,0,0,0,0])),
+    ])
+@pytest.mark.test_to1hot
+def test_to1hot_output_has_correct_depth(input,depth, expected):
+    one_hot = dh.to1hot(input,depth)
+    assert len(one_hot) == depth
