@@ -3,7 +3,7 @@
 
     Authors: Fabio Frazao and Oliver Kirsebom
     contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Intitute for Big Data Analytics
+    Organization: MERIDIAN-Institute for Big Data Analytics
     Team: Acoustic data Analytics, Dalhousie University
     Project: packages/sound_classification
              Project goal: Package code internally used in projects applying Deep Learning to sound classification
@@ -213,3 +213,46 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
     one_hot = input["label"].apply(dh.to1hot,depth=depth)
     for i in range(len(one_hot)):
         assert (one_hot[i] == expected[i]).all()
+
+
+################################
+# from1hot() tests
+################################
+
+
+@pytest.mark.parametrize("input,expected",[
+    (np.array([0,1]),1),
+    (np.array([1,0]),0),
+    (np.array([0.0,1.0]),1),
+    (np.array([1.0,0.0]),0),
+    ])
+@pytest.mark.test_from1hot
+def test_from1hot_works_with_floats_and_ints(input, expected):
+    one_hot = dh.from1hot(input)
+    assert one_hot == expected
+
+
+@pytest.mark.parametrize("input,expected",[
+    (np.array([0,0,0,1]),3),
+    (np.array([1,0,0,0]),0),
+    (np.array([0,1]),1),
+    (np.array([0,0,0,0,0,1,0,0,0,0]),5),
+    ])
+@pytest.mark.test_from1hot
+def test_from1hot_works_with_multiple_categories(input, expected):
+    one_hot = dh.from1hot(input)
+    assert one_hot == expected
+
+
+@pytest.mark.parametrize("input,expected",[
+    (np.array([[0., 0., 0., 1., 0., 0.],
+              [1., 0., 0., 0., 0., 0.],
+              [0., 1., 0., 0., 0., 0.],
+              [0., 0., 0., 0., 0., 1.]]),np.array([3,0,1,5])),
+    (np.array([[1., 0., 0.],
+               [0., 1., 0.]]), np.array([0,1])),
+    ])
+@pytest.mark.test_from1hot
+def test_from1hot_works_with_multiple_input_values_at_once(input, expected):
+    one_hot = dh.from1hot(input)
+    assert (one_hot == expected).all()
