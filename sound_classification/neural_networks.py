@@ -83,21 +83,23 @@ class CNNWhale():
                  test_x, test_y, batch_size, num_channels, num_labels,
                  learning_rate=0.01, num_epochs=10, seed=42):
         dh.check_data_sanity(train_x, train_y) # check sanity of training data
+        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
+        dh.check_data_sanity(test_x, test_y) # check sanity of test data
+
+        train_img_size = dh.get_image_size(train_x) # automatically determine image size
+        val_img_size = dh.get_image_size(validation_x)
+        test_img_size = dh.get_image_size(test_x)
+        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
+
         self.train_x = train_x
         self.train_y = train_y
-        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
         self.validation_x = validation_x
         self.validation_y = validation_y
-        dh.check_data_sanity(test_x, test_y) # check sanity of test data
         self.test_x = test_x
         self.test_y = test_y
         self.batch_size = batch_size
         self.num_channels = num_channels
         self.num_labels = num_labels
-        train_img_size = dh.get_image_size(train_x) # automatically determine image size
-        val_img_size = dh.get_image_size(validation_x)
-        test_img_size = dh.get_image_size(test_x)
-        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
         self.input_shape = train_img_size[0:2]
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
@@ -166,8 +168,6 @@ class CNNWhale():
         y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape[1]*2)))
         
         flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
-
-        
 
         # setup some weights and bias values for this layer, then activate with ReLU
         wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, 512], stddev=0.03), name='wd1')
