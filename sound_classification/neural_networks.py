@@ -42,6 +42,8 @@ class CNNWhale():
                 Data Frame in which each row contains the one hot encoded label
             batch_size: int
                 The number of examples in each batch
+            num_channels: int
+                ...
             num_labels: int
                 The number of possible values for the labels
             input_shape: tuple (int)
