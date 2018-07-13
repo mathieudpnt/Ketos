@@ -21,7 +21,7 @@ cache:
     - venv/
 
 before_script:
-  - apt update -y && apt install -y libhdf5-serial-dev
+  - apt update -y && apt install -y libhdf5-serial-dev ffmpeg
     # Configure pip caching
   - python -V               # Print out python version for debugging
   - pip install virtualenv
