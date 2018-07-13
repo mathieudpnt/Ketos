@@ -313,40 +313,6 @@ class CNNWhale():
         """
         self.saver.save(self.sess, destination)
 
-    def to1hot(self,row):
-        """Converts binary label  to one hot encoding
-
-            Args:
-                row: bool/int(0 or 1)
-                    The the label to be converted.
-            
-            Returns:
-                one_hot:numpy array
-                    A 1 by 2 array containg [1,0] if row was 0
-                    and [0,1] if it was 1.
-        """
-        one_hot = np.zeros(2)
-        one_hot[row] = 1.0
-        return one_hot
-
-    def from1hot(self,row):
-        """Converts one hot encoding (two values) to binary label (one value).
-         
-            Args:
-                row: bool/int(0 or 1)
-                    The the label to be converted.
-            
-            Returns:
-                value:float
-                    a scalar of value 0.0 if row was [1,0] and 1.0 
-                    if row was [0,1].
-        """
-        
-        value=0.0
-        if row[1] == 1.0:
-            value = 1.0
-        return value
-
     def _check_accuracy(self, x, y):
         """ Check accuracy of the model by checking how close
          to y the models predictions are when fed x
@@ -438,7 +404,7 @@ class CNNWhale():
 
         x_reshaped = self.reshape_x(x)
         predicted = self._get_predictions(x_reshaped,y)
-        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot(y)))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
