@@ -244,3 +244,15 @@ def test_from1hot_works_with_multiple_categories(input, expected):
     assert one_hot == expected
 
 
+@pytest.mark.parametrize("input,expected",[
+    (np.array([[0., 0., 0., 1., 0., 0.],
+              [1., 0., 0., 0., 0., 0.],
+              [0., 1., 0., 0., 0., 0.],
+              [0., 0., 0., 0., 0., 1.]]),np.array([3,0,1,5])),
+    (np.array([[1., 0., 0.],
+               [0., 1., 0.]]), np.array([0,1])),
+    ])
+@pytest.mark.test_from1hot
+def test_from1hot_works_with_multiple_input_values_at_once(input, expected):
+    one_hot = dh.from1hot(input)
+    assert (one_hot == expected).all()
