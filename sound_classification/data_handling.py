@@ -116,23 +116,34 @@ def to1hot(value,depth):
     return one_hot
 
 
-def from1hot(row):
+def from1hot(value):
     """Converts the one hot label to binary format
 
             Args:
-                row: numpy array
-                    The the label to be converted. ([0,1] or [1,0])
+                value: scalar or numpy.array | int or float
+                    The the label to be converted.
             
             Returns:
-                one_hot:float
-                    A scalar of value 0.0 if row was [1,0] and 1.0 
-                    if row was [0,1].
+                output: int or numpy array (dtype=int64)
+                    An int representing the category if 'value' has 1 dimension or an
+                    array of m ints if  input values is an n by m array.
+
+            Example:
+                >>> from1hot(np.array([0,0,0,1,0]))
+                3
+                >>> from1hot(np.array([[0,0,0,1,0],
+                   [0,1,0,0,0]]))
+                array([3, 1])
+
      """
-     
-    value = 0.0
-    if row[1] == 1.0:
-        value = 1.0
-    return value
+
+    if value.ndim > 1:
+        output = np.apply_along_axis(arr=value, axis=1, func1d=np.argmax)
+        output.dtype = np.int64
+    else:
+        output = np.argmax(value)
+
+    return output
 
 
 def encode_database(database, x_column, y_column):
