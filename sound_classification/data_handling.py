@@ -89,21 +89,30 @@ def create_segments(audio_file, seg_duration, destination, prefix=None):
     
 
 
-def to1hot(row):
+def to1hot(value,depth):
     """Converts the binary label to one hot format
 
             Args:
-                row: bool/int(0 or 1)
+                value: int or numpy.array of ints
                     The the label to be converted.
+                depth: int
+                    The number of possible values for the labels 
+                    (number of categories).
+                    
             
             Returns:
                 one_hot:numpy array
-                    A 1 by 2 array containg [1,0] if row was 0
-                    and [0,1] if it was 1.
+                    A len(value) by depth array containg the one hot encoding
+                    for the given value(s).
+
+            Example:
+                >>> values = np.array([0,1])
+                >>> to1hot(values,depth=2)
+                array([[1., 0.],
+                      [0., 1.]])
      """
 
-    one_hot = np.zeros(2)
-    one_hot[row] = 1.0
+    one_hot = np.eye(depth)[value]
     return one_hot
 
 
