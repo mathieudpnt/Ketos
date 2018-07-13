@@ -93,7 +93,7 @@ def to1hot(value,depth):
     """Converts the binary label to one hot format
 
             Args:
-                value: int or numpy.array of ints
+                value: scalar or numpy.array | int or float
                     The the label to be converted.
                 depth: int
                     The number of possible values for the labels 
@@ -101,7 +101,7 @@ def to1hot(value,depth):
                     
             
             Returns:
-                one_hot:numpy array
+                one_hot:numpy array (dtype=float64)
                     A len(value) by depth array containg the one hot encoding
                     for the given value(s).
 
@@ -111,7 +111,7 @@ def to1hot(value,depth):
                 array([[1., 0.],
                       [0., 1.]])
      """
-
+    value = np.int64(value)
     one_hot = np.eye(depth)[value]
     return one_hot
 
