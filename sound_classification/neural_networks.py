@@ -18,6 +18,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import sound_classification.data_handling as dh
 
 
 class CNNWhale():
@@ -44,10 +45,8 @@ class CNNWhale():
                 The number of examples in each batch
             num_channels: int
                 ...
-            num_labels: int
-                The number of possible values for the labels
             input_shape: tuple (int)
-                A tuple of ints specifying the input shape. Example: (60,20)
+                A tuple of ints specifying the shape of the input images. Example: (60,20)
             learning_rate: float
                 The learning rate to be using by the optimization algorithm
             num_epochs: int
@@ -82,17 +81,24 @@ class CNNWhale():
 
     def __init__(self, train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
-                 input_shape, learning_rate=0.01, num_epochs=10, seed=42):
+                 learning_rate=0.01, num_epochs=10, seed=42):
+        dh.check_data_sanity(train_x, train_y) # check sanity of training data
         self.train_x = train_x
         self.train_y = train_y
+        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
         self.validation_x = validation_x
         self.validation_y = validation_y
+        dh.check_data_sanity(test_x, test_y) # check sanity of test data
         self.test_x = test_x
         self.test_y = test_y
         self.batch_size = batch_size
         self.num_channels = num_channels
         self.num_labels = num_labels
-        self.input_shape = input_shape
+        train_img_size = dh.get_image_size(train_x) # automatically determine image size
+        val_img_size = dh.get_image_size(validation_x)
+        test_img_size = dh.get_image_size(test_x)
+        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
+        self.input_shape = train_img_size[0:2]
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
         self.seed = seed
@@ -117,7 +123,7 @@ class CNNWhale():
     @classmethod
     def from_prepared_data(cls, prepared_data, 
                            batch_size, num_channels, num_labels, 
-                           input_shape, learning_rate=0.01, 
+                           learning_rate=0.01, 
                            num_epochs=10, seed=42):
         train_x = prepared_data["train_x"]
         train_y = prepared_data["train_y"]
@@ -128,7 +134,7 @@ class CNNWhale():
 
         return cls(train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
-                 input_shape, learning_rate, num_epochs, seed)
+                 learning_rate, num_epochs, seed)
 
 
     def create_net_structure(self):

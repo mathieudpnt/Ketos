@@ -154,8 +154,11 @@ def encode_database(database, x_column, y_column):
     assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
     assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
 
-    # determine image size and check that all images have same size
-    image_shape = check_data_sanity(database[x_column], database[y_column])
+    # check data sanity
+    check_data_sanity(database[x_column], database[y_column])
+
+    # determine image size
+    image_shape = get_image_size(database[x_column])
 
     database["one_hot_encoding"] = database[y_column].apply(to1hot)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
@@ -297,5 +300,20 @@ def check_data_sanity(images, labels):
     b = np.isnan(labels)    
     n = np.count_nonzero(b)
     assert n == 0, "Some labels are NaN"
+
+def get_image_size(images):
+    """ Get image size and check that all images have same size.
+     
+        Args:
+            images: numpy array
+                Images
+
+        Results:
+            image_size: tuple (int,int)
+                Image size
+    """
+    # determine image size and check that all images have same size
+    image_shape = images[0].shape
+    assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
 
     return image_shape
