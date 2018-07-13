@@ -196,3 +196,20 @@ def test_to1hot_works_with_multiple_categories(input,depth, expected):
 def test_to1hot_works_with_multiple_input_values_at_once(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
     assert (one_hot == expected).all()
+
+
+@pytest.mark.parametrize("input,depth,expected",[
+    (pd.DataFrame({"label":[0,0,1,0,1,0]}),2,
+     np.array([[1.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 0.0]]),)
+    ])
+@pytest.mark.test_to1hot
+def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
+     
+    one_hot = input["label"].apply(dh.to1hot,depth=depth)
+    for i in range(len(one_hot)):
+        assert (one_hot[i] == expected[i]).all()
