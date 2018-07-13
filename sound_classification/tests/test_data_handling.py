@@ -149,7 +149,7 @@ def count_files_that_contain_string(dir, substr, delete=False):
 @pytest.mark.parametrize("input,depth,expected",[
     (1,2,np.array([0,1])),
     (0,2,np.array([1,0])),
-    (1.0,2,np.array([1,0])),
+    (1.0,2,np.array([0,1])),
     (0.0,2,np.array([1,0])),
     ])
 @pytest.mark.test_to1hot
