@@ -144,3 +144,15 @@ def count_files_that_contain_string(dir, substr, delete=False):
             os.remove(dir+"/"+file)
             count += 1
     return count
+
+@pytest.mark.test_to1hot
+@pytest.mark.parametrize("input,expected",[
+    (1,np.array([0,1])),
+    (0,np.array([1,0])),
+    (1.0,np.array([1,0])),
+    (0.0,np.array([1,0])),
+    ])
+def test_to1hot_works_with_floats_and_ints(input,expected):
+    one_hot = dh.to1hot(input)
+    assert (one_hot == expected).all()
+    print()
