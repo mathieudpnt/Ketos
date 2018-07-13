@@ -167,7 +167,8 @@ def encode_database(database, x_column, y_column):
     image_shape = database[x_column][0].shape
     assert all(x.shape == image_shape for x in database[x_column])     
 
-    database["one_hot_encoding"] = database[y_column].apply(to1hot)
+    depth = database[y_column].max() + 1 #number of classes
+    database["one_hot_encoding"] = database[y_column].apply(to1hot,depth=depth)
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
 
     return database, image_shape
