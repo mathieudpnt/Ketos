@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
 import sound_classification.neural_networks as nn
+from tensorflow import reset_default_graph
 
 
 @pytest.mark.test_CNNWhale
@@ -34,9 +35,20 @@ def test_initialize_CNNWhale_with_default_constructor_and_default_args(database_
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=1, num_labels=1)
+    reset_default_graph()
     
+
 @pytest.mark.test_CNNWhale
 def test_train_neural_net_with_default_args(database_prepared_for_NN):
     d = database_prepared_for_NN
-    network = nn.CNNWhale.from_prepared_data(d, batch_size=1, num_channels=1, num_labels=1)
+    network = nn.CNNWhale.from_prepared_data(d, batch_size=1, num_channels=2, num_labels=1)
+    network.train()
+    reset_default_graph()
+
+
+@pytest.mark.test_CNNWhale
+def test_train_neural_net_with_default_args2(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    
+    network = nn.CNNWhale.from_prepared_data(d, batch_size=1, num_channels=2, num_labels=2)
     network.train()
