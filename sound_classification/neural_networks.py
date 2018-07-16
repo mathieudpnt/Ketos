@@ -43,10 +43,10 @@ class CNNWhale():
                 Data Frame in which each row contains the one hot encoded label
             batch_size: int
                 The number of examples in each batch
-            num_labels: int
-                The number of possible values for the labels
+            num_channels: int
+                ...
             input_shape: tuple (int)
-                A tuple of ints specifying the input shape. Example: (60,20)
+                A tuple of ints specifying the shape of the input images. Example: (60,20)
             learning_rate: float
                 The learning rate to be using by the optimization algorithm
             num_epochs: int
@@ -81,7 +81,16 @@ class CNNWhale():
 
     def __init__(self, train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
-                 input_shape, learning_rate=0.01, num_epochs=10, seed=42):
+                 learning_rate=0.01, num_epochs=10, seed=42):
+        dh.check_data_sanity(train_x, train_y) # check sanity of training data
+        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
+        dh.check_data_sanity(test_x, test_y) # check sanity of test data
+
+        train_img_size = dh.get_image_size(train_x) # automatically determine image size
+        val_img_size = dh.get_image_size(validation_x)
+        test_img_size = dh.get_image_size(test_x)
+        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
+
         self.train_x = train_x
         self.train_y = train_y
         self.validation_x = validation_x
@@ -91,7 +100,7 @@ class CNNWhale():
         self.batch_size = batch_size
         self.num_channels = num_channels
         self.num_labels = num_labels
-        self.input_shape = input_shape
+        self.input_shape = train_img_size[0:2]
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
         self.seed = seed
@@ -112,6 +121,22 @@ class CNNWhale():
         self.writer = tf_operations['writer']
         self.saver = tf_operations['saver']
 
+
+    @classmethod
+    def from_prepared_data(cls, prepared_data, 
+                           batch_size, num_channels, num_labels, 
+                           learning_rate=0.01, 
+                           num_epochs=10, seed=42):
+        train_x = prepared_data["train_x"]
+        train_y = prepared_data["train_y"]
+        validation_x = prepared_data["validation_x"]
+        validation_y = prepared_data["validation_y"]
+        test_x = prepared_data["test_x"]
+        test_y = prepared_data["test_y"]
+
+        return cls(train_x, train_y, validation_x, validation_y,
+                 test_x, test_y, batch_size, num_channels, num_labels,
+                 learning_rate, num_epochs, seed)
 
 
     def create_net_structure(self):
@@ -134,14 +159,18 @@ class CNNWhale():
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels])
 
+        pool_shape=[2,2]
 
-        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], [2, 2], name='layer1')
-        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], [2, 2], name='layer2')
+        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
+        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
 
-        flattened = tf.reshape(layer2, [-1, 5 * 15 * 64])
+        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape[0]*2)))
+        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape[1]*2)))
+        
+        flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
 
         # setup some weights and bias values for this layer, then activate with ReLU
-        wd1 = tf.Variable(tf.truncated_normal([5* 15 * 64, 512], stddev=0.03), name='wd1')
+        wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, 512], stddev=0.03), name='wd1')
         bd1 = tf.Variable(tf.truncated_normal([512], stddev=0.01), name='bd1')
         dense_layer1 = tf.matmul(flattened, wd1) + bd1
         dense_layer1 = tf.nn.relu(dense_layer1)
@@ -292,41 +321,6 @@ class CNNWhale():
         """
         self.saver.save(self.sess, destination)
 
-    def to1hot(self,value, depth):
-        """Converts the binary label to one hot format
-
-            Args:
-                value: scalar or numpy.array | int or float
-                    The the label to be converted.
-                depth: int
-                    The number of possible values for the labels 
-                    (number of categories).
-                    
-            
-            Returns:
-                one_hot:numpy array (dtype=float64)
-                    A len(value) by depth array containg the one hot encoding
-                    for the given value(s).
-        """
-        one_hot = dh.to1hot(value,depth)
-        return one_hot
-
-    def from1hot(self,value):
-        """Converts the one hot label to binary format
-
-            Args:
-                value: scalar or numpy.array | int or float
-                    The the label to be converted.
-            
-            Returns:
-                output: int or numpy array (dtype=int64)
-                    An int representing the category if 'value' has 1 dimension or an
-                    array of m ints if  input values is an n by m array.
-        """
-        
-        output - dh.from1hot(value)
-        return value
-
     def _check_accuracy(self, x, y):
         """ Check accuracy of the model by checking how close
          to y the models predictions are when fed x
@@ -418,7 +412,7 @@ class CNNWhale():
 
         x_reshaped = self.reshape_x(x)
         predicted = self._get_predictions(x_reshaped,y)
-        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot,y))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
