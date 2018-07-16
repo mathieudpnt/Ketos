@@ -64,8 +64,6 @@ create-package:
     - export TOKEN=${!TOKEN}
     - export ID=${JOB_NAME[2]}
     - curl --fail -X POST -F token=`echo $TOKEN` -F ref=master https://git.kern.phys.au.dk/api/v4/projects/$ID/trigger/pipeline
-  tags:
-    - variables
   only:
     - master
   dependencies: []
