@@ -140,8 +140,9 @@ def count_files_that_contain_string(dir, substr, delete=False):
     files = os.listdir(dir)
     count = 0
     for file in files:
-        if (substr in file) & delete:
-            os.remove(dir+"/"+file)
+        if (substr in file):
+            if delete: 
+                os.remove(dir+"/"+file)
             count += 1
     return count
 
