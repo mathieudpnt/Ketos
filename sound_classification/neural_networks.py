@@ -18,6 +18,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import sound_classification.data_handling as dh
 
 
 class CNNWhale():
@@ -291,20 +292,23 @@ class CNNWhale():
         """
         self.saver.save(self.sess, destination)
 
-    def to1hot(self,row):
-        """Converts binary label  to one hot encoding
+    def to1hot(self,value, depth):
+         """Converts the binary label to one hot format
 
             Args:
-                row: bool/int(0 or 1)
+                value: scalar or numpy.array | int or float
                     The the label to be converted.
+                depth: int
+                    The number of possible values for the labels 
+                    (number of categories).
+                    
             
             Returns:
-                one_hot:numpy array
-                    A 1 by 2 array containg [1,0] if row was 0
-                    and [0,1] if it was 1.
+                one_hot:numpy array (dtype=float64)
+                    A len(value) by depth array containg the one hot encoding
+                    for the given value(s).
         """
-        one_hot = np.zeros(2)
-        one_hot[row] = 1.0
+        one_hot = dh.to1hot(value,depth)
         return one_hot
 
     def from1hot(self,row):
