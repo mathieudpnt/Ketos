@@ -49,3 +49,11 @@ create-package:
   - pip install dist/*
  only:
   - master
+
+
+###############################
+##  Trig dependant projects   #
+###############################
+
+trig HUMPBACK_CLASS 27:
+  <<: *trig
