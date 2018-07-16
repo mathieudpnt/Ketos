@@ -293,7 +293,7 @@ class CNNWhale():
         self.saver.save(self.sess, destination)
 
     def to1hot(self,value, depth):
-         """Converts the binary label to one hot format
+        """Converts the binary label to one hot format
 
             Args:
                 value: scalar or numpy.array | int or float
