@@ -68,5 +68,5 @@ create-package:
     - master
   dependencies: []
     
-trig HUMPBACK_CLASS 10: # project TOKEN and ID
-  <<: *trig
+#trig HUMPBACK_CLASS 10: # project TOKEN and ID
+#  <<: *trig
