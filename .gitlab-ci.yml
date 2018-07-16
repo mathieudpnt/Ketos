@@ -4,6 +4,7 @@ stages:
 - build
 - test
 - deploy
+- trig
 
 # Change pip's cache directory to be inside the project directory since we can
 # only cache local items.
@@ -49,3 +50,25 @@ create-package:
   - pip install dist/*
  only:
   - master
+
+
+###############################
+##  Trig dependant projects   #
+###############################
+
+.trig base: &trig
+  type: trig
+  script:
+    - JOB_NAME=( $CI_BUILD_NAME )
+    - export TOKEN="${JOB_NAME[1]}_TOKEN"
+    - export TOKEN=${!TOKEN}
+    - export ID=${JOB_NAME[2]}
+    - curl --fail -X POST -F token=`echo $TOKEN` -F ref=master https://git.kern.phys.au.dk/api/v4/projects/$ID/trigger/pipeline
+  tags:
+    - variables
+  only:
+    - master
+  dependencies: []
+    
+trig HUMPBACK_CLASS 10: # project TOKEN and ID
+  <<: *trig
