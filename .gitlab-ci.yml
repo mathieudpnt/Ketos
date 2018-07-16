@@ -31,17 +31,17 @@ before_script:
   - pip install --upgrade pip
   - pip install -r requirements.txt
 
-run-tests:
- type: test
- script:
-  - pytest
+#run-tests:
+# type: test
+# script:
+#  - pytest
 
-create-docs:
- type: deploy
- script:
-  - cd docs/ && make html && cd ..
- only:
-  - master
+#create-docs:
+# type: deploy
+# script:
+#  - cd docs/ && make html && cd ..
+# only:
+#  - master
 
 create-package:
  type: deploy
@@ -63,10 +63,10 @@ create-package:
     - export TOKEN="${JOB_NAME[1]}_TOKEN"
     - export TOKEN=${!TOKEN}
     - export ID=${JOB_NAME[2]}
-    - curl --fail -X POST -F token=`echo $TOKEN` -F ref=master https://git.kern.phys.au.dk/api/v4/projects/$ID/trigger/pipeline
+    - curl --fail -X POST -F token=`echo $TOKEN` -F ref=config-CI https://git.kern.phys.au.dk/api/v4/projects/$ID/trigger/pipeline
   only:
     - master
   dependencies: []
     
-#trig HUMPBACK_CLASS 10: # project TOKEN and ID
-#  <<: *trig
+trig HUMPBACK_CLASS 10: # project TOKEN and ID
+  <<: *trig
