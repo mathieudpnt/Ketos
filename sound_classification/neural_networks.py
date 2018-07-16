@@ -311,22 +311,20 @@ class CNNWhale():
         one_hot = dh.to1hot(value,depth)
         return one_hot
 
-    def from1hot(self,row):
-        """Converts one hot encoding (two values) to binary label (one value).
-         
+    def from1hot(self,value):
+        """Converts the one hot label to binary format
+
             Args:
-                row: bool/int(0 or 1)
+                value: scalar or numpy.array | int or float
                     The the label to be converted.
             
             Returns:
-                value:float
-                    a scalar of value 0.0 if row was [1,0] and 1.0 
-                    if row was [0,1].
+                output: int or numpy array (dtype=int64)
+                    An int representing the category if 'value' has 1 dimension or an
+                    array of m ints if  input values is an n by m array.
         """
         
-        value=0.0
-        if row[1] == 1.0:
-            value = 1.0
+        output - dh.from1hot(value)
         return value
 
     def _check_accuracy(self, x, y):
