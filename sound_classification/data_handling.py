@@ -174,9 +174,11 @@ def encode_database(database, x_column, y_column):
     assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
     assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
 
-    # determine image size and check that all images have same size
-    image_shape = database[x_column][0].shape
-    assert all(x.shape == image_shape for x in database[x_column])     
+    # check data sanity
+    check_data_sanity(database[x_column], database[y_column])
+
+    # determine image size
+    image_shape = get_image_size(database[x_column])
 
     depth = database[y_column].max() + 1 #number of classes
     database["one_hot_encoding"] = database[y_column].apply(to1hot,depth=depth)
@@ -193,7 +195,7 @@ def split_database(database, divisions):
             The database to be split. Must contain at least 2 colummns (x, y).
             Each row is an example.
         divisions: dict
-            Dictionary indicating the initial and final rows for each dataset.
+            Dictionary indicating the initial and final rows for each dataset (Obs: final row is *not* included).
             Keys must be "train", "validation" and "test".
             values are tuples with initial and final rows.
             Example: {"train":(0,1000),
@@ -233,9 +235,6 @@ def stack_dataset(dataset, input_shape):
             A dictionary containing the stacked versions of the input and labels, 
             respectively under the keys 'x' and 'y'
     """
-
-#            input_shape: tuple (int,int)
-#                A tuple specifying the shape of the input images in pixels. Example: (128,128)
 
     assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
     assert "one_hot_encoding" in dataset.columns, "'dataset' does not contain column named 'one_hot_encoding'"
@@ -296,3 +295,46 @@ def prepare_database(database, x_column, y_column, divisions):
                         "test_y": stacked_test["y"]}
 
     return stacked_datasets
+
+def check_data_sanity(images, labels):
+    """ Check that all images have same size, all labels have values, 
+        and number of images and labels match.
+     
+        Args:
+            images: numpy array
+                Images
+            labels: numpy array
+                Labels
+
+        Results:
+            image_size: tuple (int,int)
+                Image size
+    """
+    # check that number of images matches numbers of labels
+    assert len(images) == len(labels), "Image and label columns have different lengths"
+
+    # determine image size and check that all images have same size
+    image_shape = images[0].shape
+    assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
+
+    # check that all labels have values
+    b = np.isnan(labels)    
+    n = np.count_nonzero(b)
+    assert n == 0, "Some labels are NaN"
+
+def get_image_size(images):
+    """ Get image size and check that all images have same size.
+     
+        Args:
+            images: numpy array
+                Images
+
+        Results:
+            image_size: tuple (int,int)
+                Image size
+    """
+    # determine image size and check that all images have same size
+    image_shape = images[0].shape
+    assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
+
+    return image_shape

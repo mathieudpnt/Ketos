@@ -2,7 +2,9 @@ import pytest
 import os
 import numpy as np
 import scipy.signal as sg
+import pandas as pd
 import sound_classification.pre_processing as pp
+import sound_classification.data_handling as dh
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -164,3 +166,36 @@ def datebase_with_two_image_cols_and_one_label_col():
     df = pd.DataFrame(data=d)
     return df
 
+
+@pytest.fixture
+def database_prepared_for_NN():
+    img = image_2x2()
+    d = {'image': [img,img,img,img,img,img], 'label': [0,0,0,0,0,0]}
+    df = pd.DataFrame(data=d)
+    divisions = {"train":(0,3),"validation":(3,4),"test":(4,6)}
+    prepared = dh.prepare_database(df, "image", "label", divisions)     
+    return prepared
+
+@pytest.fixture
+def database_prepared_for_NN_2_classes():
+    img1 = np.zeros((20, 20))
+    img2 = np.ones((20, 20))
+
+
+    d = {'image': [img1, img2, img1, img2, img1, img2,
+                   img1, img2, img1, img2, img1, img2,
+                   img1, img2, img1, img2, img1, img2,
+                   img1, img2, img1, img2, img1, img2],
+         'label': [0, 1, 0, 1, 0, 1,
+                   0, 1, 0, 1, 0, 1,
+                   0, 1, 0, 1, 0, 1,
+                   0, 1, 0, 1, 0, 1]}
+
+    database = pd.DataFrame(data=d)
+    divisions= {"train":(0,12),
+                "validation":(12,18),
+                "test":(18,len(database))}
+
+    prepared = dh.prepare_database(database=database,x_column="image",y_column="label",
+                                divisions=divisions)    
+    return prepared
