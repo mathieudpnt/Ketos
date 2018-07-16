@@ -412,7 +412,7 @@ class CNNWhale():
 
         x_reshaped = self.reshape_x(x)
         predicted = self._get_predictions(x_reshaped,y)
-        pred_df = pd.DataFrame({"label":np.array(list(map(self.from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot,y))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
