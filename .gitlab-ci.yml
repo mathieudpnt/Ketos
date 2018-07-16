@@ -48,8 +48,8 @@ create-package:
  script:
   - python setup.py sdist
   - pip install dist/sound_classification-0.0.1.tar.gz
- only:
-  - master
+# only:
+#  - master
  artifacts:
   paths:
    - dist/sound_classification-0.0.1.tar.gz
