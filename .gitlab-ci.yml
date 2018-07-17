@@ -48,8 +48,8 @@ create-package:
  script:
   - python setup.py sdist
   - pip install dist/sound_classification-0.0.1.tar.gz
- only:
-  - master
+### only:
+###  - master
  artifacts:
   paths:
    - dist/sound_classification-0.0.1.tar.gz
@@ -63,3 +63,5 @@ trigger-humpback:
   type: trig
   script:
     - "curl -X POST -F token=d1205bf47de18df6e2be7eef55bc8e -F ref=master https://data.meridian.cs.dal.ca/gitlab/api/v4/projects/10/trigger/pipeline"
+### only:
+###  - master
