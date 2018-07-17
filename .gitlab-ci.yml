@@ -6,6 +6,7 @@ stages:
 create-package:
  type: deploy
  script:
+   - echo "hello"
  artifacts:
   paths:
    - requirements.txt
