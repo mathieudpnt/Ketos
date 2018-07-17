@@ -30,7 +30,7 @@ before_script:
   - source venv/bin/activate
   - pip install --upgrade pip
   - pip install -r requirements.txt
-
+  
 run-tests:
  type: test
  script:
@@ -38,6 +38,9 @@ run-tests:
 
 create-docs:
  type: deploy
+ before_script: # overwrites global before_script
+  - pip install sphinx
+  - pip install sphinx_rtd_theme
  script:
   - cd docs/ && make html && cd ..
  only:
@@ -47,26 +50,22 @@ create-package:
  type: deploy
  script:
   - python setup.py sdist
-  - pip install dist/*
+  - pip install dist/sound_classification-0.0.1.tar.gz
  only:
   - master
+ artifacts:
+  paths:
+   - dist/sound_classification-0.0.1.tar.gz
 
 
-###############################
-##  Trig dependant projects   #
-###############################
+#  Trig dependant projects
 
-.trig base: &trig
+# This triggers CI pipeline for master branch of humbpack_class project.
+# For guidelines on how to set this up, see here: https://data.meridian.cs.dal.ca/gitlab/data_analytics_dal/projects/humpback_class/settings/ci_cd
+trigger-humpback:
+  before_script: []
   type: trig
   script:
-    - JOB_NAME=( $CI_BUILD_NAME )
-    - export TOKEN="${JOB_NAME[1]}_TOKEN"
-    - export TOKEN=${!TOKEN}
-    - export ID=${JOB_NAME[2]}
-    - curl --fail -X POST -F token=`echo $TOKEN` -F ref=master https://git.kern.phys.au.dk/api/v4/projects/$ID/trigger/pipeline
+    - "curl -X POST -F token=d1205bf47de18df6e2be7eef55bc8e -F ref=master https://data.meridian.cs.dal.ca/gitlab/api/v4/projects/10/trigger/pipeline"
   only:
-    - master
-  dependencies: []
-    
-#trig HUMPBACK_CLASS 10: # project TOKEN and ID
-#  <<: *trig
+  - master
