@@ -21,18 +21,33 @@ cache:
     - .cache/
     - venv/
 
-before_script:
+
+.install-apt-packages: &install-apt-packages
+ script: 
   - apt update -y && apt install -y libhdf5-serial-dev ffmpeg
-    # Configure pip caching
-  - python -V               # Print out python version for debugging
+
+###before_script:
+###  - apt update -y && apt install -y libhdf5-serial-dev ffmpeg
+###    # Configure pip caching
+###  - python -V               # Print out python version for debugging
+###  - pip install virtualenv
+###  - virtualenv venv
+###  - source venv/bin/activate
+###  - pip install --upgrade pip
+###  - pip install -r requirements.txt
+
+.install-python-packages: &install-python-packages
+  script:
   - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
   - pip install --upgrade pip
   - pip install -r requirements.txt
-
+  
 run-tests:
  type: test
+ <<: *install-apt-packages
+ <<: *install-python-packages
  script:
   - pytest
 
