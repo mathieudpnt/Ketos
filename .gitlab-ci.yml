@@ -5,6 +5,7 @@ stages:
 
 create-package:
  type: deploy
+ script:
  artifacts:
   paths:
    - requirements.txt
