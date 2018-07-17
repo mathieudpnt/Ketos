@@ -23,6 +23,7 @@ cache:
 
 
 .install-apt-packages: &install-apt-packages
+ type: build
  script: 
   - apt update -y && apt install -y libhdf5-serial-dev ffmpeg
 
@@ -37,6 +38,7 @@ cache:
 ###  - pip install -r requirements.txt
 
 .install-python-packages: &install-python-packages
+  type: build
   script:
   - pip install virtualenv
   - virtualenv venv
