@@ -48,9 +48,9 @@ cache:
   
 run-tests:
  type: test
- <<: *install-apt-packages
- <<: *install-python-packages
  script:
+  - *install-apt-packages
+  - *install-python-packages
   - pytest
 
 create-docs:
