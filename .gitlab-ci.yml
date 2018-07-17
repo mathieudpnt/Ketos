@@ -39,6 +39,10 @@ run-tests:
 create-docs:
  type: deploy
  before_script: # overwrites global before_script
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install --upgrade pip
   - pip install sphinx
   - pip install sphinx_rtd_theme
  script:
