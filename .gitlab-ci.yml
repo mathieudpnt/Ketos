@@ -69,7 +69,8 @@ create-package:
 
 trigger:
   type: trig
-    - curl --request POST --form token=HUMPBACK_CLASS --form ref=master https://data.meridian.cs.dal.ca/api/v4/projects/10/trigger/pipeline
+  script:
+    - curl -X POST -F token=TOKEN -F ref=REF_NAME https://data.meridian.cs.dal.ca/gitlab/api/v4/projects/10/trigger/pipeline
 
 
 .trig base: &trig
