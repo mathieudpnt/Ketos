@@ -7,6 +7,7 @@ create-package:
  type: deploy
  script:
    - echo "hello"
+   - ls -lhtr
  artifacts:
   paths:
    - requirements.txt
