@@ -81,7 +81,7 @@ trigger:
     - export TOKEN=${!TOKEN}
     - export ID=${JOB_NAME[2]}
     - curl --request POST --form token=`echo $TOKEN` --form ref=master https://data.meridian.cs.dal.ca/api/v4/projects/$ID/trigger/pipeline
-      only:
+  only:
     - master
   dependencies: []
     
