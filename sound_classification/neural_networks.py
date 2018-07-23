@@ -155,8 +155,7 @@ class CNNWhale():
 
 
     def load_net_structure(self, saved_meta, checkpoint):
-        create_net_structure(self):
-        """Load the Neural Network structure from a saved model.
+       """Load the Neural Network structure from a saved model.
 
            See the save_model() method. 
 
@@ -178,6 +177,38 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
+        
+        sess = self.sess
+        restorer = tf.train.import_meta_graph(saved_meta)
+        saver.restore(sess, tf.train.latest_checkpoint(saved_checkpoint))
+
+        graph = tf.get_default_graph()
+        x = graph.get_tensor_by_name("x:0")
+        y = graph.get_tensor_by_name("x:0")
+        cost_function = graph.get_operation_by_name("cost_function:0")
+        optimiser = graph.get_operation_by_name("optimiser:0")
+        predict = graph.get_operation_by_name("predict:0")
+        accuracy = graph.get_tensor_by_name("accuracy:0")
+        cost_function = graph.get_operation_by_name("cost_function:0")
+        init_op = graph.get_operation_by_name("init_op:0")
+        merged = graph.get_operation_by_name("merged:0")
+        writer = graph.get_operation_by_name("writer:0")
+        saver = graph.get_operation_by_name("saver:0")
+
+        tf_objects = {'x': x,
+                'y':y,            
+                'cost_function': cross_entropy,
+                'optimiser': optimiser,
+                'predict': predict,
+                'correct_prediction': correct_prediction,
+                'accuracy': accuracy,
+                'init_op': init_op,
+                'merged':  merged,
+                'writer': writer,
+                'saver': saver,
+                }
+
+        return tf_objects
 
 
     def create_net_structure(self):
