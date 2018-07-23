@@ -197,10 +197,10 @@ class CNNWhale():
 
         tf_objects = {'x': x,
                 'y':y,            
-                'cost_function': cross_entropy,
+                'cost_function': cost_function,
                 'optimiser': optimiser,
                 'predict': predict,
-                'correct_prediction': correct_prediction,
+                'prediction': prediction,
                 'accuracy': accuracy,
                 'init_op': init_op,
                 'merged':  merged,
