@@ -103,7 +103,7 @@ class CNNWhale():
         self.input_shape = train_img_size[0:2]
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
-        self.seed = seed
+        self.set_seed(seed)
         self.train_size = self.train_y.shape[0]
 
         tf_operations = self.create_net_structure()
@@ -137,6 +137,21 @@ class CNNWhale():
         return cls(train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
                  learning_rate, num_epochs, seed)
+
+
+    def set_seed(self,seed):
+        """Set the random seed.
+
+            Useful to generate reproducible results.
+
+            Args:
+                seed: int
+                    Seed to be used by both tensorflow and numpy when generating random numbers
+            Returns:
+                None        
+        """
+        np.random.seed(seed)
+        tf.set_random_seed(seed)
 
 
     def create_net_structure(self):
