@@ -154,6 +154,32 @@ class CNNWhale():
         tf.set_random_seed(seed)
 
 
+    def load_net_structure(self, saved_meta, checkpoint):
+        create_net_structure(self):
+        """Load the Neural Network structure from a saved model.
+
+           See the save_model() method. 
+
+            Args:
+                saved_meta: str
+                    Path to the saved .meta file.
+
+                checkpoint: str
+                    Path to the checkpoint to be used when loading the saved model
+                
+
+            Returns:
+                tf_objects: dict
+                    A dictionary with the tensorflow objects necessary
+                    to train and run the model.
+                    sess, x, y, cost_function, optimiser, predict, correct_prediction,
+                    accuracy,init_op, merged, writer, saver
+                    These objects are stored as
+                    instance attributes when the class is instantiated.
+
+        """
+
+
     def create_net_structure(self):
         """Create the Neural Network structure.
 
