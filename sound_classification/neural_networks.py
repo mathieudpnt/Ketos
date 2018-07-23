@@ -155,32 +155,32 @@ class CNNWhale():
 
 
     def load_net_structure(self, saved_meta, checkpoint):
-       """Load the Neural Network structure from a saved model.
+        """Load the Neural Network structure from a saved model.
 
-           See the save_model() method. 
+        See the save_model() method. 
 
-            Args:
-                saved_meta: str
-                    Path to the saved .meta file.
+        Args:
+            saved_meta: str
+                Path to the saved .meta file.
 
-                checkpoint: str
-                    Path to the checkpoint to be used when loading the saved model
-                
+            checkpoint: str
+                Path to the checkpoint to be used when loading the saved model
+            
 
-            Returns:
-                tf_objects: dict
-                    A dictionary with the tensorflow objects necessary
-                    to train and run the model.
-                    sess, x, y, cost_function, optimiser, predict, correct_prediction,
-                    accuracy,init_op, merged, writer, saver
-                    These objects are stored as
-                    instance attributes when the class is instantiated.
+        Returns:
+            tf_objects: dict
+                A dictionary with the tensorflow objects necessary
+                to train and run the model.
+                sess, x, y, cost_function, optimiser, predict, correct_prediction,
+                accuracy,init_op, merged, writer, saver
+                These objects are stored as
+                instance attributes when the class is instantiated.
 
         """
-        
+
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
-        saver.restore(sess, tf.train.latest_checkpoint(saved_checkpoint))
+        restorer.restore(sess, tf.train.latest_checkpoint(checkpoint))
 
         graph = tf.get_default_graph()
         x = graph.get_tensor_by_name("x:0")
