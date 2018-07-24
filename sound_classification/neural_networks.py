@@ -61,7 +61,7 @@ class CNNWhale():
                 The labels.
             cost_function: tensorflow operation
                 The cost function node in the network's graph.
-            optimiser: tensorflow operation
+            optimizer: tensorflow operation
                 The optimizer that optimizes the weights.
             predict: tensorflow operation
                 The prediction operation. Uses the trained model to predict labels.
@@ -112,7 +112,7 @@ class CNNWhale():
         self.x = tf_operations['x']
         self.y = tf_operations['y']
         self.cost_function = tf_operations['cost_function']
-        self.optimiser = tf_operations['optimiser']
+        self.optimizer = tf_operations['optimizer']
         self.predict = tf_operations['predict']
         self.correct_prediction = tf_operations['correct_prediction']
         self.accuracy = tf_operations['accuracy']
@@ -171,7 +171,7 @@ class CNNWhale():
             tf_objects: dict
                 A dictionary with the tensorflow objects necessary
                 to train and run the model.
-                sess, x, y, cost_function, optimiser, predict, correct_prediction,
+                sess, x, y, cost_function, optimizer, predict, correct_prediction,
                 accuracy,init_op, merged, writer, saver
                 These objects are stored as
                 instance attributes when the class is instantiated.
@@ -186,7 +186,7 @@ class CNNWhale():
         x = graph.get_tensor_by_name("x:0")
         y = graph.get_tensor_by_name("x:0")
         cost_function = graph.get_operation_by_name("cost_function:0")
-        optimiser = graph.get_operation_by_name("optimiser:0")
+        optimizer = graph.get_operation_by_name("optimizer:0")
         predict = graph.get_operation_by_name("predict:0")
         correct_prediction = graph.get_operation_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
@@ -199,7 +199,7 @@ class CNNWhale():
         tf_objects = {'x': x,
                 'y':y,            
                 'cost_function': cost_function,
-                'optimiser': optimiser,
+                'optimizer': optimizer,
                 'predict': predict,
                 'correct_prediction':correct_prediction,
                 'accuracy': accuracy,
@@ -222,7 +222,7 @@ class CNNWhale():
                 tf_objects: dict
                     A dictionary with the tensorflow objects necessary
                     to train and run the model.
-                    sess, x, y, cost_function, optimiser, predict, correct_prediction,
+                    sess, x, y, cost_function, optimizer, predict, correct_prediction,
                     accuracy,init_op, merged, writer, saver
                     These objects are stored as
                     instance attributes when the class is instantiated.
@@ -256,7 +256,7 @@ class CNNWhale():
 
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y),name="cost_function")
 
-        # add an optimiser
+        # add an optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
 
         # define an accuracy assessment operation
@@ -314,7 +314,7 @@ class CNNWhale():
                 batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
                 batch_x_reshaped = self.reshape_x(batch_x)
                 batch_y = self.train_y[offset:(offset + self.batch_size)]
-                _, c = sess.run([self.optimiser, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
+                _, c = sess.run([self.optimizer, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
                 avg_cost += c / total_batch
             
             validation_x_reshaped = self.reshape_x(self.validation_x)
