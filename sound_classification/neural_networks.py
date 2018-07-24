@@ -228,8 +228,8 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
-        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]])
-        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
+        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name = "x")
+        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1], name= "y")
         y = tf.placeholder(tf.float32, [None, self.num_labels])
 
         pool_shape=[2,2]
@@ -254,31 +254,31 @@ class CNNWhale():
         dense_layer2 = tf.matmul(dense_layer1, wd2) + bd2
         y_ = tf.nn.softmax(dense_layer2)
 
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y))
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y),name="cost_function")
 
         # add an optimiser
-        optimiser = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cross_entropy)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
 
         # define an accuracy assessment operation
         predict = tf.argmax(y_, 1, name="predict")
-        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1), name="correct_pred")
+        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1), name="correct_prediction")
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),name="accuracy")
 
         # setup the initialisation operator
-        init_op = tf.global_variables_initializer()
+        init_op = tf.global_variables_initializer(name="init_op")
 
         # setup recording variables
         # add a summary to store the accuracy
         tf.summary.scalar('accuracy', accuracy)
 
-        merged = tf.summary.merge_all()
-        writer = tf.summary.FileWriter('summaries')
+        merged = tf.summary.merge_all(name="merged")
+        writer = tf.summary.FileWriter('summaries',name="writer")
         saver = tf.train.Saver()
 
         tf_objects = {'x': x,
                 'y':y,            
                 'cost_function': cross_entropy,
-                'optimiser': optimiser,
+                'optimizer': optimizer,
                 'predict': predict,
                 'correct_prediction': correct_prediction,
                 'accuracy': accuracy,
