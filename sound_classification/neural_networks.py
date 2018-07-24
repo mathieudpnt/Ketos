@@ -188,6 +188,7 @@ class CNNWhale():
         cost_function = graph.get_operation_by_name("cost_function:0")
         optimiser = graph.get_operation_by_name("optimiser:0")
         predict = graph.get_operation_by_name("predict:0")
+        correct_prediction = graph.get_operation_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
         cost_function = graph.get_operation_by_name("cost_function:0")
         init_op = graph.get_operation_by_name("init_op:0")
@@ -200,7 +201,7 @@ class CNNWhale():
                 'cost_function': cost_function,
                 'optimiser': optimiser,
                 'predict': predict,
-                'prediction': prediction,
+                'correct_prediction':correct_prediction,
                 'accuracy': accuracy,
                 'init_op': init_op,
                 'merged':  merged,
