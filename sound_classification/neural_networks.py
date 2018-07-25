@@ -481,7 +481,7 @@ class CNNWhale():
                 A vector containing the predicted labels.                
         """
         test_x_reshaped = self.reshape_x(self.test_x)
-        results = self._get_predictions(test_x_reshaped, self.test_y)
+        results = self.get_predictions(test_x_reshaped)
         return results
     
     def _get_mislabelled(self, x, y, print_report=False):
