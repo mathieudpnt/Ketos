@@ -441,8 +441,7 @@ class CNNWhale():
         Args:
             x:tensor
                 Tensor containing the input data.
-            y: tensor
-                Tensor containing the one hot encoded labels.
+            
         Returns:
             results: vector
                 A vector containing the predicted labels.                
