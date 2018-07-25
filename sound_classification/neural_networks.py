@@ -470,7 +470,7 @@ class CNNWhale():
                 A vector containing the predicted labels.                
         """
         validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self._get_predictions(validation_x_reshaped, self.validation_y)
+        results = self.get_predictions(validation_x_reshaped)
         return results
 
     def predict_on_test(self):
