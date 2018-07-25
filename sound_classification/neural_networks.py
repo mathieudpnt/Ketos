@@ -228,8 +228,8 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
-        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name = "x")
-        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1], name= "y")
+        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
+        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1], name="y")
         y = tf.placeholder(tf.float32, [None, self.num_labels])
 
         pool_shape=[2,2]
@@ -265,14 +265,14 @@ class CNNWhale():
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),name="accuracy")
 
         # setup the initialisation operator
-        init_op = tf.global_variables_initializer(name="init_op")
+        init_op = tf.global_variables_initializer()
 
         # setup recording variables
         # add a summary to store the accuracy
         tf.summary.scalar('accuracy', accuracy)
 
-        merged = tf.summary.merge_all(name="merged")
-        writer = tf.summary.FileWriter('summaries',name="writer")
+        merged = tf.summary.merge_all()
+        writer = tf.summary.FileWriter('summaries')
         saver = tf.train.Saver()
 
         tf_objects = {'x': x,
