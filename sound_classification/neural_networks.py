@@ -106,20 +106,36 @@ class CNNWhale():
         self.set_seed(seed)
         self.train_size = self.train_y.shape[0]
 
-        tf_operations = self.create_net_structure()
+        
 
         self.sess = tf.Session()
-        self.x = tf_operations['x']
-        self.y = tf_operations['y']
-        self.cost_function = tf_operations['cost_function']
-        self.optimizer = tf_operations['optimizer']
-        self.predict = tf_operations['predict']
-        self.correct_prediction = tf_operations['correct_prediction']
-        self.accuracy = tf_operations['accuracy']
-        self.init_op = tf_operations['init_op']
-        self.merged = tf_operations['merged']
-        self.writer = tf_operations['writer']
-        self.saver = tf_operations['saver']
+        # tf_operations = self.create_net_structure()
+        
+        # self.x = tf_operations['x']
+        # self.y = tf_operations['y']
+        # self.cost_function = tf_operations['cost_function']
+        # self.optimizer = tf_operations['optimizer']
+        # self.predict = tf_operations['predict']
+        # self.correct_prediction = tf_operations['correct_prediction']
+        # self.accuracy = tf_operations['accuracy']
+        # self.init_op = tf_operations['init_op']
+        # self.merged = tf_operations['merged']
+        # self.writer = tf_operations['writer']
+        # self.saver = tf_operations['saver']
+
+
+    def set_tf_objects(self, tf_objects):
+        self.x = tf_objects['x']
+        self.y = tf_objects['y']
+        self.cost_function = tf_objects['cost_function']
+        self.optimizer = tf_objects['optimizer']
+        self.predict = tf_objects['predict']
+        self.correct_prediction = tf_objects['correct_prediction']
+        self.accuracy = tf_objects['accuracy']
+        self.init_op = tf_objects['init_op']
+        self.merged = tf_objects['merged']
+        self.writer = tf_objects['writer']
+        self.saver = tf_objects['saver']
 
 
     @classmethod
@@ -323,10 +339,7 @@ class CNNWhale():
             validation_x_reshaped = self.reshape_x(self.validation_x)
             train_acc = self.accuracy_on_train()
             print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc))
-           
-            #merged = tf.summary.merge_all()
-           
-           
+
             summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
             self.writer.add_summary(summary, epoch)
 
