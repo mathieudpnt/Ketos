@@ -304,6 +304,9 @@ class CNNWhale():
         print("=============================================")
         print("Training  started")
         sess = self.sess
+
+        self.writer.add_graph(sess.graph)
+
         # initialise the variables
         sess.run(self.init_op)
         total_batch = int(self.train_size / self.batch_size)
@@ -320,13 +323,16 @@ class CNNWhale():
             validation_x_reshaped = self.reshape_x(self.validation_x)
             train_acc = self.accuracy_on_train()
             print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc))
+           
+            #merged = tf.summary.merge_all()
+           
+           
             summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
             self.writer.add_summary(summary, epoch)
 
 
         print("\nTraining complete!")
-        self.writer.add_graph(sess.graph)
-
+        
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
 
