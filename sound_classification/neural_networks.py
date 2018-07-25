@@ -435,7 +435,7 @@ class CNNWhale():
         results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
         return results
 
-    def _get_predictions(self, x ,y):
+    def get_predictions(self, x):
         """ Predict labels by running the model on x
 
         Args:
@@ -447,7 +447,7 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        results = self.sess.run(self.predict, feed_dict={self.x:x, self.y:y})
+        results = self.sess.run(self.predict, feed_dict={self.x:x})
         return results
 
     def reshape_x(self, x):
