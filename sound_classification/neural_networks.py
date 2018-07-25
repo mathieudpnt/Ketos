@@ -200,17 +200,18 @@ class CNNWhale():
 
         graph = tf.get_default_graph()
         x = graph.get_tensor_by_name("x:0")
-        y = graph.get_tensor_by_name("x:0")
-        cost_function = graph.get_operation_by_name("cost_function:0")
-        optimizer = graph.get_operation_by_name("optimizer:0")
-        predict = graph.get_operation_by_name("predict:0")
-        correct_prediction = graph.get_operation_by_name("correct_prediction:0")
+        y = graph.get_tensor_by_name("y:0")
+        cost_function = graph.get_tensor_by_name("cost_function:0")
+        optimizer = graph.get_operation_by_name("optimizer")
+        predict = graph.get_tensor_by_name("predict:0")
+        correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
-        cost_function = graph.get_operation_by_name("cost_function:0")
-        init_op = graph.get_operation_by_name("init_op:0")
-        merged = graph.get_operation_by_name("merged:0")
-        writer = graph.get_operation_by_name("writer:0")
-        saver = graph.get_operation_by_name("saver:0")
+       
+
+        init_op = tf.global_variables_initializer()
+        merged = tf.summary.merge_all()
+        writer = tf.summary.FileWriter('summaries')
+        saver = tf.train.Saver()
 
         tf_objects = {'x': x,
                 'y':y,            
@@ -220,7 +221,7 @@ class CNNWhale():
                 'correct_prediction':correct_prediction,
                 'accuracy': accuracy,
                 'init_op': init_op,
-                'merged':  merged,
+                'merged': merged,
                 'writer': writer,
                 'saver': saver,
                 }
@@ -245,8 +246,8 @@ class CNNWhale():
 
         """
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
-        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1], name="y")
-        y = tf.placeholder(tf.float32, [None, self.num_labels])
+        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
+        y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
 
         pool_shape=[2,2]
 
@@ -286,8 +287,8 @@ class CNNWhale():
         # setup recording variables
         # add a summary to store the accuracy
         tf.summary.scalar('accuracy', accuracy)
-
         merged = tf.summary.merge_all()
+
         writer = tf.summary.FileWriter('summaries')
         saver = tf.train.Saver()
 
@@ -299,7 +300,7 @@ class CNNWhale():
                 'correct_prediction': correct_prediction,
                 'accuracy': accuracy,
                 'init_op': init_op,
-                'merged':  merged,
+                'merged': merged,
                 'writer': writer,
                 'saver': saver,
                 }
@@ -333,6 +334,8 @@ class CNNWhale():
                 batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
                 batch_x_reshaped = self.reshape_x(batch_x)
                 batch_y = self.train_y[offset:(offset + self.batch_size)]
+                print(batch_x_reshaped.shape)
+                
                 _, c = sess.run([self.optimizer, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
                 avg_cost += c / total_batch
             
