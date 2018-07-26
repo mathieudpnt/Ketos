@@ -53,12 +53,16 @@ class Spectrogram():
         return bin
 
     def _crop_freq_image(self, freq_interval):
-        bin_low = self._find_freq_bin(freq_interval.low)
-        bin_high = self._find_freq_bin(freq_interval.high)
+        low = self._find_freq_bin(freq_interval.low)
+        high = self._find_freq_bin(freq_interval.high)
 
-        # TODO: check that indices are within array ranges !!!
+        low = max(0, low)
+        high = min(self.image.shape[1], high)
 
-        cropped_image = self.image[:,bin_low:bin_high]
+        if low >= high:
+            return None
+
+        cropped_image = self.image[:,low:high]
         return cropped_image
 
     def crop_freq(self, freq_interval):
