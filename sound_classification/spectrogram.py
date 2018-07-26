@@ -1,4 +1,14 @@
 import numpy as np
+from collections import namedtuple
+
+
+Interval = namedtuple('Interval', 'low high')
+Interval.__doc__ = '''\
+Namedtuple for numerical intervals
+
+low - Lower limit (float)
+high - Upper limit (float)''' 
+
 
 class Spectrogram():
     """ Spectrogram generated from an audio segment
@@ -63,9 +73,13 @@ class Spectrogram():
                 cropped_image : 2d numpy array
                     Cropped image
         """
+        if freq_interval is None:
+            return self.image 
+
         low = self._find_freq_bin(freq_interval.low)
         high = self._find_freq_bin(freq_interval.high)
 
+        # ensure lower and upper limits are within axis range
         low = max(0, low)
         high = min(self.image.shape[1], high)
 
@@ -98,7 +112,7 @@ class Spectrogram():
 
         return cropped_spec
 
-    def average(self, freq_interval):
+    def average(self, freq_interval=None):
         """ Compute average magnitude within specified frequency interval.
             
             If the frequency interval extends beyond the boarders of the spectrogram, 
@@ -123,7 +137,7 @@ class Spectrogram():
         avg = np.average(m)
         return avg
 
-    def median(self, freq_interval):
+    def median(self, freq_interval=None):
         """ Compute median magnitude within specified frequency interval.
             
             If the frequency interval extends beyond the boarders of the spectrogram, 
