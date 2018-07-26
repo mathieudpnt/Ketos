@@ -219,6 +219,9 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     network.train()
     network.save_model(path_to_saved_model)
 
+    test_acc = network.accuracy_on_test()
+
     meta = path_to_meta + ".meta"
 
-    return path_to_meta, path_to_saved_model
+    return path_to_meta, path_to_saved_model, test_acc
+    
