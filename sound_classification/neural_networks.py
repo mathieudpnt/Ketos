@@ -349,8 +349,7 @@ class CNNWhale():
                 batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
                 batch_x_reshaped = self.reshape_x(batch_x)
                 batch_y = self.train_y[offset:(offset + self.batch_size)]
-                print(batch_x_reshaped.shape)
-                
+               
                 _, c = sess.run([self.optimizer, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
                 avg_cost += c / total_batch
             
