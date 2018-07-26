@@ -199,3 +199,24 @@ def database_prepared_for_NN_2_classes():
     prepared = dh.prepare_database(database=database,x_column="image",y_column="label",
                                 divisions=divisions)    
     return prepared
+
+
+@pytest.fixture
+def trained_CNNWhale(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    path_to_saved_model = os.path.join(path_to_assets, "CNNWhale_model")    
+    
+    train_x = d["train_x"]
+    train_y = d["train_y"]
+    validation_x = d["validation_x"]
+    validation_y = d["validation_y"]
+    test_x = d["test_x"]
+    test_y = d["test_y"]
+    network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=2, num_labels=2)
+    tf_nodes = network.create_net_structure()
+    network.set_tf_nodes(tf_nodes)
+    network.train()
+    network.save_model(path_to_saved_model)
+
+    return path_to_saved_model
+
