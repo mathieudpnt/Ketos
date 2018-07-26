@@ -204,7 +204,8 @@ def database_prepared_for_NN_2_classes():
 @pytest.fixture
 def trained_CNNWhale(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
-    path_to_saved_model = os.path.join(path_to_assets, "CNNWhale_model")    
+    path_to_saved_model = os.path.join(path_to_assets, "saved_models")
+    path_to_meta = os.path.join(path_to_saved_model. "trained_CNNWhale")     
     
     train_x = d["train_x"]
     train_y = d["train_y"]
@@ -218,5 +219,6 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     network.train()
     network.save_model(path_to_saved_model)
 
-    return path_to_saved_model
+    meta = path_to_meta + ".meta"
 
+    return path_to_meta, path_to_saved_model
