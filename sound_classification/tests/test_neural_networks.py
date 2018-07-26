@@ -48,8 +48,8 @@ def test_train_neural_net_with_default_args(database_prepared_for_NN):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=2, num_labels=1)
-    tf_objects = network.create_net_structure()
-    network.set_tf_objects(tf_objects)
+    tf_nodes = network.create_net_structure()
+    network.set_tf_nodes(tf_nodes)
     network.train()
     reset_default_graph()
 
@@ -64,6 +64,6 @@ def test_train_neural_net_with_default_args2(database_prepared_for_NN_2_classes)
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=2, num_labels=2)
-    tf_objects = network.create_net_structure()
-    network.set_tf_objects(tf_objects)
+    tf_nodes = network.create_net_structure()
+    network.set_tf_nodes(tf_nodes)
     network.train()
