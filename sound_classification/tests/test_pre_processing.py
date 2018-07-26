@@ -23,6 +23,18 @@ import cv2
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
 
+@pytest.mark.test_to_decibel
+def test_to_decibel_returns_decibels():
+    x = 7
+    y = pp.to_decibel(x)
+    assert y == 20 * np.log10(x) 
+
+@pytest.mark.test_to_decibel
+def test_to_decibel_throws_assertion_error_if_input_is_negative():
+    x = -7
+    with pytest.raises(AssertionError):
+        pp.to_decibel(x)
+
 @pytest.mark.test_resample
 def test_resampled_signal_has_correct_rate(sine_wave_file):
     rate, sig = pp.wave.read(sine_wave_file)
@@ -138,12 +150,6 @@ def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):
         freq = np.argmax(mag[i])
         freqHz = freq * spec.freq_res
         assert freqHz == pytest.approx(2000, abs=spec.freq_res)
-
-@pytest.mark.test_to_decibel
-def test_to_decibel_returns_decibels():
-    x = 7
-    y = pp.to_decibel(7)
-    assert y == 20 * np.log10(x) 
 
 @pytest.mark.test_make_magnitude_spec
 def test_user_can_set_number_of_points_for_FFT(sine_wave):
