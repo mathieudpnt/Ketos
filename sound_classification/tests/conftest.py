@@ -5,6 +5,7 @@ import scipy.signal as sg
 import pandas as pd
 import sound_classification.pre_processing as pp
 import sound_classification.data_handling as dh
+import sound_classification.neural_networks as nn
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -205,7 +206,7 @@ def database_prepared_for_NN_2_classes():
 def trained_CNNWhale(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model. "trained_CNNWhale")     
+    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")     
     
     train_x = d["train_x"]
     train_y = d["train_y"]
@@ -224,4 +225,3 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     meta = path_to_meta + ".meta"
 
     return path_to_meta, path_to_saved_model, test_acc
-    
