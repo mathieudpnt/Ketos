@@ -132,22 +132,18 @@ def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep)
+    spec = pp.make_magnitude_spec(signal, winlen, winstep)
+    mag = spec.image
     for i in range(mag.shape[0]):
-        freq   = np.argmax(mag[i])
-        freqHz = freq * Hz
-        assert freqHz == pytest.approx(2000, abs=Hz)
+        freq = np.argmax(mag[i])
+        freqHz = freq * spec.freq_res
+        assert freqHz == pytest.approx(2000, abs=spec.freq_res)
 
-@pytest.mark.test_make_magnitude_spec
-def test_make_magnitude_spec_returns_decibels(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep)
-    mag_dB, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep, True)
-    assert np.max(mag_dB[0]) == 20 * np.log10(np.max(mag[0])) 
+@pytest.mark.test_to_decibel
+def test_to_decibel_returns_decibels():
+    x = 7
+    y = pp.to_decibel(7)
+    assert y == 20 * np.log10(x) 
 
 @pytest.mark.test_make_magnitude_spec
 def test_user_can_set_number_of_points_for_FFT(sine_wave):
@@ -156,11 +152,12 @@ def test_user_can_set_number_of_points_for_FFT(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep, False, True, 512)
+    spec = pp.make_magnitude_spec(signal=signal, winlen=winlen, winstep=winstep, hamming=True, NFFT=512)
+    mag = spec.image
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
-        freqHz = freq * Hz
-        assert freqHz == pytest.approx(2000, abs=Hz)
+        freqHz = freq * spec.freq_res
+        assert freqHz == pytest.approx(2000, abs=spec.freq_res)
 
 @pytest.mark.test_make_magnitude_spec
 def test_make_magnitude_spec_returns_correct_NFFT_value(sine_wave):
@@ -169,8 +166,8 @@ def test_make_magnitude_spec_returns_correct_NFFT_value(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep, False, True)
-    assert NFFT == int(round(winlen * rate))
+    spec = pp.make_magnitude_spec(signal, winlen, winstep)
+    assert spec.NFFT == int(round(winlen * rate))
 
 @pytest.mark.test_normalize_spec
 def test_normalized_spectrum_has_values_between_0_and_1(sine_wave):
@@ -179,8 +176,8 @@ def test_normalized_spectrum_has_values_between_0_and_1(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep)
-    mag_norm = pp.normalize_spec(mag)
+    spec = pp.make_magnitude_spec(signal, winlen, winstep)
+    mag_norm = pp.normalize_spec(spec.image)
     for i in range(mag_norm.shape[0]):
         val = mag_norm[0,i]
         assert 0 <= val <= 1
@@ -192,7 +189,8 @@ def test_cropped_spectrogram_has_correct_size_and_content(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep)
+    spec = pp.make_magnitude_spec(signal, winlen, winstep)
+    mag = spec.image
     cut = int(0.7 * mag.shape[1])
     mag_cropped = pp.crop_high_freq(mag, cut)
     assert mag_cropped.shape[1] == cut
@@ -211,7 +209,7 @@ def test_uniform_image_is_unchanged_by_blurring():
 @pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = pp.blur_image(img,13,Gaussian=False)
+    pp.blur_image(img,13,Gaussian=False)
 
 @pytest.mark.test_apply_broadband_filter
 def test_broadband_filter_works_as_expected_for_uniform_columns():
@@ -293,8 +291,9 @@ def test_extract_mfcc_features_from_sine_wave(sine_wave):
     winlen = duration/4
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
-    mag, Hz, NFFT = pp.make_magnitude_spec(signal, winlen, winstep, False, True, 512)
-    filter_banks, mfcc = pp.extract_mfcc_features(mag, NFFT, rate)
+    spec = pp.make_magnitude_spec(signal, winlen, winstep, True, 512)
+    mag = spec.image
+    filter_banks, mfcc = pp.extract_mfcc_features(mag, spec.NFFT, rate)
     with pytest.raises(AssertionError):
         filter_banks, mfcc = pp.extract_mfcc_features(mag, 1, rate)
     

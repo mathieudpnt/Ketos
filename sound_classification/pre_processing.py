@@ -1,7 +1,5 @@
-
 import numpy as np
 import cv2
-
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
@@ -14,9 +12,100 @@ AudioSignal = namedtuple('AudioSignal', 'rate data')
 AudioSignal.__doc__ = '''\
 Namedtuple for handling audio signals.
 
-data - Audio signal data
-rate - Sampling rate in Hz''' 
+data - Audio signal data (1d numpy array)
+rate - Sampling rate in Hz (float)''' 
 
+
+class Spectrogram():
+    """ Spectrogram generated from an audio segment
+
+        Args:
+            image: 2d numpy array
+                Spectrogram image 
+            NFFT: int
+                Number of points used for the Fast-Fourier Transform
+            length: float
+                Length of audio segment in seconds 
+            freq_res: float
+                Frequency resolution in Hz
+            freq_min: float
+                Lower limit of frequency axis in Hz (default: 0)
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            
+        Attributes:
+            freq_max: float
+                Upper limit of frequency axis in Hz
+    """
+
+    def __init__(self, image, NFFT, length, freq_res, freq_min=0, timestamp=None):
+
+        self.image = image
+        self.NFFT = NFFT
+        self.length = length
+        self.freq_res = freq_res
+        self.freq_min = freq_min
+        self.timestamp = timestamp
+        self.freq_max = freq_min + freq_res * image.shape[1]
+
+    def _find_freq_bin(self, freq):
+        bin = int(freq / self.freq_res)
+        return bin
+
+    def _crop_freq_image(self, freq_interval):
+        bin_low = self._find_freq_bin(freq_interval.low)
+        bin_high = self._find_freq_bin(freq_interval.high)
+
+        # TODO: check that indices are within array ranges !!!
+
+        cropped_image = self.image[:,bin_low:bin_high]
+        return cropped_image
+
+    def crop_freq(self, freq_interval):
+        cropped_image = self._crop_freq_image(freq_interval)
+
+        cropped_spec = self.__class__(cropped_image, self.NFFT, self.length, self.freq_res, freq_min=freq_interval.low, timestamp=self.timestamp)
+
+        return cropped_spec
+
+    def average(self, freq_interval):
+        m = self._crop_freq_image(freq_interval)
+        return np.average(m)
+
+    def median(self, freq_interval):
+        m = self._crop_freq_image(freq_interval)
+        return np.median(m)
+
+
+def to_decibel(x):
+    """ Convert to decibels
+
+    Args:
+        x : numpy array
+            Input array
+    
+    Returns:
+        y : numpy array
+            Converted array
+    """
+
+    y = 20 * np.log10(x)
+    return y
+
+def from_decibel(y):
+    """ Convert from decibels
+
+    Args:
+        y : numpy array
+            Input array
+    
+    Returns:
+        x : numpy array
+            Converted array
+    """
+
+    x = np.power(10., y/20.)
+    return x
 
 def resample(signal, new_rate):
     """ Resample the acoustic signal with an arbitrary sampling rate.
@@ -90,33 +179,28 @@ def make_frames(signal, winlen, winstep):
 
     return frames
 
-def make_magnitude_spec(signal, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
+def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
     """ Make a magnitude spectogram.
 
-        First, the signal is framed into overlapping frames.
-        Second, creates the spectogram using FFT.
+        Splits the signal into overlapping frames. Then, creates the spectogram using FFT.
 
     Args:
-        signal: AudioSignal
+        signal : AudioSignal
             Audio signal.
         winlen : float
-            Length of each frame (in seconds)
+            Length of each frame in seconds
         winstep : float
-            Time (in seconds) after the start of the previous frame that the next frame should start.
-        decibel_scale: bool
-            If True, convert spectogram to decibels using a logarithm scale.. Default is False.
+            Time difference between consecutive frames in seconds.
         hamming: bool
             If True, apply hamming window before FFT. Default is True.
-        NFTT : int
+        NFFT : int
             Number of points for the FFT (Fast Fourier Transform). If None (default), the signal length is used.
+        timestamp : datetime
+            Time stamp (optional)
 
     Returns:
-        mag_spec: numpy array
+        spec: Spectrogram
             Magnitude spectogram.
-        index_to_Hz: float
-            Index to Hz conversion factor.
-        NFTT : int
-            Number of points used for FFT.
     """    
     #make frames
     frames = make_frames(signal, winlen, winstep)     
@@ -126,21 +210,18 @@ def make_magnitude_spec(signal, winlen, winstep, decibel_scale=False, hamming=Tr
         frames *= np.hamming(frames.shape[1])
 
     #make Magnitude Spectrogram
-    mag_spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
+    image = np.abs(np.fft.rfft(frames, n=NFFT))
 
-    # Convert to dB
-    if decibel_scale:
-            mag_spec = 20 * np.log10(mag_spec)
-
-    #Frequency range (Hz)
-    rate = signal.rate
-    index_to_Hz = rate / mag_spec.shape[1] / 2
-    
     #Number of points used for FFT
     if NFFT is None:
         NFFT = frames.shape[1]
 
-    return mag_spec, index_to_Hz, NFFT
+    #Frequency resolution and range (Hz)
+    rate = signal.rate
+    fres = rate / 2. / image.shape[1]
+    spec = Spectrogram(image=image, NFFT=NFFT, length=winlen, freq_res=fres, freq_min=0, timestamp=timestamp)
+
+    return spec
 
 
 def normalize_spec(spec):
