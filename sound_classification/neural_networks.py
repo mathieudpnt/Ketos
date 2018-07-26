@@ -125,6 +125,21 @@ class CNNWhale():
 
 
     def set_tf_objects(self, tf_objects):
+        """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
+
+            Args:
+                tf_objects:dict
+                A dictionary with the tensorflow objects necessary
+                to train and run the model.
+                sess, x, y, cost_function, optimizer, predict, correct_prediction,
+                accuracy,init_op, merged, writer, saver
+                These objects are stored as
+                instance attributes when the class is instantiated.
+
+            Returns:
+                None
+        """
+
         self.x = tf_objects['x']
         self.y = tf_objects['y']
         self.cost_function = tf_objects['cost_function']
