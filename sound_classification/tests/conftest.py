@@ -6,6 +6,7 @@ import pandas as pd
 import sound_classification.pre_processing as pp
 import sound_classification.data_handling as dh
 import sound_classification.neural_networks as nn
+from tensorflow import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -218,10 +219,11 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     tf_nodes = network.create_net_structure()
     network.set_tf_nodes(tf_nodes)
     network.train()
-    network.save_model(path_to_saved_model)
+    network.save_model(path_to_meta)
 
     test_acc = network.accuracy_on_test()
 
     meta = path_to_meta + ".meta"
 
-    return path_to_meta, path_to_saved_model, test_acc
+    reset_default_graph()
+    return meta, path_to_saved_model, test_acc
