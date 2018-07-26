@@ -10,11 +10,11 @@ from scipy import interpolate
 from collections import namedtuple
 
 
-AcousticSignal = namedtuple('AcousticSignal', 'rate data')
-AcousticSignal.__doc__ = '''\
-Namedtuple for handling acoustic data
+AudioSignal = namedtuple('AudioSignal', 'rate data')
+AudioSignal.__doc__ = '''\
+Namedtuple for handling audio signals.
 
-data - Acoustic signal data
+data - Audio signal data
 rate - Sampling rate in Hz''' 
 
 
@@ -26,13 +26,13 @@ def resample(signal, new_rate):
           Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
 
     Args:
-        signal : namedtuple (int, numpy array)
+        signal : AudioSignal
             The signal to be resampled.
         new_rate: int
             New sampling rate.
     
     Returns:
-        sig : namedtuple (int, numpy array)
+        new_signal : AudioSignal
             resampled signal.
     """
 
@@ -49,10 +49,10 @@ def resample(signal, new_rate):
 
     new_sig = np.round(new_audio).astype(sig.dtype)
 
-    new_signal = AcousticSignal(new_rate, new_sig)    
+    new_signal = AudioSignal(new_rate, new_sig)    
     return new_signal
 
-def make_frames(sig, rate, winlen, winstep):
+def make_frames(signal, winlen, winstep):
     """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
         frames. If winstep < winlen, the frames overlap.
 
@@ -60,10 +60,8 @@ def make_frames(sig, rate, winlen, winstep):
         This assures that sample are not truncated from the original signal.
 
     Args: 
-        sig: numpy array
-            1-d array containing signal.
-        rate : int
-            The sampling rate of the signal in Hz.
+        signal: AudioSignal
+            The signal to be framed.
         winlen: float
             The window length in seconds.
         winstep: float
@@ -73,6 +71,9 @@ def make_frames(sig, rate, winlen, winstep):
         frames: numpy array
             2-d array with padded frames.
     """
+
+    rate = signal.rate
+    sig = signal.data
 
     totlen = len(sig)
     winlen = int(round(winlen * rate))
@@ -89,17 +90,15 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
+def make_magnitude_spec(signal, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
     """ Make a magnitude spectogram.
 
         First, the signal is framed into overlapping frames.
         Second, creates the spectogram using FFT.
 
     Args:
-        sig : numpy array
+        signal: AudioSignal
             Audio signal.
-        rate : int
-            Sampling rate of the audio signal.
         winlen : float
             Length of each frame (in seconds)
         winstep : float
@@ -120,7 +119,7 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
             Number of points used for FFT.
     """    
     #make frames
-    frames = make_frames(sig, rate, winlen, winstep)     
+    frames = make_frames(signal, winlen, winstep)     
 
     #apply Hamming window    
     if hamming:
@@ -134,6 +133,7 @@ def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming
             mag_spec = 20 * np.log10(mag_spec)
 
     #Frequency range (Hz)
+    rate = signal.rate
     index_to_Hz = rate / mag_spec.shape[1] / 2
     
     #Number of points used for FFT
