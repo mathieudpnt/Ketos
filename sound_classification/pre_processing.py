@@ -7,30 +7,37 @@ import scipy.ndimage as ndimage
 import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
+from collections import namedtuple
 
-def resample(sig, orig_rate, new_rate):
-    """ Resample the signal with an arbitrary sampling rate.
+
+AcousticSignal = namedtuple('AcousticSignal', 'rate data')
+AcousticSignal.__doc__ = '''\
+Namedtuple for handling acoustic data
+
+data - Acoustic signal data
+rate - Sampling rate in Hz''' 
+
+
+def resample(signal, new_rate):
+    """ Resample the acoustic signal with an arbitrary sampling rate.
 
     Note: Code adapted from Kahl et al. (2017)
           Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
           Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
 
     Args:
-        sig : numpy array
+        signal : namedtuple (int, numpy array)
             The signal to be resampled.
-        orig_rate: int
-            Sampling rate of sig.
         new_rate: int
             New sampling rate.
     
     Returns:
-        rate : int
-            New sampling rate.
-        sig : mumpy array
+        sig : namedtuple (int, numpy array)
             resampled signal.
     """
 
-
+    orig_rate = signal.rate
+    sig = signal.data
 
     duration = sig.shape[0] / orig_rate
 
@@ -40,9 +47,10 @@ def resample(sig, orig_rate, new_rate):
     interpolator = interpolate.interp1d(time_old, sig.T)
     new_audio = interpolator(time_new).T
 
-    sig = np.round(new_audio).astype(sig.dtype)
-    
-    return new_rate, sig
+    new_sig = np.round(new_audio).astype(sig.dtype)
+
+    new_signal = AcousticSignal(new_rate, new_sig)    
+    return new_signal
 
 def make_frames(sig, rate, winlen, winstep):
     """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
