@@ -124,11 +124,11 @@ class CNNWhale():
         # self.saver = tf_operations['saver']
 
 
-    def set_tf_objects(self, tf_objects):
+    def set_tf_nodes(self, tf_nodes):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
 
             Args:
-                tf_objects:dict
+                tf_nodes:dict
                 A dictionary with the tensorflow objects necessary
                 to train and run the model.
                 sess, x, y, cost_function, optimizer, predict, correct_prediction,
@@ -140,17 +140,17 @@ class CNNWhale():
                 None
         """
 
-        self.x = tf_objects['x']
-        self.y = tf_objects['y']
-        self.cost_function = tf_objects['cost_function']
-        self.optimizer = tf_objects['optimizer']
-        self.predict = tf_objects['predict']
-        self.correct_prediction = tf_objects['correct_prediction']
-        self.accuracy = tf_objects['accuracy']
-        self.init_op = tf_objects['init_op']
-        self.merged = tf_objects['merged']
-        self.writer = tf_objects['writer']
-        self.saver = tf_objects['saver']
+        self.x = tf_nodes['x']
+        self.y = tf_nodes['y']
+        self.cost_function = tf_nodes['cost_function']
+        self.optimizer = tf_nodes['optimizer']
+        self.predict = tf_nodes['predict']
+        self.correct_prediction = tf_nodes['correct_prediction']
+        self.accuracy = tf_nodes['accuracy']
+        self.init_op = tf_nodes['init_op']
+        self.merged = tf_nodes['merged']
+        self.writer = tf_nodes['writer']
+        self.saver = tf_nodes['saver']
 
 
     @classmethod
@@ -199,7 +199,7 @@ class CNNWhale():
             
 
         Returns:
-            tf_objects: dict
+            tf_nodes: dict
                 A dictionary with the tensorflow objects necessary
                 to train and run the model.
                 sess, x, y, cost_function, optimizer, predict, correct_prediction,
@@ -228,7 +228,7 @@ class CNNWhale():
         writer = tf.summary.FileWriter('summaries')
         saver = tf.train.Saver()
 
-        tf_objects = {'x': x,
+        tf_nodes = {'x': x,
                 'y':y,            
                 'cost_function': cost_function,
                 'optimizer': optimizer,
@@ -241,7 +241,7 @@ class CNNWhale():
                 'saver': saver,
                 }
 
-        return tf_objects
+        return tf_nodes
 
 
     def create_net_structure(self):
@@ -251,7 +251,7 @@ class CNNWhale():
             and two fully connected layers with ReLU activation functions.
 
             Returns:
-                tf_objects: dict
+                tf_nodes: dict
                     A dictionary with the tensorflow objects necessary
                     to train and run the model.
                     sess, x, y, cost_function, optimizer, predict, correct_prediction,
@@ -307,7 +307,7 @@ class CNNWhale():
         writer = tf.summary.FileWriter('summaries')
         saver = tf.train.Saver()
 
-        tf_objects = {'x': x,
+        tf_nodes = {'x': x,
                 'y':y,            
                 'cost_function': cross_entropy,
                 'optimizer': optimizer,
@@ -320,7 +320,7 @@ class CNNWhale():
                 'saver': saver,
                 }
 
-        return tf_objects
+        return tf_nodes
 
     def train(self):
         """Train the neural network. on the training set.
