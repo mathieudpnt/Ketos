@@ -1,36 +1,73 @@
-
 import numpy as np
 import cv2
-
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
+from collections import namedtuple
+from sound_classification.spectrogram import Spectrogram
 
-def resample(sig, orig_rate, new_rate):
-    """ Resample the signal with an arbitrary sampling rate.
+
+AudioSignal = namedtuple('AudioSignal', 'rate data')
+AudioSignal.__doc__ = '''\
+Namedtuple for handling audio signals.
+
+data - Audio signal data (1d numpy array)
+rate - Sampling rate in Hz (float)''' 
+
+
+def to_decibel(x):
+    """ Convert to decibels
+
+    Args:
+        x : numpy array
+            Input array
+    
+    Returns:
+        y : numpy array
+            Converted array
+    """
+    assert x > 0, "Cannot convert non-positive number to decibel"
+
+    y = 20 * np.log10(x)
+    return y
+
+def from_decibel(y):
+    """ Convert from decibels
+
+    Args:
+        y : numpy array
+            Input array
+    
+    Returns:
+        x : numpy array
+            Converted array
+    """
+
+    x = np.power(10., y/20.)
+    return x
+
+def resample(signal, new_rate):
+    """ Resample the acoustic signal with an arbitrary sampling rate.
 
     Note: Code adapted from Kahl et al. (2017)
           Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
           Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
 
     Args:
-        sig : numpy array
+        signal : AudioSignal
             The signal to be resampled.
-        orig_rate: int
-            Sampling rate of sig.
         new_rate: int
             New sampling rate.
     
     Returns:
-        rate : int
-            New sampling rate.
-        sig : mumpy array
+        new_signal : AudioSignal
             resampled signal.
     """
 
-
+    orig_rate = signal.rate
+    sig = signal.data
 
     duration = sig.shape[0] / orig_rate
 
@@ -40,11 +77,12 @@ def resample(sig, orig_rate, new_rate):
     interpolator = interpolate.interp1d(time_old, sig.T)
     new_audio = interpolator(time_new).T
 
-    sig = np.round(new_audio).astype(sig.dtype)
-    
-    return new_rate, sig
+    new_sig = np.round(new_audio).astype(sig.dtype)
 
-def make_frames(sig, rate, winlen, winstep):
+    new_signal = AudioSignal(new_rate, new_sig)    
+    return new_signal
+
+def make_frames(signal, winlen, winstep):
     """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
         frames. If winstep < winlen, the frames overlap.
 
@@ -52,10 +90,8 @@ def make_frames(sig, rate, winlen, winstep):
         This assures that sample are not truncated from the original signal.
 
     Args: 
-        sig: numpy array
-            1-d array containing signal.
-        rate : int
-            The sampling rate of the signal in Hz.
+        signal: AudioSignal
+            The signal to be framed.
         winlen: float
             The window length in seconds.
         winstep: float
@@ -65,6 +101,9 @@ def make_frames(sig, rate, winlen, winstep):
         frames: numpy array
             2-d array with padded frames.
     """
+
+    rate = signal.rate
+    sig = signal.data
 
     totlen = len(sig)
     winlen = int(round(winlen * rate))
@@ -81,58 +120,49 @@ def make_frames(sig, rate, winlen, winstep):
 
     return frames
 
-def make_magnitude_spec(sig, rate, winlen, winstep, decibel_scale=False, hamming=True, NFFT=None):
+def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
     """ Make a magnitude spectogram.
 
-        First, the signal is framed into overlapping frames.
-        Second, creates the spectogram using FFT.
+        Splits the signal into overlapping frames. Then, creates the spectogram using FFT.
 
     Args:
-        sig : numpy array
+        signal : AudioSignal
             Audio signal.
-        rate : int
-            Sampling rate of the audio signal.
         winlen : float
-            Length of each frame (in seconds)
+            Length of each frame in seconds
         winstep : float
-            Time (in seconds) after the start of the previous frame that the next frame should start.
-        decibel_scale: bool
-            If True, convert spectogram to decibels using a logarithm scale.. Default is False.
+            Time difference between consecutive frames in seconds.
         hamming: bool
             If True, apply hamming window before FFT. Default is True.
-        NFTT : int
+        NFFT : int
             Number of points for the FFT (Fast Fourier Transform). If None (default), the signal length is used.
+        timestamp : datetime
+            Time stamp (optional)
 
     Returns:
-        mag_spec: numpy array
+        spec: Spectrogram
             Magnitude spectogram.
-        index_to_Hz: float
-            Index to Hz conversion factor.
-        NFTT : int
-            Number of points used for FFT.
     """    
     #make frames
-    frames = make_frames(sig, rate, winlen, winstep)     
+    frames = make_frames(signal, winlen, winstep)     
 
     #apply Hamming window    
     if hamming:
         frames *= np.hamming(frames.shape[1])
 
     #make Magnitude Spectrogram
-    mag_spec = np.abs(np.fft.rfft(frames, n=NFFT))  # Magnitude of the FFT
+    image = np.abs(np.fft.rfft(frames, n=NFFT))
 
-    # Convert to dB
-    if decibel_scale:
-            mag_spec = 20 * np.log10(mag_spec)
-
-    #Frequency range (Hz)
-    index_to_Hz = rate / mag_spec.shape[1] / 2
-    
     #Number of points used for FFT
     if NFFT is None:
         NFFT = frames.shape[1]
 
-    return mag_spec, index_to_Hz, NFFT
+    #Frequency resolution and range (Hz)
+    rate = signal.rate
+    fres = rate / 2. / image.shape[1]
+    spec = Spectrogram(image=image, NFFT=NFFT, length=winlen, freq_res=fres, freq_min=0, timestamp=timestamp)
+
+    return spec
 
 
 def normalize_spec(spec):

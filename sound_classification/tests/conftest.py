@@ -144,6 +144,10 @@ def image_2x2():
     image = np.array([[1,2],[3,4]], np.float32)
     return image
 
+@pytest.fixture
+def image_ones_10x10():
+    image = np.ones(shape=(10,10))
+    return image
 
 @pytest.fixture
 def datebase_with_one_image_col_and_one_label_col():
