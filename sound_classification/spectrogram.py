@@ -2,14 +2,6 @@ import numpy as np
 from collections import namedtuple
 
 
-Interval = namedtuple('Interval', 'low high')
-Interval.__doc__ = '''\
-Namedtuple for numerical intervals
-
-low - Lower limit (float)
-high - Upper limit (float)''' 
-
-
 class Spectrogram():
     """ Spectrogram generated from an audio segment
 
