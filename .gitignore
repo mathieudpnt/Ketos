@@ -19,3 +19,8 @@ src/__pycache__
 
 # Html
 docs/build
+
+# cache
+.pytest_cache
+summaries
+sound_classification/tests/assets
