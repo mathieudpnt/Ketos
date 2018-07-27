@@ -8,3 +8,4 @@ tensorflow
 sphinx
 sphinx_rtd_theme
 librosa
+pint
