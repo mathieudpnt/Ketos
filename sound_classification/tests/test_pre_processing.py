@@ -30,6 +30,12 @@ def test_to_decibel_returns_decibels():
     assert y == 20 * np.log10(x) 
 
 @pytest.mark.test_to_decibel
+def test_to_decibel_can_handle_arrays():
+    x = np.array([7,8])
+    y = pp.to_decibel(x)
+    assert np.all(y == 20 * np.log10(x))
+
+@pytest.mark.test_to_decibel
 def test_to_decibel_throws_assertion_error_if_input_is_negative():
     x = -7
     with pytest.raises(AssertionError):
