@@ -61,9 +61,9 @@ def parse_spectrogram_config(data):
     if data.get('step_size') is not None:
         step = Q(data['step_size'])
         step = step.m_as("s")
-    if data.get('window_func') is not None:
+    if data.get('window_function') is not None:
         for name, member in WinFun.__members__.items():
-            if data['window_func'] == name:
+            if data['window_function'] == name:
                 wfun = member
         if wfun is None:
             s = ", ".join(name for name, _ in WinFun.__members__.items())
