@@ -7,14 +7,15 @@ from scipy.fftpack import dct
 from scipy import interpolate
 from collections import namedtuple
 from sound_classification.spectrogram import Spectrogram
+from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
 
 
-AudioSignal = namedtuple('AudioSignal', 'rate data')
-AudioSignal.__doc__ = '''\
-Namedtuple for handling audio signals.
-
-data - Audio signal data (1d numpy array)
-rate - Sampling rate in Hz (float)''' 
+#AudioSignal = namedtuple('AudioSignal', 'rate data')
+#AudioSignal.__doc__ = '''\
+#Namedtuple for handling audio signals.
+#
+#data - Audio signal data (1d numpy array)
+#rate - Sampling rate in Hz (float)''' 
 
 
 def to_decibel(x):
@@ -79,7 +80,11 @@ def resample(signal, new_rate):
 
     new_sig = np.round(new_audio).astype(sig.dtype)
 
-    new_signal = AudioSignal(new_rate, new_sig)    
+    if isinstance(signal, TimeStampedAudioSignal):
+        new_signal = TimeStampedAudioSignal(rate=new_rate, data=new_sig, time_stamp=signal.time_stamp, tag=signal.tag)    
+    else:
+        new_signal = AudioSignal(rate=new_rate, data=new_sig)    
+
     return new_signal
 
 def make_frames(signal, winlen, winstep):
