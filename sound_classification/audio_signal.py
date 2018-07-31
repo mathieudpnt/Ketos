@@ -18,6 +18,9 @@ class AudioSignal:
     def empty(self):
         return len(self.data) == 0
 
+    def seconds(self):
+        return float(len(self.data)) / float(self.rate)
+
 
 class TimeStampedAudioSignal(AudioSignal):
     """ Audio signal with global time stamp and optionally a tag 

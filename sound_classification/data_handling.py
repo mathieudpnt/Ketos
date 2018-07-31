@@ -19,7 +19,24 @@ import librosa
 import os
 import errno
 from subprocess import call
+import scipy.io.wavfile as wave
 
+
+def read_wave(file, channel=0):
+    """ Read wave file in either mono or stereo mode
+
+        Args:
+            file: str
+                Wave file path
+            channel: bool
+                Which channel should be used in case of stereo data (0: left, 1: right) 
+    """
+    rate, signal = wave.read(file)
+    if len(signal.shape) == 2:
+        data = signal[:, channel]
+    else:
+        data = signal[:]
+    return rate, data
 
 def create_dir(dir):
     """ Create a new directory only if it does not exist
