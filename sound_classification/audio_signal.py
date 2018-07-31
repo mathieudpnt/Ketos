@@ -21,20 +21,27 @@ class AudioSignal:
     def seconds(self):
         return float(len(self.data)) / float(self.rate)
 
-    def _cropped_data(self, begin, end):
-        begin = max(0, begin)
-        end = min(self.seconds(), end)
-        i1 = int(begin * self.rate)
-        i2 = int(end * self.rate)
-        i1 = max(i1, 0)
-        i2 = min(i2, len(self.data))
+    def _cropped_data(self, begin=None, end=None):
+        i1 = 0
+        i2 = len(self.data)
+
+        if begin is not None:
+            begin = max(0, begin)
+            i1 = int(begin * self.rate)
+            i1 = max(i1, 0)
+
+        if end is not None:
+            end = min(self.seconds(), end)
+            i2 = int(end * self.rate)
+            i2 = min(i2, len(self.data))
+
         cropped_data = list()
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
 
         return cropped_data        
 
-    def crop(self, begin, end):
+    def crop(self, begin=None, end=None):
         cropped_data = self._cropped_data(begin,end)
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data)
         return cropped_signal        
@@ -73,9 +80,12 @@ class TimeStampedAudioSignal(AudioSignal):
         end = self.begin() + delta
         return end 
     
-    def crop(self, begin, end):
-        begin_sec = (begin - self.begin()).total_seconds()
-        end_sec = (end - self.begin()).total_seconds()
+    def crop(self, begin=None, end=None):
+        begin_sec, end_sec = None, None
+        if begin is not None:
+            begin_sec = (begin - self.begin()).total_seconds()
+        if end is not None:
+            end_sec = (end - self.begin()).total_seconds()
         cropped_data = self._cropped_data(begin_sec, end_sec)
 
         if begin_sec > 0 and len(cropped_data) > 0:
