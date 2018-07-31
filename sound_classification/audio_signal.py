@@ -88,8 +88,9 @@ class TimeStampedAudioSignal(AudioSignal):
             end_sec = (end - self.begin()).total_seconds()
         cropped_data = self._cropped_data(begin_sec, end_sec)
 
+        time_stamp = self.time_stamp
         if begin_sec > 0 and len(cropped_data) > 0:
-            time_stamp = self.time_stamp + datetime.timedelta(seconds=begin_sec) # update time stamp
+            time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
 
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
         return cropped_signal        
