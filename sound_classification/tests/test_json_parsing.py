@@ -1,4 +1,4 @@
-""" Unit tests for the the 'spectrogram' class in the 'sound_classification' package
+""" Unit tests for the the 'json_parsing' module in the 'sound_classification' package
 
 
     Authors: Fabio Frazao and Oliver Kirsebom
