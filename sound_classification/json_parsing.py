@@ -3,14 +3,18 @@ from collections import namedtuple
 from pint import UnitRegistry # SI units
 from enum import Enum
 
+
 class Stat(Enum):
     AVERAGE = 1
     MEDIAN = 2
 
+
 class WinFun(Enum):
     HAMMING = 1
 
+
 ureg = UnitRegistry()
+
 
 Interval = namedtuple('Interval', 'low high')
 Interval.__doc__ = '''\
@@ -19,8 +23,9 @@ Numerical intervals
 low - Lower limit (float)
 high - Upper limit (float)''' 
 
+
 SpectrConfig = namedtuple('SpectrConfig', 'rate window_size step_size window_function')
-Interval.__doc__ = '''\
+SpectrConfig.__doc__ = '''\
 Configuration parameters for generation of spectrograms
 
 rate - Sampling rate in Hz (int)
@@ -30,7 +35,16 @@ window_function - Window function used for framing (e.g. Hamming window)'''
 
 
 def parse_spectrogram_config(data):
+    """ Parse configuration settings for generating spectrograms
 
+    Args:
+        data : str
+            Json-format string with the configuration settings 
+    
+    Returns:
+        c : SpectrConfig
+            Spectrogram configuration settings
+    """
     # for parsing values with units
     Q = ureg.Quantity
 
@@ -61,7 +75,18 @@ def parse_spectrogram_config(data):
 
 
 def parse_frequency_bands(data):
+    """ Parse list of frequency bands
 
+    Args:
+        data : str
+            Json-format string frequency bands 
+    
+    Returns:
+        name : list(str)
+            Band names
+        freq_intv: list(Interval)
+            Band frequency ranges in Hz 
+    """
     # for parsing values with units
     Q = ureg.Quantity
     
@@ -78,26 +103,3 @@ def parse_frequency_bands(data):
     return name, freq_intv
 
     
-def parse_stat_time_series_config(data):   
-
-    stat_quantity = Stat(1)
-    window_size = None
-
-    if data.get('stat_quantity') is not None:
-        stat_quantity = None
-        for name, member in Stat.__members__.items():
-            if data['stat_quantity'] == name:
-                stat_quantity = member
-
-        if stat_quantity is None:
-            s = ", ".join(name for name, _ in Stat.__members__.items())
-            raise ValueError("Unknown statistical quantity. Select between: "+s)
-
-    # for parsing values with units
-    Q = ureg.Quantity
-
-    if data.get('window_size') is not None:
-        window_size = Q(data['window_size'])
-        window_size = window_size.m_as("s")
-
-    return stat_quantity, window_size
