@@ -1,7 +1,6 @@
 import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
-import sound_classification.pre_processing as pp
 
 
 class Spectrogram():
@@ -165,7 +164,8 @@ class Spectrogram():
         """
         img = self.image
         if decibel:
-            img = pp.to_decibel(img)
+            from sound_classification.pre_processing import to_decibel
+            img = to_decibel(img)
 
         plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max))
         ax = plt.gca()
