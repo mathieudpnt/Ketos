@@ -61,7 +61,7 @@ class TimeStampedAudioSignal(AudioSignal):
         time_stamp = begin
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
-            time_stamp = self.time_stamp + datetime.timedelta(seconds=i1*self.rate) # update time stamp
+            time_stamp = self.time_stamp + datetime.timedelta(seconds=float(i1)/self.rate) # update time stamp
         
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
         return cropped_signal

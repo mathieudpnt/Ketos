@@ -46,6 +46,7 @@ def test_crop_audio_signal(audio):
     audio_cropped = audio.crop(begin=crop_begin, end=crop_end)
     seconds_cropped = len(audio_cropped.data) / audio_cropped.rate
     assert seconds_cropped/seconds == pytest.approx(8./10., rel=1./audio.rate)
+    assert audio_cropped.begin() == crop_begin
 
 def test_append_audio_signal(audio): 
     new_audio = audio.append(audio)
