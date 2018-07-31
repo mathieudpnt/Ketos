@@ -4,11 +4,6 @@ from pint import UnitRegistry # SI units
 from enum import Enum
 
 
-class Stat(Enum):
-    AVERAGE = 1
-    MEDIAN = 2
-
-
 class WinFun(Enum):
     HAMMING = 1
 
