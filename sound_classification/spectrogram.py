@@ -1,6 +1,7 @@
 import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
+import sound_classification.pre_processing as pp
 
 
 class Spectrogram():
@@ -155,8 +156,18 @@ class Spectrogram():
         med = np.average(m)
         return med
 
-    def create_plot(self):
-        plt.imshow(self.image.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max))
+    def create_plot(self, decibel=False):
+        """ Plot the spectrogram with proper axes ranges and labels
+
+            Args:
+                decibel: bool
+                Use linear or logarithmic scale
+        """
+        img = self.image
+        if decibel:
+            img = pp.to_decibel(img)
+
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
