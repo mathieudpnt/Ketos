@@ -21,6 +21,24 @@ class AudioSignal:
     def seconds(self):
         return float(len(self.data)) / float(self.rate)
 
+    def _cropped_data(self, begin, end):
+        begin = max(0, begin)
+        end = min(self.seconds(), end)
+        i1 = int(begin * self.rate)
+        i2 = int(end * self.rate)
+        i1 = max(i1, 0)
+        i2 = min(i2, len(self.data))
+        cropped_data = list()
+        if i2 > i1:
+            cropped_data = self.data[i1:i2] # crop data
+
+        return cropped_data        
+
+    def crop(self, begin, end):
+        cropped_data = self._cropped_data(begin,end)
+        cropped_signal = self.__class__(rate=self.rate, data=cropped_data)
+        return cropped_signal        
+
 
 class TimeStampedAudioSignal(AudioSignal):
     """ Audio signal with global time stamp and optionally a tag 
@@ -56,18 +74,15 @@ class TimeStampedAudioSignal(AudioSignal):
         return end 
     
     def crop(self, begin, end):
-        i1 = int((begin - self.begin()).total_seconds() * self.rate)
-        i2 = int((end - self.begin()).total_seconds() * self.rate)
-        i1 = max(i1, 0)
-        i2 = min(i2, len(self.data))
-        cropped_data = list()
-        time_stamp = begin
-        if i2 > i1:
-            cropped_data = self.data[i1:i2] # crop data
-            time_stamp = self.time_stamp + datetime.timedelta(seconds=float(i1)/self.rate) # update time stamp
-        
+        begin_sec = (begin - self.begin()).total_seconds()
+        end_sec = (end - self.begin()).total_seconds()
+        cropped_data = self._cropped_data(begin_sec, end_sec)
+
+        if begin_sec > 0 and len(cropped_data) > 0:
+            time_stamp = self.time_stamp + datetime.timedelta(seconds=begin_sec) # update time stamp
+
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
-        return cropped_signal
+        return cropped_signal        
 
     def append(self, signal):
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
