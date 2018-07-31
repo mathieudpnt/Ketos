@@ -16,7 +16,7 @@
 import pytest
 import numpy as np
 from sound_classification.spectrogram import Spectrogram
-from sound_classification.spectrogram import Interval
+from sound_classification.json_parsing import Interval
 
 
 
