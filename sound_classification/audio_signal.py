@@ -1,5 +1,7 @@
 import numpy as np
 import datetime
+import scipy.io.wavfile as wave
+from sound_classification.data_handling import read_wave
 
 
 class AudioSignal:
@@ -11,9 +13,18 @@ class AudioSignal:
             data: 1d numpy array
                 Audio data 
     """
-    def __init__(self, rate, data):
+    def __init__(self, rate, data, tag=""):
         self.rate = rate
         self.data = data
+        self.tag = tag
+
+    @classmethod
+    def from_wav(cls, path):
+        rate, data = read_wave(path)
+        return cls(rate, data, path[path.rfind('/')+1:])
+
+    def to_wav(self, path):
+        wave.write(filename=path, rate=self.rate, data=self.data)
 
     def empty(self):
         return len(self.data) == 0
@@ -46,6 +57,19 @@ class AudioSignal:
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data)
         return cropped_signal        
 
+    def append(self, signal):
+        assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
+
+        extended_data = np.append(self.data, signal.data) 
+    
+        tag = self.tag + ", " + signal.tag
+        if isinstance(self, TimeStampedAudioSignal):
+           extended_signal = self.__class__(rate=self.rate, data=extended_data, time_stamp=self.time_stamp, tag=tag)
+        else:
+           extended_signal = self.__class__(rate=self.rate, data=extended_data, tag=tag)
+
+        return extended_signal        
+
 
 class TimeStampedAudioSignal(AudioSignal):
     """ Audio signal with global time stamp and optionally a tag 
@@ -62,13 +86,12 @@ class TimeStampedAudioSignal(AudioSignal):
                 Optional argument that may be used to indicate the source.
     """
 
-    def __init__(self, rate, data, time_stamp, tag=None):
-        AudioSignal.__init__(self, rate, data)
+    def __init__(self, rate, data, time_stamp, tag=""):
+        AudioSignal.__init__(self, rate, data, tag)
         self.time_stamp = time_stamp
-        self.tag = tag
 
     @classmethod
-    def from_audio_signal(cls, audio_signal, time_stamp, tag=None):
+    def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
     def begin(self):
@@ -95,15 +118,4 @@ class TimeStampedAudioSignal(AudioSignal):
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
         return cropped_signal        
 
-    def append(self, signal):
-        assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
-
-        extended_data = np.append(self.data, signal.data) 
-    
-        tag = self.tag
-        if isinstance(signal, TimeStampedAudioSignal):
-            tag += ", " + signal.tag
-    
-        extended_signal = self.__class__(rate=self.rate, data=extended_data, time_stamp=self.time_stamp, tag=tag)
-        return extended_signal        
 

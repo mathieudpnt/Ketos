@@ -9,7 +9,7 @@ setup(name='sound_classification',
       author='Oliver Kirsebom, Fabio Frazao',
       author_email='oliver.kirsebom@dal.ca, fsfrazao@dal.ca',
       license='GNU General Public License v3.0',
-      packages=['sound_classification'],
+      packages=['sound_classification', 'sound_classification/external'],
       install_requires=[
           'numpy',
           'tables',
