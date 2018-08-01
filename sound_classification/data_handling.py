@@ -20,6 +20,7 @@ import os
 import errno
 from subprocess import call
 import scipy.io.wavfile as wave
+import sound_classification.external.wavfile as wave_bit
 
 
 def read_wave(file, channel=0):
@@ -31,7 +32,11 @@ def read_wave(file, channel=0):
             channel: bool
                 Which channel should be used in case of stereo data (0: left, 1: right) 
     """
-    rate, signal = wave.read(file)
+    try:
+        rate, signal, _ = wave_bit.read(file)
+    except TypeError:
+        rate, signal = wave.read(file)
+        
     if len(signal.shape) == 2:
         data = signal[:, channel]
     else:

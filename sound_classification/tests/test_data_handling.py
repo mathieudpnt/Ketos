@@ -231,3 +231,8 @@ def test_from1hot_works_with_multiple_categories(input, expected):
 def test_from1hot_works_with_multiple_input_values_at_once(input, expected):
     one_hot = dh.from1hot(input)
     assert (one_hot == expected).all()
+
+@pytest.mark.test_read_wave
+def test_read_wave_file(sine_wave_file):
+    rate, data = dh.read_wave(sine_wave_file)
+    assert rate == 44100
