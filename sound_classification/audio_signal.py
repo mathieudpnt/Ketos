@@ -24,7 +24,7 @@ class AudioSignal:
         return cls(rate, data, path[path.rfind('/')+1:])
 
     def to_wav(self, path):
-        wave.write(filename=path, rate=self.rate, data=self.data)
+        wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
     def empty(self):
         return len(self.data) == 0
