@@ -64,6 +64,8 @@ class AudioSignal:
         d = signal.data[:]
 
         overlap = int(overlap_sec * self.rate)
+        overlap = min(overlap, len(self.data))
+        overlap = min(overlap, len(d))
 
         # extract data from overlap region
         if overlap > 0:
