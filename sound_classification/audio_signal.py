@@ -8,14 +8,14 @@ class AudioSignal:
     """ Audio signal
 
         Args:
-            rate: int
+            rate: float
                 Sampling rate in Hz
             data: 1d numpy array
                 Audio data 
     """
     def __init__(self, rate, data, tag=""):
-        self.rate = rate
-        self.data = data
+        self.rate = float(rate)
+        self.data = data.astype(dtype=np.float32)
         self.tag = tag
 
     @classmethod

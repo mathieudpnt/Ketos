@@ -18,6 +18,7 @@ import os
 import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
+from sound_classification.audio_signal import AudioSignal
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -44,7 +45,7 @@ def test_to_decibel_throws_assertion_error_if_input_is_negative():
 @pytest.mark.test_resample
 def test_resampled_signal_has_correct_rate(sine_wave_file):
     rate, sig = pp.wave.read(sine_wave_file)
-    signal = pp.AudioSignal(rate, sig)
+    signal = AudioSignal(rate, sig)
 
     new_signal = pp.resample(signal=signal, new_rate=22000)
     assert new_signal.rate == 22000
@@ -53,7 +54,9 @@ def test_resampled_signal_has_correct_rate(sine_wave_file):
     assert new_signal.rate == 2000
 
     tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
-    pp.wave.write(filename=tmp_file, rate=new_signal.rate, data=new_signal.data)
+    r = int(new_signal.rate)
+    d = new_signal.data.astype(dtype=np.int16)
+    pp.wave.write(filename=tmp_file, rate=r, data=d)
     read_rate, _ = pp.wave.read(tmp_file)
 
     assert read_rate == new_signal.rate
@@ -141,7 +144,7 @@ def test_first_frame_matches_original_signal(sine_wave):
     frames = pp.make_frames(signal, winlen, winstep)
     assert frames.shape[0] == 8
     for i in range(int(winlen*rate)):
-        assert sig[i] == frames[0,i]
+        assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
 
 @pytest.mark.test_make_magnitude_spec
 def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):

@@ -10,14 +10,6 @@ from sound_classification.spectrogram import Spectrogram
 from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
 
 
-#AudioSignal = namedtuple('AudioSignal', 'rate data')
-#AudioSignal.__doc__ = '''\
-#Namedtuple for handling audio signals.
-#
-#data - Audio signal data (1d numpy array)
-#rate - Sampling rate in Hz (float)''' 
-
-
 def to_decibel(x):
     """ Convert to decibels
 
@@ -123,7 +115,8 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
         padded_signal = np.append(sig, z)
     else:
         n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
-        padded_signal = sig
+        l = (n_frames - 1) * winstep + winlen
+        padded_signal = np.delete(sig, np.s_[l:])
 
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = padded_signal[indices.astype(np.int32, copy=False)]
@@ -154,7 +147,10 @@ def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timest
             Magnitude spectogram.
     """    
     #make frames
-    frames = make_frames(signal, winlen, winstep)     
+    frames = make_frames(signal, winlen, winstep) 
+
+    print(frames.shape)
+    print(frames)    
 
     #apply Hamming window    
     if hamming:
