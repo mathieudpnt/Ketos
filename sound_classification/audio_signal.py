@@ -50,7 +50,7 @@ class AudioSignal:
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
 
-        return cropped_data        
+        return np.array(cropped_data)        
 
     def crop(self, begin=None, end=None):
         cropped_data = self._cropped_data(begin,end)
