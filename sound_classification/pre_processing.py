@@ -149,9 +149,6 @@ def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timest
     #make frames
     frames = make_frames(signal, winlen, winstep) 
 
-    print(frames.shape)
-    print(frames)    
-
     #apply Hamming window    
     if hamming:
         frames *= np.hamming(frames.shape[1])
