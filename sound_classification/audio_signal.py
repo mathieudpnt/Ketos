@@ -80,6 +80,7 @@ class AudioSignal:
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
+            # TODO: Cache values returned by smoothclamp to avoid repeated calculation
             c = np.empty(overlap)
             for i in range(overlap):
                 w = smoothclamp(i, 0, overlap-1)
@@ -91,7 +92,7 @@ class AudioSignal:
         self.data = np.append(self.data, d) 
 
 def smoothclamp(x, mi, mx): 
-    return mi + (mx-mi)*(lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
+    return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
 
 
 class TimeStampedAudioSignal(AudioSignal):
