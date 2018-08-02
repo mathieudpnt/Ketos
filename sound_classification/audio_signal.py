@@ -81,6 +81,7 @@ class AudioSignal:
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
             # TODO: Cache values returned by smoothclamp to avoid repeated calculation
+            # TODO: Use coarser binning for smoothing function to speed things up even more
             c = np.empty(overlap)
             for i in range(overlap):
                 w = smoothclamp(i, 0, overlap-1)
