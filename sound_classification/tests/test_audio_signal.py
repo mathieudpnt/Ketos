@@ -49,9 +49,16 @@ def test_crop_audio_signal(audio):
     assert audio_cropped.begin() == crop_begin
 
 def test_append_audio_signal(audio): 
-    new_audio = audio.append(audio)
-    assert len(new_audio.data) == 2*len(audio.data)
+    len_sum = 2 * len(audio.data)
+    audio.append(audio)
+    assert len(audio.data) == len_sum
     
 def test_append_audio_signal_without_time_stamp(audio, audio_without_time_stamp): 
-    new_audio = audio.append(audio_without_time_stamp)
-    assert len(new_audio.data) == len(audio.data) + len(audio_without_time_stamp.data)
+    len_sum = len(audio.data) + len(audio_without_time_stamp.data)
+    audio.append(audio_without_time_stamp)
+    assert len(audio.data) == len_sum
+
+def test_append_audio_signal_with_smoothing(audio): 
+    t = audio.seconds()
+    audio.append(signal=audio, overlap_sec=0.2)
+    assert audio.seconds() == pytest.approx(2.*t - 0.2, rel=1./audio.rate)

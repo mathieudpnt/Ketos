@@ -57,18 +57,43 @@ class AudioSignal:
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data)
         return cropped_signal        
 
-    def append(self, signal):
+    def append(self, signal, overlap_sec=0):
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
-        extended_data = np.append(self.data, signal.data) 
-    
-        tag = self.tag + ", " + signal.tag
-        if isinstance(self, TimeStampedAudioSignal):
-           extended_signal = self.__class__(rate=self.rate, data=extended_data, time_stamp=self.time_stamp, tag=tag)
-        else:
-           extended_signal = self.__class__(rate=self.rate, data=extended_data, tag=tag)
+        # make hard copy
+        d = signal.data[:]
 
-        return extended_signal        
+        overlap = int(overlap_sec * self.rate)
+
+        # extract data from overlap region
+        if overlap > 0:
+
+            # signal 1
+            a = np.empty(overlap)
+            np.copyto(a, self.data[-overlap:])
+            self.data = np.delete(self.data, np.s_[-overlap:])
+
+            # signal 2
+            b = np.empty(overlap)
+            np.copyto(b, d[:overlap])
+            d = np.delete(d, np.s_[:overlap])
+
+            # superimpose a and b
+            # TODO: If possible, vectorize this loop for faster execution
+            # TODO: Cache values returned by smoothclamp to avoid repeated calculation
+            # TODO: Use coarser binning for smoothing function to speed things up even more
+            c = np.empty(overlap)
+            for i in range(overlap):
+                w = smoothclamp(i, 0, overlap-1)
+                c[i] = (1.-w) * a[i] + w * b[i]
+
+            # append
+            self.data = np.append(self.data, c)
+
+        self.data = np.append(self.data, d) 
+
+def smoothclamp(x, mi, mx): 
+    return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
 
 
 class TimeStampedAudioSignal(AudioSignal):
