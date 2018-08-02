@@ -103,7 +103,7 @@ def test_signal_is_padded(sine_wave):
     winlen = 2*duration
     winstep = 2*duration
     signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal=signal, winlen=winlen, winstep=winstep)
+    frames = pp.make_frames(signal=signal, winlen=winlen, winstep=winstep, zero_padding=True)
     assert frames.shape[0] == 1
     assert frames.shape[1] == 2*len(sig)
     assert frames[0, len(sig)] == 0
@@ -117,7 +117,7 @@ def test_can_make_overlapping_frames(sine_wave):
     winstep = duration/4
     signal = pp.AudioSignal(rate, sig)
     frames = pp.make_frames(signal, winlen, winstep)
-    assert frames.shape[0] == 4
+    assert frames.shape[0] == 3
     assert frames.shape[1] == len(sig)/2
 
 @pytest.mark.test_make_frames
@@ -139,7 +139,7 @@ def test_first_frame_matches_original_signal(sine_wave):
     winstep = duration/10
     signal = pp.AudioSignal(rate, sig)
     frames = pp.make_frames(signal, winlen, winstep)
-    assert frames.shape[0] == 10
+    assert frames.shape[0] == 8
     for i in range(int(winlen*rate)):
         assert sig[i] == frames[0,i]
 
