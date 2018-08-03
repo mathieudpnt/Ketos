@@ -125,7 +125,7 @@ class Spectrogram():
         m = self._crop_freq_image(freq_interval)
 
         if m is None: 
-            return None
+            return np.nan
 
         avg = np.average(m)
         return avg
@@ -150,7 +150,7 @@ class Spectrogram():
         m = self._crop_freq_image(freq_interval)
 
         if m is None: 
-            return None
+            return np.nan
 
         med = np.average(m)
         return med
