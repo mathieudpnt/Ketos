@@ -150,6 +150,14 @@ def image_ones_10x10():
     return image
 
 @pytest.fixture
+def image_zeros_and_ones_10x10():
+    image = np.ones(shape=(10,10))
+    for i in range(10):
+        for j in range(5):
+            image[i,j] = 0
+    return image
+
+@pytest.fixture
 def datebase_with_one_image_col_and_one_label_col():
     img = image_2x2()
     d = {'image': [img], 'label': [1]}
