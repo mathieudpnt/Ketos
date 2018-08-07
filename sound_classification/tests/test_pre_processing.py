@@ -146,6 +146,16 @@ def test_first_frame_matches_original_signal(sine_wave):
     for i in range(int(winlen*rate)):
         assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
 
+@pytest.mark.test_make_frames
+def test_window_length_can_exceed_duration(sine_wave):
+    rate, sig = sine_wave
+    duration = len(sig) / rate
+    winlen = 2 * duration
+    winstep = duration
+    signal = pp.AudioSignal(rate, sig)
+    frames = pp.make_frames(signal, winlen, winstep)
+    assert frames.shape[0] == 1
+
 @pytest.mark.test_make_magnitude_spec
 def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):
     rate, sig = sine_wave
