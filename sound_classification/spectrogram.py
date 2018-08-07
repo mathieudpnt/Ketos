@@ -46,7 +46,7 @@ class Spectrogram():
                 bin : int
                     Bin number
         """
-        bin = int(freq / self.freq_res)
+        bin = int((freq - self.freq_min) / self.freq_res)
         return bin
 
     def _crop_freq_image(self, freq_interval):
