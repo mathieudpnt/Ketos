@@ -114,7 +114,12 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
         z = np.zeros(n_zeros)
         padded_signal = np.append(sig, z)
     else:
-        n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
+        if winlen > totlen:
+            n_frames = 1
+            winlen = totlen
+        else:
+            n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
+
         l = (n_frames - 1) * winstep + winlen
         padded_signal = np.delete(sig, np.s_[l:])
 
