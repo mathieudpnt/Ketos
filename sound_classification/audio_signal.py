@@ -8,14 +8,14 @@ class AudioSignal:
     """ Audio signal
 
         Args:
-            rate: int
+            rate: float
                 Sampling rate in Hz
             data: 1d numpy array
                 Audio data 
     """
     def __init__(self, rate, data, tag=""):
-        self.rate = rate
-        self.data = data
+        self.rate = float(rate)
+        self.data = data.astype(dtype=np.float32)
         self.tag = tag
 
     @classmethod
@@ -24,7 +24,7 @@ class AudioSignal:
         return cls(rate, data, path[path.rfind('/')+1:])
 
     def to_wav(self, path):
-        wave.write(filename=path, rate=self.rate, data=self.data)
+        wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
     def empty(self):
         return len(self.data) == 0
@@ -50,7 +50,7 @@ class AudioSignal:
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
 
-        return cropped_data        
+        return np.array(cropped_data)        
 
     def crop(self, begin=None, end=None):
         cropped_data = self._cropped_data(begin,end)
@@ -64,6 +64,8 @@ class AudioSignal:
         d = signal.data[:]
 
         overlap = int(overlap_sec * self.rate)
+        overlap = min(overlap, len(self.data))
+        overlap = min(overlap, len(d))
 
         # extract data from overlap region
         if overlap > 0:

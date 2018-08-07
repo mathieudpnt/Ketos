@@ -10,14 +10,6 @@ from sound_classification.spectrogram import Spectrogram
 from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
 
 
-#AudioSignal = namedtuple('AudioSignal', 'rate data')
-#AudioSignal.__doc__ = '''\
-#Namedtuple for handling audio signals.
-#
-#data - Audio signal data (1d numpy array)
-#rate - Sampling rate in Hz (float)''' 
-
-
 def to_decibel(x):
     """ Convert to decibels
 
@@ -87,12 +79,11 @@ def resample(signal, new_rate):
 
     return new_signal
 
-def make_frames(signal, winlen, winstep):
-    """ Split the signal into frames of length winlen. winstep defines the delay between two consecutive 
-        frames. If winstep < winlen, the frames overlap.
-
-        If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
-        This assures that sample are not truncated from the original signal.
+def make_frames(signal, winlen, winstep, zero_padding=False):
+    """ Split the signal into frames of length 'winlen' with consecutive 
+        frames being shifted by an amount 'winstep'. 
+        
+        If 'winstep' < 'winlen', the frames overlap.
 
     Args: 
         signal: AudioSignal
@@ -101,6 +92,9 @@ def make_frames(signal, winlen, winstep):
             The window length in seconds.
         winstep: float
             The window step (or stride) in seconds.
+        zero_padding: bool
+            If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
+            This assures that sample are not truncated from the original signal.
 
     Returns:
         frames: numpy array
@@ -114,11 +108,15 @@ def make_frames(signal, winlen, winstep):
     winlen = int(round(winlen * rate))
     winstep = int(round(winstep * rate))
 
-    n_frames = int(np.ceil(totlen / winstep))
-    n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-    
-    z = np.zeros(n_zeros)
-    padded_signal = np.append(sig, z)
+    if zero_padding:
+        n_frames = int(np.ceil(totlen / winstep))
+        n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
+        z = np.zeros(n_zeros)
+        padded_signal = np.append(sig, z)
+    else:
+        n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
+        l = (n_frames - 1) * winstep + winlen
+        padded_signal = np.delete(sig, np.s_[l:])
 
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = padded_signal[indices.astype(np.int32, copy=False)]
@@ -149,7 +147,7 @@ def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timest
             Magnitude spectogram.
     """    
     #make frames
-    frames = make_frames(signal, winlen, winstep)     
+    frames = make_frames(signal, winlen, winstep) 
 
     #apply Hamming window    
     if hamming:
