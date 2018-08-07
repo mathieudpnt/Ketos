@@ -105,7 +105,7 @@ class Spectrogram():
 
         return cropped_spec
 
-    def average(self, freq_interval=None):
+    def average(self, freq_interval=None, integrate=True):
         """ Compute average magnitude within specified frequency interval.
             
             If the frequency interval extends beyond the boarders of the spectrogram, 
@@ -117,6 +117,8 @@ class Spectrogram():
             Args:
                 freq_interval: Interval
                     Frequency interval with limits given in Hz 
+                integrate: bool
+                    Integrate over frequencies. If 'False' an array is returned instead of a number.
 
             Returns:
                 avg : float
@@ -127,10 +129,14 @@ class Spectrogram():
         if m is None: 
             return np.nan
 
-        avg = np.average(m)
+        if integrate is True:
+            avg = np.average(m)
+        else:
+            avg = np.average(m, axis=0)
+
         return avg
 
-    def median(self, freq_interval=None):
+    def median(self, freq_interval=None, integrate=True):
         """ Compute median magnitude within specified frequency interval.
             
             If the frequency interval extends beyond the boarders of the spectrogram, 
@@ -142,9 +148,11 @@ class Spectrogram():
             Args:
                 freq_interval: Interval
                     Frequency interval with limits given in Hz 
+                integrate: bool
+                    Integrate over frequencies. If 'False' an array is returned instead of a number.
 
             Returns:
-                med : float
+                med : float or numpy array
                     Average magnitude
         """
         m = self._crop_freq_image(freq_interval)
@@ -152,7 +160,11 @@ class Spectrogram():
         if m is None: 
             return np.nan
 
-        med = np.average(m)
+        if integrate is True:
+            med = np.median(m)
+        else:
+            med = np.median(m, axis=0)
+
         return med
 
     def create_plot(self, decibel=False):
