@@ -174,66 +174,70 @@ class Spectrogram():
         self.image = self._crop_image(tlow, thigh, flow, fhigh)
 
 
-    def average(self, freq_interval=None, integrate=True):
-        """ Compute average magnitude within specified frequency interval.
+    def average(self, axis=None, finteg=True, tlow=None, thigh=None, flow=None, fhigh=None):
+        """ Compute average magnitude within specified time and frequency regions.
             
-            If the frequency interval extends beyond the boarders of the spectrogram, 
+            If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap between the frequency interval and the spectrogram, 
-            None is returned.
+            If there is no overlap, None is returned.
 
             Args:
-                freq_interval: Interval
-                    Frequency interval with limits given in Hz 
-                integrate: bool
-                    Integrate over frequencies. If 'False' an array is returned instead of a number.
+                axis: bool
+                    Axis along which average is computed, where 0 is the time axis and 1 is the frequency axis. If axis=None, the average is computed along both axes.
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
+                flow: float
+                    Lower limit on frequency cut in Hz
+                fhigh: float
+                    Upper limit on frequency cut in Hz
 
             Returns:
-                avg : float
+                avg : float or numpy array
                     Average magnitude
         """
-        m = self._crop_image()
+        m = self._crop_image(tlow, thigh, flow, fhigh)
 
         if m is None: 
             return np.nan
 
-        if integrate is True:
-            avg = np.average(m)
-        else:
-            avg = np.average(m, axis=0)
+        avg = np.average(m, axis=axis)
 
         return avg
 
 
     def median(self, freq_interval=None, integrate=True):
-        """ Compute median magnitude within specified frequency interval.
+        """ Compute median magnitude within specified time and frequency regions.
             
-            If the frequency interval extends beyond the boarders of the spectrogram, 
+            If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap between the frequency interval and the spectrogram, 
-            None is returned.
+            If there is no overlap, None is returned.
 
             Args:
-                freq_interval: Interval
-                    Frequency interval with limits given in Hz 
-                integrate: bool
-                    Integrate over frequencies. If 'False' an array is returned instead of a number.
+                axis: bool
+                    Axis along which median is computed, where 0 is the time axis and 1 is the frequency axis. If axis=None, the average is computed along both axes.
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
+                flow: float
+                    Lower limit on frequency cut in Hz
+                fhigh: float
+                    Upper limit on frequency cut in Hz
 
             Returns:
                 med : float or numpy array
-                    Average magnitude
+                    Median magnitude
         """
-        m = self._crop_image()
+        m = self._crop_image(tlow, thigh, flow, fhigh)
 
         if m is None: 
             return np.nan
 
-        if integrate is True:
-            med = np.median(m)
-        else:
-            med = np.median(m, axis=0)
+        med = np.median(m, axis=axis)
 
         return med
 

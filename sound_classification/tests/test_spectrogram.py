@@ -66,10 +66,7 @@ def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
 
 def test_compute_average_and_median(image_2x2):
     img = image_2x2
-    NFFT = 256
-    duration = 1
-    fres = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
+    spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
     avg = spec.average()
     assert avg == np.average(img)
     assert avg == np.median(img)
