@@ -31,7 +31,7 @@ def test_init_spectrogram_with_2x2_image(image_2x2):
     assert spec.length == length
     assert spec.freq_res == freq_res
     assert spec.freq_min == 0
-    assert spec.freq_max == freq_res * img.shape[1]
+    assert spec.freq_max() == freq_res * img.shape[1]
 
 def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
     img = image_ones_10x10

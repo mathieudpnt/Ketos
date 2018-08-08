@@ -19,10 +19,6 @@ class Spectrogram():
                 Lower limit of frequency axis in Hz (default: 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
-            
-        Attributes:
-            freq_max: float
-                Upper limit of frequency axis in Hz
     """
 
     def __init__(self, image, NFFT, length, freq_res, freq_min=0, timestamp=None):
@@ -33,7 +29,6 @@ class Spectrogram():
         self.freq_res = freq_res
         self.freq_min = freq_min
         self.timestamp = timestamp
-        self.freq_max = freq_min + freq_res * image.shape[1]
 
     def _find_freq_bin(self, freq):
         """ Find bin corresponding to given frequency in Hz
@@ -81,6 +76,13 @@ class Spectrogram():
 
         cropped_image = self.image[:,low:high]
         return cropped_image
+
+    def freq_bins(self):
+        return self.image.shape[1]
+
+    def freq_max(self):
+        freq_max = self.freq_min + self.freq_res * self.freq_bins()
+        return freq_max
 
     def crop_freq(self, freq_interval):
         """ Crop spectogram along frequency axis.
@@ -179,7 +181,7 @@ class Spectrogram():
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max))
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max()))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
