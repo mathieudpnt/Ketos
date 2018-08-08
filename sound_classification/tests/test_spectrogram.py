@@ -79,3 +79,11 @@ def test_compute_average_and_median_with_cropping(image_3x3):
     med = spec.median(flow=5.0, fhigh=6.1)
     assert avg == 2
     assert med == 6    
+    
+def test_compute_average_with_axis(image_3x3):
+    img = image_3x3
+    spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
+    avg = spec.average(axis=0)
+    assert avg.shape == (3,)
+    for i in range(3):
+        assert avg[i] == (img[0,i]+img[1,i]+img[2,i])/3.
