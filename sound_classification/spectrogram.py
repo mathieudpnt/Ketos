@@ -5,6 +5,12 @@ import matplotlib.pyplot as plt
 
 class Spectrogram():
     """ Spectrogram generated from an audio segment
+    
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
+        
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and fres).
 
         Args:
             image: 2d numpy array
@@ -208,7 +214,7 @@ class Spectrogram():
         return avg
 
 
-    def median(self, freq_interval=None, integrate=True):
+    def median(self, axis=None, finteg=True, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute median magnitude within specified time and frequency regions.
             
             If the region extends beyond the boarders of the spectrogram, 

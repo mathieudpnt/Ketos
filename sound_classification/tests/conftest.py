@@ -145,6 +145,11 @@ def image_2x2():
     return image
 
 @pytest.fixture
+def image_3x3():
+    image = np.array([[1,2,3],[4,5,6],[7,8,9]], np.float32)
+    return image
+
+@pytest.fixture
 def image_ones_10x10():
     image = np.ones(shape=(10,10))
     return image
