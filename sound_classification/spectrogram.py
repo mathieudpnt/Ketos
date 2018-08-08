@@ -80,6 +80,9 @@ class Spectrogram():
     def freq_bins(self):
         return self.image.shape[1]
 
+    def time_bins(self):
+        return self.image.shape[0]
+
     def freq_max(self):
         freq_max = self.freq_min + self.freq_res * self.freq_bins()
         return freq_max
