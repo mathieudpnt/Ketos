@@ -89,6 +89,24 @@ class Spectrogram():
     def time_res(self):
         return self.seconds / self.time_bins()
 
+    def crop(self, begin=None, end=None, flow=None, fhigh=None):
+        """ Crop spectogram along time axis, frequency axis, or both.
+            
+            If the cropping box extends beyond the boarders of the spectrogram, 
+            the cropped spectrogram is the overlap of the two. 
+
+            Args:
+                begin: float
+                    Lower limit of time cut, measured in seconds from the beginning of the spectrogram start
+                end: float
+                    Upper limit of time cut, measured in seconds from the beginning of the spectrogram start 
+                flow: float
+                    Lower limit on frequency cut in Hz
+                fhigh: float
+                    Upper limit on frequency cut in Hz
+        """
+        
+
     def crop_freq(self, freq_interval):
         """ Crop spectogram along frequency axis.
             
