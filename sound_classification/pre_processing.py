@@ -168,7 +168,7 @@ def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timest
     #Frequency resolution and range (Hz)
     rate = signal.rate
     fres = rate / 2. / image.shape[1]
-    spec = Spectrogram(image=image, NFFT=NFFT, seconds=signal.seconds(), freq_res=fres, freq_min=0, timestamp=timestamp)
+    spec = Spectrogram(image=image, NFFT=NFFT, duration=signal.seconds(), fres=fres, timestamp=timestamp)
 
     return spec
 

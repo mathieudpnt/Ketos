@@ -167,8 +167,8 @@ def test_make_magnitude_spec_of_sine_wave_is_delta_function(sine_wave):
     mag = spec.image
     for i in range(mag.shape[0]):
         freq = np.argmax(mag[i])
-        freqHz = freq * spec.freq_res
-        assert freqHz == pytest.approx(2000, abs=spec.freq_res)
+        freqHz = freq * spec.fres
+        assert freqHz == pytest.approx(2000, abs=spec.fres)
 
 @pytest.mark.test_make_magnitude_spec
 def test_user_can_set_number_of_points_for_FFT(sine_wave):
@@ -181,8 +181,8 @@ def test_user_can_set_number_of_points_for_FFT(sine_wave):
     mag = spec.image
     for i in range(mag.shape[0]):
         freq   = np.argmax(mag[i])
-        freqHz = freq * spec.freq_res
-        assert freqHz == pytest.approx(2000, abs=spec.freq_res)
+        freqHz = freq * spec.fres
+        assert freqHz == pytest.approx(2000, abs=spec.fres)
 
 @pytest.mark.test_make_magnitude_spec
 def test_make_magnitude_spec_returns_correct_NFFT_value(sine_wave):

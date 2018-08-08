@@ -23,23 +23,23 @@ from sound_classification.json_parsing import Interval
 def test_init_spectrogram_with_2x2_image(image_2x2):
     img = image_2x2
     NFFT = 256
-    seconds = 1
-    freq_res = 0.2
-    spec = Spectrogram(image=img, NFFT=NFFT, seconds=seconds, freq_res=freq_res)
+    duration = 1
+    fres = 0.2
+    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
     assert np.array_equal(spec.image, img)
     assert spec.NFFT == NFFT
-    assert spec.seconds == seconds
-    assert spec.freq_res == freq_res
-    assert spec.freq_min == 0
-    assert spec.freq_max() == freq_res * img.shape[1]
-    assert spec.time_res() == 0.5
+    assert spec.duration == duration
+    assert spec.fres == fres
+    assert spec.fmin == 0
+    assert spec.fmax() == fres * img.shape[1]
+    assert spec.tres == 0.5
 
 def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
     img = image_ones_10x10
     NFFT = 256
-    seconds = 1
-    freq_res = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, seconds=seconds, freq_res=freq_res)
+    duration = 1
+    fres = 2
+    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
     w = Interval(1.0, 5.0) 
     spec_crop = spec.crop_freq(w)
     img_crop = spec_crop.image
@@ -56,9 +56,9 @@ def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
     img = image_zeros_and_ones_10x10
     NFFT = 256
-    seconds = 1
-    freq_res = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, seconds=seconds, freq_res=freq_res)
+    duration = 1
+    fres = 2
+    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
     w = Interval(8.0, 12.0) 
     spec_crop = spec.crop_freq(w)
     img_crop = spec_crop.image
@@ -70,9 +70,9 @@ def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
 def test_compute_average_and_median(image_2x2):
     img = image_2x2
     NFFT = 256
-    seconds = 1
-    freq_res = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, seconds=seconds, freq_res=freq_res)
+    duration = 1
+    fres = 2
+    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
     avg = spec.average()
     assert avg == np.average(img)
     assert avg == np.median(img)

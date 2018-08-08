@@ -11,23 +11,25 @@ class Spectrogram():
                 Spectrogram image 
             NFFT: int
                 Number of points used for the Fast-Fourier Transform
-            seconds: float
-                seconds of audio segment in seconds 
-            freq_res: float
+            duration: float
+                duration of audio segment in duration 
+            fres: float
                 Frequency resolution in Hz
-            freq_min: float
+            fmin: float
                 Lower limit of frequency axis in Hz (default: 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
     """
 
-    def __init__(self, image, NFFT, seconds, freq_res, freq_min=0, timestamp=None):
+    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None):
 
         self.image = image
         self.NFFT = NFFT
-        self.seconds = seconds
-        self.freq_res = freq_res
-        self.freq_min = freq_min
+        self.tres = duration / image.shape[0]
+        self.time = 0
+        self.fres = fres
+        self.fmin = fmin
+        self.duration = duration
         self.timestamp = timestamp
 
     def _find_freq_bin(self, freq):
@@ -41,7 +43,35 @@ class Spectrogram():
                 bin : int
                     Bin number
         """
-        bin = int((freq - self.freq_min) / self.freq_res)
+        bin = int((freq - self.fmin) / self.fres)
+        return bin
+
+    def _find_tbin(self, t):
+        """ Find bin corresponding to given time
+
+            Args:
+                t: float
+                   Time since spectrogram start in duration
+
+            Returns:
+                bin : int
+                    Bin number
+        """
+        bin = int((t - self.tmin) / self.tres)
+        return bin
+
+    def _find_fbin(self, f):
+        """ Find bin corresponding to given frequency
+
+            Args:
+                f: float
+                   Frequency in Hz 
+
+            Returns:
+                bin: int
+                     Bin number
+        """
+        bin = int((f - self.fmin) / self.fres)
         return bin
 
     def _crop_freq_image(self, freq_interval):
@@ -77,29 +107,29 @@ class Spectrogram():
         cropped_image = self.image[:,low:high]
         return cropped_image
 
-    def freq_bins(self):
+    def fbins(self):
         return self.image.shape[1]
 
-    def time_bins(self):
+    def tbins(self):
         return self.image.shape[0]
 
-    def freq_max(self):
-        return self.freq_min + self.freq_res * self.freq_bins()
+    def fmax(self):
+        return self.fmin + self.fres * self.fbins()
         
-    def time_res(self):
-        return self.seconds / self.time_bins()
+    def duration(self):
+        return self.tbins() * self.tres
 
-    def crop(self, begin=None, end=None, flow=None, fhigh=None):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
             the cropped spectrogram is the overlap of the two. 
 
             Args:
-                begin: float
-                    Lower limit of time cut, measured in seconds from the beginning of the spectrogram start
-                end: float
-                    Upper limit of time cut, measured in seconds from the beginning of the spectrogram start 
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram start
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
                 flow: float
                     Lower limit on frequency cut in Hz
                 fhigh: float
@@ -126,7 +156,7 @@ class Spectrogram():
         """
         cropped_image = self._crop_freq_image(freq_interval)
 
-        cropped_spec = self.__class__(cropped_image, self.NFFT, self.seconds, self.freq_res, freq_min=freq_interval.low, timestamp=self.timestamp)
+        cropped_spec = self.__class__(cropped_image, self.NFFT, self.duration, self.fres, fmin=freq_interval.low, timestamp=self.timestamp)
 
         return cropped_spec
 
@@ -204,7 +234,7 @@ class Spectrogram():
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.seconds,self.freq_min,self.freq_max()))
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration,self.fmin,self.freq_max()))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
