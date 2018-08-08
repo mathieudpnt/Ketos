@@ -86,6 +86,10 @@ class Spectrogram():
     def freq_max(self):
         freq_max = self.freq_min + self.freq_res * self.freq_bins()
         return freq_max
+        
+    def time_res(self):
+        time_res = self.seconds() / self.time_bins()
+        return time_res
 
     def crop_freq(self, freq_interval):
         """ Crop spectogram along frequency axis.
