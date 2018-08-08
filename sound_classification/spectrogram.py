@@ -21,15 +21,17 @@ class Spectrogram():
                 Spectrogram time stamp (default: None)
     """
 
+
     def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None):
 
         self.image = image
         self.NFFT = NFFT
         self.tres = duration / image.shape[0]
-        self.time = 0
+        self.tmin = 0
         self.fres = fres
         self.fmin = fmin
         self.timestamp = timestamp
+
 
     @classmethod
     def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
@@ -37,19 +39,6 @@ class Spectrogram():
         cropped_spec.crop(tlow, thigh, flow, fhigh)
         return cropped_spec
 
-    def _find_freq_bin(self, freq):
-        """ Find bin corresponding to given frequency in Hz
-
-            Args:
-                freq: float
-                    Frequency in Hz 
-
-            Returns:
-                bin : int
-                    Bin number
-        """
-        bin = int((freq - self.fmin) / self.fres)
-        return bin
 
     def _find_tbin(self, t):
         """ Find bin corresponding to given time.
@@ -73,6 +62,7 @@ class Spectrogram():
         
         return bin
 
+
     def _find_fbin(self, f):
         """ Find bin corresponding to given frequency
             Returns -1, if f < f_min
@@ -95,50 +85,71 @@ class Spectrogram():
 
         return bin
 
-    def _crop_freq_image(self, freq_interval):
-        """ Crop image along frequency axis.
-            
-            If the frequency interval extends beyond the boarders of the image, 
-            only the overlap region is returned.
-
-            If there is no overlap between the frequency interval and the image, 
-            None is returned.
-
-            Args:
-                freq_interval: Interval
-                    Frequency interval with limits given in Hz 
-
-            Returns:
-                cropped_image : 2d numpy array
-                    Cropped image
-        """
-        if freq_interval is None:
-            return self.image 
-
-        low = self._find_freq_bin(freq_interval.low)
-        high = self._find_freq_bin(freq_interval.high)
-
-        # ensure lower and upper limits are within axis range
-        low = max(0, low)
-        high = min(self.image.shape[1], high)
-
-        if low >= high:
-            return None
-
-        cropped_image = self.image[:,low:high]
-        return cropped_image
 
     def fbins(self):
         return self.image.shape[1]
 
+
     def tbins(self):
         return self.image.shape[0]
 
+
     def fmax(self):
         return self.fmin + self.fres * self.fbins()
+
         
     def duration(self):
         return self.tbins() * self.tres
+
+        
+    def shape(self):
+        return self.image.shape
+
+
+    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None):
+        """ Crop spectogram along time axis, frequency axis, or both.
+            
+            If the cropping box extends beyond the boarders of the spectrogram, 
+            the cropped spectrogram is the overlap of the two.
+            
+            In general, the cuts will not coincide with bin divisions.             
+            For the lower cuts, the entire lower bin is included.
+            For the higher cuts, the entire upper bin is excluded.
+
+            Args:
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
+                flow: float
+                    Lower limit on frequency cut in Hz
+                fhigh: float
+                    Upper limit on frequency cut in Hz
+
+            Returns:
+                img: 2d numpy array
+                     Cropped image
+        """
+        Nt = self.tbins()
+        Nf = self.fbins()
+        
+        t1 = 0
+        t2 = Nt
+        f1 = 0
+        f2 = Nf
+
+        if tlow != None:
+            t1 = max(0, self._find_tbin(tlow))
+        if thigh != None:
+            t2 = min(Nt, self._find_tbin(thigh))
+        if flow != None:
+            f1 = max(0, self._find_fbin(flow))
+        if fhigh != None:
+            f2 = min(Nf, self._find_fbin(fhigh))
+
+        img = self.image[t1:t2, f1:f2]
+        return img
+
 
     def crop(self, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Crop spectogram along time axis, frequency axis, or both.
@@ -160,48 +171,8 @@ class Spectrogram():
                 fhigh: float
                     Upper limit on frequency cut in Hz
         """
-        Nt = self.tbins()
-        Nf = self.fbins()
-        
-        t1 = 0
-        t2 = Nt
-        f1 = 0
-        f2 = Nf
+        self.image = self._crop_image(tlow, thigh, flow, fhigh)
 
-        if tlow != None:
-            t1 = max(0, self._find_tbin(tlow))
-        if thigh != None:
-            t2 = min(Nt, self._find_tbin(thigh))
-        if flow != None:
-            f1 = max(0, self._find_fbin(flow))
-        if fhigh != None:
-            f2 = min(Nf, self._find_fbin(fhigh))
-
-        self.image = self.image[t1:t2, f1:f2]
-        
-
-    def crop_freq(self, freq_interval):
-        """ Crop spectogram along frequency axis.
-            
-            If the frequency interval extends beyond the boarders of the spectrogram, 
-            only the overlap region is returned.
-
-            If there is no overlap between the frequency interval and the spectrogram, 
-            None is returned.
-
-            Args:
-                freq_interval: Interval
-                    Frequency interval with limits given in Hz 
-
-            Returns:
-                cropped_spec : Spectrogram
-                    Cropped spectrogram
-        """
-        cropped_image = self._crop_freq_image(freq_interval)
-
-        cropped_spec = self.__class__(cropped_image, self.NFFT, self.duration(), self.fres, fmin=freq_interval.low, timestamp=self.timestamp)
-
-        return cropped_spec
 
     def average(self, freq_interval=None, integrate=True):
         """ Compute average magnitude within specified frequency interval.
@@ -222,7 +193,7 @@ class Spectrogram():
                 avg : float
                     Average magnitude
         """
-        m = self._crop_freq_image(freq_interval)
+        m = self._crop_image()
 
         if m is None: 
             return np.nan
@@ -233,6 +204,7 @@ class Spectrogram():
             avg = np.average(m, axis=0)
 
         return avg
+
 
     def median(self, freq_interval=None, integrate=True):
         """ Compute median magnitude within specified frequency interval.
@@ -253,7 +225,7 @@ class Spectrogram():
                 med : float or numpy array
                     Average magnitude
         """
-        m = self._crop_freq_image(freq_interval)
+        m = self._crop_image()
 
         if m is None: 
             return np.nan

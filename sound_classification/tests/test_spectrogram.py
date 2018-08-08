@@ -35,42 +35,34 @@ def test_init_spectrogram_with_2x2_image(image_2x2):
     assert spec.tres == 0.5
 
 def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
-    img = image_ones_10x10
-    NFFT = 256
-    duration = 1
-    fres = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
-    w = Interval(1.0, 5.0) 
-    spec_crop = spec.crop_freq(w)
-    img_crop = spec_crop.image
-    assert img_crop.shape == (10, 2)
-    w = Interval(1.0, 6.0) 
-    spec_crop = spec.crop_freq(w)
-    img_crop = spec_crop.image
-    assert img_crop.shape == (10, 3)
-    w = Interval(6.0, 8.0) 
-    spec_crop = spec.crop_freq(w)
-    img_crop = spec_crop.image
-    assert img_crop.shape == (10, 1)
-    
+
+    spec = Spectrogram(image=image_ones_10x10, NFFT=256, duration=1, fres=2)
+
     spec_crop = Spectrogram.cropped(spec, flow=1.0, fhigh=5.0)
-    img_crop = spec_crop.image
-    assert img_crop.shape == (10, 2)
+    assert spec_crop.shape() == (10, 2)
+
+    spec_crop = Spectrogram.cropped(spec, flow=1.0, fhigh=6.0)
+    assert spec_crop.shape() == (10, 3)
     
+    spec_crop = Spectrogram.cropped(spec, flow=6.0, fhigh=8.0)
+    assert spec_crop.shape() == (10, 1)
+
+    spec_crop = Spectrogram.cropped(spec, tlow=0.0, thigh=0.5, flow=1.0, fhigh=6.0)
+    assert spec_crop.shape() == (5, 3)
+
 
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
-    img = image_zeros_and_ones_10x10
-    NFFT = 256
-    duration = 1
-    fres = 2
-    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
-    w = Interval(8.0, 12.0) 
-    spec_crop = spec.crop_freq(w)
-    img_crop = spec_crop.image
-    assert img_crop.shape == (10, 2)
+
+    spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, duration=1, fres=2)
+
+    spec_crop = Spectrogram.cropped(spec, flow=8.0, fhigh=12.0)
+
+    assert spec_crop.shape() == (10, 2)
+
     for i in range(10):
-        assert img_crop[i,0] == 0
-        assert img_crop[i,1] == 1
+        assert spec_crop.image[i,0] == 0
+        assert spec_crop.image[i,1] == 1
+
 
 def test_compute_average_and_median(image_2x2):
     img = image_2x2
