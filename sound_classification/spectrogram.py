@@ -11,8 +11,8 @@ class Spectrogram():
                 Spectrogram image 
             NFFT: int
                 Number of points used for the Fast-Fourier Transform
-            length: float
-                Length of audio segment in seconds 
+            seconds: float
+                seconds of audio segment in seconds 
             freq_res: float
                 Frequency resolution in Hz
             freq_min: float
@@ -21,11 +21,11 @@ class Spectrogram():
                 Spectrogram time stamp (default: None)
     """
 
-    def __init__(self, image, NFFT, length, freq_res, freq_min=0, timestamp=None):
+    def __init__(self, image, NFFT, seconds, freq_res, freq_min=0, timestamp=None):
 
         self.image = image
         self.NFFT = NFFT
-        self.length = length
+        self.seconds = seconds
         self.freq_res = freq_res
         self.freq_min = freq_min
         self.timestamp = timestamp
@@ -103,7 +103,7 @@ class Spectrogram():
         """
         cropped_image = self._crop_freq_image(freq_interval)
 
-        cropped_spec = self.__class__(cropped_image, self.NFFT, self.length, self.freq_res, freq_min=freq_interval.low, timestamp=self.timestamp)
+        cropped_spec = self.__class__(cropped_image, self.NFFT, self.seconds, self.freq_res, freq_min=freq_interval.low, timestamp=self.timestamp)
 
         return cropped_spec
 
@@ -181,7 +181,7 @@ class Spectrogram():
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.length,self.freq_min,self.freq_max()))
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.seconds,self.freq_min,self.freq_max()))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
