@@ -29,8 +29,13 @@ class Spectrogram():
         self.time = 0
         self.fres = fres
         self.fmin = fmin
-        self.duration = duration
         self.timestamp = timestamp
+
+    @classmethod
+    def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
+        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, duration=spec.duration(), fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp)
+        cropped_spec.crop(tlow, thigh, flow, fhigh)
+        return cropped_spec
 
     def _find_freq_bin(self, freq):
         """ Find bin corresponding to given frequency in Hz
@@ -47,7 +52,9 @@ class Spectrogram():
         return bin
 
     def _find_tbin(self, t):
-        """ Find bin corresponding to given time
+        """ Find bin corresponding to given time.
+            Returns -1, if t < t_min
+            Returns N, if t > t_max, where N is the number of time bins
 
             Args:
                 t: float
@@ -58,10 +65,18 @@ class Spectrogram():
                     Bin number
         """
         bin = int((t - self.tmin) / self.tres)
+        
+        if bin < 0:
+            bin = -1
+        if bin >= self.tbins():
+            bin = self.tbins()
+        
         return bin
 
     def _find_fbin(self, f):
         """ Find bin corresponding to given frequency
+            Returns -1, if f < f_min
+            Returns N, if f > f_max, where N is the number of frequency bins
 
             Args:
                 f: float
@@ -72,6 +87,12 @@ class Spectrogram():
                      Bin number
         """
         bin = int((f - self.fmin) / self.fres)
+
+        if bin < 0:
+            bin = -1
+        if bin >= self.fbins():
+            bin = self.fbins()
+
         return bin
 
     def _crop_freq_image(self, freq_interval):
@@ -123,11 +144,15 @@ class Spectrogram():
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
-            the cropped spectrogram is the overlap of the two. 
+            the cropped spectrogram is the overlap of the two.
+            
+            In general, the cuts will not coincide with bin divisions.             
+            For the lower cuts, the entire lower bin is included.
+            For the higher cuts, the entire upper bin is excluded.
 
             Args:
                 tlow: float
-                    Lower limit of time cut, measured in duration from the beginning of the spectrogram start
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
                 thigh: float
                     Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
                 flow: float
@@ -135,6 +160,24 @@ class Spectrogram():
                 fhigh: float
                     Upper limit on frequency cut in Hz
         """
+        Nt = self.tbins()
+        Nf = self.fbins()
+        
+        t1 = 0
+        t2 = Nt
+        f1 = 0
+        f2 = Nf
+
+        if tlow != None:
+            t1 = max(0, self._find_tbin(tlow))
+        if thigh != None:
+            t2 = min(Nt, self._find_tbin(thigh))
+        if flow != None:
+            f1 = max(0, self._find_fbin(flow))
+        if fhigh != None:
+            f2 = min(Nf, self._find_fbin(fhigh))
+
+        self.image = self.image[t1:t2, f1:f2]
         
 
     def crop_freq(self, freq_interval):
@@ -156,7 +199,7 @@ class Spectrogram():
         """
         cropped_image = self._crop_freq_image(freq_interval)
 
-        cropped_spec = self.__class__(cropped_image, self.NFFT, self.duration, self.fres, fmin=freq_interval.low, timestamp=self.timestamp)
+        cropped_spec = self.__class__(cropped_image, self.NFFT, self.duration(), self.fres, fmin=freq_interval.low, timestamp=self.timestamp)
 
         return cropped_spec
 
@@ -234,7 +277,7 @@ class Spectrogram():
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration,self.fmin,self.freq_max()))
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.freq_max()))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
