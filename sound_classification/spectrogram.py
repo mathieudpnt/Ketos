@@ -1,6 +1,7 @@
 import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
+import datetime
 
 
 class Spectrogram():
@@ -28,7 +29,7 @@ class Spectrogram():
     """
 
 
-    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None):
+    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None, tlabels=None, flabels=None):
 
         self.image = image
         self.NFFT = NFFT
@@ -37,7 +38,8 @@ class Spectrogram():
         self.fres = fres
         self.fmin = fmin
         self.timestamp = timestamp
-
+        self.tlabels = tlabels
+        self.flabels = flabels
 
     @classmethod
     def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
@@ -92,12 +94,12 @@ class Spectrogram():
         return bin
 
 
-    def fbins(self):
-        return self.image.shape[1]
-
-
     def tbins(self):
         return self.image.shape[0]
+
+
+    def fbins(self):
+        return self.image.shape[1]
 
 
     def fmax(self):
@@ -110,6 +112,25 @@ class Spectrogram():
         
     def shape(self):
         return self.image.shape
+
+
+    def get_tlabels(self):
+        if self.tlabels == None:
+            self.tlabels = list()
+            delta = datetime.timedelta(seconds=self.tres)
+            t = self.timestamp
+            for _ in range(self.tbins()):
+                self.tlabels.append(t)
+                t += delta
+        
+        return self.tlabels
+
+
+    def get_flabels(self):
+        if self.flabels == None:
+            self.flabels = [x for x in range(self.fbins())]
+        
+        return self.flabels
 
 
     def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None):
