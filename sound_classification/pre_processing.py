@@ -8,6 +8,7 @@ from scipy import interpolate
 from collections import namedtuple
 from sound_classification.spectrogram import Spectrogram
 from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
+from numpy import seterr
 
 
 def to_decibel(x):
@@ -21,9 +22,12 @@ def to_decibel(x):
         y : numpy array
             Converted array
     """
-    assert np.all(x > 0), "Cannot convert non-positive number to decibel"
+#    assert np.all(x > 0), "Cannot convert non-positive number to decibel"
 
+    seterr(divide='ignore')
     y = 20 * np.log10(x)
+    seterr(divide='warn')
+
     return y
 
 def from_decibel(y):
