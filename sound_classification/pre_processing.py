@@ -22,11 +22,7 @@ def to_decibel(x):
         y : numpy array
             Converted array
     """
-#    assert np.all(x > 0), "Cannot convert non-positive number to decibel"
-
-    seterr(divide='ignore')
-    y = 20 * np.log10(x)
-    seterr(divide='warn')
+    y = 20 * np.ma.log10(x)
 
     return y
 

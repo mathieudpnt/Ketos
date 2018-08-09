@@ -37,10 +37,10 @@ def test_to_decibel_can_handle_arrays():
     assert np.all(y == 20 * np.log10(x))
 
 @pytest.mark.test_to_decibel
-def test_to_decibel_throws_assertion_error_if_input_is_negative():
+def test_to_decibel_returns_inf_if_input_is_negative():
     x = -7
-    with pytest.raises(AssertionError):
-        pp.to_decibel(x)
+    y = pp.to_decibel(x)
+    assert np.ma.getmask(y) == True
 
 @pytest.mark.test_resample
 def test_resampled_signal_has_correct_rate(sine_wave_file):
