@@ -126,6 +126,8 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = padded_signal[indices.astype(np.int32, copy=False)]
 
+    duration = len(padded_signal) / signal.rate
+    
     return frames
 
 def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
@@ -168,7 +170,7 @@ def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timest
     #Frequency resolution and range (Hz)
     rate = signal.rate
     fres = rate / 2. / image.shape[1]
-    spec = Spectrogram(image=image, NFFT=NFFT, seconds=signal.seconds(), freq_res=fres, freq_min=0, timestamp=timestamp)
+    spec = Spectrogram(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
 
     return spec
 
