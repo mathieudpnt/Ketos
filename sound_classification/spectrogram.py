@@ -18,8 +18,8 @@ class Spectrogram():
                 Spectrogram image 
             NFFT: int
                 Number of points used for the Fast-Fourier Transform
-            duration: float
-                duration of audio segment in duration 
+            tres: float
+                Time resolution in Hz 
             fres: float
                 Frequency resolution in Hz
             fmin: float
@@ -29,11 +29,11 @@ class Spectrogram():
     """
 
 
-    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None, flabels=None):
+    def __init__(self, image, NFFT, tres, fres, fmin=0, timestamp=None, flabels=None):
 
         self.image = image
         self.NFFT = NFFT
-        self.tres = duration / image.shape[0]
+        self.tres = tres
         self.tmin = 0
         self.fres = fres
         self.fmin = fmin
@@ -42,7 +42,7 @@ class Spectrogram():
 
     @classmethod
     def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
-        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, duration=spec.duration(), fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp, flabels=spec.flabels)
+        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, tres=spec.tres, fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp, flabels=spec.flabels)
         cropped_spec.crop(tlow, thigh, flow, fhigh)
         return cropped_spec
 
@@ -116,6 +116,8 @@ class Spectrogram():
     def taxis(self):
         times = list()
         delta = datetime.timedelta(seconds=self.tres)
+        print(delta)
+        print(self.tres)
         t = self.timestamp + datetime.timedelta(seconds=self.tmin)
         for _ in range(self.tbins()):
             times.append(t)
@@ -231,7 +233,7 @@ class Spectrogram():
         """
         m, _, _ = self._crop_image(tlow, thigh, flow, fhigh)
 
-        if m is None: 
+        if m is None or m.size == 0: 
             return np.nan
 
         avg = np.average(m, axis=axis)
@@ -265,7 +267,7 @@ class Spectrogram():
         """
         m, _, _ = self._crop_image(tlow, thigh, flow, fhigh)
 
-        if m is None: 
+        if m is None or m.size == 0: 
             return np.nan
 
         med = np.median(m, axis=axis)

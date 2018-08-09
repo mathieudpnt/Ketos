@@ -23,12 +23,12 @@ import datetime
 def test_init_spectrogram_with_2x2_image(image_2x2):
     img = image_2x2
     NFFT = 256
-    duration = 1
+    tres = 0.5
     fres = 0.2
-    spec = Spectrogram(image=img, NFFT=NFFT, duration=duration, fres=fres)
+    spec = Spectrogram(image=img, NFFT=NFFT, tres=tres, fres=fres)
     assert np.array_equal(spec.image, img)
     assert spec.NFFT == NFFT
-    assert spec.duration() == duration
+    assert spec.tres == tres
     assert spec.fres == fres
     assert spec.fmin == 0
     assert spec.fmax() == fres * img.shape[1]
@@ -36,7 +36,7 @@ def test_init_spectrogram_with_2x2_image(image_2x2):
 
 def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
 
-    spec = Spectrogram(image=image_ones_10x10, NFFT=256, duration=1, fres=2)
+    spec = Spectrogram(image=image_ones_10x10, NFFT=256, tres=0.1, fres=2)
 
     spec_crop = Spectrogram.cropped(spec, flow=1.0, fhigh=5.0)
     assert spec_crop.shape() == (10, 2)
@@ -53,7 +53,7 @@ def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
 
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
 
-    spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, duration=1, fres=2)
+    spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, tres=0.1, fres=2)
 
     spec_crop = Spectrogram.cropped(spec, flow=8.0, fhigh=12.0)
 
@@ -66,7 +66,7 @@ def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
 
 def test_compute_average_and_median_without_cropping(image_2x2):
     img = image_2x2
-    spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
+    spec = Spectrogram(image=img, NFFT=256, tres=0.5, fres=2)
     avg = spec.average()
     med = spec.median()
     assert avg == np.average(img)
@@ -75,7 +75,7 @@ def test_compute_average_and_median_without_cropping(image_2x2):
     
 def test_compute_average_and_median_with_cropping(image_3x3):
     img = image_3x3
-    spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
+    spec = Spectrogram(image=img, NFFT=256, tres=1./3., fres=2)
     avg = spec.average(tlow=0, thigh=0.4)
     med = spec.median(flow=5.0, fhigh=6.1)
     assert avg == 2
@@ -84,7 +84,7 @@ def test_compute_average_and_median_with_cropping(image_3x3):
     
 def test_compute_average_with_axis(image_3x3):
     img = image_3x3
-    spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
+    spec = Spectrogram(image=img, NFFT=256, tres=1./3., fres=2)
     avg = spec.average(axis=0)
     assert avg.shape == (3,)
     for i in range(3):
@@ -94,7 +94,7 @@ def test_compute_average_with_axis(image_3x3):
 def test_spectrogram_has_correct_time_axis(image_3x3):
     img = image_3x3
     now = datetime.datetime.today()
-    spec = Spectrogram(image=img, NFFT=256, duration=3, fres=2, timestamp=now)
+    spec = Spectrogram(image=img, NFFT=256, tres=1, fres=2, timestamp=now)
     assert len(spec.taxis()) == 3
     assert spec.taxis()[0] == now
     assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
