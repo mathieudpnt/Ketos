@@ -29,7 +29,7 @@ class Spectrogram():
     """
 
 
-    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None, tlabels=None, flabels=None):
+    def __init__(self, image, NFFT, duration, fres, fmin=0, timestamp=None, flabels=None):
 
         self.image = image
         self.NFFT = NFFT
@@ -38,12 +38,11 @@ class Spectrogram():
         self.fres = fres
         self.fmin = fmin
         self.timestamp = timestamp
-        self.tlabels = tlabels
         self.flabels = flabels
 
     @classmethod
     def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
-        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, duration=spec.duration(), fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp)
+        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, duration=spec.duration(), fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp, flabels=spec.flabels)
         cropped_spec.crop(tlow, thigh, flow, fhigh)
         return cropped_spec
 
@@ -114,21 +113,20 @@ class Spectrogram():
         return self.image.shape
 
 
-    def get_tlabels(self):
-        if self.tlabels == None:
-            self.tlabels = list()
-            delta = datetime.timedelta(seconds=self.tres)
-            t = self.timestamp
-            for _ in range(self.tbins()):
-                self.tlabels.append(t)
-                t += delta
+    def taxis(self):
+        times = list()
+        delta = datetime.timedelta(seconds=self.tres)
+        t = self.timestamp + datetime.timedelta(seconds=self.tmin)
+        for _ in range(self.tbins()):
+            times.append(t)
+            t += delta
         
-        return self.tlabels
+        return times
 
 
-    def get_flabels(self):
+    def faxis(self):
         if self.flabels == None:
-            self.flabels = [x for x in range(self.fbins())]
+            self.flabels = ['f{0}'.format(x) for x in range(self.fbins())]
         
         return self.flabels
 
@@ -175,7 +173,7 @@ class Spectrogram():
             f2 = min(Nf, self._find_fbin(fhigh))
 
         img = self.image[t1:t2, f1:f2]
-        return img
+        return img, t1, f1
 
 
     def crop(self, tlow=None, thigh=None, flow=None, fhigh=None):
@@ -198,7 +196,13 @@ class Spectrogram():
                 fhigh: float
                     Upper limit on frequency cut in Hz
         """
-        self.image = self._crop_image(tlow, thigh, flow, fhigh)
+        self.image, t1, f1 = self._crop_image(tlow, thigh, flow, fhigh)
+        
+        self.tmin += self.tres * t1
+        self.fmin += self.fres * f1
+        
+        if self.flabels != None:
+            self.flabels = self.flabels[f1:f1+self.shape[1]]
 
 
     def average(self, axis=None, finteg=True, tlow=None, thigh=None, flow=None, fhigh=None):
@@ -225,7 +229,7 @@ class Spectrogram():
                 avg : float or numpy array
                     Average magnitude
         """
-        m = self._crop_image(tlow, thigh, flow, fhigh)
+        m, _, _ = self._crop_image(tlow, thigh, flow, fhigh)
 
         if m is None: 
             return np.nan
@@ -259,7 +263,7 @@ class Spectrogram():
                 med : float or numpy array
                     Median magnitude
         """
-        m = self._crop_image(tlow, thigh, flow, fhigh)
+        m, _, _ = self._crop_image(tlow, thigh, flow, fhigh)
 
         if m is None: 
             return np.nan
