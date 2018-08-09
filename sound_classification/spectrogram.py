@@ -116,8 +116,6 @@ class Spectrogram():
     def taxis(self):
         times = list()
         delta = datetime.timedelta(seconds=self.tres)
-        print(delta)
-        print(self.tres)
         t = self.timestamp + datetime.timedelta(seconds=self.tmin)
         for _ in range(self.tbins()):
             times.append(t)
