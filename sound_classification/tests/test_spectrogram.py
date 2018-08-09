@@ -17,7 +17,7 @@ import pytest
 import numpy as np
 from sound_classification.spectrogram import Spectrogram
 from sound_classification.json_parsing import Interval
-
+import datetime
 
 
 def test_init_spectrogram_with_2x2_image(image_2x2):
@@ -72,6 +72,7 @@ def test_compute_average_and_median_without_cropping(image_2x2):
     assert avg == np.average(img)
     assert med == np.median(img)
     
+    
 def test_compute_average_and_median_with_cropping(image_3x3):
     img = image_3x3
     spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
@@ -80,6 +81,7 @@ def test_compute_average_and_median_with_cropping(image_3x3):
     assert avg == 2
     assert med == 6    
     
+    
 def test_compute_average_with_axis(image_3x3):
     img = image_3x3
     spec = Spectrogram(image=img, NFFT=256, duration=1, fres=2)
@@ -87,3 +89,13 @@ def test_compute_average_with_axis(image_3x3):
     assert avg.shape == (3,)
     for i in range(3):
         assert avg[i] == (img[0,i]+img[1,i]+img[2,i])/3.
+        
+        
+def test_spectrogram_has_correct_time_axis(image_3x3):
+    img = image_3x3
+    now = datetime.datetime.today()
+    spec = Spectrogram(image=img, NFFT=256, duration=3, fres=2, timestamp=now)
+    assert len(spec.taxis()) == 3
+    assert spec.taxis()[0] == now
+    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)    
