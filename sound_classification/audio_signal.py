@@ -64,11 +64,12 @@ class AudioSignal:
         d = signal.data[:]
 
         overlap = int(overlap_sec * self.rate)
-        overlap = min(overlap, len(self.data))
-        overlap = min(overlap, len(d))
 
         # extract data from overlap region
         if overlap > 0:
+
+            overlap = min(overlap, len(self.data))
+            overlap = min(overlap, len(d))
 
             # signal 1
             a = np.empty(overlap)
@@ -91,6 +92,10 @@ class AudioSignal:
 
             # append
             self.data = np.append(self.data, c)
+
+        elif overlap < 0:
+            z = np.zeros(-overlap)
+            self.data = np.append(self.data, z)
 
         self.data = np.append(self.data, d) 
 
@@ -143,6 +148,4 @@ class TimeStampedAudioSignal(AudioSignal):
             time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
 
         cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
-        return cropped_signal        
-
-
+        return cropped_signal
