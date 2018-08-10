@@ -171,8 +171,12 @@ class Spectrogram():
             f1 = max(0, self._find_fbin(flow))
         if fhigh != None:
             f2 = min(Nf, self._find_fbin(fhigh))
+            
+        if t2 <= t1 or f2 <= f1:
+            img = None
+        else:
+            img = self.image[t1:t2, f1:f2]
 
-        img = self.image[t1:t2, f1:f2]
         return img, t1, f1
 
 
