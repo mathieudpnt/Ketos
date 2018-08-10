@@ -205,7 +205,7 @@ class Spectrogram():
             self.flabels = self.flabels[f1:f1+self.shape[1]]
 
 
-    def average(self, axis=None, finteg=True, tlow=None, thigh=None, flow=None, fhigh=None):
+    def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
             
             If the region extends beyond the boarders of the spectrogram, 
@@ -239,7 +239,7 @@ class Spectrogram():
         return avg
 
 
-    def median(self, axis=None, finteg=True, tlow=None, thigh=None, flow=None, fhigh=None):
+    def median(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute median magnitude within specified time and frequency regions.
             
             If the region extends beyond the boarders of the spectrogram, 
