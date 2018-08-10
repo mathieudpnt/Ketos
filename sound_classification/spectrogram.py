@@ -288,7 +288,7 @@ class Spectrogram():
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.freq_max()))
+        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
