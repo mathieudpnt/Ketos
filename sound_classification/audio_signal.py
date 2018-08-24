@@ -53,9 +53,7 @@ class AudioSignal:
         return np.array(cropped_data)        
 
     def crop(self, begin=None, end=None):
-        cropped_data = self._cropped_data(begin,end)
-        cropped_signal = self.__class__(rate=self.rate, data=cropped_data)
-        return cropped_signal        
+        self.data = self._cropped_data(begin,end)
 
     def append(self, signal, overlap_sec=0):
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
@@ -137,15 +135,13 @@ class TimeStampedAudioSignal(AudioSignal):
     
     def crop(self, begin=None, end=None):
         begin_sec, end_sec = None, None
+        
         if begin is not None:
             begin_sec = (begin - self.begin()).total_seconds()
         if end is not None:
             end_sec = (end - self.begin()).total_seconds()
-        cropped_data = self._cropped_data(begin_sec, end_sec)
+        
+        self.data = self._cropped_data(begin_sec, end_sec)
 
-        time_stamp = self.time_stamp
-        if begin_sec > 0 and len(cropped_data) > 0:
-            time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
-
-        cropped_signal = self.__class__(rate=self.rate, data=cropped_data, time_stamp=time_stamp, tag=self.tag)
-        return cropped_signal
+        if begin_sec > 0 and len(self.data) > 0:
+            self.time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
