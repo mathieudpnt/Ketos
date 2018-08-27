@@ -97,6 +97,43 @@ class AudioSignal:
 
         self.data = np.append(self.data, d) 
 
+
+    def add(self, signal, delay=0, scale=1):
+        """ Add the amplitudes of the two audio signals.
+        
+            The audio signals must have the same sampling rates.
+
+            If the audio signals have different lengths and/or a non-zero delay is selected, 
+            only the overlap region will be computed.
+            
+            If the overlap region is empty, the original signal is unchanged.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be added
+                delay: float
+                    Shift the audio signal by this many seconds
+                scale: float
+                    Scaling factor for signal to be added
+        """
+        assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
+
+        if delay >= 0:
+            i_min = int(delay * self.rate)
+            j_min = 0
+            i_max = min(self.data.shape[0], signal.data.shape[0] + i_min)
+            j_max = min(signal.data.shape[0], self.data.shape[0] - i_min)
+            
+        else:
+            i_min = 0
+            j_min = int(-delay * self.rate)
+            i_max = min(self.data.shape[0], signal.data.shape[0] - j_min)
+            j_max = min(signal.data.shape[0], self.data.shape[0] + j_min)
+            
+        if i_max > i_min and i_max > 0 and j_max > j_min and j_max > 0:
+            self.data = self.data[i_min:i_max] + scale * signal.data[j_min:j_max]
+
+
 def smoothclamp(x, mi, mx): 
     return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
 

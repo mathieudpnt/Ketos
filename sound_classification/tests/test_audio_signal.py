@@ -16,6 +16,7 @@
 import pytest
 import sound_classification.audio_signal as aud
 import datetime
+import numpy as np
 
 
 today = datetime.datetime.today()
@@ -63,3 +64,26 @@ def test_append_audio_signal_with_smoothing(audio):
     t = audio.seconds()
     audio.append(signal=audio, overlap_sec=0.2)
     assert audio.seconds() == pytest.approx(2.*t - 0.2, rel=1./audio.rate)
+    
+def test_add_identical_audio_signals(audio): 
+    t = audio.seconds()
+    v = np.copy(audio.data)
+    audio.add(signal=audio)
+    assert audio.seconds() == t
+    assert np.all(audio.data == 2*v)
+    
+def test_add_identical_audio_signals_with_delay(audio): 
+    t = audio.seconds()
+    v = np.copy(audio.data)
+    delay = 1
+    audio.add(signal=audio, delay=delay)
+    assert audio.seconds() == t-1
+    i = int(audio.rate * delay)
+    assert audio.data[5] == v[i+5] + v[5]    
+    
+def test_add_identical_audio_signals_with_scaling_factor(audio): 
+    t = audio.seconds()
+    v = np.copy(audio.data)
+    audio.add(signal=audio, scale=0.5)
+    assert np.all(audio.data == 1.5*v)
+
