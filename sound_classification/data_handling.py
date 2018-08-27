@@ -486,13 +486,13 @@ def write_sig_to_h5_database(seg_file_name,table):
         Args:
             seg_file: str
                 .wav file name (including path).
+                Expected to follow the format:format id_*_l_*.wav,
+                where * denotes 'any number of characters'.
             table: tables.Table
                 Table in which the segment will be stored
-                (described by create_raw_signal_table_description())
+                (described by create_raw_signal_table_description()).
         Returns:
             None.
-
-        
     """
 
     _, seg_data = read_wave(seg)
