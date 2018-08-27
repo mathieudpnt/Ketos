@@ -476,8 +476,17 @@ def get_data_from_seg_name(seg_name):
 
     id = seg_name.split("_")[1]
     tmp = seg_name.split("_")[3]
-    label = tmp.split(".")[0]
+    labels = tmp.split(".")[0]
 
-    return (id,label)
+    return (id,labels)
 
-    
+   def write_sig_to_h5_database(seg_file_name,table):
+
+        _, seg_data = read_wave(seg)
+        id, labels = get_data_from_seg_name(seg)
+
+        seg_r = table.row
+        seg_r["id"] = id
+        seg_r["labels"] = labels
+        seg_r["signal"] = seg_data 
+        seg_r.append()
