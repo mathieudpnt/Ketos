@@ -23,6 +23,50 @@ import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
 
 
+def get_files(path, substr, fullpath=True):
+    """ Find all files in the specified directory containing the specified substring in their file name
+
+        Args:
+            path: str
+                Directory path
+            substr: str
+                Substring contained in file name
+            fullpath: bool
+                Return full path to each file or just the file name 
+
+        Returns:
+            files: list (str)
+                Alphabetically sorted list of file names
+    """
+    allfiles = os.listdir(path)
+    files = list()
+    for f in allfiles:
+        if substr in f:
+            if fullpath:
+                files.append(path + f)
+            else:
+                files.append(f)
+    files.sort()
+    return files
+
+
+def get_wave_files(path, fullpath=True):
+    """ Find all wave files in the specified directory
+
+        Args:
+            path: str
+                Directory path
+            fullpath: bool
+                Return full path to each file or just the file name 
+
+        Returns:
+            wavefiles: list (str)
+                Alphabetically sorted list of file names
+    """
+    wavefiles = get_files(path, '.wav', fullpath)
+    return wavefiles
+
+
 def read_wave(file, channel=0):
     """ Read wave file in either mono or stereo mode
 
@@ -120,8 +164,7 @@ def to1hot(value,depth):
                 depth: int
                     The number of possible values for the labels 
                     (number of categories).
-                    
-            
+                                
             Returns:
                 one_hot:numpy array (dtype=float64)
                     A len(value) by depth array containg the one hot encoding
