@@ -405,8 +405,8 @@ def get_image_size(images):
     return image_shape
 
 
-def create_signal_table_description(signal_rate, segment_length):
-    """ Create the class that describes the signal table structure for the HDF5 database.
+def create_raw_signal_table_description(signal_rate, segment_length):
+    """ Create the class that describes the raw signal table structure for the HDF5 database.
      
         Args:
             signal_rate: int
