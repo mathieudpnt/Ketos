@@ -82,7 +82,6 @@ def test_add_identical_audio_signals_with_delay(audio):
     assert audio.data[5] == v[i+5] + v[5]    
     
 def test_add_identical_audio_signals_with_scaling_factor(audio): 
-    t = audio.seconds()
     v = np.copy(audio.data)
     audio.add(signal=audio, scale=0.5)
     assert np.all(audio.data == 1.5*v)
