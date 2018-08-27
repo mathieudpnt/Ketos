@@ -103,8 +103,10 @@ class AudioSignal:
         
             The audio signals must have the same sampling rates.
 
+            The summed signal always has the same length as the original signal.
+
             If the audio signals have different lengths and/or a non-zero delay is selected, 
-            only the overlap region will be computed.
+            only the overlap region will be affected by the operation.
             
             If the overlap region is empty, the original signal is unchanged.
 
@@ -131,7 +133,7 @@ class AudioSignal:
             j_max = min(signal.data.shape[0], self.data.shape[0] + j_min)
             
         if i_max > i_min and i_max > 0 and j_max > j_min and j_max > 0:
-            self.data = self.data[i_min:i_max] + scale * signal.data[j_min:j_max]
+            self.data[i_min:i_max] += scale * signal.data[j_min:j_max]
 
 
 def smoothclamp(x, mi, mx): 
