@@ -457,3 +457,26 @@ def create_image_table_description(dimensions):
     
     return TableDescription
 
+
+def get_data_from_seg_name(seg_name):
+    """ Retrieves the segment id and label from the segment name
+
+        Args:
+            segment_name: str
+            Name of the segment in the format id_*_l_*.wav, where 'id' is 
+            followed by any number of characters identifying the segment and 'l' is
+            followed by any number of characters describing the label(s).
+
+        Returns:
+            (id,label) : tuple (str,str)
+            A tuple with the id and label strings.
+
+    """
+
+    id = seg_name.split("_")[1]
+    tmp = seg_name.split("_")[3]
+    label = tmp.split(".")[0]
+
+    return (id,label)
+
+    
