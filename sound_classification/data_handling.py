@@ -406,7 +406,20 @@ def get_image_size(images):
 
 
 def create_signal_table_description(signal_rate, segment_length):
+    """ Create the class that describes the signal table structure for the HDF5 database.
+     
+        Args:
+            signal_rate: int
+                The sampling rate of the signals to be stored in this table
+            segment_length: float
+                The duration of each segment (in seconds) that will be stored in this table.
+                All segments must have the same length
 
+        Results:
+            TableDescription: class (tables.IsDescription)
+                The class describing the table structure. To be used when creating tables 
+                in the HDF5 database.
+    """
 
 
     signal_length = int(np.ceil(signal_rate * segment_length))
@@ -420,4 +433,3 @@ def create_signal_table_description(signal_rate, segment_length):
     return TableDescription
 
 
-def create_hdf5_database()
