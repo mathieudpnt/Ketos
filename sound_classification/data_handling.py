@@ -453,8 +453,7 @@ def create_image_table_description(dimensions):
             label=label = tables.StringCol(50)
             id = tables.StringCol(25)
             rate = tables.Int32Col()
-            signal = tables.Float32Col(shape=dimensions
+            signal = tables.Float32Col(shape=dimensions)
     
     return TableDescription
-
 
