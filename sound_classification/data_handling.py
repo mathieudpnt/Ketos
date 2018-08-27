@@ -425,10 +425,11 @@ def create_raw_signal_table_description(signal_rate, segment_length):
     signal_length = int(np.ceil(signal_rate * segment_length))
 
     class TableDescription(tables.IsDescription):
-            label = tables.StringCol(50)
             id = tables.StringCol(25)
-            rate = tables.Int32Col()
+            labels = tables.StringCol(100)
             signal = tables.Float32Col(shape=(signal_length))
+            boxes = tables.StringCol(100)
+
     
     return TableDescription
 
