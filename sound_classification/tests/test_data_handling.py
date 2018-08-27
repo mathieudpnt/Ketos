@@ -18,6 +18,7 @@ import pandas as pd
 import sound_classification.data_handling as dh
 import sound_classification.pre_processing as pp
 import os
+from glob import glob
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -75,9 +76,17 @@ def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col
 @pytest.mark.test_create_segments
 def test_creates_correct_number_of_segments(sine_wave_file):
     prefix="halifax123456789"
-    n = count_files_that_contain_string(path_to_assets,prefix,delete=True) # clean asset directory
-    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix) # create segment files
-    n = count_files_that_contain_string(path_to_assets,prefix,delete=True) # count number of created files and delete them
+    # clean
+    for f in glob(path_to_assets + "/*" + prefix + "*"):
+        os.remove(f)
+    # create segment files
+    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix)
+    # coun them
+    files = dh.get_files(path_to_assets, prefix)
+    n = len(files)
+    # clean
+    for f in glob(path_to_assets + "/*" + prefix + "*"):
+        os.remove(f)
     assert n == 6
 
 @pytest.mark.test_def_slice_ffmpeg
@@ -92,34 +101,9 @@ def test_sliced_audio_file_has_correct_properties(sine_wave_file):
     assert duration == 1.7
 #    for i in range(len(sig)):
 #        assert sig[i] == sig_orig[i]
-    count_files_that_contain_string(path_to_assets,prefix,delete=True) # clean up
-
-
-def count_files_that_contain_string(dir, substr, delete=False):
-    """ Counts and then deletes all files in a certain directory which 
-        have a certain character sequence in the file name.
-
-            Args:
-                dir : str
-                    Path to directory.
-                substr : str
-                    Character sequence that appears in the file name.
-                delete : bool
-                    Remove the files that match the search criteria.
-
-            Returns:
-                count : int
-                    Number of files that match search criteria.
-    """
-    files = os.listdir(dir)
-    count = 0
-    for file in files:
-        if (substr in file):
-            if delete: 
-                os.remove(dir+"/"+file)
-            count += 1
-    return count
-
+    # clean
+    for f in glob(path_to_assets + "/*" + prefix + "*"):
+        os.remove(f)
 
 @pytest.mark.parametrize("input,depth,expected",[
     (1,2,np.array([0,1])),
@@ -189,7 +173,23 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
     for i in range(len(one_hot)):
         assert (one_hot[i] == expected[i]).all()
 
-
+@pytest.mark.test_get_wave_files
+def test_get_wave_files():
+    # clean
+    for f in glob(path_to_assets + "/*.wav"):
+        os.remove(f)  #clean
+    # create two wave files
+    f1 = path_to_assets + "/f1.wav"
+    f2 = path_to_assets + "/f2.wav"
+    pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
+    pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    # get file names
+    files = dh.get_wave_files(path_to_assets, fullpath=False)
+    assert len(files) == 2
+    assert files[0] == "f1.wav"
+    assert files[1] == "f2.wav"
+    
+    
 ################################
 # from1hot() tests
 ################################
