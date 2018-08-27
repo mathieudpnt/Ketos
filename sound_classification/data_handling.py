@@ -480,13 +480,13 @@ def get_data_from_seg_name(seg_name):
 
     return (id,labels)
 
-   def write_sig_to_h5_database(seg_file_name,table):
+def write_sig_to_h5_database(seg_file_name,table):
 
-        _, seg_data = read_wave(seg)
-        id, labels = get_data_from_seg_name(seg)
+    _, seg_data = read_wave(seg)
+    id, labels = get_data_from_seg_name(seg)
 
-        seg_r = table.row
-        seg_r["id"] = id
-        seg_r["labels"] = labels
-        seg_r["signal"] = seg_data 
-        seg_r.append()
+    seg_r = table.row
+    seg_r["id"] = id
+    seg_r["labels"] = labels
+    seg_r["signal"] = seg_data 
+    seg_r.append()
