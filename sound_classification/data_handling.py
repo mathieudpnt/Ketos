@@ -403,3 +403,21 @@ def get_image_size(images):
     assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
 
     return image_shape
+
+
+def create_signal_table_description(signal_rate, segment_length):
+
+
+
+    signal_length = int(np.ceil(signal_rate * segment_length))
+
+    class TableDescription(tables.IsDescription):
+            label=label = tables.StringCol(50)
+            id = tables.StringCol(25)
+            rate = tables.Int32Col()
+            signal = tables.Float32Col(shape=(signal_length))
+    
+    return TableDescription
+
+
+def create_hdf5_database()
