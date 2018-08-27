@@ -433,3 +433,28 @@ def create_raw_signal_table_description(signal_rate, segment_length):
     return TableDescription
 
 
+def create_image_table_description(dimensions):
+    """ Create the class that describes an image (e.g.: a spectogram) table structure for the HDF5 database.
+     
+        
+        Args:
+            dimension : tuple (ints)
+            A tuple with ints describing the number of rows and number of collumns of each 
+            image to be stored in the table (n_rows,n_cols). Optionally, a third integer 
+            can be added if the image has multiple channels (n_rows, n_cols, n_channels)
+        Results:
+            TableDescription: class (tables.IsDescription)
+                The class describing the table structure to be used when creating tables that 
+                will store images in the HDF5 database.
+    """
+
+
+    class TableDescription(tables.IsDescription):
+            label=label = tables.StringCol(50)
+            id = tables.StringCol(25)
+            rate = tables.Int32Col()
+            signal = tables.Float32Col(shape=dimensions
+    
+    return TableDescription
+
+
