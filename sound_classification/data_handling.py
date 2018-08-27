@@ -481,6 +481,19 @@ def get_data_from_seg_name(seg_name):
     return (id,labels)
 
 def write_sig_to_h5_database(seg_file_name,table):
+    """ Write data form .wav files containing segments into the h5 database.
+
+        Args:
+            seg_file: str
+                .wav file name (including path).
+            table: tables.Table
+                Table in which the segment will be stored
+                (described by create_raw_signal_table_description())
+        Returns:
+            None.
+
+        
+    """
 
     _, seg_data = read_wave(seg)
     id, labels = get_data_from_seg_name(seg)
