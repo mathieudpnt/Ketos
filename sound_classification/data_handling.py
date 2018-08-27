@@ -451,10 +451,10 @@ def create_image_table_description(dimensions):
 
 
     class TableDescription(tables.IsDescription):
-            label=label = tables.StringCol(50)
             id = tables.StringCol(25)
-            rate = tables.Int32Col()
+            labels = tables.StringCol(100)
             signal = tables.Float32Col(shape=dimensions)
+            boxes = tables.StringCol(100) 
     
     return TableDescription
 
