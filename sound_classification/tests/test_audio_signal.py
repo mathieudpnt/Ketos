@@ -97,5 +97,5 @@ def test_morlet_with_default_params():
 def test_gaussian_noise():
     noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
     assert noise.std() == pytest.approx(2, rel=0.01) # check standard deviation
-    assert noise.average() == pytest.approx(0, abs=0.01) # check mean
+    assert noise.average() == pytest.approx(0, abs=3*2/np.sqrt(40000)) # check mean
     assert noise.seconds() == 20 # check length
