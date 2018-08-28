@@ -2,10 +2,11 @@ import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
+from sound_classification.pre_processing import make_frames
 
 
 class Spectrogram():
-    """ Spectrogram generated from an audio segment
+    """ Spectrogram
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -46,6 +47,46 @@ class Spectrogram():
         cropped_spec.crop(tlow, thigh, flow, fhigh)
         return cropped_spec
 
+    @classmethod
+    def from_signal(cls, signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+        """
+
+        # Make frames
+        frames = make_frames(signal, winlen, winstep) 
+
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+
+        # Create spectrogram instance
+        spec = cls(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
+
+        return spec
 
     def _find_tbin(self, t):
         """ Find bin corresponding to given time.
@@ -293,3 +334,6 @@ class Spectrogram():
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         plt.colorbar()
+        
+#    def blur(self):
+        

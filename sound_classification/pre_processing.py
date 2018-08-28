@@ -6,7 +6,6 @@ import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
 from collections import namedtuple
-from sound_classification.spectrogram import Spectrogram
 from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
 from numpy import seterr
 
@@ -129,50 +128,6 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
     duration = len(padded_signal) / signal.rate
     
     return frames
-
-def make_magnitude_spec(signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
-    """ Make a magnitude spectogram.
-
-        Splits the signal into overlapping frames. Then, creates the spectogram using FFT.
-
-    Args:
-        signal : AudioSignal
-            Audio signal.
-        winlen : float
-            Length of each frame in seconds
-        winstep : float
-            Time difference between consecutive frames in seconds.
-        hamming: bool
-            If True, apply hamming window before FFT. Default is True.
-        NFFT : int
-            Number of points for the FFT (Fast Fourier Transform). If None (default), the signal length is used.
-        timestamp : datetime
-            Time stamp (optional)
-
-    Returns:
-        spec: Spectrogram
-            Magnitude spectogram.
-    """    
-    #make frames
-    frames = make_frames(signal, winlen, winstep) 
-
-    #apply Hamming window    
-    if hamming:
-        frames *= np.hamming(frames.shape[1])
-
-    #make Magnitude Spectrogram
-    image = np.abs(np.fft.rfft(frames, n=NFFT))
-
-    #Number of points used for FFT
-    if NFFT is None:
-        NFFT = frames.shape[1]
-
-    #Frequency resolution and range (Hz)
-    rate = signal.rate
-    fres = rate / 2. / image.shape[1]
-    spec = Spectrogram(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
-
-    return spec
 
 
 def normalize_spec(spec):

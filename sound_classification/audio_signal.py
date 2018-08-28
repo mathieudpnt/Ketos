@@ -49,7 +49,7 @@ class AudioSignal:
     def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, fspread=0):
         """ Audio signal with the shape of the Morlet wavelet
 
-            Note: The computation of the Morlet wavelet signal is very slow for fspread > 0.
+            Note: The computation of the Morlet wavelet signal can be very slow for fspread > 0.
 
             Args:
                 rate: float
@@ -97,7 +97,7 @@ class AudioSignal:
 
         y *= height
         
-        tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width)
+        tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
