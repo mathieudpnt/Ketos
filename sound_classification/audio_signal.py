@@ -35,7 +35,7 @@ class AudioSignal:
                     Frequency of the Morlet wavelet in Hz
                 width: float
                     Width of the Morlet wavelet in seconds (sigma of the Gaussian envelope)
-                samples: float
+                samples: int
                     Length of the audio signal given as the number of samples (if no value is given, samples = 6 * width * rate)
                 height: float
                     Peak value of the audio signal
@@ -52,7 +52,7 @@ class AudioSignal:
         stop = (N-1.)/2. * dt
         start = -stop
         t = np.linspace(start, stop, N)
-        y = morlet_func(t, frequency=frequency, sigma=width, displacement=displacement, norm=False)
+        y = morlet_func(t, frequency=frequency, width=width, displacement=displacement, norm=False)
         y *= height
         
         return cls(rate=rate, data=np.array(y), tag="Morlet_f{0:.0f}Hz_s{1:.3f}s")

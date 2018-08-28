@@ -22,7 +22,7 @@ def print_octave_bands_json(band_min, band_max):
         print(endpar)
     print("]")
 
-def morlet_func(t, frequency, sigma, displacement, norm=True):
+def morlet_func(t, frequency, width, displacement, norm=True):
     """ Morlet wavelet function
 
         Args:
@@ -30,7 +30,7 @@ def morlet_func(t, frequency, sigma, displacement, norm=True):
                Time in seconds at which the function is to be evaluated
             frequency: float
                 Wavelet frequency in Hz
-            sigma: float
+            width: float
                 Wavelet width in seconds (1-sigma width of the Gaussian envelope function)
             displacement: float
                 Wavelet centroid in seconds
@@ -43,16 +43,13 @@ def morlet_func(t, frequency, sigma, displacement, norm=True):
     """
 
     w = 2 * np.pi * frequency
-    s = sigma
+    s = width
     l = displacement
     x = (t-l)/s
 
-    if w > 5:
-        y = np.exp(1j*w*x) * np.exp(-0.5*(x**2))
-    else:
-        y = (np.exp(1j*w*x) - np.exp(-0.5*(w**2))) * np.exp(-0.5*(x**2))
+    y = (np.exp(1j*w*x) - np.exp(-0.5*(w**2))) * np.exp(-0.5*(x**2))
 
     if norm:
-        y *= np.pi**-0.25 * 1. / np.sqrt(s)
+        y *= (s * np.sqrt(np.pi) * (1 + np.exp(-w**2) - 2*np.exp(-0.75*w**2)) )**-0.5
 
     return np.real(y)
