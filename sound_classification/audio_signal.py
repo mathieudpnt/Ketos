@@ -3,6 +3,7 @@ import datetime
 import scipy.io.wavfile as wave
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
+import matplotlib.pyplot as plt
 
 
 class AudioSignal:
@@ -96,6 +97,26 @@ class AudioSignal:
 
     def median(self):
         return np.median(self.data)
+
+    def plot(self):
+        """ Plot the signal with proper axes ranges and labels
+            
+            Examples:
+            
+            >>> from sound_classification.audio_signal import AudioSignal
+            >>> import matplotlib.pyplot as plt
+            
+            >>> s = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> s.plot()
+            >>> plt.show() 
+        """
+        start = 0.5 / self.rate
+        stop = self.seconds() - 0.5 / self.rate
+        num = len(self.data)
+        plt.plot(np.linspace(start=start, stop=stop, num=num), self.data)
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Signal')
 
     def _cropped_data(self, begin=None, end=None):
         i1 = 0
