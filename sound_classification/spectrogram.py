@@ -276,7 +276,7 @@ class Spectrogram():
 
         return med
 
-    def create_plot(self, decibel=False):
+    def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels
 
             Args:

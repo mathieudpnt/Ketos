@@ -23,7 +23,24 @@ class AudioSignal:
     def from_wav(cls, path):
         rate, data = read_wave(path)
         return cls(rate, data, path[path.rfind('/')+1:])
-        
+
+    @classmethod
+    def gaussian_noise(cls, rate, sigma, samples):
+        """ Gaussian noise
+
+            Args:
+                rate: float
+                    Sampling rate in Hz
+                sigma: float
+                    Standard deviation of the signal amplitude
+                samples: int
+                    Length of the audio signal given as the number of samples
+        """        
+        assert sigma > 0, "sigma must be strictly positive"
+
+        y = np.random.normal(loc=0, scale=sigma, size=samples)
+        return cls(rate=rate, data=y, tag="Gaussian_noise_s{0:.3f}s".format(sigma))
+
     @classmethod
     def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
         """ Audio signal with the shape of the Morlet wavelet
@@ -41,8 +58,7 @@ class AudioSignal:
                     Peak value of the audio signal
                 displacement: float
                     Peak position in seconds
-        """
-        
+        """        
         if samples is None:
             samples = int(6 * width * rate)
         
@@ -55,9 +71,8 @@ class AudioSignal:
         y = morlet_func(t, frequency=frequency, width=width, displacement=displacement, norm=False)
         y *= height
         
-        return cls(rate=rate, data=np.array(y), tag="Morlet_f{0:.0f}Hz_s{1:.3f}s")
+        return cls(rate=rate, data=np.array(y), tag="Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width))
         
-
     def to_wav(self, path):
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
@@ -66,6 +81,21 @@ class AudioSignal:
 
     def seconds(self):
         return float(len(self.data)) / float(self.rate)
+
+    def max(self):
+        return max(self.data)
+
+    def min(self):
+        return min(self.data)
+
+    def std(self):
+        return np.std(self.data)
+
+    def average(self):
+        return np.average(self.data)
+
+    def median(self):
+        return np.median(self.data)
 
     def _cropped_data(self, begin=None, end=None):
         i1 = 0
@@ -132,6 +162,15 @@ class AudioSignal:
 
         self.data = np.append(self.data, d) 
 
+    def add_gaussian_noise(self, sigma):
+        """ Add Gaussian noise to the signal
+
+            Args:
+                sigma: float
+                    Standard deviation of the gaussian noise
+        """
+        noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
+        self.add(noise)
 
     def add(self, signal, delay=0, scale=1):
         """ Add the amplitudes of the two audio signals.

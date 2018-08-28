@@ -87,9 +87,15 @@ def test_add_identical_audio_signals_with_scaling_factor(audio):
     audio.add(signal=audio, scale=0.5)
     assert np.all(audio.data == 1.5*v)
 
-def test_morlet():
+def test_morlet_with_default_params():
     mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)
     assert len(mor.data) == int(6*1*4000) # check number of samples
     assert max(mor.data) == pytest.approx(1, abs=0.01) # check max signal is 1
     assert np.argmax(mor.data) == pytest.approx(0.5*len(mor.data), abs=1) # check peak is centered
     assert mor.data[0] == pytest.approx(0, abs=0.02) # check signal is approx zero at start
+
+def test_gaussian_noise():
+    noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
+    assert noise.std() == pytest.approx(2, rel=0.01) # check standard deviation
+    assert noise.average() == pytest.approx(0, abs=0.01) # check mean
+    assert noise.seconds() == 20 # check length
