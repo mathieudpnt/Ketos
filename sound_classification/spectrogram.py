@@ -2,6 +2,7 @@ import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
+import cv2
 from sound_classification.pre_processing import make_frames
 
 
@@ -335,5 +336,19 @@ class Spectrogram():
         ax.set_ylabel('Frequency (Hz)')
         plt.colorbar()
         
-#    def blur(self):
+    def blur_gaussian(self, tsigma, fsigma):
+        """ Blur the spectrogram using a Gaussian filter
+
+            Args:
+                tsigma: float
+                    Gaussian kernel standard deviation along time axis
+                fsigma: float
+                    Gaussian kernel standard deviation along frequency axis
+        """
+        # https://docs.opencv.org/3.1.0/d4/d86/group__imgproc__filter.html#gaabe8c836e97159a9193fb0b11ac52cf1
+
+        sigmaX = tsigma / self.tres
+        sigmaY = fsigma / self.fres
+        
+        self.image = cv2.GaussianBlur(self.image, (0,0), tsigma, fsigma)
         
