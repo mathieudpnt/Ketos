@@ -87,3 +87,9 @@ def test_add_identical_audio_signals_with_scaling_factor(audio):
     audio.add(signal=audio, scale=0.5)
     assert np.all(audio.data == 1.5*v)
 
+def test_morlet():
+    mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)
+    assert len(mor.data) == int(6*1*4000) # check number of samples
+    assert max(mor.data) == pytest.approx(1, abs=0.01) # check max signal is 1
+    assert np.argmax(mor.data) == pytest.approx(0.5*len(mor.data), abs=1) # check peak is centered
+    assert mor.data[0] == pytest.approx(0, abs=0.02) # check signal is approx zero at start

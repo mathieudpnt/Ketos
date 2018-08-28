@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 import scipy.io.wavfile as wave
 from sound_classification.data_handling import read_wave
+from sound_classification.util import morlet_func
 
 
 class AudioSignal:
@@ -22,6 +23,40 @@ class AudioSignal:
     def from_wav(cls, path):
         rate, data = read_wave(path)
         return cls(rate, data, path[path.rfind('/')+1:])
+        
+    @classmethod
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
+        """ Audio signal with the shape of the Morlet wavelet
+
+            Args:
+                rate: float
+                    Sampling rate in Hz
+                frequency: float
+                    Frequency of the Morlet wavelet in Hz
+                width: float
+                    Width of the Morlet wavelet in seconds (sigma of the Gaussian envelope)
+                samples: float
+                    Length of the audio signal given as the number of samples (if no value is given, samples = 6 * width * rate)
+                height: float
+                    Peak value of the audio signal
+                displacement: float
+                    Peak position in seconds
+        """
+        
+        if samples is None:
+            samples = int(6 * width * rate)
+        
+        # compute Morlet function at N equally spaced points
+        N = int(samples)
+        dt = 1. / rate
+        stop = (N-1.)/2. * dt
+        start = -stop
+        t = np.linspace(start, stop, N)
+        y = morlet_func(t, frequency=frequency, sigma=width, displacement=displacement, norm=False)
+        y *= height
+        
+        return cls(rate=rate, data=np.array(y), tag="Morlet_f{0:.0f}Hz_s{1:.3f}s")
+        
 
     def to_wav(self, path):
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
