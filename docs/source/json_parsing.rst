@@ -1,5 +1,5 @@
-Audio Signal module
+JSON Parsing module
 ======================
 
-.. automodule:: audio_signal
+.. automodule:: json_parsing
    :members:

@@ -105,10 +105,13 @@ class AudioSignal:
             
             >>> from sound_classification.audio_signal import AudioSignal
             >>> import matplotlib.pyplot as plt
-            
             >>> s = AudioSignal.morlet(rate=100, frequency=5, width=1)
             >>> s.plot()
             >>> plt.show() 
+
+            .. image:: _static/morlet.png
+                :width: 500px
+                :align: center
         """
         start = 0.5 / self.rate
         stop = self.seconds() - 0.5 / self.rate

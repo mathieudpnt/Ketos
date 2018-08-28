@@ -1,5 +1,5 @@
 Spectrogram module
 ======================
 
-.. automodule:: Spectrogram
+.. automodule:: spectrogram
    :members:
