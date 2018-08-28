@@ -22,11 +22,11 @@ def print_octave_bands_json(band_min, band_max):
         print(endpar)
     print("]")
 
-def morlet_func(t, frequency, width, displacement, norm=True):
+def morlet_func(time, frequency, width, displacement, norm=True):
     """ Morlet wavelet function
 
         Args:
-            t: float
+            time: float
                Time in seconds at which the function is to be evaluated
             frequency: float
                 Wavelet frequency in Hz
@@ -41,7 +41,10 @@ def morlet_func(t, frequency, width, displacement, norm=True):
             y: float
                 Value of Morlet wavelet function at time t
     """
+    assert frequency > 0, "Frequency must be a strictly positive float"
+    assert width > 0, "Width must be a strictly positive float"
 
+    t = time
     w = 2 * np.pi * frequency
     s = width
     l = displacement

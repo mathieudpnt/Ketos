@@ -4,6 +4,9 @@ import scipy.io.wavfile as wave
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
 import matplotlib.pyplot as plt
+from scipy.integrate import quadrature
+from scipy.stats import norm
+from tqdm import tqdm
 
 
 class AudioSignal:
@@ -43,8 +46,10 @@ class AudioSignal:
         return cls(rate=rate, data=y, tag="Gaussian_noise_s{0:.3f}s".format(sigma))
 
     @classmethod
-    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, fspread=0):
         """ Audio signal with the shape of the Morlet wavelet
+
+            Note: The computation of the Morlet wavelet signal is very slow for fspread > 0.
 
             Args:
                 rate: float
@@ -59,21 +64,44 @@ class AudioSignal:
                     Peak value of the audio signal
                 displacement: float
                     Peak position in seconds
+                fspread: float
+                    Frequency spread (standard dev) in Hz
         """        
         if samples is None:
             samples = int(6 * width * rate)
-        
-        # compute Morlet function at N equally spaced points
+
         N = int(samples)
+
+        # compute Morlet function at N equally spaced points
         dt = 1. / rate
         stop = (N-1.)/2. * dt
         start = -stop
-        t = np.linspace(start, stop, N)
-        y = morlet_func(t, frequency=frequency, width=width, displacement=displacement, norm=False)
+        time = np.linspace(start, stop, N)
+
+        if fspread == 0:
+            y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)
+        
+        else:
+            def integrand(x, time, frequency, width, displacement, norm, fspread):
+                morlet = morlet_func(time, frequency=x, width=width, displacement=displacement, norm=norm)
+                gauss = norm.pdf(x, loc=frequency, scale=fspread)
+                return morlet * gauss
+
+            # TODO: Use C function to speed up this step?!
+            y = list()
+            for t in tqdm(time):
+                I = quadrature(func=integrand, a=max(1E-3, frequency-2*fspread), b=frequency+2*fspread, args=(t, frequency, width, displacement, norm, fspread), rtol=0.001, maxiter=1000, vec_func=False)
+                y.append(I[0])
+
+            y = np.array(y)
+
         y *= height
         
-        return cls(rate=rate, data=np.array(y), tag="Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width))
-        
+        tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width)
+
+        return cls(rate=rate, data=np.array(y), tag=tag)
+
+
     def to_wav(self, path):
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
