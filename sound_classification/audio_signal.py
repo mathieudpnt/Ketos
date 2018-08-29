@@ -17,6 +17,8 @@ class AudioSignal:
                 Sampling rate in Hz
             data: 1d numpy array
                 Audio data 
+            tag: str
+                Optional meta data string
     """
     def __init__(self, rate, data, tag=""):
         self.rate = float(rate)
@@ -25,12 +27,18 @@ class AudioSignal:
 
     @classmethod
     def from_wav(cls, path):
+        """ Generate audio signal from wave file
+
+            Args:
+                path: str
+                    Path to input wave file
+        """        
         rate, data = read_wave(path)
         return cls(rate, data, path[path.rfind('/')+1:])
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples):
-        """ Gaussian noise
+        """ Generate Gaussian noise signal
 
             Args:
                 rate: float
@@ -82,30 +90,84 @@ class AudioSignal:
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
-
     def to_wav(self, path):
+        """ Save audio signal to wave file
+
+            Args:
+                path: str
+                    Path to output wave file
+        """        
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
     def empty(self):
-        return len(self.data) == 0
+        """ Check if the signal contains any data
+
+            Returns:
+                res: bool
+                     True if the length of the data array is zero
+        """    
+        res = len(self.data) == 0    
+        return res
 
     def seconds(self):
-        return float(len(self.data)) / float(self.rate)
+        """ Signal duration in seconds
+
+            Returns:
+                s: float
+                   Signal duration in seconds
+        """    
+        s = float(len(self.data)) / float(self.rate)
+        return s
 
     def max(self):
-        return max(self.data)
+        """ Maximum value of the signal
+
+            Returns:
+                v: float
+                   Maximum value of the data array
+        """    
+        v = max(self.data)
+        return v
 
     def min(self):
-        return min(self.data)
+        """ Minimum value of the signal
+
+            Returns:
+                v: float
+                   Minimum value of the data array
+        """    
+        v = min(self.data)
+        return v
 
     def std(self):
-        return np.std(self.data)
+        """ Standard deviation of the signal
+
+            Returns:
+                v: float
+                   Standard deviation of the data array
+        """   
+        v = np.std(self.data) 
+        return v
 
     def average(self):
-        return np.average(self.data)
+        """ Average value of the signal
+
+            Returns:
+                v: float
+                   Average value of the data array
+        """   
+        v = np.average(self.data)
+        return v
 
     def median(self):
-        return np.median(self.data)
+        """ Median value of the signal
+
+            Returns:
+                v: float
+                   Median value of the data array
+        """   
+        v = np.median(self.data)
+        return v
 
     def plot(self):
         """ Plot the signal with proper axes ranges and labels
