@@ -503,3 +503,30 @@ def write_sig_to_h5_database(seg_file_name,table):
     seg_r["labels"] = labels
     seg_r["signal"] = seg_data 
     seg_r.append()
+
+#TODO: Consider passing an instance of the spectogram class. 
+# It could include the if+label string in it's tag attribute.
+# Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
+# function could then be used to extract the id and label.
+def write_spectogram_to_h5_database(spectogram,id,label,table):
+    """ Write data form .wav files containing segments into the h5 database.
+
+        Args:
+            spectogram: numpy array
+                Array containing the spectogram.
+
+            id: str
+                The identification string.
+                Usually the same as the the audio segment the originated the spectogram.
+                (See the write_sig_to_h5_database function)
+            label: str
+                label(s) associated with the spectogram.
+                
+            table: tables.Table
+                Table in which the spectogram will be stored
+                (described by create_image_table_description()).
+        Returns:
+            None.
+    """
+        
+    
