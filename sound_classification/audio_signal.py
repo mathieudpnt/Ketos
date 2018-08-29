@@ -32,6 +32,10 @@ class AudioSignal:
             Args:
                 path: str
                     Path to input wave file
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal from wave file
         """        
         rate, data = read_wave(path)
         return cls(rate, data, path[path.rfind('/')+1:])
@@ -47,6 +51,10 @@ class AudioSignal:
                     Standard deviation of the signal amplitude
                 samples: int
                     Length of the audio signal given as the number of samples
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal sampling of Gaussian noise
         """        
         assert sigma > 0, "sigma must be strictly positive"
 
@@ -57,7 +65,7 @@ class AudioSignal:
     def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
         """ Audio signal with the shape of the Morlet wavelet
 
-            Note: The computation of the Morlet wavelet signal can be very slow for fspread > 0.
+            Uses :func:`util.morlet_func` to compute the Morlet wavelet.
 
             Args:
                 rate: float
@@ -72,6 +80,10 @@ class AudioSignal:
                     Peak value of the audio signal
                 displacement: float
                     Peak position in seconds
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal sampling of the Morlet wavelet 
         """        
         if samples is None:
             samples = int(6 * width * rate)

@@ -65,6 +65,9 @@ class Spectrogram():
                     Number of points for the FFT. If None, set equal to the number of samples.
                 timestamp: datetime
                     Spectrogram time stamp (default: None)
+
+            Returns:
+                Instance of Spectrogram
         """
 
         # Make frames
