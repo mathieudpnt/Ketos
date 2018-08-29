@@ -528,5 +528,9 @@ def write_spectogram_to_h5_database(spectogram,id,label,table):
         Returns:
             None.
     """
-        
-    
+
+    seg_r = table.row
+    seg_r["id"] = id
+    seg_r["labels"] = labels
+    seg_r["signal"] = spectogram 
+    seg_r.append()
