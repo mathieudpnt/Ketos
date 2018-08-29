@@ -25,6 +25,10 @@ def print_octave_bands_json(band_min, band_max):
 def morlet_func(time, frequency, width, displacement, norm=True):
     """ Morlet wavelet function
 
+        The function is implemented as in Eq. (15) in John Ashmead, "Morlet Wavelets in Quantum Mechanics",
+        Quanta 2012; 1: 58–70, with the replacement f -> 2*pi*f*s, to ensure that f actually corresponds 
+        to the frequency.
+
         Args:
             time: float
                Time in seconds at which the function is to be evaluated
@@ -45,7 +49,7 @@ def morlet_func(time, frequency, width, displacement, norm=True):
     assert width > 0, "Width must be a strictly positive float"
 
     t = time
-    w = 2 * np.pi * frequency
+    w = 2 * np.pi * frequency * width
     s = width
     l = displacement
     x = (t-l)/s

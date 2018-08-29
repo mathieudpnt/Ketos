@@ -75,7 +75,7 @@ class AudioSignal:
         stop = (N-1.)/2. * dt
         start = -stop
         time = np.linspace(start, stop, N)
-        y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)
+        y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)        
         y *= height
         
         tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
