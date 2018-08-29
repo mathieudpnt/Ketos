@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import scipy.io.wavfile as wave
+from scipy import interpolate
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
 import matplotlib.pyplot as plt
