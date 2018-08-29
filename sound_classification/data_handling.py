@@ -532,5 +532,41 @@ def write_spectogram_to_h5_database(spectogram,id,label,table):
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
-    seg_r["signal"] = spectogram 
+    seg_r["signal"] = spectogram
     seg_r.append()
+
+def open_or_create_table(h5, group, table_name,table_description,chunkshape):
+    """ Open the specified table or creates it if it does not exist.
+
+        Args:
+            h5: tables.file.File object
+            HDF5 file handler for the database where the table is/will be located
+            group: str
+            The path to the group from the root node. Ex: "/group_1/subgroup_1"
+            table_name: str
+            The name of the table. This name will be part of the table's path.
+            Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
+            table_description: tables.IsDescription object
+            The descriptor class. See :func:`create_raw_signal_table_description` and :func:create_image_table_description
+            chunkshape: tuple
+
+        Returns:
+            table: table.Table object
+            The opened/created table.    
+    """
+
+    try:
+       group = h5.get_node(group)
+    
+    except tables.NoSuchNodeError:
+        print("group '{0}' not found. Creating it now...".format(group))
+        group = h5.create_group(group)
+        
+    try:
+       table = h5.get_node("{0}/{1}".format(group_name,table_name))
+    
+    except tables.NoSuchNodeError:    
+        filters = tables.Filters(complevel=1, fletcher32=True)
+        table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
+
+    return table
