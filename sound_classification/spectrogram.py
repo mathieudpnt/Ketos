@@ -1,3 +1,4 @@
+from abc import ABC
 import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
@@ -8,6 +9,8 @@ from sound_classification.pre_processing import make_frames
 
 class Spectrogram():
     """ Spectrogram
+
+        Parent class for spectogram subclasses.
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -15,83 +18,32 @@ class Spectrogram():
         Each axis is characterized by a starting value (tmin and fmin)
         and a resolution or bin size (tres and fres).
 
-        Args:
-            image: 2d numpy array
-                Spectrogram image 
+        Attributes:
+            signal: AudioSignal object
+                Audio signal 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
             NFFT: int
-                Number of points used for the Fast-Fourier Transform
-            tres: float
-                Time resolution in Hz 
-            fres: float
-                Frequency resolution in Hz
-            fmin: float
-                Lower limit of frequency axis in Hz (default: 0)
+                Number of points for the FFT. If None, set equal to the number of samples.
             timestamp: datetime
                 Spectrogram time stamp (default: None)
-    """
-
-
-    def __init__(self, image, NFFT, tres, fres, fmin=0, timestamp=None, flabels=None):
-
-        self.image = image
-        self.NFFT = NFFT
-        self.tres = tres
-        self.tmin = 0
-        self.fres = fres
-        self.fmin = fmin
-        self.timestamp = timestamp
-        self.flabels = flabels
-
-    @classmethod
-    def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
-        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, tres=spec.tres, fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp, flabels=spec.flabels)
-        cropped_spec.crop(tlow, thigh, flow, fhigh)
-        return cropped_spec
-
-    @classmethod
-    def from_signal(cls, signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
-        """ Create spectrogram from audio signal
+"""
+    def __init__(self):
         
-            Args:
-                signal: AudioSignal
-                    Audio signal 
-                winlen: float
-                    Window size in seconds
-                winstep: float
-                    Step size in seconds 
-                hamming: bool
-                    Apply Hamming window
-                NFFT: int
-                    Number of points for the FFT. If None, set equal to the number of samples.
-                timestamp: datetime
-                    Spectrogram time stamp (default: None)
-
-            Returns:
-                Instance of Spectrogram
-        """
-
-        # Make frames
-        frames = make_frames(signal, winlen, winstep) 
-
-        # Apply Hamming window    
-        if hamming:
-            frames *= np.hamming(frames.shape[1])
-
-        # Compute fast fourier transform
-        image = np.abs(np.fft.rfft(frames, n=NFFT))
-
-        # Number of points used for FFT
-        if NFFT is None:
-            NFFT = frames.shape[1]
-        
-        # Frequency resolution
-        fres = signal.rate / 2. / image.shape[1]
-
-        # Create spectrogram instance
-        spec = cls(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
-
-        return spec
-
+        self.image = np.zeros((2,2))
+        self.shape = self.image.shape
+        self.NFFT = 0
+        self.tres = 0
+        self.tmin = 1
+        self.fres = 1
+        self.fmin = 0
+        self.timestamp = None
+        self.flabels = None
+    
     def _find_tbin(self, t):
         """ Find bin corresponding to given time.
             Returns -1, if t < t_min
@@ -154,19 +106,17 @@ class Spectrogram():
         return self.tbins() * self.tres
 
         
-    def shape(self):
-        return self.image.shape
-
-
+    #TODO: handle datetime=None
     def taxis(self):
-        times = list()
-        delta = datetime.timedelta(seconds=self.tres)
-        t = self.timestamp + datetime.timedelta(seconds=self.tmin)
-        for _ in range(self.tbins()):
-            times.append(t)
-            t += delta
-        
-        return times
+        if self.timestamp is not None:
+            times = list()
+            delta = datetime.timedelta(seconds=self.tres)
+            t = self.timestamp + datetime.timedelta(seconds=self.tmin)
+            for _ in range(self.tbins()):
+                times.append(t)
+                t += delta
+            
+            return times
 
 
     def faxis(self):
@@ -320,25 +270,7 @@ class Spectrogram():
         med = np.median(m, axis=axis)
 
         return med
-
-    def plot(self, decibel=False):
-        """ Plot the spectrogram with proper axes ranges and labels
-
-            Args:
-                decibel: bool
-                Use linear or logarithmic scale
-        """
-        img = self.image
-        if decibel:
-            from sound_classification.pre_processing import to_decibel
-            img = to_decibel(img)
-
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
-        ax = plt.gca()
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Frequency (Hz)')
-        plt.colorbar()
-        
+            
     def blur_gaussian(self, tsigma, fsigma):
         """ Blur the spectrogram using a Gaussian filter.
 
