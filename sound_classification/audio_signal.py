@@ -193,6 +193,18 @@ class AudioSignal:
         ax.set_ylabel('Signal')
 
     def _cropped_data(self, begin=None, end=None):
+        """ Select a portion of the audio data
+
+            Args:
+                begin: float
+                    Start time of selection window in seconds
+                end: float
+                    End time of selection window in seconds
+
+            Returns:
+                cropped_data: numpy array
+                   Selected portion of the audio data
+        """   
         i1 = 0
         i2 = len(self.data)
 
@@ -210,12 +222,42 @@ class AudioSignal:
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
 
-        return np.array(cropped_data)        
+        cropped_data = np.array(cropped_data)
+        return cropped_data        
 
     def crop(self, begin=None, end=None):
-        self.data = self._cropped_data(begin,end)
+        """ Clip audio signal
+
+            Args:
+                begin: float
+                    Start time of selection window in seconds
+                end: float
+                    End time of selection window in seconds
+        """   
+        self.data = self._cropped_data(begin, end)
 
     def append(self, signal, overlap_sec=0):
+        """ Merge with another audio signal.
+
+            The two audio signals must have the same samling rate.
+
+            If overlap_sec < 0, the two signals are smooth transition is made 
+            between the two signals in the overlap region.
+
+            Note that the current implementation of the smoothing procedure is 
+            quite slow, so it is advisable to use small overlap regions.
+
+            If overlap_sec == 0, the two signals are joint without any smoothing.
+
+            If overlap_sec > 0, a signal with zero sound intensity and duration 
+            -overlap_sec is added between the two audio signals. 
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                overlap_sec: float
+                    Overlap between the two audio signals in seconds.
+        """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
         # make hard copy
@@ -333,7 +375,9 @@ class AudioSignal:
         self.data = new_sig
 
 def smoothclamp(x, mi, mx): 
-    return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
+        """ Smoothing function
+        """    
+        return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
 
 
 class TimeStampedAudioSignal(AudioSignal):
@@ -357,18 +401,49 @@ class TimeStampedAudioSignal(AudioSignal):
 
     @classmethod
     def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
+        """ Initialize time stamped audio signal from regular audio signal.
+
+            Args:
+                audio_signal: AudioSignal
+                    Audio signal
+                time_stamp: datetime
+                    Global time stamp marking start of audio recording
+                tag: str
+                    Optional argument that may be used to indicate the source.
+        """
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
     def begin(self):
-        return self.time_stamp
+        """ Get global time stamp marking the start of the audio signal.
+
+            Returns:
+                t: datetime
+                Global time stamp marking the start of audio the recording
+        """
+        t = self.time_stamp
+        return t
 
     def end(self):
+        """ Get global time stamp marking the end of the audio signal.
+
+            Returns:
+                t: datetime
+                Global time stamp marking the end of audio the recording
+        """
         duration = len(self.data) / self.rate
         delta = datetime.timedelta(seconds=duration)
-        end = self.begin() + delta
-        return end 
+        t = self.begin() + delta
+        return t 
     
     def crop(self, begin=None, end=None):
+        """ Clip audio signal
+
+            Args:
+                begin: datetime
+                    Start data and time of selection window
+                end: datetime
+                    End date and time of selection window
+        """   
         begin_sec, end_sec = None, None
         
         if begin is not None:
