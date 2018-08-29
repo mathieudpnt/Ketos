@@ -40,46 +40,6 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
-def resample(signal, new_rate):
-    """ Resample the acoustic signal with an arbitrary sampling rate.
-    
-    TODO: THIS FUNCTION NOW ALSO EXISTS AS A METHOD OF THE AUDIO SIGNAL CLASS. CONSIDER REMOVING?
-
-    Note: Code adapted from Kahl et al. (2017)
-          Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
-          Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
-
-    Args:
-        signal : AudioSignal
-            The signal to be resampled.
-        new_rate: int
-            New sampling rate.
-    
-    Returns:
-        new_signal : AudioSignal
-            resampled signal.
-    """
-
-    orig_rate = signal.rate
-    sig = signal.data
-
-    duration = sig.shape[0] / orig_rate
-
-    time_old  = np.linspace(0, duration, sig.shape[0])
-    time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
-
-    interpolator = interpolate.interp1d(time_old, sig.T)
-    new_audio = interpolator(time_new).T
-
-    new_sig = np.round(new_audio).astype(sig.dtype)
-
-    if isinstance(signal, TimeStampedAudioSignal):
-        new_signal = TimeStampedAudioSignal(rate=new_rate, data=new_sig, time_stamp=signal.time_stamp, tag=signal.tag)    
-    else:
-        new_signal = AudioSignal(rate=new_rate, data=new_sig)    
-
-    return new_signal
-
 def make_frames(signal, winlen, winstep, zero_padding=False):
     """ Split the signal into frames of length 'winlen' with consecutive 
         frames being shifted by an amount 'winstep'. 

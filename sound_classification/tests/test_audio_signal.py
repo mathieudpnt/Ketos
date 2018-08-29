@@ -99,3 +99,38 @@ def test_gaussian_noise():
     assert noise.std() == pytest.approx(2, rel=0.01) # check standard deviation
     assert noise.average() == pytest.approx(0, abs=3*2/np.sqrt(40000)) # check mean
     assert noise.seconds() == 20 # check length
+
+def test_resampled_signal_has_correct_rate(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    signal.resample(new_rate=22000)
+    assert signal.rate == 22000
+    signal.resample(new_rate=2000)
+    assert signal.rate == 2000
+
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    duration = len(signal.data) / signal.rate
+    signal.resample(new_rate=22000)
+    assert len(signal.data) == duration * signal.rate 
+    signal.resample(new_rate=2000)
+    assert len(signal.data) == duration * signal.rate 
+
+def test_resampling_preserves_signal_shape(const_wave_file):
+    signal = aud.AudioSignal.from_wav(const_wave_file)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    n = min(len(signal.data), len(new_signal.data))
+    for i in range(n):
+        assert signal.data[i] == new_signal.data[i]
+
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    y = abs(np.fft.rfft(signal.data))
+    freq = np.argmax(y)
+    freqHz = freq * signal.rate / len(signal.data)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    new_y = abs(np.fft.rfft(new_signal.data))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
+    assert freqHz == new_freqHz

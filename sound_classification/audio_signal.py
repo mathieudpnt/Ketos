@@ -103,6 +103,16 @@ class AudioSignal:
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
+    def copy(self):
+        """ Makes a copy of the audio signal.
+
+            Returns:
+                Instance of AudioSignal
+                    Copied signal
+        """        
+        data = np.copy(self.data)
+        return self.__class__(rate=self.rate, data=data, tag=self.tag)
+
     def to_wav(self, path):
         """ Save audio signal to wave file
 
