@@ -570,3 +570,4 @@ def open_or_create_table(h5, group, table_name,table_description,chunkshape):
         table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
 
     return table
+
