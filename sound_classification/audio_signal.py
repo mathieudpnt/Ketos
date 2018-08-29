@@ -261,6 +261,33 @@ class AudioSignal:
         if i_max > i_min and i_max > 0 and j_max > j_min and j_max > 0:
             self.data[i_min:i_max] += scale * signal.data[j_min:j_max]
 
+    def resample(self, new_rate):
+        """ Resample the acoustic signal with an arbitrary sampling rate.
+
+        Note: Code adapted from Kahl et al. (2017)
+              Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
+              Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
+
+        Args:
+            new_rate: int
+                New sampling rate in Hz
+        """
+
+        orig_rate = self.rate
+        sig = self.data
+
+        duration = sig.shape[0] / orig_rate
+
+        time_old  = np.linspace(0, duration, sig.shape[0])
+        time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
+
+        interpolator = interpolate.interp1d(time_old, sig.T)
+        new_audio = interpolator(time_new).T
+
+        new_sig = np.round(new_audio).astype(sig.dtype)
+
+        self.rate = new_rate
+        self.data = new_sig
 
 def smoothclamp(x, mi, mx): 
     return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )

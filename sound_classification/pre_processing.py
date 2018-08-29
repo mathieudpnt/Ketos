@@ -42,6 +42,8 @@ def from_decibel(y):
 
 def resample(signal, new_rate):
     """ Resample the acoustic signal with an arbitrary sampling rate.
+    
+    TODO: THIS FUNCTION NOW ALSO EXISTS AS A METHOD OF THE AUDIO SIGNAL CLASS. CONSIDER REMOVING?
 
     Note: Code adapted from Kahl et al. (2017)
           Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
