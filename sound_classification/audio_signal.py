@@ -46,7 +46,7 @@ class AudioSignal:
         return cls(rate=rate, data=y, tag="Gaussian_noise_s{0:.3f}s".format(sigma))
 
     @classmethod
-    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, fspread=0):
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
         """ Audio signal with the shape of the Morlet wavelet
 
             Note: The computation of the Morlet wavelet signal can be very slow for fspread > 0.
@@ -64,8 +64,6 @@ class AudioSignal:
                     Peak value of the audio signal
                 displacement: float
                     Peak position in seconds
-                fspread: float
-                    Frequency spread (standard dev) in Hz
         """        
         if samples is None:
             samples = int(6 * width * rate)
@@ -77,24 +75,7 @@ class AudioSignal:
         stop = (N-1.)/2. * dt
         start = -stop
         time = np.linspace(start, stop, N)
-
-        if fspread == 0:
-            y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)
-        
-        else:
-            def integrand(x, time, frequency, width, displacement, norm, fspread):
-                morlet = morlet_func(time, frequency=x, width=width, displacement=displacement, norm=norm)
-                gauss = norm.pdf(x, loc=frequency, scale=fspread)
-                return morlet * gauss
-
-            # TODO: Use C function to speed up this step?!
-            y = list()
-            for t in tqdm(time):
-                I = quadrature(func=integrand, a=max(1E-3, frequency-2*fspread), b=frequency+2*fspread, args=(t, frequency, width, displacement, norm, fspread), rtol=0.001, maxiter=1000, vec_func=False)
-                y.append(I[0])
-
-            y = np.array(y)
-
+        y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)
         y *= height
         
         tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
