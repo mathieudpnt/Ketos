@@ -337,18 +337,51 @@ class Spectrogram():
         plt.colorbar()
         
     def blur_gaussian(self, tsigma, fsigma):
-        """ Blur the spectrogram using a Gaussian filter
+        """ Blur the spectrogram using a Gaussian filter.
+
+            This uses the GaussianBlur method from the cv2 package:
+            
+                https://docs.opencv.org/3.0-beta/modules/imgproc/doc/filtering.html#gaussianblur
 
             Args:
                 tsigma: float
-                    Gaussian kernel standard deviation along time axis
+                    Gaussian kernel standard deviation along time axis. Must be strictly positive.
                 fsigma: float
-                    Gaussian kernel standard deviation along frequency axis
-        """
-        # https://docs.opencv.org/3.1.0/d4/d86/group__imgproc__filter.html#gaabe8c836e97159a9193fb0b11ac52cf1
+                    Gaussian kernel standard deviation along frequency axis.
 
+            Examples:
+            
+            >>> from sound_classification.spectrogram import Spectrogram
+            >>> from sound_classification.audio_signal import AudioSignal
+            >>> import matplotlib.pyplot as plt
+            >>> # create audio signal
+            >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+            >>> # create spectrogram
+            >>> spec = Spectrogram.from_signal(s, winlen=0.2, winstep=0.05)
+            >>> # show image
+            >>> spec.plot()
+            >>> plt.show()
+            >>> # apply very small amount (0.01 sec) of horizontal blur
+            >>> # and significant amount of vertical blur (30 Hz)  
+            >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
+            >>> # show blurred image
+            >>> spec.plot()
+            >>> plt.show()
+
+            .. image:: _static/morlet_spectrogram.png
+                :width: 300px
+                :align: left
+            .. image:: _static/morlet_spectrogram_blurred.png
+                :width: 300px
+                :align: right
+        """
+        assert tsigma > 0, "tsigma must be strictly positive"
+
+        if fsigma < 0:
+            fsigma = 0
+        
         sigmaX = tsigma / self.tres
         sigmaY = fsigma / self.fres
         
-        self.image = cv2.GaussianBlur(self.image, (0,0), tsigma, fsigma)
+        self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
         
