@@ -2,6 +2,11 @@ import numpy as np
 import datetime
 import scipy.io.wavfile as wave
 from sound_classification.data_handling import read_wave
+from sound_classification.util import morlet_func
+import matplotlib.pyplot as plt
+from scipy.integrate import quadrature
+from scipy.stats import norm
+from tqdm import tqdm
 
 
 class AudioSignal:
@@ -12,6 +17,8 @@ class AudioSignal:
                 Sampling rate in Hz
             data: 1d numpy array
                 Audio data 
+            tag: str
+                Optional meta data string
     """
     def __init__(self, rate, data, tag=""):
         self.rate = float(rate)
@@ -20,19 +27,196 @@ class AudioSignal:
 
     @classmethod
     def from_wav(cls, path):
+        """ Generate audio signal from wave file
+
+            Args:
+                path: str
+                    Path to input wave file
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal from wave file
+        """        
         rate, data = read_wave(path)
         return cls(rate, data, path[path.rfind('/')+1:])
 
+    @classmethod
+    def gaussian_noise(cls, rate, sigma, samples):
+        """ Generate Gaussian noise signal
+
+            Args:
+                rate: float
+                    Sampling rate in Hz
+                sigma: float
+                    Standard deviation of the signal amplitude
+                samples: int
+                    Length of the audio signal given as the number of samples
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal sampling of Gaussian noise
+        """        
+        assert sigma > 0, "sigma must be strictly positive"
+
+        y = np.random.normal(loc=0, scale=sigma, size=samples)
+        return cls(rate=rate, data=y, tag="Gaussian_noise_s{0:.3f}s".format(sigma))
+
+    @classmethod
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0):
+        """ Audio signal with the shape of the Morlet wavelet
+
+            Uses :func:`util.morlet_func` to compute the Morlet wavelet.
+
+            Args:
+                rate: float
+                    Sampling rate in Hz
+                frequency: float
+                    Frequency of the Morlet wavelet in Hz
+                width: float
+                    Width of the Morlet wavelet in seconds (sigma of the Gaussian envelope)
+                samples: int
+                    Length of the audio signal given as the number of samples (if no value is given, samples = 6 * width * rate)
+                height: float
+                    Peak value of the audio signal
+                displacement: float
+                    Peak position in seconds
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal sampling of the Morlet wavelet 
+        """        
+        if samples is None:
+            samples = int(6 * width * rate)
+
+        N = int(samples)
+
+        # compute Morlet function at N equally spaced points
+        dt = 1. / rate
+        stop = (N-1.)/2. * dt
+        start = -stop
+        time = np.linspace(start, stop, N)
+        y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False)        
+        y *= height
+        
+        tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
+
+        return cls(rate=rate, data=np.array(y), tag=tag)
+
     def to_wav(self, path):
+        """ Save audio signal to wave file
+
+            Args:
+                path: str
+                    Path to output wave file
+        """        
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
     def empty(self):
-        return len(self.data) == 0
+        """ Check if the signal contains any data
+
+            Returns:
+                res: bool
+                     True if the length of the data array is zero
+        """    
+        res = len(self.data) == 0    
+        return res
 
     def seconds(self):
-        return float(len(self.data)) / float(self.rate)
+        """ Signal duration in seconds
+
+            Returns:
+                s: float
+                   Signal duration in seconds
+        """    
+        s = float(len(self.data)) / float(self.rate)
+        return s
+
+    def max(self):
+        """ Maximum value of the signal
+
+            Returns:
+                v: float
+                   Maximum value of the data array
+        """    
+        v = max(self.data)
+        return v
+
+    def min(self):
+        """ Minimum value of the signal
+
+            Returns:
+                v: float
+                   Minimum value of the data array
+        """    
+        v = min(self.data)
+        return v
+
+    def std(self):
+        """ Standard deviation of the signal
+
+            Returns:
+                v: float
+                   Standard deviation of the data array
+        """   
+        v = np.std(self.data) 
+        return v
+
+    def average(self):
+        """ Average value of the signal
+
+            Returns:
+                v: float
+                   Average value of the data array
+        """   
+        v = np.average(self.data)
+        return v
+
+    def median(self):
+        """ Median value of the signal
+
+            Returns:
+                v: float
+                   Median value of the data array
+        """   
+        v = np.median(self.data)
+        return v
+
+    def plot(self):
+        """ Plot the signal with proper axes ranges and labels
+            
+            Examples:
+            
+            >>> from sound_classification.audio_signal import AudioSignal
+            >>> import matplotlib.pyplot as plt
+            >>> s = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> s.plot()
+            >>> plt.show() 
+
+            .. image:: _static/morlet.png
+                :width: 500px
+                :align: center
+        """
+        start = 0.5 / self.rate
+        stop = self.seconds() - 0.5 / self.rate
+        num = len(self.data)
+        plt.plot(np.linspace(start=start, stop=stop, num=num), self.data)
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Signal')
 
     def _cropped_data(self, begin=None, end=None):
+        """ Select a portion of the audio data
+
+            Args:
+                begin: float
+                    Start time of selection window in seconds
+                end: float
+                    End time of selection window in seconds
+
+            Returns:
+                cropped_data: numpy array
+                   Selected portion of the audio data
+        """   
         i1 = 0
         i2 = len(self.data)
 
@@ -50,12 +234,42 @@ class AudioSignal:
         if i2 > i1:
             cropped_data = self.data[i1:i2] # crop data
 
-        return np.array(cropped_data)        
+        cropped_data = np.array(cropped_data)
+        return cropped_data        
 
     def crop(self, begin=None, end=None):
-        self.data = self._cropped_data(begin,end)
+        """ Clip audio signal
+
+            Args:
+                begin: float
+                    Start time of selection window in seconds
+                end: float
+                    End time of selection window in seconds
+        """   
+        self.data = self._cropped_data(begin, end)
 
     def append(self, signal, overlap_sec=0):
+        """ Merge with another audio signal.
+
+            The two audio signals must have the same samling rate.
+
+            If overlap_sec < 0, the two signals are smooth transition is made 
+            between the two signals in the overlap region.
+
+            Note that the current implementation of the smoothing procedure is 
+            quite slow, so it is advisable to use small overlap regions.
+
+            If overlap_sec == 0, the two signals are joint without any smoothing.
+
+            If overlap_sec > 0, a signal with zero sound intensity and duration 
+            -overlap_sec is added between the two audio signals. 
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                overlap_sec: float
+                    Overlap between the two audio signals in seconds.
+        """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
         # make hard copy
@@ -97,8 +311,85 @@ class AudioSignal:
 
         self.data = np.append(self.data, d) 
 
+    def add_gaussian_noise(self, sigma):
+        """ Add Gaussian noise to the signal
+
+            Args:
+                sigma: float
+                    Standard deviation of the gaussian noise
+        """
+        noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
+        self.add(noise)
+
+    def add(self, signal, delay=0, scale=1):
+        """ Add the amplitudes of the two audio signals.
+        
+            The audio signals must have the same sampling rates.
+
+            The summed signal always has the same length as the original signal.
+
+            If the audio signals have different lengths and/or a non-zero delay is selected, 
+            only the overlap region will be affected by the operation.
+            
+            If the overlap region is empty, the original signal is unchanged.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be added
+                delay: float
+                    Shift the audio signal by this many seconds
+                scale: float
+                    Scaling factor for signal to be added
+        """
+        assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
+
+        if delay >= 0:
+            i_min = int(delay * self.rate)
+            j_min = 0
+            i_max = min(self.data.shape[0], signal.data.shape[0] + i_min)
+            j_max = min(signal.data.shape[0], self.data.shape[0] - i_min)
+            
+        else:
+            i_min = 0
+            j_min = int(-delay * self.rate)
+            i_max = min(self.data.shape[0], signal.data.shape[0] - j_min)
+            j_max = min(signal.data.shape[0], self.data.shape[0] + j_min)
+            
+        if i_max > i_min and i_max > 0 and j_max > j_min and j_max > 0:
+            self.data[i_min:i_max] += scale * signal.data[j_min:j_max]
+
+    def resample(self, new_rate):
+        """ Resample the acoustic signal with an arbitrary sampling rate.
+
+        Note: Code adapted from Kahl et al. (2017)
+              Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
+              Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
+
+        Args:
+            new_rate: int
+                New sampling rate in Hz
+        """
+
+        orig_rate = self.rate
+        sig = self.data
+
+        duration = sig.shape[0] / orig_rate
+
+        time_old  = np.linspace(0, duration, sig.shape[0])
+        time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
+
+        interpolator = interpolate.interp1d(time_old, sig.T)
+        new_audio = interpolator(time_new).T
+
+        new_sig = np.round(new_audio).astype(sig.dtype)
+
+        self.rate = new_rate
+        self.data = new_sig
+
 def smoothclamp(x, mi, mx): 
-    return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
+        """ Smoothing function
+        """    
+        return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
 
 
 class TimeStampedAudioSignal(AudioSignal):
@@ -122,18 +413,49 @@ class TimeStampedAudioSignal(AudioSignal):
 
     @classmethod
     def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
+        """ Initialize time stamped audio signal from regular audio signal.
+
+            Args:
+                audio_signal: AudioSignal
+                    Audio signal
+                time_stamp: datetime
+                    Global time stamp marking start of audio recording
+                tag: str
+                    Optional argument that may be used to indicate the source.
+        """
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
     def begin(self):
-        return self.time_stamp
+        """ Get global time stamp marking the start of the audio signal.
+
+            Returns:
+                t: datetime
+                Global time stamp marking the start of audio the recording
+        """
+        t = self.time_stamp
+        return t
 
     def end(self):
+        """ Get global time stamp marking the end of the audio signal.
+
+            Returns:
+                t: datetime
+                Global time stamp marking the end of audio the recording
+        """
         duration = len(self.data) / self.rate
         delta = datetime.timedelta(seconds=duration)
-        end = self.begin() + delta
-        return end 
+        t = self.begin() + delta
+        return t 
     
     def crop(self, begin=None, end=None):
+        """ Clip audio signal
+
+            Args:
+                begin: datetime
+                    Start data and time of selection window
+                end: datetime
+                    End date and time of selection window
+        """   
         begin_sec, end_sec = None, None
         
         if begin is not None:

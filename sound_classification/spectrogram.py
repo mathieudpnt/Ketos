@@ -2,10 +2,12 @@ import numpy as np
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
+import cv2
+from sound_classification.pre_processing import make_frames
 
 
 class Spectrogram():
-    """ Spectrogram generated from an audio segment
+    """ Spectrogram
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -46,6 +48,49 @@ class Spectrogram():
         cropped_spec.crop(tlow, thigh, flow, fhigh)
         return cropped_spec
 
+    @classmethod
+    def from_signal(cls, signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+
+            Returns:
+                Instance of Spectrogram
+        """
+
+        # Make frames
+        frames = make_frames(signal, winlen, winstep) 
+
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+
+        # Create spectrogram instance
+        spec = cls(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
+
+        return spec
 
     def _find_tbin(self, t):
         """ Find bin corresponding to given time.
@@ -276,7 +321,7 @@ class Spectrogram():
 
         return med
 
-    def create_plot(self, decibel=False):
+    def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels
 
             Args:
@@ -293,3 +338,53 @@ class Spectrogram():
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         plt.colorbar()
+        
+    def blur_gaussian(self, tsigma, fsigma):
+        """ Blur the spectrogram using a Gaussian filter.
+
+            This uses the GaussianBlur method from the cv2 package:
+            
+                https://docs.opencv.org/3.0-beta/modules/imgproc/doc/filtering.html#gaussianblur
+
+            Args:
+                tsigma: float
+                    Gaussian kernel standard deviation along time axis. Must be strictly positive.
+                fsigma: float
+                    Gaussian kernel standard deviation along frequency axis.
+
+            Examples:
+            
+            >>> from sound_classification.spectrogram import Spectrogram
+            >>> from sound_classification.audio_signal import AudioSignal
+            >>> import matplotlib.pyplot as plt
+            >>> # create audio signal
+            >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+            >>> # create spectrogram
+            >>> spec = Spectrogram.from_signal(s, winlen=0.2, winstep=0.05)
+            >>> # show image
+            >>> spec.plot()
+            >>> plt.show()
+            >>> # apply very small amount (0.01 sec) of horizontal blur
+            >>> # and significant amount of vertical blur (30 Hz)  
+            >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
+            >>> # show blurred image
+            >>> spec.plot()
+            >>> plt.show()
+
+            .. image:: _static/morlet_spectrogram.png
+                :width: 300px
+                :align: left
+            .. image:: _static/morlet_spectrogram_blurred.png
+                :width: 300px
+                :align: right
+        """
+        assert tsigma > 0, "tsigma must be strictly positive"
+
+        if fsigma < 0:
+            fsigma = 0
+        
+        sigmaX = tsigma / self.tres
+        sigmaY = fsigma / self.fres
+        
+        self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
+        
