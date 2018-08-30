@@ -455,4 +455,48 @@ class PowerSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None) )
+            """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+
+            Returns:
+                (power_spec, NFFT, fres):numpy.array,int, int
+                A tuple with the resulting power spectrogram, the NFFT and the frequency resolution
+        """
+
+         # Make frames
+        frames = make_frames(signal, winlen, winstep) 
+
+
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+        
+
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+        power_spec = image = (1.0/NFFT) * (image ** 2)
+        
+        return power_spec, NFFT, fres
+
+       
