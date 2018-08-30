@@ -423,7 +423,7 @@ class TimeStampedAudioSignal(AudioSignal):
         self.time_stamp = time_stamp
 
     @classmethod
-    def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
+    def from_audio_signal(cls, audio_signal, time_stamp):
         """ Initialize time stamped audio signal from regular audio signal.
 
             Args:
@@ -431,10 +431,8 @@ class TimeStampedAudioSignal(AudioSignal):
                     Audio signal
                 time_stamp: datetime
                     Global time stamp marking start of audio recording
-                tag: str
-                    Optional argument that may be used to indicate the source.
         """
-        return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
+        return cls(signal=audio_signal.rate, data=audio_signal.data, time_stamp=time_stamp, tag=audio_signal.tag)
 
     def begin(self):
         """ Get global time stamp marking the start of the audio signal.
