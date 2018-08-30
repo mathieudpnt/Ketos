@@ -389,5 +389,23 @@ class MagSpectrogram(Spectrogram):
                 A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
         """
 
-    
+         # Make frames
+        frames = make_frames(signal, winlen, winstep) 
+
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+
+        return image, NFFT, fres
+
        
