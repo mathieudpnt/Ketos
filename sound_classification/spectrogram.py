@@ -320,3 +320,91 @@ class Spectrogram():
         
         self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
         
+
+class MagSpectrogram(Spectrogram):
+    """ Magnitude Spectrogram
+    
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
+        
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and fres).
+
+        Args:
+            signal: AudioSignal
+                    And instance of the :class:`audio_signal.AudioSignal` class 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            tres: float
+                Time resolution in Hz 
+            fres: float
+                Frequency resolution in Hz
+            fmin: float
+                Lower limit of frequency axis in Hz (default: 0)
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: ?
+                ??
+                        
+    """
+
+
+    def __init__(self, audio_signal, winlen, winstep, tres, fmin, tmin, timestamp=None,
+                 flabels=None, hamming=True, NFFT=None, timestamp=None):
+
+        self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.shape = self.image.shape
+        self.tres = tres
+        self.tmin = tmin
+        self.fmin = fmin
+        self.timestamp = timestamp
+        self.flabels = flabels
+
+
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None) )
+            """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+
+            Returns:
+                (image, NFFT, fres):numpy.array,int, int
+                A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
+        """
+
+    
+        # Make frames
+        frames = make_frames(signal, winlen, winstep) 
+
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+
+        return image, NFFT, fres
