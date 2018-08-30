@@ -1,5 +1,6 @@
 from abc import ABC
 import numpy as np
+from scipy.fftpack import dct
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
@@ -545,3 +546,95 @@ class MelSpectrogram(Spectrogram):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
+
+    def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
+                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None) )
+        """ Create a Mel spectrogram from audio signal
+    
+        Args:
+            signal: AudioSignal
+                Audio signal 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            n_filters: int
+                The number of filters in the filter bank.
+            n_ceps: int
+                The number of Mel-frequency cepstrums.
+            cep_lifters: int
+                The number of cepstum filters.
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+
+        Returns:
+            mel_spec: numpy.array
+                Array containing the Mel spectrogram
+            filter_banks: numpy.array
+                Array containing the filter banks
+            NFFT: int
+                The number of points used for creating the magnitude spectrogram
+                (Calculated if not given)
+            fres: int
+                The calculated frequency resolution
+            
+            
+    """
+
+        # Make frames
+    frames = make_frames(signal, winlen, winstep) 
+
+
+    # Apply Hamming window    
+    if hamming:
+        frames *= np.hamming(frames.shape[1])
+
+    # Compute fast fourier transform
+    image = np.abs(np.fft.rfft(frames, n=NFFT))
+    
+
+    # Number of points used for FFT
+    if NFFT is None:
+        NFFT = frames.shape[1]
+    
+    # Frequency resolution
+    fres = signal.rate / 2. / image.shape[1]
+    power_spec = image = (1.0/NFFT) * (image ** 2)
+    
+    low_freq_mel = 0
+    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
+    mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
+    hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
+    bin = np.floor((NFFT + 1) * hz_points / rate)
+
+    fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
+    for m in range(1, n_filters + 1):
+        f_m_minus = int(bin[m - 1])   # left
+        f_m = int(bin[m])             # center
+        f_m_plus = int(bin[m + 1])    # right
+
+        for k in range(f_m_minus, f_m):
+            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+        for k in range(f_m, f_m_plus):
+            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
+    filter_banks = np.dot(pow_frames, fbank.T)
+    filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
+    filter_banks = 20 * np.log10(filter_banks)  # dB
+    
+    
+    mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
+    
+    
+    (nframes, ncoeff) = mel_spec.shape
+    n = np.arange(ncoeff)
+    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
+    mel_spec *= lift  
+    
+
+
+    return mel_spec, filter_banks NFFT, fres
