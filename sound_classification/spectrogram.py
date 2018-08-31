@@ -346,7 +346,7 @@ class MagSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels: list of strings
                 List of labels for the frequency bins. 
-                        
+                      
     """
 
 
