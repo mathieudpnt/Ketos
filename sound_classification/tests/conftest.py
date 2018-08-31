@@ -1,4 +1,5 @@
 import pytest
+import datetime
 import os
 import numpy as np
 import scipy.signal as sg
@@ -6,6 +7,7 @@ import pandas as pd
 import sound_classification.pre_processing as pp
 import sound_classification.data_handling as dh
 import sound_classification.neural_networks as nn
+import sound_classification.audio_signal as aud
 from tensorflow import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -249,6 +251,7 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
 @pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave
+    today = datetime.datetime.today()
     a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
     return a
 
