@@ -432,14 +432,14 @@ class PowerSpectrogram(Spectrogram):
     """
 
 
-    def __init__(self, audio_signal, winlen, winstep, tres, fmin, tmin, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, timestamp=None):
+    def __init__(self, audio_signal, winlen, winstep,flabels=None,
+                 hamming=True, NFFT=None, timestamp=None):
 
         self.image, self. NFFT, self.fres = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         self.shape = self.image.shape
-        self.tres = tres
-        self.tmin = tmin
-        self.fmin = fmin
+        self.tres = winstep
+        self.tmin = 0
+        self.fmin = 0
         self.timestamp = timestamp
         self.flabels = flabels
 
