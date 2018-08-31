@@ -385,7 +385,7 @@ class MagSpectrogram(Spectrogram):
         """
 
          # Make frames
-        frames = make_frames(signal, winlen, winstep) 
+        frames = make_frames(audio_signal, winlen, winstep) 
 
         # Apply Hamming window    
         if hamming:
@@ -399,7 +399,7 @@ class MagSpectrogram(Spectrogram):
             NFFT = frames.shape[1]
         
         # Frequency resolution
-        fres = signal.rate / 2. / image.shape[1]
+        fres = audio_signal.rate / 2. / image.shape[1]
 
         return image, NFFT, fres
 
@@ -467,7 +467,7 @@ class PowerSpectrogram(Spectrogram):
         """
 
          # Make frames
-        frames = make_frames(signal, winlen, winstep) 
+        frames = make_frames(audio_signal, winlen, winstep) 
 
 
         # Apply Hamming window    
@@ -483,7 +483,7 @@ class PowerSpectrogram(Spectrogram):
             NFFT = frames.shape[1]
         
         # Frequency resolution
-        fres = signal.rate / 2. / image.shape[1]
+        fres = audio_signal.rate / 2. / image.shape[1]
         power_spec = image = (1.0/NFFT) * (image ** 2)
         
         return power_spec, NFFT, fres
@@ -568,7 +568,7 @@ class MelSpectrogram(Spectrogram):
         """
 
         # Make frames
-        frames = make_frames(signal, winlen, winstep) 
+        frames = make_frames(audio_signal, winlen, winstep) 
 
 
         # Apply Hamming window    
@@ -584,7 +584,7 @@ class MelSpectrogram(Spectrogram):
             NFFT = frames.shape[1]
         
         # Frequency resolution
-        fres = signal.rate / 2. / image.shape[1]
+        fres = audio_signal.rate / 2. / image.shape[1]
         power_spec = image = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
