@@ -246,3 +246,14 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     return meta, path_to_saved_model, test_acc
 
 
+@pytest.fixture
+def audio(sine_wave):
+    rate, data = sine_wave
+    a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
+    return a
+
+@pytest.fixture
+def audio_without_time_stamp(sine_wave):
+    rate, data = sine_wave
+    a = aud.AudioSignal(rate=rate, data=data)
+    return a
