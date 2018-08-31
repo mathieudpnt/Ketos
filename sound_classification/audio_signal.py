@@ -249,50 +249,49 @@ class AudioSignal:
         """   
         self.data = self._cropped_data(begin, end)
 
-    def append(self, signal, overlap_sec=0):
+    def append(self, signal, delay=0):
         """ Merge with another audio signal.
 
             The two audio signals must have the same samling rate.
 
-            If overlap_sec < 0, the two signals are smooth transition is made 
-            between the two signals in the overlap region.
+            If delay < 0, a smooth transition is made between the two signals 
+            in the overlap region.
 
             Note that the current implementation of the smoothing procedure is 
             quite slow, so it is advisable to use small overlap regions.
 
-            If overlap_sec == 0, the two signals are joint without any smoothing.
+            If delay == 0, the two signals are joint without any smoothing.
 
-            If overlap_sec > 0, a signal with zero sound intensity and duration 
-            -overlap_sec is added between the two audio signals. 
+            If delay > 0, a signal with zero sound intensity and duration 
+            delay is added between the two audio signals. 
 
             Args:
                 signal: AudioSignal
                     Audio signal to be merged
-                overlap_sec: float
-                    Overlap between the two audio signals in seconds.
+                delay: float
+                    Delay between the two audio signals in seconds.
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
-        # make hard copy
-        d = signal.data[:]
+        new_data = signal.data
 
-        overlap = int(overlap_sec * self.rate)
+        # compute overlap (can be negative)
+        len_tot = self.merged_length(signal, delay)
+        overlap = len(self.data) + len(signal.data) - len_tot
 
         # extract data from overlap region
         if overlap > 0:
 
             overlap = min(overlap, len(self.data))
-            overlap = min(overlap, len(d))
+            overlap = min(overlap, len(new_data))
 
             # signal 1
-            a = np.empty(overlap)
-            np.copyto(a, self.data[-overlap:])
+            a = np.copy(self.data[-overlap:])
             self.data = np.delete(self.data, np.s_[-overlap:])
 
             # signal 2
-            b = np.empty(overlap)
-            np.copyto(b, d[:overlap])
-            d = np.delete(d, np.s_[:overlap])
+            b = np.copy(new_data[:overlap])
+            new_data = np.delete(new_data, np.s_[:overlap])
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
@@ -310,7 +309,29 @@ class AudioSignal:
             z = np.zeros(-overlap)
             self.data = np.append(self.data, z)
 
-        self.data = np.append(self.data, d) 
+        self.data = np.append(self.data, new_data) 
+        
+        assert len(self.data) == len_tot # check that length of merged signal is as expected
+
+    def merged_length(self, signal, delay=0):
+        """ Compute sample size of merged signal.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                delay: float
+                    Delay between the two audio signals in seconds.
+        """   
+        if signal is None:
+            return len(self.data)
+
+        assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
+
+        m = len(self.data)
+        n = len(signal.data)
+        overlap = -int(delay * self.rate)
+        l = m + n - overlap
+        return l
 
     def add_gaussian_noise(self, sigma):
         """ Add Gaussian noise to the signal
@@ -426,6 +447,33 @@ class TimeStampedAudioSignal(AudioSignal):
         """
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
+    @classmethod
+    def from_wav(cls, path, time_stamp):
+        """ Generate time stamped audio signal from wave file
+
+            Args:
+                path: str
+                    Path to input wave file
+                time_stamp: datetime
+                    Global time stamp marking start of audio recording
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Time stamped audio signal from wave file
+        """        
+        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
+
+    def copy(self):
+        """ Makes a copy of the time stamped audio signal.
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Copied signal
+        """                
+        data = np.copy(self.data)
+        return self.__class__(rate=self.rate, data=data, tag=self.tag, time_stamp=self.time_stamp)
+
     def begin(self):
         """ Get global time stamp marking the start of the audio signal.
 
@@ -468,3 +516,44 @@ class TimeStampedAudioSignal(AudioSignal):
 
         if begin_sec > 0 and len(self.data) > 0:
             self.time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
+
+    def append(self, signal, delay=None):
+        """ Merge with another time stamped audio signal.
+
+            If delay is None (default), the delay will be determined from the 
+            two audio signals' time stamps.
+
+            See :meth:`audio_signal.append` for more details.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                delay: float
+                    Delay between the two audio signals in seconds.
+        """   
+        if delay is None:
+            delay = self.delay(signal)
+            if delay is None:
+                return super(TimeStampedAudioSignal, self).append(signal=signal)
+
+        return super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay)
+
+    def delay(self, signal):
+        """ Compute delay between two time stamped audio signals, defined 
+            as the time difference between the end of the first signal and 
+            the beginning of the second signal.
+
+            Args:
+                signal: TimeStampedAudioSignal
+                    Audio signal
+
+            Returns:
+                d: float
+                    Delay in seconds
+        """   
+        d = None
+        
+        if isinstance(signal, TimeStampedAudioSignal):
+            d = (signal.begin() - self.end()).total_seconds()
+        
+        return d
