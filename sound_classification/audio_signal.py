@@ -332,6 +332,9 @@ class AudioSignal:
                 delay: float
                     Delay between the two audio signals in seconds.
         """   
+        if signal is None:
+            return len(self.data)
+
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
         m = len(self.data)
@@ -452,6 +455,23 @@ class TimeStampedAudioSignal(AudioSignal):
         """
         return cls(rate=audio_signal.rate, data=audio_signal.data, time_stamp=time_stamp, tag=audio_signal.tag)
 
+    @classmethod
+    def from_wav(cls, path, time_stamp):
+        """ Generate time stamped audio signal from wave file
+
+            Args:
+                path: str
+                    Path to input wave file
+                time_stamp: datetime
+                    Global time stamp marking start of audio recording
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Time stamped audio signal from wave file
+        """        
+        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
+
     def copy(self):
         """ Makes a copy of the time stamped audio signal.
 
@@ -520,9 +540,28 @@ class TimeStampedAudioSignal(AudioSignal):
                     Delay between the two audio signals in seconds.
         """   
         if delay is None:
-            if  isinstance(signal, TimeStampedAudioSignal):
-                delay = (signal.begin() - self.end()).total_seconds()
-            else:
+            delay = self.delay(signal)
+            if delay is None:
                 return super(TimeStampedAudioSignal, self).append(signal=signal)
 
         return super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay)
+
+    def delay(self, signal):
+        """ Compute delay between two time stamped audio signals, defined 
+            as the time difference between the end of the first signal and 
+            the beginning of the second signal.
+
+            Args:
+                signal: TimeStampedAudioSignal
+                    Audio signal
+
+            Returns:
+                d: float
+                    Delay in seconds
+        """   
+        d = None
+        
+        if isinstance(signal, TimeStampedAudioSignal):
+            d = (signal.begin() - self.end()).total_seconds()
+        
+        return d
