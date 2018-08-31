@@ -103,16 +103,6 @@ class AudioSignal:
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
-    def copy(self):
-        """ Makes a copy of the audio signal.
-
-            Returns:
-                Instance of AudioSignal
-                    Copied signal
-        """        
-        data = np.copy(self.data)
-        return self.__class__(rate=self.rate, data=data, tag=self.tag)
-
     def to_wav(self, path):
         """ Save audio signal to wave file
 
@@ -423,7 +413,7 @@ class TimeStampedAudioSignal(AudioSignal):
         self.time_stamp = time_stamp
 
     @classmethod
-    def from_audio_signal(cls, audio_signal, time_stamp):
+    def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
         """ Initialize time stamped audio signal from regular audio signal.
 
             Args:
@@ -431,8 +421,10 @@ class TimeStampedAudioSignal(AudioSignal):
                     Audio signal
                 time_stamp: datetime
                     Global time stamp marking start of audio recording
+                tag: str
+                    Optional argument that may be used to indicate the source.
         """
-        return cls(rate=audio_signal.rate, data=audio_signal.data, time_stamp=time_stamp, tag=audio_signal.tag)
+        return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
     def begin(self):
         """ Get global time stamp marking the start of the audio signal.

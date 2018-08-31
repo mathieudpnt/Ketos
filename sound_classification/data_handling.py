@@ -38,16 +38,12 @@ def get_files(path, substr, fullpath=True):
             files: list (str)
                 Alphabetically sorted list of file names
     """
-    folder = path
-    if path[-1] != '/':
-        folder += '/'
-
-    allfiles = os.listdir(folder)
+    allfiles = os.listdir(path)
     files = list()
     for f in allfiles:
         if substr in f:
             if fullpath:
-                files.append(folder + f)
+                files.append(path + f)
             else:
                 files.append(f)
     files.sort()
