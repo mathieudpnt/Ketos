@@ -55,7 +55,23 @@ def test_init_power_spectrogram_from_sine_wave(sine_audio):
     assert spec.tres == winstep
     assert spec.fmin == 0
     
-
+def test_init_mel_spectrogram_from_sine_wave(sine_audio):
+    
+    duration = sine_audio.seconds()
+    winlen = duration/4
+    winstep = duration/10
+    NFFT = 256
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep, NFFT=NFFT)
+    mag = spec.image
+    for i in range(mag.shape[0]):
+        freq = np.argmax(mag[i])
+        freqHz = freq * spec.fres
+        assert freqHz == pytest.approx(2000, abs=spec.fres)
+    
+    assert spec.NFFT == NFFT
+    assert spec.tres == winstep
+    assert spec.fmin == 0
+    
 
 def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
     spec = Spectrogram(image=image_ones_10x10, NFFT=256, tres=0.1, fres=2)
