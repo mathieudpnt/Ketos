@@ -21,19 +21,6 @@ import numpy as np
 
 today = datetime.datetime.today()
 
-
-@pytest.fixture
-def audio(sine_wave):
-    rate, data = sine_wave
-    a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
-    return a
-
-@pytest.fixture
-def audio_without_time_stamp(sine_wave):
-    rate, data = sine_wave
-    a = aud.AudioSignal(rate=rate, data=data)
-    return a
-
 def test_time_stamped_audio_signal_has_correct_begin_and_end_times(audio):
     seconds = len(audio.data) / audio.rate
     duration = datetime.timedelta(seconds=seconds) 
