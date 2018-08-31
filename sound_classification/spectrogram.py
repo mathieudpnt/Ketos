@@ -362,8 +362,8 @@ class MagSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None)
-            """ Create spectrogram from audio signal
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
         
             Args:
                 signal: AudioSignal
@@ -444,8 +444,8 @@ class PowerSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None)
-            """ Create spectrogram from audio signal
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
         
             Args:
                 signal: AudioSignal
@@ -522,7 +522,7 @@ class MelSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
                  NFFT=None, timestamp=None):
 
-        self.image, self.filter_banks, self. NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -531,7 +531,7 @@ class MelSpectrogram(Spectrogram):
         self.flabels = flabels
 
     def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
-                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None)
+                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None):
         """ Create a Mel spectrogram from audio signal
     
         Args:
@@ -564,60 +564,59 @@ class MelSpectrogram(Spectrogram):
                 (Calculated if not given)
             fres: int
                 The calculated frequency resolution
-            
-            
-    """
+           
+        """
 
         # Make frames
-    frames = make_frames(signal, winlen, winstep) 
+        frames = make_frames(signal, winlen, winstep) 
 
 
-    # Apply Hamming window    
-    if hamming:
-        frames *= np.hamming(frames.shape[1])
+        # Apply Hamming window    
+        if hamming:
+            frames *= np.hamming(frames.shape[1])
 
-    # Compute fast fourier transform
-    image = np.abs(np.fft.rfft(frames, n=NFFT))
-    
+        # Compute fast fourier transform
+        image = np.abs(np.fft.rfft(frames, n=NFFT))
+        
 
-    # Number of points used for FFT
-    if NFFT is None:
-        NFFT = frames.shape[1]
-    
-    # Frequency resolution
-    fres = signal.rate / 2. / image.shape[1]
-    power_spec = image = (1.0/NFFT) * (image ** 2)
-    
-    low_freq_mel = 0
-    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
-    mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
-    hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-    bin = np.floor((NFFT + 1) * hz_points / rate)
+        # Number of points used for FFT
+        if NFFT is None:
+            NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = signal.rate / 2. / image.shape[1]
+        power_spec = image = (1.0/NFFT) * (image ** 2)
+        
+        low_freq_mel = 0
+        high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
+        mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
+        hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
+        bin = np.floor((NFFT + 1) * hz_points / rate)
 
-    fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
-    for m in range(1, n_filters + 1):
-        f_m_minus = int(bin[m - 1])   # left
-        f_m = int(bin[m])             # center
-        f_m_plus = int(bin[m + 1])    # right
+        fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
+        for m in range(1, n_filters + 1):
+            f_m_minus = int(bin[m - 1])   # left
+            f_m = int(bin[m])             # center
+            f_m_plus = int(bin[m + 1])    # right
 
-        for k in range(f_m_minus, f_m):
-            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
-        for k in range(f_m, f_m_plus):
-            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+            for k in range(f_m_minus, f_m):
+                fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+            for k in range(f_m, f_m_plus):
+                fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
 
-    filter_banks = np.dot(pow_frames, fbank.T)
-    filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
-    filter_banks = 20 * np.log10(filter_banks)  # dB
-    
-    
-    mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
-    
-    
-    (nframes, ncoeff) = mel_spec.shape
-    n = np.arange(ncoeff)
-    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
-    mel_spec *= lift  
-    
+        filter_banks = np.dot(pow_frames, fbank.T)
+        filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
+        filter_banks = 20 * np.log10(filter_banks)  # dB
+        
+        
+        mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
+        
+        
+        (nframes, ncoeff) = mel_spec.shape
+        n = np.arange(ncoeff)
+        lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
+        mel_spec *= lift  
+        
 
 
-    return mel_spec, filter_banks NFFT, fres
+        return mel_spec, filter_banks, NFFT, fres
