@@ -253,7 +253,7 @@ def sine_audio(sine_wave):
     return a
 
 @pytest.fixture
-def audio_without_time_stamp(sine_wave):
+def sine_audio_without_time_stamp(sine_wave):
     rate, data = sine_wave
     a = aud.AudioSignal(rate=rate, data=data)
     return a
