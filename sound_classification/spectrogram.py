@@ -510,16 +510,11 @@ class MelSpectrogram(Spectrogram):
                 Apply Hamming window
             NFFT: int
                 Number of points for the FFT. If None, set equal to the number of samples.
-            tres: float
-                Time resolution in Hz 
-            fres: float
-                Frequency resolution in Hz
-            fmin: float
-                Lower limit of frequency axis in Hz (default: 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
-            flabels: ?
-                ??
+            flabels: list of strings
+                List of labels for the frequency bins.
+               
                         
     """
 
