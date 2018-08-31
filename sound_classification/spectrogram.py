@@ -351,7 +351,7 @@ class MagSpectrogram(Spectrogram):
 
 
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, timestamp=None):
+                 flabels=None, hamming=True, NFFT=None):
 
         self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         self.shape = self.image.shape
