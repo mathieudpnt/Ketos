@@ -342,12 +342,6 @@ class MagSpectrogram(Spectrogram):
                 Apply Hamming window
             NFFT: int
                 Number of points for the FFT. If None, set equal to the number of samples.
-            tres: float
-                Time resolution in Hz 
-            fres: float
-                Frequency resolution in Hz
-            fmin: float
-                Lower limit of frequency axis in Hz (default: 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
             flabels: list of strings
@@ -356,7 +350,7 @@ class MagSpectrogram(Spectrogram):
     """
 
 
-    def __init__(self, audio_signal, winlen, winstep, tres, fmin, tmin, timestamp=None,
+    def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, timestamp=None):
 
         self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
