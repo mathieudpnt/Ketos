@@ -362,7 +362,7 @@ class MagSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None) )
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None)
             """ Create spectrogram from audio signal
         
             Args:
@@ -444,7 +444,7 @@ class PowerSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None) )
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None)
             """ Create spectrogram from audio signal
         
             Args:
@@ -531,7 +531,7 @@ class MelSpectrogram(Spectrogram):
         self.flabels = flabels
 
     def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
-                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None) )
+                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None)
         """ Create a Mel spectrogram from audio signal
     
         Args:
