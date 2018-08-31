@@ -350,8 +350,8 @@ class MagSpectrogram(Spectrogram):
                 Lower limit of frequency axis in Hz (default: 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
-            flabels: ?
-                ??
+            flabels: list of strings
+                List of labels for the frequency bins. 
                         
     """
 
@@ -361,9 +361,9 @@ class MagSpectrogram(Spectrogram):
 
         self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         self.shape = self.image.shape
-        self.tres = tres
-        self.tmin = tmin
-        self.fmin = fmin
+        self.tres = winstep
+        self.tmin = 0
+        self.fmin = 0
         self.timestamp = timestamp
         self.flabels = flabels
 
