@@ -43,6 +43,63 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = pp.to_decibel(x)
     assert np.ma.getmask(y) == True
 
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_rate(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+    signal = AudioSignal(rate, sig)
+
+    new_signal = pp.resample(signal=signal, new_rate=22000)
+    assert new_signal.rate == 22000
+
+    new_signal = pp.resample(signal=signal, new_rate=2000)
+    assert new_signal.rate == 2000
+
+    tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
+    r = int(new_signal.rate)
+    d = new_signal.data.astype(dtype=np.int16)
+    pp.wave.write(filename=tmp_file, rate=r, data=d)
+    read_rate, _ = pp.wave.read(tmp_file)
+
+    assert read_rate == new_signal.rate
+
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+    signal = pp.AudioSignal(rate, sig)
+
+    duration = len(sig) / rate
+
+    new_signal = pp.resample(signal=signal, new_rate=22000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+    new_signal = pp.resample(signal=signal, new_rate=2000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_shape(const_wave_file):
+    rate, sig = pp.wave.read(const_wave_file)
+    signal = pp.AudioSignal(rate, sig)
+    new_signal = pp.resample(signal=signal, new_rate=22000)
+
+    n = min(len(signal.data), len(new_signal.data))
+    for i in range(n):
+        assert signal.data[i] == new_signal.data[i]
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    rate, sig = pp.wave.read(sine_wave_file)
+    y = abs(np.fft.rfft(sig))
+    freq = np.argmax(y)
+    freqHz = freq * rate / len(sig)
+
+    signal = pp.AudioSignal(rate, sig)
+    new_signal = pp.resample(signal=signal, new_rate=22000)
+    new_y = abs(np.fft.rfft(new_signal.data))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
+
+    assert freqHz == new_freqHz
+
 @pytest.mark.test_make_frames
 def test_signal_is_padded(sine_wave):
     rate, sig = sine_wave
