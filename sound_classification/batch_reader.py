@@ -1,5 +1,6 @@
 
 from sound_classification.data_handling import get_wave_files
+from sound_classification.audio_signal import TimeStampedAudioSignal
 
 
 class BatchReader:
@@ -23,6 +24,7 @@ class BatchReader:
         self.index = 0
         self.times = list()
         self.files = list()
+        self.signal = None
         load(source=source, datetime_fmt=datetime_fmt)
 
     def load(source, datetime_fmt=None):
@@ -35,7 +37,6 @@ class BatchReader:
                 datetime_fmt: str
                     Format for parsing date-time data from file names
         """
-        self.reset()
         files.clear()
 
         # get list of file names
@@ -73,12 +74,55 @@ class BatchReader:
             return y[1]
         self.files.sort(key=sorting)
 
-    def next(int max_size=None):
-        # loop over files, read and merge, stop when size > max_size
-        # return copy of merged signal and update file counter
-        # clear local copy of merged signal
-        # return None, if there are no more files to read
+        # reset the reader
+        self.reset()
+
+    def read_file(i):
+    
+        assert i < len(files):
+            
+        f = self.files[i]
+        s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
+        s.resample(new_rate=self.rate) # resample
+
+        return s
+
+    def next(max_size=None):
+
+        if self.index == len(files) - 1:
+            return None
+
+        batch = self.signal
+        self.times.append(self.time)
+
+        # loop over files
+        n = len(files)
+        while self.index < n:
+
+            signal = read_file(self.index) # read audio file
+            self.index += 1
+            
+            delay = batch.delay(signal) # compute delay
+
+            # if delay is negative, reduce the overlap region to a managable size and make smooth transition
+            if delay < 0:
+                delay = -self.overlap / signal.rate
+
+            batch_size = batch.merged_length(signal=signal, delay=delay) # compute the size of the merged audio signal
+
+            t = batch.end() + datetime.timedelta(microseconds=1E6*delay) # start time of appended signal / new batch
+
+            if batch_size > max_size:
+                self.signal = signal
+                self.time = t
+                return batch
+            else:
+                batch.append(signal=signal, delay=delay)
+                times.append(t)
+
+        return batch
         
+                
     def finished():
         """
             Reader has read all load data.
@@ -95,8 +139,14 @@ class BatchReader:
             Go back and start reading from the beginning of the first file.
             
         """
+        # reset 
         self.index = 0
         self.times.clear()
+
+        # read the first file 
+        self.signal = read_file(0)
+        self.time = self.signal.begin()
+        self.index += 1
 
     def log():
         """
@@ -113,5 +163,29 @@ class BatchReader:
         
 
 # this function should be placed in data_handling module        
+import datetime
 def parse_datetime(fname, fmt):
-    return 0
+
+    date, time = list(), list()
+
+    # time
+    p = fname.rfind("HMS")    
+    if p >= 0:
+        for n in range(3):
+            p = p + 1 + fname[p:].find("_")
+            time.append(int(fname[p:p+2])) # hour, min, sec
+
+    # date
+    p = fname.rfind("DMY")
+    if p >= 0:
+        for n in range(3):
+            p = p + 1 + fname[p:].find("_")
+            date.append(int(fname[p:p+2])) # day, month, year
+
+    # create datetime object
+    dt = default_time_stamp
+    if len(date) == 3 and len(time) == 3:
+        dt = datetime.datetime(year=2000+date[2], month=date[1], day=date[0], hour=time[0], minute=time[1], second=time[2])
+
+    return dt
+
