@@ -25,4 +25,11 @@ today = datetime.datetime.today()
 def test_init_batch_reader_with_single_file(sine_wave_file):
     reader = BatchReader(source=sine_wave_file, rate=2000)
     assert len(reader.files) == 1
+    assert reader.files[0][0] == sine_wave_file
+
+def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
+    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file], rate=2000)
+    assert len(reader.files) == 2
+    assert reader.files[0][0] == sine_wave_file
+    assert reader.files[1][0] == sawtooth_wave_file
 
