@@ -1,4 +1,5 @@
 
+import os
 from sound_classification.data_handling import get_wave_files
 from sound_classification.audio_signal import TimeStampedAudioSignal
 
@@ -22,12 +23,13 @@ class BatchReader:
         self.rate = rate
         self.overlap = overlap
         self.index = 0
+        self.time = None
         self.times = list()
         self.files = list()
         self.signal = None
-        load(source=source, datetime_fmt=datetime_fmt)
+        self.load(source=source, datetime_fmt=datetime_fmt)
 
-    def load(source, datetime_fmt=None):
+    def load(self, source, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
@@ -37,21 +39,21 @@ class BatchReader:
                 datetime_fmt: str
                     Format for parsing date-time data from file names
         """
-        files.clear()
+        self.files.clear()
 
         # get list of file names
         fnames = list()
         if isinstance(source, list):
             fnames = source
         else:
-            if source[-3:] == '.wav':
+            if source[-4:] == '.wav':
                 fnames = [source]
             else:
                 fnames = get_wave_files(source)
         
         # check that files exist
         for f in fnames:
-            assert os.path.exists(path), " Could not find {0}".format(f)
+            assert os.path.exists(f), " Could not find {0}".format(f)
 
         # check that we have at least 1 file
         assert len(fnames) > 0, " No wave files found in {0}".format(source)
@@ -77,9 +79,9 @@ class BatchReader:
         # reset the reader
         self.reset()
 
-    def read_file(i):
+    def read_file(self, i):
     
-        assert i < len(files):
+        assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
@@ -87,16 +89,29 @@ class BatchReader:
 
         return s
 
-    def next(max_size=None):
+    def next(self, max_size=None):
+        """
+            Read next batch of audio files and merge into a single audio signal. 
+            
+            If no maximum size is given, all loaded files will be read and merged.
+            
+            Args:
+                max_size: int
+                    Maximum batch size (number of samples) 
+                    
+            Returns:
+                batch: TimeStampedAudioSignal
+                    Merged audio signal
+        """
 
-        if self.index == len(files) - 1:
+        if self.index == len(self.files) - 1:
             return None
 
         batch = self.signal
         self.times.append(self.time)
 
         # loop over files
-        n = len(files)
+        n = len(self.files)
         while self.index < n:
 
             signal = read_file(self.index) # read audio file
@@ -123,7 +138,7 @@ class BatchReader:
         return batch
         
                 
-    def finished():
+    def finished(self):
         """
             Reader has read all load data.
             
@@ -131,10 +146,10 @@ class BatchReader:
                 res: bool
                 True if all data has been process, False otherwise
         """
-        res = self.index == len(files)
+        res = self.index == len(self.files)
         return res
     
-    def reset()
+    def reset(self):
         """
             Go back and start reading from the beginning of the first file.
             
@@ -144,11 +159,12 @@ class BatchReader:
         self.times.clear()
 
         # read the first file 
-        self.signal = read_file(0)
-        self.time = self.signal.begin()
-        self.index += 1
+        if len(self.files) > 0:
+            self.signal = self.read_file(0)
+            self.time = self.signal.begin()
+            self.index += 1
 
-    def log():
+    def log(self):
         """
             Generate summary of all processed data.
 
