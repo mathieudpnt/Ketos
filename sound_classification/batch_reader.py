@@ -19,7 +19,7 @@ class BatchReader:
             overlap: int
                 Size of overlap region (number of samples) used for smoothly joining audio signals 
     """
-    def __init__(self, source, rate, datetime_fmt=None, overlap=100):
+    def __init__(self, source, rate=None, datetime_fmt=None, overlap=100):
         self.rate = rate
         self.overlap = overlap
         self.index = 0
@@ -85,7 +85,9 @@ class BatchReader:
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
-        s.resample(new_rate=self.rate) # resample
+        
+        if self.rate is not None:
+            s.resample(new_rate=self.rate) # resample
 
         return s
 
