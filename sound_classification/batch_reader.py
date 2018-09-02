@@ -27,6 +27,7 @@ class BatchReader:
         self.times = list()
         self.files = list()
         self.signal = None
+        self.eof = False
         self.load(source=source, datetime_fmt=datetime_fmt)
 
     def load(self, source, datetime_fmt=None):
@@ -105,18 +106,15 @@ class BatchReader:
                 batch: TimeStampedAudioSignal
                     Merged audio signal
         """
-
-        if self.index == len(self.files) - 1:
-            return None
+        n = len(self.files)
 
         batch = self.signal
         self.times.append(self.time)
 
         # loop over files
-        n = len(self.files)
         while self.index < n:
 
-            signal = read_file(self.index) # read audio file
+            signal = self.read_file(self.index) # read audio file
             self.index += 1
             
             delay = batch.delay(signal) # compute delay
@@ -129,13 +127,16 @@ class BatchReader:
 
             t = batch.end() + datetime.timedelta(microseconds=1E6*delay) # start time of appended signal / new batch
 
-            if batch_size > max_size:
+            if max_size is not None and batch_size > max_size:
                 self.signal = signal
                 self.time = t
                 return batch
             else:
                 batch.append(signal=signal, delay=delay)
-                times.append(t)
+                self.times.append(t)
+
+        if self.index == n:
+            self.eof = True
 
         return batch
         
@@ -145,11 +146,11 @@ class BatchReader:
             Reader has read all load data.
             
             Returns: 
-                res: bool
+                x: bool
                 True if all data has been process, False otherwise
         """
-        res = self.index == len(self.files)
-        return res
+        x = self.eof
+        return x
     
     def reset(self):
         """
@@ -159,6 +160,7 @@ class BatchReader:
         # reset 
         self.index = 0
         self.times.clear()
+        self.eof = False
 
         # read the first file 
         if len(self.files) > 0:

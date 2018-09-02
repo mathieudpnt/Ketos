@@ -34,10 +34,32 @@ def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
     assert reader.files[0][0] == sine_wave_file
     assert reader.files[1][0] == sawtooth_wave_file
 
-def test_next_batch_with_single_file_and_unlimited_batch_size(sine_wave_file):
-    reader = BatchReader(source=sine_wave_file)
-    b = reader.next()
+def test_next_batch_with_single_file(sine_wave_file):
     s = AudioSignal.from_wav(sine_wave_file)
+    reader = BatchReader(source=sine_wave_file)
+    assert reader.finished() == False
+    b = reader.next()
+    assert reader.finished() == True
     assert b.seconds() == s.seconds()
+
+def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
+    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    b = reader.next()
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    s3 = AudioSignal.from_wav(const_wave_file)
+    assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.overlap
+    assert reader.finished() == True
+
+def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtooth_wave_file):
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    n1 = len(s1.data)
+    n2 = len(s1.data)
+    max_size = int((n1+n2) / 1.5)
+    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
+    b = reader.next(max_size)
+    assert reader.finished() == False
+    b = reader.next(max_size)
     assert reader.finished() == True
 
