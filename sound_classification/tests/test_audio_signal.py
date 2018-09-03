@@ -50,7 +50,7 @@ def test_crop_audio_signal(audio):
     assert seconds_cropped/seconds == pytest.approx(8./10., rel=1./audio.rate)
     assert audio_cropped.begin() == crop_begin
 
-def test_clip_with_positive_sample_no(audio): 
+def test_clip_with_positive_sample_id(audio): 
     t0 = audio.time_stamp
     first = audio.data[0]
     last = audio.data[-1]
@@ -65,12 +65,28 @@ def test_clip_with_positive_sample_no(audio):
     assert audio.time_stamp == t0 + datetime.timedelta(microseconds=1e6*dt)
     assert s.time_stamp == t0
 
-def test_clip_with_negative_sample_no(audio): 
+def test_clip_with_sample_larger_than_length(audio): 
+    n = len(audio.data)
+    m = int(1.5*n)
+    s = audio.clip(m)
+    assert len(s.data) == n
+    assert audio.empty() == True
+
+def test_clip_with_negative_sample_id(audio): 
+    t0 = audio.begin()
+    t1 = audio.end()
+    first = audio.data[0]
+    last = audio.data[-1]
     n = len(audio.data)
     m = -int(0.2*n)
+    dt = -m / audio.rate
     s = audio.clip(m)
     assert len(s.data) == -m
     assert len(audio.data) == n+m
+    assert first == audio.data[0]
+    assert last == s.data[-1]
+    assert s.time_stamp == t1 - datetime.timedelta(microseconds=1e6*dt)
+    assert audio.time_stamp == t0
 
 def test_append_audio_signal_to_itself(audio):
     len_sum = 2 * len(audio.data)

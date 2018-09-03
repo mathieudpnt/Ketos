@@ -116,11 +116,15 @@ class AudioSignal:
         """ Check if the signal contains any data
 
             Returns:
-                res: bool
-                     True if the length of the data array is zero
-        """    
-        res = len(self.data) == 0    
-        return res
+                bool
+                    True if the length of the data array is zero or array is None
+        """  
+        if self.data is None:
+            return True
+        elif len(self.data) == 0:
+            return True
+        
+        return False
 
     def seconds(self):
         """ Signal duration in seconds
@@ -252,7 +256,7 @@ class AudioSignal:
         if i2 > i1:
             self.data = self.data[i1:i2] 
         else:
-            self.data = None            
+            self.data = None           
 
     def crop(self, begin=None, end=None):
         """ Clip audio signal
@@ -373,6 +377,9 @@ class AudioSignal:
                 Instance of AudioSignal
                     Selected part of the audio signal.
         """   
+        if s is None:
+            s = len(self.data)
+        
         if s >= 0:
             v = np.copy(self.data[:s])
             self._crop(i1=s,i2=len(self.data))
@@ -629,11 +636,14 @@ class TimeStampedAudioSignal(AudioSignal):
                 Instance of TimeStampedAudioSignal
                     Selected part of the audio signal.
         """   
+        if s is None:
+            s = len(self.data)
+
         if s >= 0:
-            t = self.time_stamp
+            t = self.begin()
         else:
-            dt = s / self.rate
-            t = self.time_stamp + datetime.timedelta(microseconds=1e6*dt) # update time stamp
+            dt = -s / self.rate
+            t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
             
         a = super(TimeStampedAudioSignal, self).clip(s)
         return self.from_audio_signal(audio_signal=a, time_stamp=t)
