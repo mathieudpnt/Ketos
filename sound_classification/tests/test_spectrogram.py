@@ -73,16 +73,18 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     assert spec.fmin == 0
     
 
-def test_cropped_spectrogram_has_correct_size(image_ones_10x10):
-    spec = Spectrogram(image=image_ones_10x10, NFFT=256, tres=0.1, fres=2)
-    spec_crop = Spectrogram.cropped(spec, flow=1.0, fhigh=5.0)
-    assert spec_crop.shape() == (10, 2)
-    spec_crop = Spectrogram.cropped(spec, flow=1.0, fhigh=6.0)
-    assert spec_crop.shape() == (10, 3)
-    spec_crop = Spectrogram.cropped(spec, flow=6.0, fhigh=8.0)
-    assert spec_crop.shape() == (10, 1)
-    spec_crop = Spectrogram.cropped(spec, tlow=0.0, thigh=0.5, flow=1.0, fhigh=6.0)
-    assert spec_crop.shape() == (5, 3)
+def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    print(spec.image.shape)
+    spec.crop(fhigh=4000)
+    print(spec.image.shape)
+    assert spec.image.shape == (57, 23)
+    spec.crop(flow=1000)
+    assert spec.image.shape == (57, 18)
+    spec.crop(tlow=1.0)
+    assert spec.image.shape == (37, 18)
+    spec.crop(thigh=2.5)
+    assert spec.image.shape == (30, 18)
 
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
     spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, tres=0.1, fres=2)
