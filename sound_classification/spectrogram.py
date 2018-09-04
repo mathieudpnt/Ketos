@@ -522,7 +522,8 @@ class MelSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
                  NFFT=None, timestamp=None):
 
-        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
+                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -605,7 +606,7 @@ class MelSpectrogram(Spectrogram):
             for k in range(f_m, f_m_plus):
                 fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
 
-        filter_banks = np.dot(pow_frames, fbank.T)
+        filter_banks = np.dot(power_spec, fbank.T)
         filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
         filter_banks = 20 * np.log10(filter_banks)  # dB
         
