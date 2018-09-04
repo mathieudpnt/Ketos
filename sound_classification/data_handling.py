@@ -24,12 +24,31 @@ import sound_classification.external.wavfile as wave_bit
 import datetime
 import datetime_glob
 
-def parse_datetime(fname, fmt):
+def parse_datetime(fname, fmt=None, replace_spaces='0'):
+    """
+        Parse date-time data from string.
+
+        Uses the datetime_glob package (https://pypi.org/project/datetime-glob/).
+
+        Returns None if parsing fails.
+        
+        Args:
+            fname: str
+                String with date-time data.
+            datetime_fmt: str
+                Date-time format
+            replace_spaces: str
+                If string contains spaces, replaces them with this string
+
+        Returns:
+            datetime
+                datetime object
+    """
 
     # replace spaces with zeros
     for i in range(len(fname)):
         if fname[i] == ' ':
-            fname = fname[:i] + '0' + fname[i+1:]
+            fname = fname[:i] + replace_spaces + fname[i+1:]
 
     if fmt is not None:
         matcher = datetime_glob.Matcher(pattern=fmt)

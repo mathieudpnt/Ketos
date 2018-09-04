@@ -69,9 +69,7 @@ class BatchReader:
 
         # time stamps
         for f in fnames:
-            t = None
-            if datetime_fmt is not None:
-                t = parse_datetime(f, datetime_fmt)
+            t = parse_datetime(f, datetime_fmt)
             if t is None:
                 t = t0
             self.files.append([f, t])
