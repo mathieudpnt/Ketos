@@ -1,5 +1,6 @@
 
 import os
+import math
 from sound_classification.data_handling import get_wave_files
 from sound_classification.audio_signal import TimeStampedAudioSignal
 
@@ -16,14 +17,14 @@ class BatchReader:
                 Sampling rate in Hz
             datetime_fmt: str
                 Format for parsing date-time data from file names
-            overlap: int
-                Size of overlap region (number of samples) used for smoothly joining audio signals 
+            n_smooth: int
+                Size of region (number of samples) used for smoothly joining audio signals 
     """
-    def __init__(self, source, rate=None, datetime_fmt=None, overlap=100):
+    def __init__(self, source, rate=None, datetime_fmt=None, n_smooth=100):
         self.rate = rate
-        self.overlap = overlap
+        self.n_smooth = n_smooth
         self.index = 0
-        self.time = None
+        self.end_batch = None
         self.times = list()
         self.files = list()
         self.signal = None
@@ -92,7 +93,7 @@ class BatchReader:
 
         return s
 
-    def next(self, max_size=None):
+    def next(self, max_size=math.inf):
         """
             Read next batch of audio files and merge into a single audio signal. 
             
@@ -108,35 +109,24 @@ class BatchReader:
         """
         n = len(self.files)
 
-        batch = self.signal
-        self.times.append(self.time)
+        batch = self.signal.clip(max_size)
 
-        # loop over files
-        while self.index < n:
-
-            signal = self.read_file(self.index) # read audio file
-            self.index += 1
-            
-            delay = batch.delay(signal) # compute delay
-
-            # if delay is negative, reduce the overlap region to a managable size and make smooth transition
-            if delay < 0:
-                delay = -self.overlap / signal.rate
-
-            batch_size = batch.merged_length(signal=signal, delay=delay) # compute the size of the merged audio signal
-
-            t = batch.end() + datetime.timedelta(microseconds=1E6*delay) # start time of appended signal / new batch
-
-            if max_size is not None and batch_size > max_size:
-                self.signal = signal
-                self.time = t
-                return batch
-            else:
-                batch.append(signal=signal, delay=delay)
-                self.times.append(t)
-
-        if self.index == n:
+        if self.signal.empty() and self.index == n:
             self.eof = True
+        
+        if batch.begin() < self.end_batch:
+            batch.time_stamp = self.end_batch
+        
+        while len(batch.data) < max_size and not self.eof:
+
+            if self.signal.empty():
+                self.signal = self.read_file(self.index) # read audio file
+                self.index += 1 # increment counter
+                    
+            batch.append(self.signal, n_smooth=100, max_length=max_size)
+            
+            if self.signal.empty() and self.index == n:
+                self.eof = True
 
         return batch
         
@@ -149,8 +139,7 @@ class BatchReader:
                 x: bool
                 True if all data has been process, False otherwise
         """
-        x = self.eof
-        return x
+        return self.eof
     
     def reset(self):
         """
@@ -165,7 +154,7 @@ class BatchReader:
         # read the first file 
         if len(self.files) > 0:
             self.signal = self.read_file(0)
-            self.time = self.signal.begin()
+            self.end_batch = self.signal.begin()
             self.index += 1
 
     def log(self):

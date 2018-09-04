@@ -1,5 +1,6 @@
 import numpy as np
 import datetime
+import math
 import scipy.io.wavfile as wave
 from scipy import interpolate
 from sound_classification.data_handling import read_wave
@@ -377,14 +378,14 @@ class AudioSignal:
                 Instance of AudioSignal
                     Selected part of the audio signal.
         """   
-        if s is None:
+        if s is None or s == math.inf:
             s = len(self.data)
         
         if s >= 0:
-            v = np.copy(self.data[:s])
+            v = self.data[:s]
             self._crop(i1=s,i2=len(self.data))
         else:
-            v = np.copy(self.data[s:])
+            v = self.data[s:]
             self._crop(i1=0,i2=len(self.data)+s)
  
         return AudioSignal(rate=self.rate, data=v, tag=self.tag)
@@ -411,7 +412,13 @@ class AudioSignal:
 
         m = len(self.data)
         n = len(signal.data)
-        l = m + n + int(delay * self.rate) - n_smooth
+        l = m + n
+        
+        if delay > 0:
+            l += int(delay * self.rate)
+        elif delay == 0:
+            l -= n_smooth
+        
         return l
 
     def add_gaussian_noise(self, sigma):
