@@ -99,6 +99,19 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 18)
 
+def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    print(spec.image.shape)
+    spec.crop(fhigh=4000)
+    print(spec.image.shape)
+    assert spec.image.shape == (57, 23)
+    spec.crop(flow=1000)
+    assert spec.image.shape == (57, 18)
+    spec.crop(tlow=1.0)
+    assert spec.image.shape == (37, 18)
+    spec.crop(thigh=2.5)
+    assert spec.image.shape == (30, 18)
+
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
     spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, tres=0.1, fres=2)
     spec_crop = Spectrogram.cropped(spec, flow=8.0, fhigh=12.0)
