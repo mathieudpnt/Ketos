@@ -44,7 +44,7 @@ def test_init_power_spectrogram_from_sine_wave(sine_audio):
     winlen = duration/4
     winstep = duration/10
     NFFT = 256
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep, NFFT=NFFT)
+    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep, NFFT=NFFT)
     mag = spec.image
     for i in range(mag.shape[0]):
         freq = np.argmax(mag[i])
