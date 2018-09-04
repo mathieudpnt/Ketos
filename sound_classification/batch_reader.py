@@ -106,7 +106,7 @@ class BatchReader:
         self.index += 1 # increment counter
         if self.index < len(self.files):
             self.signal = self.read_file(self.index) # read audio file
-            self.time = self.signal.begin() # start time
+            self.time = self.signal.begin() # start time of this audio file
         else:
             self.signal = None
             self.time = None
@@ -141,8 +141,9 @@ class BatchReader:
             if file_is_new: 
                 self.times.append(self.batch.begin()) # collect times
         else:
+            l = len(self.signal.data)
             t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=size) # add to existing batch
-            if file_is_new: 
+            if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
                 self.times.append(t) # collect times
         
         if self.signal.empty() and self.index == len(self.files) - 1: # check if there is more data
