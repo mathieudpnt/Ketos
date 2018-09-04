@@ -191,15 +191,31 @@ def test_mel_compute_average_with_axis(sine_audio):
     expected =  np.array([-259.345679, -259.345679, -259.345679])
     np.testing.assert_array_almost_equal(avg, expected)
         
-def test_spectrogram_has_correct_time_axis(image_3x3):
-    img = image_3x3
+def test_mag_spectrogram_has_correct_time_axis(sine_audio):
     now = datetime.datetime.today()
-    spec = Spectrogram(image=img, NFFT=256, tres=1, fres=2, timestamp=now)
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
     assert len(spec.taxis()) == 3
     assert spec.taxis()[0] == now
     assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
     assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)   
     
+def test_power_spectrogram_has_correct_time_axis(sine_audio):
+    now = datetime.datetime.today()
+    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
+    assert len(spec.taxis()) == 3
+    assert spec.taxis()[0] == now
+    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)   
+
+def test_mel_spectrogram_has_correct_time_axis(sine_audio):
+    now = datetime.datetime.today()
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
+    assert len(spec.taxis()) == 3
+    assert spec.taxis()[0] == now
+    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)
+
+
 @pytest.mark.test_from_signal
 def test_init_spectrogram_from_a_sine_wave(sine_wave):
     rate, sig = sine_wave
