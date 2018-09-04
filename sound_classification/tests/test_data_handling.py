@@ -236,3 +236,29 @@ def test_from1hot_works_with_multiple_input_values_at_once(input, expected):
 def test_read_wave_file(sine_wave_file):
     rate, data = dh.read_wave(sine_wave_file)
     assert rate == 44100
+
+@pytest.mark.test_parse_datetime
+def test_parse_datetime_with_urban_sharks_format():
+    fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
+    full_path = os.path.join(path_to_assets, fname)
+    pp.wave.write(full_path, rate=1000, data=np.array([0.]))
+    fmt = '*HMS_%H_*%-M_%S__DMY_%d_*%-m_%y*'
+    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    os.remove(full_path)
+    assert dt is not None
+    assert dt.year == 2084
+    assert dt.month == 2
+    assert dt.day == 23
+    assert dt.hour == 12
+    assert dt.minute == 5
+    assert dt.second == 28
+
+@pytest.mark.test_parse_datetime
+def test_parse_datetime_with_non_matching_format():
+    fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
+    full_path = os.path.join(path_to_assets, fname)
+    pp.wave.write(full_path, rate=1000, data=np.array([0.]))
+    fmt = '*HMS_%H_*%-M_%S__DMY_%d_*%-m_%y*'
+    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    os.remove(full_path)
+    assert dt == None

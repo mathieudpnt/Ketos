@@ -55,7 +55,7 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     s1 = AudioSignal.from_wav(sine_wave_file)
     s2 = AudioSignal.from_wav(sawtooth_wave_file)
     n1 = len(s1.data)
-    n2 = len(s1.data)
+    n2 = len(s2.data)
     size = int((n1+n2) / 1.5)
     reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
     b = reader.next(size)

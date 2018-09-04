@@ -1,7 +1,9 @@
 
 import os
 import math
-from sound_classification.data_handling import get_wave_files
+import pandas as pd
+import datetime
+from sound_classification.data_handling import get_wave_files, parse_datetime
 from sound_classification.audio_signal import TimeStampedAudioSignal
 
 
@@ -207,32 +209,3 @@ class BatchReader:
         fnames = [x[0] for x in self.files]
         df = pd.DataFrame(data={'time':self.times,'file':fnames})
         return df
-        
-
-# this function should be placed in data_handling module        
-import datetime
-def parse_datetime(fname, fmt):
-
-    date, time = list(), list()
-
-    # time
-    p = fname.rfind("HMS")    
-    if p >= 0:
-        for n in range(3):
-            p = p + 1 + fname[p:].find("_")
-            time.append(int(fname[p:p+2])) # hour, min, sec
-
-    # date
-    p = fname.rfind("DMY")
-    if p >= 0:
-        for n in range(3):
-            p = p + 1 + fname[p:].find("_")
-            date.append(int(fname[p:p+2])) # day, month, year
-
-    # create datetime object
-    dt = default_time_stamp
-    if len(date) == 3 and len(time) == 3:
-        dt = datetime.datetime(year=2000+date[2], month=date[1], day=date[0], hour=time[0], minute=time[1], second=time[2])
-
-    return dt
-

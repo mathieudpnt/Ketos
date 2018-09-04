@@ -21,7 +21,20 @@ import errno
 from subprocess import call
 import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
+import datetime
+import datetime_glob
 
+def parse_datetime(fname, fmt):
+
+    if fmt is not None:
+        matcher = datetime_glob.Matcher(pattern=fmt)
+        match = matcher.match(path=fname)
+        if match is None:
+            return None
+        else:
+            return match.as_datetime()
+
+    return None
 
 def get_files(path, substr, fullpath=True):
     """ Find all files in the specified directory containing the specified substring in their file name
