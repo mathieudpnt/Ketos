@@ -168,14 +168,28 @@ def test_mel_compute_average_and_median_with_cropping(sine_audio):
     med = spec.median(flow=1000, fhigh=2000)
     assert avg == pytest.approx(-259, abs=1.0)
     assert med == pytest.approx(270, abs=1.0) 
-    
-def test_compute_average_with_axis(image_3x3):
-    img = image_3x3
-    spec = Spectrogram(image=img, NFFT=256, tres=1./3., fres=2)
-    avg = spec.average(axis=0)
+
+
+def test_mag_compute_average_with_axis(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    avg = spec.average(tlow=1, thigh=1.2, axis=1)
     assert avg.shape == (3,)
-    for i in range(3):
-        assert avg[i] == (img[0,i]+img[1,i]+img[2,i])/3.
+    expected =  np.array([8618.055108, 8618.055108, 8618.055108])
+    np.testing.assert_array_almost_equal(avg, expected)
+
+def test_power_compute_average_with_axis(sine_audio):
+    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    avg = spec.average(tlow=1, thigh=1.2, axis=1)
+    assert avg.shape == (3,)
+    expected =  np.array([3567190.528536, 3567190.528536, 3567190.528536])
+    np.testing.assert_array_almost_equal(avg, expected)
+
+def test_mel_compute_average_with_axis(sine_audio):
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    avg = spec.average(tlow=1, thigh=1.2, axis=1)
+    assert avg.shape == (3,)
+    expected =  np.array([-259.345679, -259.345679, -259.345679])
+    np.testing.assert_array_almost_equal(avg, expected)
         
 def test_spectrogram_has_correct_time_axis(image_3x3):
     img = image_3x3
