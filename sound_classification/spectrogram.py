@@ -567,6 +567,7 @@ class MelSpectrogram(Spectrogram):
            
         """
 
+       
         # Make frames
         frames = make_frames(audio_signal, winlen, winstep) 
 
@@ -585,13 +586,13 @@ class MelSpectrogram(Spectrogram):
         
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
-        power_spec = image = (1.0/NFFT) * (image ** 2)
+        power_spec = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
-        high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
+        high_freq_mel = (2595 * np.log10(1 + (audio_signal.rate / 2) / 700))  # Convert Hz to Mel
         mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
         hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-        bin = np.floor((NFFT + 1) * hz_points / rate)
+        bin = np.floor((NFFT + 1) * hz_points / audio_signal.rate)
 
         fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
         for m in range(1, n_filters + 1):
