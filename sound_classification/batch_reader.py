@@ -107,16 +107,19 @@ class BatchReader:
             self.time = None
             self.eof = True
 
-    def _add_to_batch(self, max_size, new_batch):
+    def _add_to_batch(self, size, new_batch):
         """
             Add audio from current file to batch.
             
             Args:
-                max_size: int
+                size: int
                     Maximum batch size (number of samples) 
                 new_batch: bool
                     Start a new batch or add to existing
         """
+        if self.signal.empty():
+            self._read_next_file()
+
         file_is_new = self.signal.begin() == self.time # check if we have already read from this file
 
         if new_batch:
@@ -125,7 +128,7 @@ class BatchReader:
             else:
                 t_prev = None
 
-            self.batch = self.signal.clip(s=max_size) # create a new batch
+            self.batch = self.signal.clip(s=size) # create a new batch
 
             if t_prev is not None and self.batch.begin() < t_prev: 
                 self.batch.time_stamp = t_prev # ensure that new batch starts after the end of the previous batch
@@ -133,21 +136,21 @@ class BatchReader:
             if file_is_new: 
                 self.times.append(self.batch.begin()) # collect times
         else:
-            t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=max_size) # add to existing batch
+            t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=size) # add to existing batch
             if file_is_new: 
                 self.times.append(t) # collect times
         
         if self.signal.empty() and self.index == len(self.files) - 1: # check if there is more data
             self.eof = True 
 
-    def next(self, max_size=math.inf):
+    def next(self, size=math.inf):
         """
             Read next batch of audio files and merge into a single audio signal. 
             
             If no maximum size is given, all loaded files will be read and merged.
             
             Args:
-                max_size: int
+                size: int
                     Maximum batch size (number of samples) 
                     
             Returns:
@@ -159,12 +162,9 @@ class BatchReader:
         
         length = 0
         
-        while length < max_size and not self.finished():
+        while length < size and not self.finished():
 
-            if self.signal.empty():
-                self._read_next_file()
-                    
-            self._add_to_batch(max_size, new_batch=(length==0))
+            self._add_to_batch(size, new_batch=(length==0))
             
             length = len(self.batch.data)
 

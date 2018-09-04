@@ -363,16 +363,13 @@ class AudioSignal:
         if max_length is not None:
             if len_tot > max_length:
                 self._crop(i1=0, i2=max_length)
-                n = len_tot - max_length
-                m = len(signal.data)
-                if n < m:
-                    signal._crop(i1=m-n, i2=m)
-                else:
-                    signal = None 
+                i2 = len(signal.data)
+                i1 = max(0, i2 - (len_tot - max_length))
+                signal._crop(i1=i1, i2=i2)
             else:
-                signal = None
+                signal.data = None
         else:
-            signal = None
+            signal.data = None
         
         return append_time
 
