@@ -16,12 +16,14 @@
 import pytest
 from sound_classification.batch_reader import BatchReader
 from sound_classification.audio_signal import AudioSignal
+from sound_classification.audio_signal import AudioSignal
 import datetime
 import numpy as np
+import os
 
+path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
 today = datetime.datetime.today()
-
 
 def test_init_batch_reader_with_single_file(sine_wave_file):
     reader = BatchReader(source=sine_wave_file)
@@ -33,6 +35,46 @@ def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
     assert len(reader.files) == 2
     assert reader.files[0][0] == sine_wave_file
     assert reader.files[1][0] == sawtooth_wave_file
+
+@pytest.fixture
+def five_time_stamped_wave_files():
+
+    files = list()
+    N = 5
+
+    folder = path_to_assets+'/tmp/'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    for i in range(N):
+        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
+        full_path = os.path.join(folder, fname)
+        a = AudioSignal(rate=1000, data=np.zeros(500))
+        a.to_wav(full_path)
+        files.append(full_path)
+
+    yield folder
+
+    for f in files:
+        os.remove(f)
+
+def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
+    folder = five_time_stamped_wave_files
+    reader = BatchReader(source=folder)
+    assert len(reader.files) == 5
+
+def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
+    folder = five_time_stamped_wave_files
+    fmt = '{0}*HMS_%H_%M_%S__DMY_%d_%m_%y*'.format(folder)
+    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    b = reader.next(700)
+    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=0, microsecond=0)
+    b = reader.next(600)
+    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=1, microsecond=0)
+    b = reader.next(300)
+    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=2, microsecond=0)
+    b = reader.next()
+    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=2, microsecond=int(3E5))
 
 def test_next_batch_with_single_file(sine_wave_file):
     s = AudioSignal.from_wav(sine_wave_file)

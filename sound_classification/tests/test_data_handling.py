@@ -242,7 +242,7 @@ def test_parse_datetime_with_urban_sharks_format():
     fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
     pp.wave.write(full_path, rate=1000, data=np.array([0.]))
-    fmt = '*HMS_%H_*%-M_%S__DMY_%d_*%-m_%y*'
+    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(fname=fname, fmt=fmt)
     os.remove(full_path)
     assert dt is not None
@@ -258,7 +258,7 @@ def test_parse_datetime_with_non_matching_format():
     fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
     pp.wave.write(full_path, rate=1000, data=np.array([0.]))
-    fmt = '*HMS_%H_*%-M_%S__DMY_%d_*%-m_%y*'
+    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(fname=fname, fmt=fmt)
     os.remove(full_path)
     assert dt == None

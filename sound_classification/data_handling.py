@@ -26,6 +26,11 @@ import datetime_glob
 
 def parse_datetime(fname, fmt):
 
+    # replace spaces with zeros
+    for i in range(len(fname)):
+        if fname[i] == ' ':
+            fname = fname[:i] + '0' + fname[i+1:]
+
     if fmt is not None:
         matcher = datetime_glob.Matcher(pattern=fmt)
         match = matcher.match(path=fname)
@@ -56,7 +61,10 @@ def get_files(path, substr, fullpath=True):
     for f in allfiles:
         if substr in f:
             if fullpath:
-                files.append(path + f)
+                x = path
+                if path[-1] is not '/':
+                    x += '/'
+                files.append(x + f)
             else:
                 files.append(f)
     files.sort()
