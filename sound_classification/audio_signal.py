@@ -300,6 +300,10 @@ class AudioSignal:
                     Width of the smoothing/overlap region (number of samples).
                 max_length: int
                     Maximum length of the combined signal (number of samples).
+
+            Returns:
+                append_time: float
+                    Start time of appended part in seconds from the beginning of the original signal.
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
@@ -313,6 +317,8 @@ class AudioSignal:
 
         # compute total length
         len_tot = self.merged_length(signal, delay, n_smooth)
+
+        append_time = len(self.data) / self.rate
 
         # extract data from overlap region
         if delay == 0 and n_smooth > 0:
@@ -334,6 +340,8 @@ class AudioSignal:
             for i in range(overlap):
                 w = smoothclamp(i, 0, overlap-1)
                 c[i] = (1.-w) * a.data[i] + w * b.data[i]
+            
+            append_time = len(self.data) / self.rate
 
             # append
             self.data = np.append(self.data, c)
@@ -341,7 +349,8 @@ class AudioSignal:
         elif delay > 0:
             z = np.zeros(int(delay * self.rate))
             self.data = np.append(self.data, z)
-
+            append_time = len(self.data) / self.rate
+            
         self.data = np.append(self.data, signal.data) 
         
         assert len(self.data) == len_tot # check that length of merged signal is as expected
@@ -364,6 +373,8 @@ class AudioSignal:
                 signal = None
         else:
             signal = None
+        
+        return append_time
 
     def clip(self, s):
         """ Clip audio signal.
@@ -668,11 +679,17 @@ class TimeStampedAudioSignal(AudioSignal):
                     Audio signal to be merged
                 delay: float
                     Delay between the two audio signals in seconds.
+                    
+            Returns:
+                t: datetime
+                    Start time of appended part.
         """   
         if delay is None:
             delay = self.delay(signal)
 
-        return super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay, n_smooth=n_smooth, max_length=max_length)
+        dt = super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay, n_smooth=n_smooth, max_length=max_length)
+        t = self.begin() + datetime.timedelta(microseconds=1e6*dt)
+        return t
 
     def delay(self, signal):
         """ Compute delay between two time stamped audio signals, defined 

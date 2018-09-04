@@ -102,8 +102,9 @@ def test_append_audio_signal_without_time_stamp_to_itself(audio_without_time_sta
 
 def test_append_with_smoothing(audio): 
     t = audio.seconds()
-    audio.append(signal=audio, n_smooth=100)
+    at = audio.append(signal=audio, n_smooth=100)
     assert audio.seconds() == pytest.approx(2.*t - 100/audio.rate, rel=1./audio.rate)
+    assert at == audio.begin() + datetime.timedelta(microseconds=1e6*(t - 100/audio.rate))
 
 def test_append_with_delay(audio): 
     t = audio.seconds()

@@ -95,6 +95,9 @@ class BatchReader:
         return s
         
     def _read_next_file(self):
+        """
+            Read next file, increment file counter, and update time.
+        """
         self.index += 1 # increment counter
         if self.index < len(self.files):
             self.signal = self.read_file(self.index) # read audio file
@@ -105,22 +108,37 @@ class BatchReader:
             self.eof = True
 
     def _add_to_batch(self, max_size, new_batch):
+        """
+            Add audio from current file to batch.
+            
+            Args:
+                max_size: int
+                    Maximum batch size (number of samples) 
+                new_batch: bool
+                    Start a new batch or add to existing
+        """
+        file_is_new = self.signal.begin() == self.time # check if we have already read from this file
 
         if new_batch:
             if self.batch is not None:
-                t0 = self.batch.end()
+                t_prev = self.batch.end() # end time of the previous batch
             else:
-                t0 = None
+                t_prev = None
 
-            self.batch = self.signal.clip(s=max_size)
+            self.batch = self.signal.clip(s=max_size) # create a new batch
 
-            if t0 is not None and self.batch.begin() < t0:
-                self.batch.time_stamp = t0
-        else:            
-            self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=max_size)
+            if t_prev is not None and self.batch.begin() < t_prev: 
+                self.batch.time_stamp = t_prev # ensure that new batch starts after the end of the previous batch
+                
+            if file_is_new: 
+                self.times.append(self.batch.begin()) # collect times
+        else:
+            t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=max_size) # add to existing batch
+            if file_is_new: 
+                self.times.append(t) # collect times
         
-        if self.signal.empty() and self.index == len(self.files) - 1:
-            self.eof = True
+        if self.signal.empty() and self.index == len(self.files) - 1: # check if there is more data
+            self.eof = True 
 
     def next(self, max_size=math.inf):
         """
@@ -140,7 +158,6 @@ class BatchReader:
             return None
         
         length = 0
-        
         
         while length < max_size and not self.finished():
 
