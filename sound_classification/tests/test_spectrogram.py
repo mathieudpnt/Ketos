@@ -120,13 +120,12 @@ def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
         assert spec_crop.image[i,0] == 0
         assert spec_crop.image[i,1] == 1
 
-def test_compute_average_and_median_without_cropping(image_2x2):
-    img = image_2x2
-    spec = Spectrogram(image=img, NFFT=256, tres=0.5, fres=2)
+def test_mag_compute_average_and_median_without_cropping(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average()
     med = spec.median()
-    assert avg == np.average(img)
-    assert med == np.median(img)
+    assert avg == pytest.approx(8620, abs=2.0)
+    assert med == pytest.approx(970, abs=2.0)
     
 def test_compute_average_and_median_with_cropping(image_3x3):
     img = image_3x3
