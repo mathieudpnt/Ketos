@@ -19,7 +19,7 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 from sound_classification.audio_signal import AudioSignal
-from sound_classification.spectrogram import Spectrogram
+from sound_classification.spectrogram import MagSpectrogram
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -158,26 +158,16 @@ def test_window_length_can_exceed_duration(sine_wave):
     assert frames.shape[0] == 1
 
 @pytest.mark.test_normalize_spec
-def test_normalized_spectrum_has_values_between_0_and_1(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = pp.AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal, winlen, winstep)
+def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     mag_norm = pp.normalize_spec(spec.image)
     for i in range(mag_norm.shape[0]):
         val = mag_norm[0,i]
         assert 0 <= val <= 1
 
 @pytest.mark.test_crop_high_freq
-def test_cropped_spectrogram_has_correct_size_and_content(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = pp.AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal, winlen, winstep)
+def test_cropped_spectrogram_has_correct_size_and_content(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     mag = spec.image
     cut = int(0.7 * mag.shape[1])
     mag_cropped = pp.crop_high_freq(mag, cut)
@@ -272,16 +262,4 @@ def test_filter_isolated_spots_removes_single_pixels():
 
     assert np.array_equal(filtered_img, expected)
 
-@pytest.mark.test_extract_mfcc_features
-def test_extract_mfcc_features_from_sine_wave(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = pp.AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal, winlen, winstep)
-    mag = spec.image
-    filter_banks, mfcc = pp.extract_mfcc_features(mag, spec.NFFT, rate)
-    with pytest.raises(AssertionError):
-        filter_banks, mfcc = pp.extract_mfcc_features(mag, 1, rate)
-    
+
