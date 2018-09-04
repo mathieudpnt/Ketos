@@ -112,13 +112,6 @@ def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 15)
 
-def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
-    spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, tres=0.1, fres=2)
-    spec_crop = Spectrogram.cropped(spec, flow=8.0, fhigh=12.0)
-    assert spec_crop.shape() == (10, 2)
-    for i in range(10):
-        assert spec_crop.image[i,0] == 0
-        assert spec_crop.image[i,1] == 1
 
 def test_mag_compute_average_and_median_without_cropping(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
@@ -215,43 +208,31 @@ def test_mel_spectrogram_has_correct_time_axis(sine_audio):
     assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
     assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)
 
-
 @pytest.mark.test_from_signal
-def test_init_spectrogram_from_a_sine_wave(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
+def test_mag_spectrogram_has_correct_NFFT(sine_audio):
+    duration = sine_audio.seconds()
     winlen = duration/4
     winstep = duration/10
-    signal = AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal=signal, winlen=winlen, winstep=winstep)
-    mag = spec.image
-    for i in range(mag.shape[0]):
-        freq = np.argmax(mag[i])
-        freqHz = freq * spec.fres
-        assert freqHz == pytest.approx(2000, abs=spec.fres)
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    
+    assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
 @pytest.mark.test_from_signal
-def test_init_spectrogram_with_user_specified_NFFT(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
+def test_power_spectrogram_has_correct_NFFT(sine_audio):
+    duration = sine_audio.seconds()
     winlen = duration/4
     winstep = duration/10
-    signal = AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal=signal, winlen=winlen, winstep=winstep, NFFT=512)
-    mag = spec.image
-    for i in range(mag.shape[0]):
-        freq   = np.argmax(mag[i])
-        freqHz = freq * spec.fres
-        assert freqHz == pytest.approx(2000, abs=spec.fres)
+    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    
+    assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
 @pytest.mark.test_from_signal
-def test_spectrogram_has_correct_NFFT(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
+def test_mel_spectrogram_has_correct_NFFT(sine_audio):
+    duration = sine_audio.seconds()
     winlen = duration/4
     winstep = duration/10
-    signal = AudioSignal(rate, sig)
-    spec = Spectrogram.from_signal(signal=signal, winlen=winlen, winstep=winstep)
-    assert spec.NFFT == int(round(winlen * rate))
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    
+    assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
  
