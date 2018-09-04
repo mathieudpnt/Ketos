@@ -127,13 +127,6 @@ def test_mag_compute_average_and_median_without_cropping(sine_audio):
     assert avg == pytest.approx(8620, abs=2.0)
     assert med == pytest.approx(970, abs=2.0)
 
-def test_power_compute_average_and_median_without_cropping(sine_audio):
-    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    avg = spec.average()
-    med = spec.median()
-    assert avg == pytest.approx(3567190, abs=2.0)
-    assert med == pytest.approx(3677, abs=2.0)
-
 def test_mag_compute_average_and_median_without_cropping(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average()
@@ -141,6 +134,20 @@ def test_mag_compute_average_and_median_without_cropping(sine_audio):
     assert avg == pytest.approx(8620, abs=2.0)
     assert med == pytest.approx(970, abs=2.0)
     
+def test_power_compute_average_and_median_without_cropping(sine_audio):
+    spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    avg = spec.average()
+    med = spec.median()
+    assert avg == pytest.approx(3567190, abs=2.0)
+    assert med == pytest.approx(3677, abs=2.0)
+
+def test_mel_compute_average_and_median_without_cropping(sine_audio):
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    avg = spec.average()
+    med = spec.median()
+    assert avg == pytest.approx(-260, abs=2.0)
+    assert med == pytest.approx(-172, abs=2.0)
+
 def test_compute_average_and_median_with_cropping(image_3x3):
     img = image_3x3
     spec = Spectrogram(image=img, NFFT=256, tres=1./3., fres=2)
