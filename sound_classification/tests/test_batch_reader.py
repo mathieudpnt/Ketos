@@ -76,6 +76,29 @@ def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
     b = reader.next()
     assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=2, microsecond=int(3E5))
 
+def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
+    folder = five_time_stamped_wave_files
+    fmt = '{0}*HMS_%H_%M_%S__DMY_%d_%m_%y*'.format(folder)
+    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    reader.next()
+    log = reader.log()
+    for i in range(5):
+        assert log['time'][i] == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=i, microsecond=0)
+        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
+        full_path = os.path.join(folder, fname)
+        assert log['file'][i] == full_path
+    reader.reset()
+    b = reader.next(700)
+    b = reader.next(600)
+    b = reader.next(300)
+    b = reader.next()
+    for i in range(5):
+        assert log['time'][i] == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=i, microsecond=0)
+        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
+        full_path = os.path.join(folder, fname)
+        assert log['file'][i] == full_path
+
+
 def test_next_batch_with_single_file(sine_wave_file):
     s = AudioSignal.from_wav(sine_wave_file)
     reader = BatchReader(source=sine_wave_file)

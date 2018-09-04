@@ -8,9 +8,14 @@ from sound_classification.audio_signal import TimeStampedAudioSignal
 
 
 class BatchReader:
-    """ Audio file batch reader.
+    """ Reads audio file(s) and serves them in batches of specified size.
 
-        Reads audio file(s) and serves them in batches.
+        If the file names do not have date-time information, the files will 
+        be sorted in alphabetical order and smoothly joined to one another.
+
+        Otherwise, the date-time information will be extracted from the file 
+        names and used to sort the files chronologically. Any gaps will be 
+        filled with zeros.
 
         Args:
             source: str or list
