@@ -66,7 +66,7 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     for i in range(mag.shape[0]):
         freq = np.argmax(mag[i])
         freqHz = freq * spec.fres
-        assert freqHz == pytest.approx(2000, abs=spec.fres)
+        assert freqHz == pytest.approx(1360, abs=spec.fres)
     
     assert spec.NFFT == NFFT
     assert spec.tres == winstep
@@ -104,13 +104,13 @@ def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
     print(spec.image.shape)
     spec.crop(fhigh=4000)
     print(spec.image.shape)
-    assert spec.image.shape == (57, 23)
+    assert spec.image.shape == (57, 20)
     spec.crop(flow=1000)
-    assert spec.image.shape == (57, 18)
+    assert spec.image.shape == (57, 15)
     spec.crop(tlow=1.0)
-    assert spec.image.shape == (37, 18)
+    assert spec.image.shape == (37, 15)
     spec.crop(thigh=2.5)
-    assert spec.image.shape == (30, 18)
+    assert spec.image.shape == (30, 15)
 
 def test_cropped_spectrogram_has_correct_position(image_zeros_and_ones_10x10):
     spec = Spectrogram(image=image_zeros_and_ones_10x10, NFFT=256, tres=0.1, fres=2)
