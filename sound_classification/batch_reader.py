@@ -23,11 +23,12 @@ class BatchReader:
     def __init__(self, source, rate=None, datetime_fmt=None, n_smooth=100):
         self.rate = rate
         self.n_smooth = n_smooth
-        self.index = 0
-        self.end_batch = None
         self.times = list()
         self.files = list()
+        self.batch = None
         self.signal = None
+        self.index = -1
+        self.time = None
         self.eof = False
         self.load(source=source, datetime_fmt=datetime_fmt)
 
@@ -92,6 +93,34 @@ class BatchReader:
             s.resample(new_rate=self.rate) # resample
 
         return s
+        
+    def _read_next_file(self):
+        self.index += 1 # increment counter
+        if self.index < len(self.files):
+            self.signal = self.read_file(self.index) # read audio file
+            self.time = self.signal.begin() # start time
+        else:
+            self.signal = None
+            self.time = None
+            self.eof = True
+
+    def _add_to_batch(self, max_size, new_batch):
+
+        if new_batch:
+            if self.batch is not None:
+                t0 = self.batch.end()
+            else:
+                t0 = None
+
+            self.batch = self.signal.clip(s=max_size)
+
+            if t0 is not None and self.batch.begin() < t0:
+                self.batch.time_stamp = t0
+        else:            
+            self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=max_size)
+        
+        if self.signal.empty() and self.index == len(self.files) - 1:
+            self.eof = True
 
     def next(self, max_size=math.inf):
         """
@@ -107,28 +136,22 @@ class BatchReader:
                 batch: TimeStampedAudioSignal
                     Merged audio signal
         """
-        n = len(self.files)
-
-        batch = self.signal.clip(max_size)
-
-        if self.signal.empty() and self.index == n:
-            self.eof = True
+        if self.finished():
+            return None
         
-        if batch.begin() < self.end_batch:
-            batch.time_stamp = self.end_batch
+        length = 0
         
-        while len(batch.data) < max_size and not self.eof:
+        
+        while length < max_size and not self.finished():
 
             if self.signal.empty():
-                self.signal = self.read_file(self.index) # read audio file
-                self.index += 1 # increment counter
+                self._read_next_file()
                     
-            batch.append(self.signal, n_smooth=100, max_length=max_size)
+            self._add_to_batch(max_size, new_batch=(length==0))
             
-            if self.signal.empty() and self.index == n:
-                self.eof = True
+            length = len(self.batch.data)
 
-        return batch
+        return self.batch
         
                 
     def finished(self):
@@ -147,15 +170,13 @@ class BatchReader:
             
         """
         # reset 
-        self.index = 0
+        self.index = -1
         self.times.clear()
         self.eof = False
+        self.batch = None
 
         # read the first file 
-        if len(self.files) > 0:
-            self.signal = self.read_file(0)
-            self.end_batch = self.signal.begin()
-            self.index += 1
+        self._read_next_file()
 
     def log(self):
         """
