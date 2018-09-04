@@ -19,16 +19,18 @@ import datetime
 import numpy as np
 
 
-today = datetime.datetime.today()
+
 
 def test_time_stamped_audio_signal_has_correct_begin_and_end_times(sine_audio):
     audio = sine_audio
-    seconds = len(audio.data) / audio.rate
-    duration = datetime.timedelta(seconds=seconds) 
+    today = datetime.datetime.today()
+    audio.time_stamp = today 
+    seconds = sine_audio.seconds()
+    duration = datetime.timedelta(seconds=seconds)
     assert audio.begin() == today
     assert audio.end() == today + duration
 
-def test_crop_audio_signalsine_audio):
+def test_crop_audio_signal(sine_audio):
     audio = sine_audio
     seconds = len(audio.data) / audio.rate
     crop_begin = audio.begin() + datetime.timedelta(seconds=seconds/10.)
