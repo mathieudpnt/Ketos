@@ -654,7 +654,7 @@ class MelSpectrogram(Spectrogram):
 
         return mel_spec, filter_banks, NFFT, fres
 
-       def plot(self,filter_bank=False, decibel=False):
+    def plot(self,filter_bank=False, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Note: The resulting figure can be shown (fig.show())
