@@ -347,9 +347,9 @@ class Spectrogram():
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         if decibel:
-            ax.colorbar(format='%+2.0f dB'))
+            ax.colorbar(format='%+2.0f dB')
         else:
-            ax.colorbar(format='%+2.0f'))    
+            ax.colorbar(format='%+2.0f')  
         return fig
 
 
@@ -675,7 +675,7 @@ class MelSpectrogram(Spectrogram):
             img = self.filter_banks
         else:
             img = self.image
-            
+
         if decibel:
             from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
@@ -686,7 +686,7 @@ class MelSpectrogram(Spectrogram):
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         if decibel:
-            ax.colorbar(format='%+2.0f dB'))
+            ax.colorbar(format='%+2.0f dB')
         else:
-            ax.colorbar(format='%+2.0f'))    
+            ax.colorbar(format='%+2.0f')  
         return fig
