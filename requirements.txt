@@ -11,6 +11,7 @@ certifi==2018.4.16
 chardet==3.0.4
 coverage==4.5.1
 cycler==0.10.0
+datetime-glob==1.0.7
 decorator==4.3.0
 docutils==0.14
 entrypoints==0.2.3
@@ -32,6 +33,7 @@ jupyter-client==5.2.3
 jupyter-console==5.2.0
 jupyter-core==4.4.0
 kiwisolver==1.0.1
+lexery==1.1.0
 librosa==0.6.1
 llvmlite==0.24.0
 Markdown==2.6.11
@@ -94,4 +96,3 @@ wcwidth==0.1.7
 webencodings==0.5.1
 Werkzeug==0.14.1
 widgetsnbextension==3.4.1
-
