@@ -75,9 +75,7 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
 
 def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    print(spec.image.shape)
     spec.crop(fhigh=4000)
-    print(spec.image.shape)
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
@@ -88,9 +86,7 @@ def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
 
 def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    print(spec.image.shape)
     spec.crop(fhigh=4000)
-    print(spec.image.shape)
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
@@ -101,9 +97,7 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
 
 def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    print(spec.image.shape)
     spec.crop(fhigh=4000)
-    print(spec.image.shape)
     assert spec.image.shape == (57, 20)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 15)

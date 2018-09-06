@@ -140,7 +140,6 @@ def const_wave_file(const_wave):
     yield wav_file
     os.remove(wav_file)
 
-
 @pytest.fixture
 def image_2x2():
     image = np.array([[1,2],[3,4]], np.float32)
