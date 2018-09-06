@@ -93,10 +93,10 @@ def test_append_audio_signal_to_itself(sine_audio):
     
 
 
-def test_append_audio_signal_without_time_stamp_to_itself(audio_without_time_stamp): 
-    len_sum = 2 * len(audio_without_time_stamp.data)
-    audio_without_time_stamp.append(audio_without_time_stamp)
-    assert len(audio_without_time_stamp.data) == len_sum
+def test_append_audio_signal_without_time_stamp_to_itself(sine_audio_without_time_stamp): 
+    len_sum = 2 * len(sine_audio_without_time_stamp.data)
+    sine_audio_without_time_stamp.append(sine_audio_without_time_stamp)
+    assert len(sine_audio_without_time_stamp.data) == len_sum
 
 def test_append_with_smoothing(sine_audio):
     audio = sine_audio
