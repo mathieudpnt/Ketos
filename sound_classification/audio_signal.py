@@ -1,6 +1,8 @@
 import numpy as np
 import datetime
+import math
 import scipy.io.wavfile as wave
+from scipy import interpolate
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
 import matplotlib.pyplot as plt
@@ -115,11 +117,15 @@ class AudioSignal:
         """ Check if the signal contains any data
 
             Returns:
-                res: bool
-                     True if the length of the data array is zero
-        """    
-        res = len(self.data) == 0    
-        return res
+                bool
+                    True if the length of the data array is zero or array is None
+        """  
+        if self.data is None:
+            return True
+        elif len(self.data) == 0:
+            return True
+        
+        return False
 
     def seconds(self):
         """ Signal duration in seconds
@@ -204,8 +210,8 @@ class AudioSignal:
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Signal')
 
-    def _cropped_data(self, begin=None, end=None):
-        """ Select a portion of the audio data
+    def _selection(self, begin, end):
+        """ Convert time range to sample range.
 
             Args:
                 begin: float
@@ -214,9 +220,12 @@ class AudioSignal:
                     End time of selection window in seconds
 
             Returns:
-                cropped_data: numpy array
-                   Selected portion of the audio data
+                i1: int
+                    Start sample no.
+                i2: int
+                    End sample no.
         """   
+
         i1 = 0
         i2 = len(self.data)
 
@@ -230,12 +239,25 @@ class AudioSignal:
             i2 = int(end * self.rate)
             i2 = min(i2, len(self.data))
 
-        cropped_data = list()
-        if i2 > i1:
-            cropped_data = self.data[i1:i2] # crop data
+        return i1, i2
 
-        cropped_data = np.array(cropped_data)
-        return cropped_data        
+    def _crop(self, i1, i2):
+        """ Select a portion of the audio data
+
+            Args:
+                begin: float
+                    Start time of selection window in seconds
+                end: float
+                    End time of selection window in seconds
+
+            Returns:
+                cropped_data: numpy array
+                   Selected portion of the audio data
+        """   
+        if i2 > i1:
+            self.data = self.data[i1:i2] 
+        else:
+            self.data = None           
 
     def crop(self, begin=None, end=None):
         """ Clip audio signal
@@ -246,52 +268,69 @@ class AudioSignal:
                 end: float
                     End time of selection window in seconds
         """   
-        self.data = self._cropped_data(begin, end)
+        i1, i2 = self._selection(begin, end)
+        self._crop(i1, i2)
 
-    def append(self, signal, overlap_sec=0):
-        """ Merge with another audio signal.
+    def append(self, signal, delay=None, n_smooth=0, max_length=None):
+        """ Append another audio signal to this signal.
 
             The two audio signals must have the same samling rate.
-
-            If overlap_sec < 0, the two signals are smooth transition is made 
-            between the two signals in the overlap region.
+            
+            If delay is None or 0, a smooth transition is made between the 
+            two signals. The width of the smoothing region (number of samples), 
+            where the two signals overlap, is given by n_smooth.
 
             Note that the current implementation of the smoothing procedure is 
             quite slow, so it is advisable to use small overlap regions.
 
-            If overlap_sec == 0, the two signals are joint without any smoothing.
+            If n_smooth is 0, the two signals are joint without any smoothing.
 
-            If overlap_sec > 0, a signal with zero sound intensity and duration 
-            -overlap_sec is added between the two audio signals. 
+            If delay > 0, a signal with zero sound intensity and duration 
+            delay is added between the two audio signals. 
+
+            If the length of the combined signal exceeds max_length, only the 
+            first max_length samples will be kept. 
 
             Args:
                 signal: AudioSignal
-                    Audio signal to be merged
-                overlap_sec: float
-                    Overlap between the two audio signals in seconds.
+                    Audio signal to be merged.
+                delay: float
+                    Delay between the two audio signals in seconds. 
+                n_smooth: int
+                    Width of the smoothing/overlap region (number of samples).
+                max_length: int
+                    Maximum length of the combined signal (number of samples).
+
+            Returns:
+                append_time: float
+                    Start time of appended part in seconds from the beginning of the original signal.
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
-        # make hard copy
-        d = signal.data[:]
+        # if appending signal to itself, make a copy
+        if signal is self:
+            signal = self.copy()
 
-        overlap = int(overlap_sec * self.rate)
+        if delay is None:
+            delay = 0
+        delay = max(0, delay)
+
+        # compute total length
+        len_tot = self.merged_length(signal, delay, n_smooth)
+
+        append_time = len(self.data) / self.rate
 
         # extract data from overlap region
-        if overlap > 0:
+        if delay == 0 and n_smooth > 0:
 
-            overlap = min(overlap, len(self.data))
-            overlap = min(overlap, len(d))
+            overlap = min(n_smooth, len(self.data))
+            overlap = min(n_smooth, len(signal.data))
 
             # signal 1
-            a = np.empty(overlap)
-            np.copyto(a, self.data[-overlap:])
-            self.data = np.delete(self.data, np.s_[-overlap:])
+            a = self.clip(-overlap)
 
             # signal 2
-            b = np.empty(overlap)
-            np.copyto(b, d[:overlap])
-            d = np.delete(d, np.s_[:overlap])
+            b = signal.clip(overlap)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
@@ -300,16 +339,95 @@ class AudioSignal:
             c = np.empty(overlap)
             for i in range(overlap):
                 w = smoothclamp(i, 0, overlap-1)
-                c[i] = (1.-w) * a[i] + w * b[i]
+                c[i] = (1.-w) * a.data[i] + w * b.data[i]
+            
+            append_time = len(self.data) / self.rate
 
             # append
             self.data = np.append(self.data, c)
 
-        elif overlap < 0:
-            z = np.zeros(-overlap)
+        elif delay > 0:
+            z = np.zeros(int(delay * self.rate))
             self.data = np.append(self.data, z)
+            append_time = len(self.data) / self.rate
+            
+        self.data = np.append(self.data, signal.data) 
+        
+        assert len(self.data) == len_tot # check that length of merged signal is as expected
 
-        self.data = np.append(self.data, d) 
+        # mask inserted zeros
+        if delay > 0:
+            self.data = np.ma.masked_values(self.data, 0)
+
+        # remove all appended data from signal        
+        if max_length is not None:
+            if len_tot > max_length:
+                self._crop(i1=0, i2=max_length)
+                i2 = len(signal.data)
+                i1 = max(0, i2 - (len_tot - max_length))
+                signal._crop(i1=i1, i2=i2)
+            else:
+                signal.data = None
+        else:
+            signal.data = None
+        
+        return append_time
+
+    def clip(self, s):
+        """ Clip audio signal.
+
+            After clipping, this instance contains the remaining part of the audio signal.        
+
+            Args:
+                s: int
+                    If s >= 0, select samples [:s]. If s < 0, select samples [-s:]
+                    
+            Returns:
+                Instance of AudioSignal
+                    Selected part of the audio signal.
+        """   
+        if s is None or s == math.inf:
+            s = len(self.data)
+        
+        if s >= 0:
+            v = self.data[:s]
+            self._crop(i1=s,i2=len(self.data))
+        else:
+            v = self.data[s:]
+            self._crop(i1=0,i2=len(self.data)+s)
+ 
+        return AudioSignal(rate=self.rate, data=v, tag=self.tag)
+
+    def merged_length(self, signal=None, delay=None, n_smooth=None):
+        """ Compute sample size of merged signal.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                delay: float
+                    Delay between the two audio signals in seconds.
+        """   
+        if signal is None:
+            return len(self.data)
+
+        assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
+
+        if delay is None:
+            delay = 0
+            
+        if n_smooth is None:
+            n_smooth = 0
+
+        m = len(self.data)
+        n = len(signal.data)
+        l = m + n
+        
+        if delay > 0:
+            l += int(delay * self.rate)
+        elif delay == 0:
+            l -= n_smooth
+        
+        return l
 
     def add_gaussian_noise(self, sigma):
         """ Add Gaussian noise to the signal
@@ -386,6 +504,16 @@ class AudioSignal:
         self.rate = new_rate
         self.data = new_sig
 
+    def copy(self):
+        """ Makes a copy of the time stamped audio signal.
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Copied signal
+        """                
+        data = np.copy(self.data)
+        return AudioSignal(rate=self.rate, data=data, tag=self.tag)
+
 def smoothclamp(x, mi, mx): 
         """ Smoothing function
         """    
@@ -425,6 +553,33 @@ class TimeStampedAudioSignal(AudioSignal):
         """
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
+    @classmethod
+    def from_wav(cls, path, time_stamp):
+        """ Generate time stamped audio signal from wave file
+
+            Args:
+                path: str
+                    Path to input wave file
+                time_stamp: datetime
+                    Global time stamp marking start of audio recording
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Time stamped audio signal from wave file
+        """        
+        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
+
+    def copy(self):
+        """ Makes a copy of the time stamped audio signal.
+
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Copied signal
+        """                
+        signal = super(TimeStampedAudioSignal, self).copy()
+        return self.from_audio_signal(audio_signal=signal, time_stamp=self.time_stamp)
+
     def begin(self):
         """ Get global time stamp marking the start of the audio signal.
 
@@ -446,24 +601,109 @@ class TimeStampedAudioSignal(AudioSignal):
         delta = datetime.timedelta(seconds=duration)
         t = self.begin() + delta
         return t 
+
+    def _crop(self, i1, i2):
+        """ Crop time-stamped audio signal using [i1, i2] as cropping range
+
+            Args:
+                i1: int
+                    Lower bound of cropping interval
+                i2: int
+                    Upper bound of cropping interval
+        """   
+        dt = max(0, i1/self.rate)
+        dt = min(self.seconds(), dt)
+        self.time_stamp += datetime.timedelta(microseconds=1e6*dt) # update time stamp
+
+        super(TimeStampedAudioSignal, self)._crop(i1, i2)   # crop signal
+        
     
     def crop(self, begin=None, end=None):
-        """ Clip audio signal
+        """ Crop time-stamped audio signal
 
             Args:
                 begin: datetime
-                    Start data and time of selection window
+                    Start date and time of selection window
                 end: datetime
                     End date and time of selection window
         """   
-        begin_sec, end_sec = None, None
+        b, e = None, None
         
         if begin is not None:
-            begin_sec = (begin - self.begin()).total_seconds()
+            b = (begin - self.begin()).total_seconds()
         if end is not None:
-            end_sec = (end - self.begin()).total_seconds()
-        
-        self.data = self._cropped_data(begin_sec, end_sec)
+            e = (end - self.begin()).total_seconds()
 
-        if begin_sec > 0 and len(self.data) > 0:
-            self.time_stamp += datetime.timedelta(seconds=begin_sec) # update time stamp
+        i1, i2 = self._selection(b, e)
+        
+        self._crop(i1, i2)
+
+    def clip(self, s):
+        """ Clip time-stamped audio signal.
+
+            After clipping, this instance contains the remaining part of the audio signal.        
+
+            Args:
+                s: int
+                    If s >= 0, select samples [:s]. If s < 0, select samples [-s:]
+                    
+            Returns:
+                Instance of TimeStampedAudioSignal
+                    Selected part of the audio signal.
+        """   
+        if s is None:
+            s = len(self.data)
+
+        if s >= 0:
+            t = self.begin()
+        else:
+            dt = -s / self.rate
+            t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
+            
+        a = super(TimeStampedAudioSignal, self).clip(s)
+        return self.from_audio_signal(audio_signal=a, time_stamp=t)
+
+    def append(self, signal, delay=None, n_smooth=0, max_length=None):
+        """ Combine two time-stamped audio signals.
+
+            If delay is None (default), the delay will be determined from the 
+            two audio signals' time stamps.
+
+            See :meth:`audio_signal.append` for more details.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be merged
+                delay: float
+                    Delay between the two audio signals in seconds.
+                    
+            Returns:
+                t: datetime
+                    Start time of appended part.
+        """   
+        if delay is None:
+            delay = self.delay(signal)
+
+        dt = super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay, n_smooth=n_smooth, max_length=max_length)
+        t = self.begin() + datetime.timedelta(microseconds=1e6*dt)
+        return t
+
+    def delay(self, signal):
+        """ Compute delay between two time stamped audio signals, defined 
+            as the time difference between the end of the first signal and 
+            the beginning of the second signal.
+
+            Args:
+                signal: TimeStampedAudioSignal
+                    Audio signal
+
+            Returns:
+                d: float
+                    Delay in seconds
+        """   
+        d = None
+        
+        if isinstance(signal, TimeStampedAudioSignal):
+            d = (signal.begin() - self.end()).total_seconds()
+        
+        return d
