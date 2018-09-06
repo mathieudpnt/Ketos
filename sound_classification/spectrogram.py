@@ -346,6 +346,10 @@ class Spectrogram():
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
+        if decibel:
+            ax.colorbar(format='%+2.0f dB'))
+        else:
+            ax.colorbar(format='%+2.0f'))    
         return fig
 
 
