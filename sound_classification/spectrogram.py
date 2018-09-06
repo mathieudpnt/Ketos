@@ -320,7 +320,34 @@ class Spectrogram():
         sigmaY = fsigma / self.fres
         
         self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
-        
+    
+    def plot(self, decibel=False):
+        """ Plot the spectrogram with proper axes ranges and labels.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                decibel: bool
+                Use linear (if False) or logarithmic scale (if True)
+            
+            Returns:
+            fig: matplotlib.figure.Figure
+            A figure object.
+
+        """
+        img = self.image
+        if decibel:
+            from sound_classification.pre_processing import to_decibel
+            img = to_decibel(img)
+
+        fig, ax = plt.subplots()
+        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        return fig
+
 
 class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram
