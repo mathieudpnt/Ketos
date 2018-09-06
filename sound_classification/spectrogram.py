@@ -653,3 +653,40 @@ class MelSpectrogram(Spectrogram):
 
 
         return mel_spec, filter_banks, NFFT, fres
+
+       def plot(self,filter_bank=False, decibel=False):
+        """ Plot the spectrogram with proper axes ranges and labels.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                decibel: bool
+                    Use linear (if False) or logarithmic scale (if True)
+                filter_bank: bool
+                    Plot the filter banks if True. If false (default) print the mel spectrogram.
+            
+            Returns:
+            fig: matplotlib.figure.Figure
+            A figure object.
+
+        """
+        if filter_bank:
+            img = self.filter_banks
+        else:
+            img = self.image
+            
+        if decibel:
+            from sound_classification.pre_processing import to_decibel
+            img = to_decibel(img)
+
+        fig, ax = plt.subplots()
+        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        if decibel:
+            ax.colorbar(format='%+2.0f dB'))
+        else:
+            ax.colorbar(format='%+2.0f'))    
+        return fig
