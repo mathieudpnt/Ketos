@@ -1,4 +1,6 @@
+from abc import ABC
 import numpy as np
+from scipy.fftpack import dct
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
@@ -8,6 +10,8 @@ from sound_classification.pre_processing import make_frames
 
 class Spectrogram():
     """ Spectrogram
+
+        Parent class for spectogram subclasses.
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -15,41 +19,33 @@ class Spectrogram():
         Each axis is characterized by a starting value (tmin and fmin)
         and a resolution or bin size (tres and fres).
 
-        Args:
-            image: 2d numpy array
-                Spectrogram image 
+        Attributes:
+            signal: AudioSignal object
+                Audio signal 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
             NFFT: int
-                Number of points used for the Fast-Fourier Transform
-            tres: float
-                Time resolution in Hz 
-            fres: float
-                Frequency resolution in Hz
-            fmin: float
-                Lower limit of frequency axis in Hz (default: 0)
+                Number of points for the FFT. If None, set equal to the number of samples.
             timestamp: datetime
                 Spectrogram time stamp (default: None)
-    """
-
-
-    def __init__(self, image, NFFT, tres, fres, fmin=0, timestamp=None, flabels=None):
-
-        self.image = image
-        self.NFFT = NFFT
-        self.tres = tres
-        self.tmin = 0
-        self.fres = fres
-        self.fmin = fmin
-        self.timestamp = timestamp
-        self.flabels = flabels
-
-    @classmethod
-    def cropped(cls, spec, tlow=None, thigh=None, flow=None, fhigh=None):
-        cropped_spec = cls(image=spec.image, NFFT=spec.NFFT, tres=spec.tres, fres=spec.fres, fmin=spec.fmin, timestamp=spec.timestamp, flabels=spec.flabels)
-        cropped_spec.crop(tlow, thigh, flow, fhigh)
-        return cropped_spec
-
-    @classmethod
-    def from_signal(cls, signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+"""
+    def __init__(self):
+        
+        self.image = np.zeros((2,2))
+        self.shape = self.image.shape
+        self.NFFT = 0
+        self.tres = 0
+        self.tmin = 1
+        self.fres = 1
+        self.fmin = 0
+        self.timestamp = None
+        self.flabels = None
+    
+    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
         """ Create spectrogram from audio signal
         
             Args:
@@ -67,11 +63,12 @@ class Spectrogram():
                     Spectrogram time stamp (default: None)
 
             Returns:
-                Instance of Spectrogram
+                (image, NFFT, fres):numpy.array,int, int
+                A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
         """
 
-        # Make frames
-        frames = make_frames(signal, winlen, winstep) 
+         # Make frames
+        frames = make_frames(audio_signal, winlen, winstep) 
 
         # Apply Hamming window    
         if hamming:
@@ -85,12 +82,10 @@ class Spectrogram():
             NFFT = frames.shape[1]
         
         # Frequency resolution
-        fres = signal.rate / 2. / image.shape[1]
+        fres = audio_signal.rate / 2. / image.shape[1]
 
-        # Create spectrogram instance
-        spec = cls(image=image, NFFT=NFFT, tres=winstep, fres=fres, timestamp=timestamp)
+        return image, NFFT, fres
 
-        return spec
 
     def _find_tbin(self, t):
         """ Find bin corresponding to given time.
@@ -154,19 +149,17 @@ class Spectrogram():
         return self.tbins() * self.tres
 
         
-    def shape(self):
-        return self.image.shape
-
-
+    #TODO: handle datetime=None
     def taxis(self):
-        times = list()
-        delta = datetime.timedelta(seconds=self.tres)
-        t = self.timestamp + datetime.timedelta(seconds=self.tmin)
-        for _ in range(self.tbins()):
-            times.append(t)
-            t += delta
-        
-        return times
+        if self.timestamp is not None:
+            times = list()
+            delta = datetime.timedelta(seconds=self.tres)
+            t = self.timestamp + datetime.timedelta(seconds=self.tmin)
+            for _ in range(self.tbins()):
+                times.append(t)
+                t += delta
+            
+            return times
 
 
     def faxis(self):
@@ -320,25 +313,7 @@ class Spectrogram():
         med = np.median(m, axis=axis)
 
         return med
-
-    def plot(self, decibel=False):
-        """ Plot the spectrogram with proper axes ranges and labels
-
-            Args:
-                decibel: bool
-                Use linear or logarithmic scale
-        """
-        img = self.image
-        if decibel:
-            from sound_classification.pre_processing import to_decibel
-            img = to_decibel(img)
-
-        plt.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
-        ax = plt.gca()
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Frequency (Hz)')
-        plt.colorbar()
-        
+            
     def blur_gaussian(self, tsigma, fsigma):
         """ Blur the spectrogram using a Gaussian filter.
 
@@ -387,4 +362,323 @@ class Spectrogram():
         sigmaY = fsigma / self.fres
         
         self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
+    
+    def plot(self, decibel=False):
+        """ Plot the spectrogram with proper axes ranges and labels.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                decibel: bool
+                Use linear (if False) or logarithmic scale (if True)
+            
+            Returns:
+            fig: matplotlib.figure.Figure
+            A figure object.
+
+        """
+        img = self.image
+        if decibel:
+            from sound_classification.pre_processing import to_decibel
+            img = to_decibel(img)
+
+        fig, ax = plt.subplots()
+        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        if decibel:
+            ax.colorbar(format='%+2.0f dB')
+        else:
+            ax.colorbar(format='%+2.0f')  
+        return fig
+
+
+class MagSpectrogram(Spectrogram):
+    """ Magnitude Spectrogram
+    
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
         
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and fres).
+
+        Args:
+            signal: AudioSignal
+                    And instance of the :class:`audio_signal.AudioSignal` class 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list of strings
+                List of labels for the frequency bins. 
+                      
+    """
+
+
+    def __init__(self, audio_signal, winlen, winstep, timestamp=None,
+                 flabels=None, hamming=True, NFFT=None):
+
+        self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.shape = self.image.shape
+        self.tres = winstep
+        self.tmin = 0
+        self.fmin = 0
+        self.timestamp = timestamp
+        self.flabels = flabels
+
+
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+
+            Returns:
+                (image, NFFT, fres):numpy.array,int, int
+                A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
+        """
+
+        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        
+        return image, NFFT, fres
+
+
+class PowerSpectrogram(Spectrogram):
+    """ Creates a Power Spectrogram from an :class:`audio_signal.AudioSignal`
+    
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
+        
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and fres).
+
+        Args:
+            signal: AudioSignal
+                    And instance of the :class:`audio_signal.AudioSignal` class 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels:list of strings
+                List of labels for the frequency bins.
+                        
+    """
+
+
+    def __init__(self, audio_signal, winlen, winstep,flabels=None,
+                 hamming=True, NFFT=None, timestamp=None):
+
+        self.image, self. NFFT, self.fres = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.shape = self.image.shape
+        self.tres = winstep
+        self.tmin = 0
+        self.fmin = 0
+        self.timestamp = timestamp
+        self.flabels = flabels
+
+
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+        """ Create spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                winlen: float
+                    Window size in seconds
+                winstep: float
+                    Step size in seconds 
+                hamming: bool
+                    Apply Hamming window
+                NFFT: int
+                    Number of points for the FFT. If None, set equal to the number of samples.
+                timestamp: datetime
+                    Spectrogram time stamp (default: None)
+
+            Returns:
+                (power_spec, NFFT, fres):numpy.array,int, int
+                A tuple with the resulting power spectrogram, the NFFT and the frequency resolution
+        """
+
+        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        power_spec = (1.0/NFFT) * (image ** 2)
+        
+        return power_spec, NFFT, fres
+
+       
+    
+class MelSpectrogram(Spectrogram):
+    """ Creates a Mel Spectrogram from an :class:`audio_signal.AudioSignal`
+    
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
+        
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and fres).
+
+        Args:
+            signal: AudioSignal
+                    And instance of the :class:`audio_signal.AudioSignal` class 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list of strings
+                List of labels for the frequency bins.
+               
+                        
+    """
+
+
+    def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
+                 NFFT=None, timestamp=None):
+
+        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
+                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp)
+        self.shape = self.image.shape
+        self.tres = winstep
+        self.tmin = 0
+        self.fmin = 0
+        self.timestamp = timestamp
+        self.flabels = flabels
+
+    def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
+                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None):
+        """ Create a Mel spectrogram from audio signal
+    
+        Args:
+            signal: AudioSignal
+                Audio signal 
+            winlen: float
+                Window size in seconds
+            winstep: float
+                Step size in seconds 
+            n_filters: int
+                The number of filters in the filter bank.
+            n_ceps: int
+                The number of Mel-frequency cepstrums.
+            cep_lifters: int
+                The number of cepstum filters.
+            hamming: bool
+                Apply Hamming window
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+
+        Returns:
+            mel_spec: numpy.array
+                Array containing the Mel spectrogram
+            filter_banks: numpy.array
+                Array containing the filter banks
+            NFFT: int
+                The number of points used for creating the magnitude spectrogram
+                (Calculated if not given)
+            fres: int
+                The calculated frequency resolution
+           
+        """
+
+        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        power_spec = (1.0/NFFT) * (image ** 2)
+        
+        low_freq_mel = 0
+        high_freq_mel = (2595 * np.log10(1 + (audio_signal.rate / 2) / 700))  # Convert Hz to Mel
+        mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
+        hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
+        bin = np.floor((NFFT + 1) * hz_points / audio_signal.rate)
+
+        fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
+        for m in range(1, n_filters + 1):
+            f_m_minus = int(bin[m - 1])   # left
+            f_m = int(bin[m])             # center
+            f_m_plus = int(bin[m + 1])    # right
+
+            for k in range(f_m_minus, f_m):
+                fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+            for k in range(f_m, f_m_plus):
+                fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
+        filter_banks = np.dot(power_spec, fbank.T)
+        filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
+        filter_banks = 20 * np.log10(filter_banks)  # dB
+        
+        
+        mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
+        
+        
+        (nframes, ncoeff) = mel_spec.shape
+        n = np.arange(ncoeff)
+        lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
+        mel_spec *= lift  
+        
+
+
+        return mel_spec, filter_banks, NFFT, fres
+
+    def plot(self,filter_bank=False, decibel=False):
+        """ Plot the spectrogram with proper axes ranges and labels.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                decibel: bool
+                    Use linear (if False) or logarithmic scale (if True)
+                filter_bank: bool
+                    Plot the filter banks if True. If false (default) print the mel spectrogram.
+            
+            Returns:
+            fig: matplotlib.figure.Figure
+            A figure object.
+
+        """
+        if filter_bank:
+            img = self.filter_banks
+        else:
+            img = self.image
+
+        if decibel:
+            from sound_classification.pre_processing import to_decibel
+            img = to_decibel(img)
+
+        fig, ax = plt.subplots()
+        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        ax = plt.gca()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        if decibel:
+            ax.colorbar(format='%+2.0f dB')
+        else:
+            ax.colorbar(format='%+2.0f')  
+        return fig
