@@ -45,7 +45,7 @@ class Spectrogram():
         self.timestamp = None
         self.flabels = None
     
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
         """ Create spectrogram from audio signal
         
             Args:
@@ -457,23 +457,8 @@ class MagSpectrogram(Spectrogram):
                 A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
         """
 
-         # Make frames
-        frames = make_frames(audio_signal, winlen, winstep) 
-
-        # Apply Hamming window    
-        if hamming:
-            frames *= np.hamming(frames.shape[1])
-
-        # Compute fast fourier transform
-        image = np.abs(np.fft.rfft(frames, n=NFFT))
-
-        # Number of points used for FFT
-        if NFFT is None:
-            NFFT = frames.shape[1]
+        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         
-        # Frequency resolution
-        fres = audio_signal.rate / 2. / image.shape[1]
-
         return image, NFFT, fres
 
 
