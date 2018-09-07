@@ -280,13 +280,13 @@ class CNNWhale():
         wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, n_dense], stddev=0.03), name='wd1')
         bd1 = tf.Variable(tf.truncated_normal([n_dense], stddev=0.01), name='bd1')
         dense_layer1 = tf.matmul(flattened, wd1) + bd1
-        dense_layer1 = tf.nn.relu(dense_layer1)
+        dense_layer1 = tf.nn.relu(dense_layer1,name='dense1')
 
         # another layer with softmax activations
         wd2 = tf.Variable(tf.truncated_normal([n_dense,self.num_labels], stddev=0.03), name='wd2')
         bd2 = tf.Variable(tf.truncated_normal([self.num_labels], stddev=0.01), name='bd2')
         dense_layer2 = tf.matmul(dense_layer1, wd2) + bd2
-        y_ = tf.nn.softmax(dense_layer2)
+        y_ = tf.nn.softmax(dense_layer2,name='dense2')
 
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y),name="cost_function")
 
