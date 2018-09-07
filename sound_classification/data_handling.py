@@ -545,23 +545,21 @@ def write_sig_to_h5_database(seg_file_name,table):
     seg_r.append()
 
 #TODO: Consider passing an instance of the spectogram class. 
-# It could include the if+label string in it's tag attribute.
+# It could include the id+label string in it's tag attribute.
 # Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
 # function could then be used to extract the id and label.
-def write_spectogram_to_h5_database(spectogram,id,label,table):
-    """ Write data form .wav files containing segments into the h5 database.
+def write_spectogram_to_h5_database(spectogram,table):
+    """ Write data from spectogram object into the h5 database.
+
+        Note: the spectrogram object is expected to have the id and label information in it's 
+        .tag attribute, following the format id_*_l_*.
+        Example: spec.tag="id_78536_l_1"
 
         Args:
-            spectogram: numpy array
-                Array containing the spectogram.
+            spectogram: instance of :class:`spectrogram.MagSpectrogram', \
+            :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
+                Spectrogram object.
 
-            id: str
-                The identification string.
-                Usually the same as the the audio segment the originated the spectogram.
-                (See the write_sig_to_h5_database function)
-            label: str
-                label(s) associated with the spectogram.
-                
             table: tables.Table
                 Table in which the spectogram will be stored
                 (described by create_image_table_description()).
@@ -569,10 +567,11 @@ def write_spectogram_to_h5_database(spectogram,id,label,table):
             None.
     """
 
+    id, labels = get_data_from_seg_name(spectogram.tag)
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
-    seg_r["signal"] = spectogram
+    seg_r["signal"] = spectogram.image
     seg_r.append()
 
 def open_or_create_table(h5, group, table_name,table_description,chunkshape):
