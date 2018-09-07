@@ -19,28 +19,19 @@ import datetime
 import numpy as np
 
 
-today = datetime.datetime.today()
 
 
-@pytest.fixture
-def audio(sine_wave):
-    rate, data = sine_wave
-    a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
-    return a
-
-@pytest.fixture
-def audio_without_time_stamp(sine_wave):
-    rate, data = sine_wave
-    a = aud.AudioSignal(rate=rate, data=data)
-    return a
-
-def test_time_stamped_audio_signal_has_correct_begin_and_end_times(audio):
-    seconds = len(audio.data) / audio.rate
-    duration = datetime.timedelta(seconds=seconds) 
+def test_time_stamped_audio_signal_has_correct_begin_and_end_times(sine_audio):
+    audio = sine_audio
+    today = datetime.datetime.today()
+    audio.time_stamp = today 
+    seconds = sine_audio.seconds()
+    duration = datetime.timedelta(seconds=seconds)
     assert audio.begin() == today
     assert audio.end() == today + duration
 
-def test_crop_audio_signal(audio):
+def test_crop_audio_signal(sine_audio):
+    audio = sine_audio
     seconds = len(audio.data) / audio.rate
     crop_begin = audio.begin() + datetime.timedelta(seconds=seconds/10.)
     crop_end = audio.end() - datetime.timedelta(seconds=seconds/10.)
@@ -50,7 +41,9 @@ def test_crop_audio_signal(audio):
     assert seconds_cropped/seconds == pytest.approx(8./10., rel=1./audio.rate)
     assert audio_cropped.begin() == crop_begin
 
-def test_clip_with_positive_sample_id(audio): 
+
+def test_clip_with_positive_sample_id(sine_audio):
+    audio = sine_audio 
     t0 = audio.time_stamp
     first = audio.data[0]
     last = audio.data[-1]
@@ -65,14 +58,16 @@ def test_clip_with_positive_sample_id(audio):
     assert audio.time_stamp == t0 + datetime.timedelta(microseconds=1e6*dt)
     assert s.time_stamp == t0
 
-def test_clip_with_sample_larger_than_length(audio): 
+def test_clip_with_sample_larger_than_length(sine_audio):
+    audio = sine_audio
     n = len(audio.data)
     m = int(1.5*n)
     s = audio.clip(m)
     assert len(s.data) == n
     assert audio.empty() == True
 
-def test_clip_with_negative_sample_id(audio): 
+def test_clip_with_negative_sample_id(sine_audio):
+    audio = sine_audio
     t0 = audio.begin()
     t1 = audio.end()
     first = audio.data[0]
@@ -88,31 +83,37 @@ def test_clip_with_negative_sample_id(audio):
     assert s.time_stamp == t1 - datetime.timedelta(microseconds=1e6*dt)
     assert audio.time_stamp == t0
 
-def test_append_audio_signal_to_itself(audio):
+def test_append_audio_signal_to_itself(sine_audio):
+    audio = sine_audio
     len_sum = 2 * len(audio.data)
     audio_copy = audio.copy()
     audio_copy.time_stamp = audio.end()
     audio.append(audio_copy)
     assert len(audio.data) == len_sum
     
-def test_append_audio_signal_without_time_stamp_to_itself(audio_without_time_stamp): 
-    len_sum = 2 * len(audio_without_time_stamp.data)
-    audio_without_time_stamp.append(audio_without_time_stamp)
-    assert len(audio_without_time_stamp.data) == len_sum
 
-def test_append_with_smoothing(audio): 
+
+def test_append_audio_signal_without_time_stamp_to_itself(sine_audio_without_time_stamp): 
+    len_sum = 2 * len(sine_audio_without_time_stamp.data)
+    sine_audio_without_time_stamp.append(sine_audio_without_time_stamp)
+    assert len(sine_audio_without_time_stamp.data) == len_sum
+
+def test_append_with_smoothing(sine_audio):
+    audio = sine_audio
     t = audio.seconds()
     at = audio.append(signal=audio, n_smooth=100)
     assert audio.seconds() == pytest.approx(2.*t - 100/audio.rate, rel=1./audio.rate)
     assert at == audio.begin() + datetime.timedelta(microseconds=1e6*(t - 100/audio.rate))
 
-def test_append_with_delay(audio): 
+def test_append_with_delay(sine_audio):
+    audio = sine_audio
     t = audio.seconds()
     delay = 3.0
     audio.append(signal=audio, delay=3)
     assert audio.seconds() == 2.*t + 3.0
 
-def test_append_with_max_length(audio): 
+def test_append_with_max_length(sine_audio):
+    audio = sine_audio
     audio2 = audio.copy()
     t = audio.seconds()
     n = len(audio.data)
@@ -121,7 +122,8 @@ def test_append_with_max_length(audio):
     assert len(audio.data) == nmax
     assert len(audio2.data) == 2*n - nmax
 
-def test_append_with_max_length_and_smooth(audio): 
+def test_append_with_max_length_and_smooth(sine_audio):
+    audio = sine_audio
     audio2 = audio.copy()
     t = audio.seconds()
     n = len(audio.data)
@@ -131,7 +133,8 @@ def test_append_with_max_length_and_smooth(audio):
     assert len(audio.data) == nmax
     assert len(audio2.data) == 2*n - n_smooth - nmax
 
-def test_append_with_max_length_and_delay(audio): 
+def test_append_with_max_length_and_delay(sine_audio):
+    audio = sine_audio
     audio2 = audio.copy()
     t = audio.seconds()
     n = len(audio.data)
@@ -142,7 +145,8 @@ def test_append_with_max_length_and_delay(audio):
     assert len(audio2.data) == n
     assert np.ma.is_masked(audio.data[-1]) 
 
-def test_append_delay_determined_from_time_stamps(audio): 
+def test_append_delay_determined_from_time_stamps(sine_audio):
+    audio = sine_audio
     audio2 = audio.copy()
     dt = 5.
     audio2.time_stamp = audio.end() + datetime.timedelta(microseconds=1e6*dt)
@@ -152,14 +156,16 @@ def test_append_delay_determined_from_time_stamps(audio):
     assert audio.seconds() == 2*t + dt
     assert np.ma.is_masked(audio.data[n]) 
     
-def test_add_identical_audio_signals(audio): 
+def test_add_identical_audio_signals(sine_audio):
+    audio = sine_audio
     t = audio.seconds()
     v = np.copy(audio.data)
     audio.add(signal=audio)
     assert audio.seconds() == t
     assert np.all(audio.data == 2*v)
     
-def test_add_identical_audio_signals_with_delay(audio): 
+def test_add_identical_audio_signals_with_delay(sine_audio):
+    audio = sine_audio
     t = audio.seconds()
     v = np.copy(audio.data)
     delay = 1
@@ -169,7 +175,8 @@ def test_add_identical_audio_signals_with_delay(audio):
     assert audio.data[5] == v[5]
     assert audio.data[i+5] == v[i+5] + v[5]    
     
-def test_add_identical_audio_signals_with_scaling_factor(audio): 
+def test_add_identical_audio_signals_with_scaling_factor(sine_audio):
+    audio = sine_audio
     v = np.copy(audio.data)
     audio.add(signal=audio, scale=0.5)
     assert np.all(audio.data == 1.5*v)
