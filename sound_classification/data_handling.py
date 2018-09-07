@@ -634,3 +634,29 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
             None   
 
     """
+    pass
+
+def segment_from_time_tag(audio_file, start, end, name, save_to):
+    """ Extracts a segment from the audio_file according to the start and end tags.
+
+        Args:
+            audio_file:str
+            .wav file name (including path).
+
+            start:float
+            Start point for segment (in seconds from start of the source audio_file)
+
+            end:float
+            End point for segment (in seconds from start of the source audio_file)
+            
+            save_to: str
+            Path to the directory where segments will be saved.
+            
+            name: str
+            Name of segment file name (including '.wav')
+            
+
+         Returns:
+            None   
+
+    """
