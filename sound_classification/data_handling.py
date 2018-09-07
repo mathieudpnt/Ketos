@@ -610,3 +610,27 @@ def open_or_create_table(h5, group, table_name,table_description,chunkshape):
 
     return table
 
+def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
+    """ Divides a large .wav file into a sequence of smaller segments with the same duration.
+        Names the resulting segments sequentially and save them as .wav files in the specified directory.
+
+        Args:
+            audio_file:str
+            .wav file name (including path).
+
+            seg_duration: float
+            desired duration for each segment
+            
+            save_to: str
+            path to the directory where segments will be saved.
+            
+            prefix: str
+            Prefix to be added to the segment file name.
+            Segments will be numbered sequentially.
+            Ex: prefix_1.wav, prefix_2.wav...
+
+
+         Returns:
+            None   
+
+    """
