@@ -159,41 +159,6 @@ def slice_ffmpeg(file,start,end,out_name):
     call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
 
-def create_segments(audio_file, seg_duration, destination, prefix=None):
-    """ Creates a series of segments of the same length
-
-        Args:
-            audio_file: str
-                Path to the original audio file.
-            seg_duration:float
-                Duration of each segment (in seconds).
-            destination:str
-                Path to the folder where the segments will be saved.
-            prefix: str
-                The prefix to be used in the name of segment files.
-                The file name will have the format <prefix>_xx.wav,
-                where 'xx' is the segment number in the sequence.
-                If set to none, the prefix will be the name of the original file.
-
-    """
-
-    create_dir(destination)
-    orig_audio_duration = librosa.get_duration(filename=audio_file)
-    n_seg = round(orig_audio_duration/seg_duration)
-    
-    for s in range(n_seg):
-        start = str(s)
-        end = str(s + seg_duration)
-
-        if prefix is None:
-            prefix = os.path.basename(audio_file).split(".wav")[0]
-
-        out_name = prefix + "_" + str(s) + ".wav"
-        path_to_seg = os.path.join(destination, out_name)    
-        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
-        print("Creating segment......", path_to_seg)
-    
-
 
 def to1hot(value,depth):
     """Converts the binary label to one hot format
@@ -610,6 +575,8 @@ def open_or_create_table(h5, group, table_name,table_description,chunkshape):
 
     return table
 
+
+
 def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
@@ -685,3 +652,5 @@ def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None
 
     """ 
     pass 
+
+
