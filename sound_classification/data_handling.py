@@ -652,7 +652,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     slice_ffmpeg(audio_file, start, end, out_seg)
 
 def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None):
-     """ Applies :func:`seg_from_time_tag` to audio_file to extract
+    """ Applies :func:`seg_from_time_tag` to audio_file to extract
       multiple segments based on a list of (start, end) tags.
 
 
@@ -672,11 +672,11 @@ def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None
             None   
 
     """ 
-   if list_of_names is None:
-       base_name = os.path.basename(audio_file).split(".wav")[0]
-       list_of_names = [base_name + "_" + str(i) for i in range(len(list_of_tags))]
-   for i,tag in enumerate(list_of_tags):
-       start, end = tag
-       name = list_of_names[i]
-       seg_from_time_tag(audio_file, start, end, name, save_to) 
+    if list_of_names is None:
+        base_name = os.path.basename(audio_file).split(".wav")[0]
+        list_of_names = [base_name + "_" + str(i) for i in range(len(list_of_tags))]
+    for i,tag in enumerate(list_of_tags):
+        start, end = tag
+        name = list_of_names[i]
+        seg_from_time_tag(audio_file, start, end, name, save_to) 
 
