@@ -606,14 +606,13 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
     create_dir(save_to)
     orig_audio_duration = librosa.get_duration(filename=audio_file)
     n_seg = round(orig_audio_duration/seg_duration)
-    
+    if prefix is None:
+        prefix = os.path.basename(audio_file).split(".wav")[0]
+
     for s in range(n_seg):
         start = s
         end = s + seg_duration
-
-        if prefix is None:
-            prefix = os.path.basename(audio_file).split(".wav")[0]
-
+        
         out_name = prefix + "_" + str(s) + ".wav"
         path_to_seg = os.path.join(destination, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
