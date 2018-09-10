@@ -684,4 +684,10 @@ def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None
             None   
 
     """ 
-    
+    save_to: str
+            path to the directory where segments will be saved.
+            
+            prefix: str
+            Prefix to be added to the segment file name.
+            Segments will be numbered sequentially.
+            Ex: prefix_1.wav, prefix_2.wav...
