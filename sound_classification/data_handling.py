@@ -581,6 +581,8 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
 
+
+
         Args:
             audio_file:str
             .wav file name (including path).
@@ -617,6 +619,32 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
         path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
+
+def label_segment(segment_file, annotations, not_in_annotations="0"):
+    """ Renames segment to include labels.
+    
+        Searches the 'annotations' DataFrame for any labels that might correspond 
+        to the time specified by the segment name. The segment will then be renamed 
+        in the format id_*_l*.wav.
+
+        Args:
+        segment_file: str
+            File name in the format "orig_*_s_*_e_*.wav"
+
+        annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+            
+        not_in_annotations: str
+            Label to be used if the segment is not included in the annotations.
+
+        Returns:
+            none
+
+    """
  
 def seg_from_time_tag(audio_file, start, end, name, save_to):
     """ Extracts a segment from the audio_file according to the start and end tags.
@@ -674,6 +702,10 @@ def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None
         start, end = tag
         name = list_of_names[i]
         seg_from_time_tag(audio_file, start, end, name, save_to)
+
+
+
+    
 
 
 
