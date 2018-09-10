@@ -593,15 +593,35 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
             
             prefix: str
             Prefix to be added to the segment file name.
+            If None, the audio_file name will be used.
             Segments will be numbered sequentially.
             Ex: prefix_1.wav, prefix_2.wav...
+
 
 
          Returns:
             None   
 
     """
-    pass
+    create_dir(save_to)
+    orig_audio_duration = librosa.get_duration(filename=audio_file)
+    n_seg = round(orig_audio_duration/seg_duration)
+    
+    for s in range(n_seg):
+        start = s
+        end = s + seg_duration
+
+        if prefix is None:
+            prefix = os.path.basename(audio_file).split(".wav")[0]
+
+        out_name = prefix + "_" + str(s) + ".wav"
+        path_to_seg = os.path.join(destination, out_name)    
+        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
+        print("Creating segment......", path_to_seg)
+    
+
+
+
 
 def seg_from_time_tag(audio_file, start, end, name, save_to):
     """ Extracts a segment from the audio_file according to the start and end tags.
