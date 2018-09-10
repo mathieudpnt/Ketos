@@ -663,4 +663,25 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
 
     pass
 
-def segment
+def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None):
+     """ Applies :func:`seg_from_time_tag` to audio_file to extract
+      multiple segments based on a list of (start, end) tags.
+
+
+        Args:
+            audio_file:str
+            .wav file name (including path).
+
+            save_to: str
+            path to the directory where segments will be saved.
+            
+            prefix: list of str
+            Names to be used as file names.
+            If None, segments will start with the original audio_file name,
+            followed by a sequence number.
+
+         Returns:
+            None   
+
+    """ 
+    
