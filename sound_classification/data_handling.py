@@ -614,14 +614,10 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
         end = s + seg_duration
         
         out_name = prefix + "_" + str(s) + ".wav"
-        path_to_seg = os.path.join(destination, out_name)    
+        path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
-    
-
-
-
-
+ 
 def seg_from_time_tag(audio_file, start, end, name, save_to):
     """ Extracts a segment from the audio_file according to the start and end tags.
 
@@ -677,5 +673,9 @@ def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None
     for i,tag in enumerate(list_of_tags):
         start, end = tag
         name = list_of_names[i]
-        seg_from_time_tag(audio_file, start, end, name, save_to) 
+        seg_from_time_tag(audio_file, start, end, name, save_to)
+
+
+
+
 
