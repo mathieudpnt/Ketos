@@ -648,7 +648,8 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
 
     """
 
-    pass
+    out_seg = os.path.join(save_to, name)
+    slice_ffmpeg(audio_file, start, end, out_seg)
 
 def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None):
      """ Applies :func:`seg_from_time_tag` to audio_file to extract
