@@ -80,8 +80,8 @@ def test_creates_correct_number_of_segments(sine_wave_file):
     for f in glob(path_to_assets + "/*" + prefix + "*"):
         os.remove(f)
     # create segment files
-    dh.create_segments(sine_wave_file, 0.5, path_to_assets, prefix)
-    # coun them
+    dh.divide_audio_into_segs(sine_wave_file, 0.5, path_to_assets, prefix)
+    # count them
     files = dh.get_files(path_to_assets, prefix)
     n = len(files)
     # clean
