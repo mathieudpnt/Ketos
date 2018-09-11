@@ -653,7 +653,7 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
     
         Args:
         file: str
-           The original audio file. Will be used to match the 'orig_file' field
+           The base name (without paths or extensions) for the original audio file. Will be used to match the 'orig_file' field
            in the annotations Dataframe. Important: The name of the files must be
            unique within the annotations, even if the path is different.
            Ex: '/data/sample_a/file_1.wav' and '/data/sample_b/file_1.wav'
@@ -678,10 +678,8 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
     interval_start = start
     interval_end = end
 
-
-
-    data = annotations[annotations.orig_file == file]
-    query_results = annotations.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
+    data = filtered_annotations(annotations, file)
+    query_results = data.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
     #print(query_results)
     
     if query_results.empty:
