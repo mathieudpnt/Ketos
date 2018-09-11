@@ -577,10 +577,14 @@ def open_or_create_table(h5, group, table_name,table_description,chunkshape):
 
 
 
-def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
+def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
 
+        Note: segments will be saved following the name pattern "orig_*_s_*_e_*.wav",
+            where 'orig_' is followed by the name of the original file,
+            's_' is followed by the start time (relative to the beginning of the original file),
+             and 'e_' is followed by the end time (relative to the beginning of the original file).
 
 
         Args:
@@ -589,33 +593,28 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
 
             seg_duration: float
             desired duration for each segment
+
             
+
             save_to: str
             path to the directory where segments will be saved.
-            
-            prefix: str
-            Prefix to be added to the segment file name.
-            If None, the audio_file name will be used.
-            Segments will be numbered sequentially.
-            Ex: prefix_1.wav, prefix_2.wav...
-
-
-
+                        
          Returns:
             None   
-
     """
     create_dir(save_to)
     orig_audio_duration = librosa.get_duration(filename=audio_file)
     n_seg = round(orig_audio_duration/seg_duration)
-    if prefix is None:
-        prefix = os.path.basename(audio_file).split(".wav")[0]
+
+    prefix = os.path.basename(audio_file).split(".wav")[0]
 
     for s in range(n_seg):
         start = s * seg_duration
         end = s + seg_duration
+
+        label =  get_label_from_annotations(prefix, start, end, annotations)
         
-        out_name = prefix + "_" + str(s) + ".wav"
+        out_name = "id_" + prefix + "_l" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
@@ -642,7 +641,7 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             
 
     """
-    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name
+    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name)
     filtered_annotations = annotations[filtered_indices]
     return filtered_annotations
 
