@@ -612,13 +612,42 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
         prefix = os.path.basename(audio_file).split(".wav")[0]
 
     for s in range(n_seg):
-        start = s
+        start = s * seg_duration
         end = s + seg_duration
         
         out_name = prefix + "_" + str(s) + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
+
+
+def get_label_from_annotations(file,start, end, annotations, not_in_annotations="0"):
+    """ Retrieves the labels that fall in the specified interval.
+    
+        Args:
+        file: str
+           The original audio file. Will be used to match the 'orig_file' field
+           in the annotations Dataframe.
+
+        annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+            
+        not_in_annotations: str
+            Label to be used if the segment is not included in the annotations.
+
+        Returns:
+            labels: str
+                The labels corresponding to the interval specified.
+                if the interval is not in the annotations, the value 
+                specied in 'not_in_annotations' will be used.
+
+    """
+ 
+
 
 def label_segment(segment_file, annotations, not_in_annotations="0"):
     """ Renames segment to include labels.
@@ -646,6 +675,7 @@ def label_segment(segment_file, annotations, not_in_annotations="0"):
 
     """
  
+
 def seg_from_time_tag(audio_file, start, end, name, save_to):
     """ Extracts a segment from the audio_file according to the start and end tags.
 
