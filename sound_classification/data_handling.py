@@ -646,7 +646,19 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
                 specied in 'not_in_annotations' will be used.
 
     """
- 
+    interval_start = start
+    interval_end = end
+    query_results = annotations.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
+    #print(query_results)
+    
+    if query_results.empty:
+        label = [not_in_annotations]
+    else:
+        label=[]
+        for l in query_results.label:
+          label.append(l)
+                 
+    return str(label)
 
 
 def label_segment(segment_file, annotations, not_in_annotations="0"):
