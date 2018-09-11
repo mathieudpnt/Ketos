@@ -274,7 +274,7 @@ class CNNWhale():
         
         flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
 
-        n_dense = 512
+        n_dense = 256 #512
 
         # setup some weights and bias values for this layer, then activate with ReLU
         wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, n_dense], stddev=0.03), name='wd1')
