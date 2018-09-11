@@ -614,7 +614,7 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
 
         label =  get_label_from_annotations(prefix, start, end, annotations)
         
-        out_name = "id_" + prefix + "_l" + label + ".wav"
+        out_name = "id_" + prefix + "_" + str(s) + "_l" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
@@ -647,7 +647,7 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
 
 
 
-def get_label_from_annotations(file,start, end, annotations, not_in_annotations="0"):
+def get_label_from_annotations(file,start, end, annotations, not_in_annotations=0):
     """ Retrieves the labels that fall in the specified interval.
     
         Args:
@@ -677,7 +677,7 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
     interval_start = start
     interval_end = end
 
-    data = filtered_annotations(annotations, file)
+    data = _filter_annotations_by_orig_file(annotations, file)
     query_results = data.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
     #print(query_results)
     
@@ -720,34 +720,32 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     out_seg = os.path.join(save_to, name)
     slice_ffmpeg(audio_file, start, end, out_seg)
 
-def segs_from_list_of_tags(audio_file, list_of_tags, save_to, list_of_names=None):
-    """ Applies :func:`seg_from_time_tag` to audio_file to extract
-      multiple segments based on a list of (start, end) tags.
+
+def segs_from_annotations(annotations, save_to):
+    """ Generates segments based on the annotations DataFrame.
 
 
         Args:
-            audio_file:str
-            .wav file name (including path).
-
+            annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
             save_to: str
             path to the directory where segments will be saved.
             
-            prefix: list of str
-            Names to be used as file names.
-            If None, segments will start with the original audio_file name,
-            followed by a sequence number.
-
+            
          Returns:
             None   
 
     """ 
-    if list_of_names is None:
-        base_name = os.path.basename(audio_file).split(".wav")[0]
-        list_of_names = [base_name + "_" + str(i) for i in range(len(list_of_tags))]
-    for i,tag in enumerate(list_of_tags):
-        start, end = tag
-        name = list_of_names[i]
-        seg_from_time_tag(audio_file, start, end, name, save_to)
+    for i,row in annotations.iteritems() :
+        start = row.start
+        end= row.end
+        base_name = os.path.basename(row.orig_file).split(".wav")[0]
+        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + row.label + "]"
+        seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
 
 
 
