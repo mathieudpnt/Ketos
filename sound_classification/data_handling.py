@@ -620,6 +620,33 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, prefix=None):
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
         print("Creating segment......", path_to_seg)
 
+def _filter_annotations_by_orig_file(annotations, orig_file_name):
+    """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
+
+        Args:
+        file: str
+           The original audio file name without path or extensions.
+           Ex: 'file_1' will match the entry './data/sample_a/file_1.wav" in the orig_file
+           column of the annotations DataFrame.
+
+        annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+
+        Returns:
+            filtered annotations: pandas.DataFrame
+            A subset of the annotations DataFrame containing only the entries for the specified file.
+            
+
+    """
+    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name
+    filtered_annotations = annotations[filtered_indices]
+    return filtered_annotations
+
+
 
 def get_label_from_annotations(file,start, end, annotations, not_in_annotations="0"):
     """ Retrieves the labels that fall in the specified interval.
@@ -627,7 +654,9 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
         Args:
         file: str
            The original audio file. Will be used to match the 'orig_file' field
-           in the annotations Dataframe.
+           in the annotations Dataframe. Important: The name of the files must be
+           unique within the annotations, even if the path is different.
+           Ex: '/data/sample_a/file_1.wav' and '/data/sample_b/file_1.wav'
 
         annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
@@ -643,11 +672,15 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
             labels: str
                 The labels corresponding to the interval specified.
                 if the interval is not in the annotations, the value 
-                specied in 'not_in_annotations' will be used.
+                specified in 'not_in_annotations' will be used.
 
     """
     interval_start = start
     interval_end = end
+
+
+
+    data = annotations[annotations.orig_file == file]
     query_results = annotations.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
     #print(query_results)
     
@@ -670,7 +703,10 @@ def label_segment(segment_file, annotations, not_in_annotations="0"):
 
         Args:
         segment_file: str
-            File name in the format "orig_*_s_*_e_*.wav"
+            File name in the format "orig_*_s_*_e_*.wav",
+            where 'orig_' is followed by the name of the original file,
+            's_' is followed by the start time (relative to the beginning of the original file),
+             and 'e_' is followed by the end time (relative to the beginning of the original file).
 
         annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
