@@ -691,36 +691,6 @@ def get_label_from_annotations(file,start, end, annotations, not_in_annotations=
     return str(label)
 
 
-def label_segment(segment_file, annotations, not_in_annotations="0"):
-    """ Renames segment to include labels.
-    
-        Searches the 'annotations' DataFrame for any labels that might correspond 
-        to the time specified by the segment name. The segment will then be renamed 
-        in the format id_*_l*.wav.
-
-        Args:
-        segment_file: str
-            File name in the format "orig_*_s_*_e_*.wav",
-            where 'orig_' is followed by the name of the original file,
-            's_' is followed by the start time (relative to the beginning of the original file),
-             and 'e_' is followed by the end time (relative to the beginning of the original file).
-
-        annotations: pandas.DataFrame
-            DataFrame with the the annotations. At least the following columns are expected:
-                "orig_file": the file name. Must be the the same as audio_file
-                "label": the label value for each annotaded event
-                "start": the start time relative to the beginning of the audio_file.
-                "end": the end time relative to the beginning of the file.
-            
-        not_in_annotations: str
-            Label to be used if the segment is not included in the annotations.
-
-        Returns:
-            none
-
-    """
- 
-
 def seg_from_time_tag(audio_file, start, end, name, save_to):
     """ Extracts a segment from the audio_file according to the start and end tags.
 
@@ -742,6 +712,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
             
 
          Returns:
+
             None   
 
     """
