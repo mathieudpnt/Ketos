@@ -615,14 +615,14 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
 
     for s in range(n_seg):
         start = s * seg_duration
-        end = s + seg_duration
+        end = start + seg_duration
 
         label =  get_label_from_annotations(prefix, start, end, annotations)
         
         out_name = "id_" + prefix + "_" + str(s) + "_l" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
-        print(s,"Creating segment......", path_to_seg)
+        print("Creating segment......", path_to_seg)
 
 def _filter_annotations_by_orig_file(annotations, orig_file_name):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
