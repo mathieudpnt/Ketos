@@ -501,8 +501,8 @@ def write_sig_to_h5_database(seg_file_name,table):
             None.
     """
 
-    _, seg_data = read_wave(seg)
-    id, labels = get_data_from_seg_name(seg)
+    _, seg_data = read_wave(seg_file_name)
+    id, labels = get_data_from_seg_name(seg_file_name)
 
     seg_r = table.row
     seg_r["id"] = id
