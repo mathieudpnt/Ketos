@@ -18,6 +18,7 @@ import numpy as np
 import librosa
 import os
 import errno
+import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
@@ -539,13 +540,13 @@ def write_spectogram_to_h5_database(spectogram,table):
     seg_r["signal"] = spectogram.image
     seg_r.append()
 
-def open_or_create_table(h5, group, table_name,table_description,chunkshape):
+def open_or_create_table(h5, group_name, table_name,table_description,chunkshape):
     """ Open the specified table or creates it if it does not exist.
 
         Args:
             h5: tables.file.File object
             HDF5 file handler for the database where the table is/will be located
-            group: str
+            group_name: str
             The path to the group from the root node. Ex: "/group_1/subgroup_1"
             table_name: str
             The name of the table. This name will be part of the table's path.
@@ -560,11 +561,11 @@ def open_or_create_table(h5, group, table_name,table_description,chunkshape):
     """
 
     try:
-       group = h5.get_node(group)
+       group = h5.get_node(group_name)
     
     except tables.NoSuchNodeError:
-        print("group '{0}' not found. Creating it now...".format(group))
-        group = h5.create_group(group)
+        print("group '{0}' not found. Creating it now...".format(group_name))
+        group = h5.create_group(group_name)
         
     try:
        table = h5.get_node("{0}/{1}".format(group_name,table_name))
@@ -740,12 +741,14 @@ def segs_from_annotations(annotations, save_to):
             None   
 
     """ 
-    for i,row in annotations.iteritems() :
+    create_dir(save_to)
+    for i, row in annotations.iterrows():
         start = row.start
         end= row.end
         base_name = os.path.basename(row.orig_file).split(".wav")[0]
-        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + row.label + "]"
+        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + str(row.label) + "]"
         seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
+        print("Creating segment......", save_to, seg_name)
 
 
 
