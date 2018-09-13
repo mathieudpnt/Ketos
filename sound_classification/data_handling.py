@@ -514,7 +514,7 @@ def write_sig_to_h5_database(seg_file_name,table):
 # It could include the id+label string in it's tag attribute.
 # Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
 # function could then be used to extract the id and label.
-def write_spectogram_to_h5_database(spectogram,table):
+def write_spectogram_to_h5_database(spectrogram,table):
     """ Write data from spectogram object into the h5 database.
 
         Note: the spectrogram object is expected to have the id and label information in it's 
@@ -533,11 +533,11 @@ def write_spectogram_to_h5_database(spectogram,table):
             None.
     """
 
-    id, labels = get_data_from_seg_name(spectogram.tag)
+    id, labels = get_data_from_seg_name(spectrogram.tag)
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
-    seg_r["signal"] = spectogram.image
+    seg_r["signal"] = spectrogram.image
     seg_r.append()
 
 def open_or_create_table(h5, where, table_name,table_description,chunkshape):
@@ -599,8 +599,13 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
             seg_duration: float
             desired duration for each segment
 
-            
-
+            annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file. 
+                    
             save_to: str
             path to the directory where segments will be saved.
                         
@@ -621,8 +626,9 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
         
         out_name = "id_" + prefix + "_" + str(s) + "_l" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
-        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
+        sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         print("Creating segment......", path_to_seg)
+        librosa.output.write_wave(path_to_seg, sig, rate)
 
 def _filter_annotations_by_orig_file(annotations, orig_file_name):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
