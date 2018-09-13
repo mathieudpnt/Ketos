@@ -729,7 +729,9 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     """
 
     out_seg = os.path.join(save_to, name)
-    slice_ffmpeg(audio_file, start, end, out_seg)
+    sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
+    librosa.output.write_wav(out_seg, sig, rate)
+
 
 
 def segs_from_annotations(annotations, save_to):
