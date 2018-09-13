@@ -510,6 +510,7 @@ def write_sig_to_h5_database(seg_file_name,table):
     seg_r["signal"] = seg_data 
     seg_r.append()
 
+
 #TODO: Consider passing an instance of the spectogram class. 
 # It could include the id+label string in it's tag attribute.
 # Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
@@ -762,9 +763,36 @@ def segs_from_annotations(annotations, save_to):
         seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
         print("Creating segment......", save_to, seg_name)
 
+def pad_signal(signal,rate, length):
+    """Pad a signal with zeros so it has the specified length
 
+        Args:
+            signal: numpy.array
+            The signal to be padded
 
+            rate: int
+            The sample rate
+
+            length: float
+            The desired length for the signal
+
+         Returns:
+
+        
+    """
+    input_length = signal.shape[0] * rate
     
+    difference = (length - input_length) * rate
+    print ("{0} - {1} = {2}".format(duration,input_length,difference))
+    pad1_len =  int(round(difference/2))
+    pad2_len = int(difference - buffer1_len)
+
+    pad1 =  np.zeros((pad1_len))
+    pad2 =  np.zeros((pad2_len))
+
+
+    padded_signal =  np.concatenate([pad1,input_sig,pad2])
+    return padded_signal
 
 
 
