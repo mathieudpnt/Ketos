@@ -268,27 +268,33 @@ class CNNWhale():
 
         layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
         layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
-
-        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape[0]**2)))
-        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape[1]**2)))
+        layer3 = self.create_new_conv_layer(layer2, 64, 128, [30, 8], pool_shape, name='layer3')
         
-        flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
+        ##flattened = tf.reshape(layer2, [-1, layer2.shape[1]*layer2.shape[2]*layer2.shape[3]])
+        flattened = tf.reshape(layer3, [-1, layer3.shape[1]*layer3.shape[2]*layer3.shape[3]])
 
-        n_dense = 128 #256 #512
+        n_dense_1 = 512
+        n_dense_2 = 128
 
         # setup some weights and bias values for this layer, then activate with ReLU
-        wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, n_dense], stddev=0.03), name='wd1')
-        bd1 = tf.Variable(tf.truncated_normal([n_dense], stddev=0.01), name='bd1')
+        wd1 = tf.Variable(tf.truncated_normal([int(flattened.shape[1]), n_dense_1], stddev=0.03), name='wd1')
+        bd1 = tf.Variable(tf.truncated_normal([n_dense_1], stddev=0.01), name='bd1')
         dense_layer1 = tf.matmul(flattened, wd1) + bd1
         dense_layer1 = tf.nn.relu(dense_layer1,name='dense1')
 
-        # another layer with softmax activations
-        wd2 = tf.Variable(tf.truncated_normal([n_dense,self.num_labels], stddev=0.03), name='wd2')
-        bd2 = tf.Variable(tf.truncated_normal([self.num_labels], stddev=0.01), name='bd2')
+        # setup some weights and bias values for this layer, then activate with ReLU
+        wd2 = tf.Variable(tf.truncated_normal([n_dense_1, n_dense_2], stddev=0.03), name='wd2')
+        bd2 = tf.Variable(tf.truncated_normal([n_dense_2], stddev=0.01), name='bd2')
         dense_layer2 = tf.matmul(dense_layer1, wd2) + bd2
-        y_ = tf.nn.softmax(dense_layer2,name='dense2')
+        dense_layer2 = tf.nn.relu(dense_layer2,name='dense2')
 
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y),name="cost_function")
+        # another layer with softmax activations
+        wd3 = tf.Variable(tf.truncated_normal([n_dense_2,self.num_labels], stddev=0.03), name='wd3')
+        bd3 = tf.Variable(tf.truncated_normal([self.num_labels], stddev=0.01), name='bd3')
+        dense_layer3 = tf.matmul(dense_layer2, wd3) + bd3
+        y_ = tf.nn.softmax(dense_layer3,name='dense3')
+
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer3, labels=y),name="cost_function")
 
         # add an optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
