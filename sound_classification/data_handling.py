@@ -441,7 +441,7 @@ def create_raw_signal_table_description(signal_rate, segment_length):
 
 
 def create_image_table_description(dimensions):
-    """ Create the class that describes an image (e.g.: a spectogram) table structure for the HDF5 database.
+    """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
      
         
         Args:
@@ -511,24 +511,24 @@ def write_sig_to_h5_database(seg_file_name,table):
     seg_r.append()
 
 
-#TODO: Consider passing an instance of the spectogram class. 
+#TODO: Consider passing an instance of the spectrogram class. 
 # It could include the id+label string in it's tag attribute.
 # Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
 # function could then be used to extract the id and label.
-def write_spectogram_to_h5_database(spectrogram,table):
-    """ Write data from spectogram object into the h5 database.
+def write_spectrogram_to_h5_database(spectrogram,table):
+    """ Write data from spectrogram object into the h5 database.
 
         Note: the spectrogram object is expected to have the id and label information in it's 
         .tag attribute, following the format id_*_l_*.
         Example: spec.tag="id_78536_l_1"
 
         Args:
-            spectogram: instance of :class:`spectrogram.MagSpectrogram', \
+            spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
             :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
                 Spectrogram object.
 
             table: tables.Table
-                Table in which the spectogram will be stored
+                Table in which the spectrogram will be stored
                 (described by create_image_table_description()).
         Returns:
             None.
