@@ -783,18 +783,18 @@ def pad_signal(signal,rate, length):
 
         
     """
-    input_length = signal.shape[0] * rate
+    input_length = signal.shape[0] / rate
     
     difference = (length - input_length) * rate
-    print ("{0} - {1} = {2}".format(duration,input_length,difference))
     pad1_len =  int(round(difference/2))
-    pad2_len = int(difference - buffer1_len)
+    pad2_len = int(difference - pad1_len)
 
     pad1 =  np.zeros((pad1_len))
     pad2 =  np.zeros((pad2_len))
 
+    print(input_length,difference, pad1_len, pad2_len)
 
-    padded_signal =  np.concatenate([pad1,input_sig,pad2])
+    padded_signal =  np.concatenate([pad1,signal,pad2])
     return padded_signal
 
 
