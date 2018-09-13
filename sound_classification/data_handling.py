@@ -766,6 +766,7 @@ def segs_from_annotations(annotations, save_to):
 def pad_signal(signal,rate, length):
     """Pad a signal with zeros so it has the specified length
 
+        Zeros will be added before and after the signal in approximately equal quantities.
         Args:
             signal: numpy.array
             The signal to be padded
@@ -777,6 +778,8 @@ def pad_signal(signal,rate, length):
             The desired length for the signal
 
          Returns:
+            padded_signal: numpy.array
+            Array with the original signal padded with zeros.
 
         
     """
