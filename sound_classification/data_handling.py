@@ -581,7 +581,7 @@ def open_or_create_table(h5, where, table_name,table_description, sample_rate, c
         print("group '{0}' not found. Creating it now...".format(where))
         name=os.path.basename(where)
         path=where.split(name)[0]
-        group = h5.create_group(path, name)
+        group = h5.create_group(path, name, createparents=True)
         
     try:
        table = h5.get_node("{0}/{1}".format(where,table_name))
