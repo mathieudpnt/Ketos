@@ -24,6 +24,7 @@ import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
 import datetime
 import datetime_glob
+from sound_classification.audio_signal import AudioSignal
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
     """
@@ -831,7 +832,7 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class
         Returns:
             None
     """
-    rate=raw_sig_rate.attrs.sample_rate
+    rate=raw_sig_table.attrs.sample_rate
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=audio, **kwargs)
 
