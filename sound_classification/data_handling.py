@@ -579,8 +579,12 @@ def open_or_create_table(h5, where, table_name,table_description, sample_rate, c
     
     except tables.NoSuchNodeError:
         print("group '{0}' not found. Creating it now...".format(where))
+        if where.endswith('/'): 
+             where = where[:-1]
         name=os.path.basename(where)
         path=where.split(name)[0]
+        if path.endswith('/'): 
+             path = path[:-1]
         group = h5.create_group(path, name, createparents=True)
         
     try:
@@ -838,10 +842,10 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class
 
     rate=raw_sig_table.attrs.sample_rate
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
-    ex_spec = spec_class(audio_signal=audio, **kwargs)
+    ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
 
-    spec_table_description = dh.create_image_table_description(dimensions=ex_spec.shape)
-    spec_table = dh.open_or_create_table(h5, where, spec_table_name, mel_table_description, None)
+    spec_table_description = create_image_table_description(dimensions=ex_spec.shape)
+    spec_table = open_or_create_table(h5, where, spec_table_name, spec_table_description, None)
 
 
     for segment in raw_sig_rate.iterrows():
@@ -849,7 +853,7 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class
         audio = AudioSignal(rate,signal)
         spec = spec_class(audio_signal=audio, **kwargs)
         spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        dh.write_spectogram_to_database(spec, mel_table )
+        write_spectogram_to_database(spec, spec_table )
 
     spec_table.flush()
 
