@@ -541,7 +541,7 @@ def write_spectrogram_to_h5_database(spectrogram,table):
     seg_r["signal"] = spectrogram.image
     seg_r.append()
 
-def open_or_create_table(h5, where, table_name,table_description,chunkshape):
+def open_or_create_table(h5, where, table_name,table_description, chunkshape=None):
     """ Open the specified table or creates it if it does not exist.
 
         Args:
@@ -557,6 +557,7 @@ def open_or_create_table(h5, where, table_name,table_description,chunkshape):
             table_description: tables.IsDescription object
             The descriptor class. See :func:`create_raw_signal_table_description` and :func:create_image_table_description
             chunkshape: tuple
+            The chinkshape to be used for compression
 
         Returns:
             table: table.Table object
