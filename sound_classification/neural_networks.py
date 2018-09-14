@@ -51,6 +51,8 @@ class CNNWhale():
                 The learning rate to be using by the optimization algorithm
             num_epochs: int
                 The number of epochs
+            verbosity: int
+                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
             
         Attributes:
             sess: tensorflow Session
@@ -81,7 +83,8 @@ class CNNWhale():
 
     def __init__(self, train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate=0.01, num_epochs=10, seed=42):
+                 learning_rate=0.01, num_epochs=10, seed=42, verbosity=2):
+                 
         dh.check_data_sanity(train_x, train_y) # check sanity of training data
         dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
         dh.check_data_sanity(test_x, test_y) # check sanity of test data
@@ -90,7 +93,8 @@ class CNNWhale():
         val_img_size = dh.get_image_size(validation_x)
         test_img_size = dh.get_image_size(test_x)
         assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
-
+        
+        self.verbosity = verbosity
         self.train_x = train_x
         self.train_y = train_y
         self.validation_x = validation_x
@@ -183,6 +187,10 @@ class CNNWhale():
         """
         np.random.seed(seed)
         tf.set_random_seed(seed)
+        
+     
+    def set_verbosity(self, verbosity):
+        self.verbosity = verbosity
 
 
     def load_net_structure(self, saved_meta, checkpoint):
@@ -244,12 +252,22 @@ class CNNWhale():
         return tf_nodes
 
 
-    def create_net_structure(self):
+    def create_net_structure(self, conv_params=[[1,32,2,8],[32,64,30,8]], dense_params=[512]):
         """Create the Neural Network structure.
 
-            The Network has two convolutional layers
-            and two fully connected layers with ReLU activation functions.
+            The Network has a number of convolutional layers followed by a number 
+            of fully connected layers with ReLU activation functions and a final 
+            output layer with softmax activation.
+            
+            The default network structure has two convolutional layers 
+            and one fully connected layers with ReLU activation.
 
+            Args:
+                conv_params: array
+                    Configuration parameters for the convolutional layers
+                dense_params: array
+                    Size of the fully connected layers (not including the output layer)
+                    
             Returns:
                 tf_nodes: dict
                     A dictionary with the tensorflow objects necessary
@@ -266,35 +284,65 @@ class CNNWhale():
 
         pool_shape=[2,2]
 
-        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
-        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
-        layer3 = self.create_new_conv_layer(layer2, 64, 128, [30, 8], pool_shape, name='layer3')
+        # enforce that first convolutional has dimensions [1, X]
+        if len(conv_params) > 0:
+            conv_params[0][0] = 1
+            
+        # enforce output layer
+        dense_params.append(self.num_labels)
+
+        # create convolutional layers
+        conv_layers = [x_shaped]
+        for i in range(len(conv_params)):
+            p = conv_params[i] # config parameters
+            n = 'conv_layer_{0}'.format(i+1) # name
+            l_prev = conv_layers[i] # previous layer
+            l = self.create_new_conv_layer(l_prev, p[0], p[1], [p[2], p[3]], pool_shape, name=n) # new layer
+            conv_layers.append(l)
+            dim = l.shape[1] * l.shape[2] * l.shape[3]
+            if self.verbosity >= 2:
+                print('\nConvolutional layer #{0}:'.format(i+1))
+                print('-------------------------------')
+                print('Name: {0}'.format(n))
+                print('Input channels: {0}'.format(p[0]))            
+                print('Filters: {0}'.format(p[1]))            
+                print('Filter shape: [{0},{1}]'.format(p[2],p[3]))
+                print('Output shape: [{0},{1}]'.format(l.shape[1], l.shape[2]))            
+                print('Output dimension: {0}'.format(dim))            
+                print('-------------------------------')
         
-        ##flattened = tf.reshape(layer2, [-1, layer2.shape[1]*layer2.shape[2]*layer2.shape[3]])
-        flattened = tf.reshape(layer3, [-1, layer3.shape[1]*layer3.shape[2]*layer3.shape[3]])
+        # flatten
+        last = conv_layers[-1]
+        dim = last.shape[1] * last.shape[2] * last.shape[3]
+        flattened = tf.reshape(last, [-1, dim])
 
-        n_dense_1 = 512
-        n_dense_2 = 128
+        # fully-connected layers with ReLu activation
+        dense_layers = [flattened]
+        for i in range(len(dense_params)):
+            size = dense_params[i] 
+            l_prev = dense_layers[i]
+            w_name = 'w_{0}'.format(i+1)
+            w = tf.Variable(tf.truncated_normal([int(l_prev.shape[1]), size], stddev=0.03), name=w_name)
+            b_name = 'b_{0}'.format(i+1)
+            b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
+            l = tf.matmul(l_prev, w) + b
+            n = 'dense_{0}'.format(i+1)
+            if i < len(dense_params) - 1:
+                l = tf.nn.relu(l, name=n) # ReLu activation
+            else: # output layer
+                cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
+                l = tf.nn.softmax(l, name=n) # softmax                    
 
-        # setup some weights and bias values for this layer, then activate with ReLU
-        wd1 = tf.Variable(tf.truncated_normal([int(flattened.shape[1]), n_dense_1], stddev=0.03), name='wd1')
-        bd1 = tf.Variable(tf.truncated_normal([n_dense_1], stddev=0.01), name='bd1')
-        dense_layer1 = tf.matmul(flattened, wd1) + bd1
-        dense_layer1 = tf.nn.relu(dense_layer1,name='dense1')
+            dense_layers.append(l)
+            if self.verbosity >= 2:
+                print('\nFully-connected layer #{0}:'.format(i))
+                print('-------------------------------')
+                print('Name: {0}'.format(n))
+                print('Output dimension: {0}'.format(size))            
+                print('-------------------------------')
 
-        # setup some weights and bias values for this layer, then activate with ReLU
-        wd2 = tf.Variable(tf.truncated_normal([n_dense_1, n_dense_2], stddev=0.03), name='wd2')
-        bd2 = tf.Variable(tf.truncated_normal([n_dense_2], stddev=0.01), name='bd2')
-        dense_layer2 = tf.matmul(dense_layer1, wd2) + bd2
-        dense_layer2 = tf.nn.relu(dense_layer2,name='dense2')
-
-        # another layer with softmax activations
-        wd3 = tf.Variable(tf.truncated_normal([n_dense_2,self.num_labels], stddev=0.03), name='wd3')
-        bd3 = tf.Variable(tf.truncated_normal([self.num_labels], stddev=0.01), name='bd3')
-        dense_layer3 = tf.matmul(dense_layer2, wd3) + bd3
-        y_ = tf.nn.softmax(dense_layer3,name='dense3')
-
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer3, labels=y),name="cost_function")
+        # output layer
+        y_ = dense_layers[-1]
 
         # add an optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
@@ -341,8 +389,11 @@ class CNNWhale():
         Returns:
             None
         """
-        print("=============================================")
-        print("Training  started")
+        if self.verbosity >= 2:
+            print("\nTraining  started")
+            print('\nEpoch  Cost  Test acc.  Val acc.')
+            print('------------------------------------')
+
         sess = self.sess
 
         self.writer.add_graph(sess.graph)
@@ -364,13 +415,15 @@ class CNNWhale():
             validation_x_reshaped = self.reshape_x(self.validation_x)
             train_acc = self.accuracy_on_train()
             val_acc = self.accuracy_on_validation()
-            print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc), "val accuracy: {:.3f}".format(val_acc))
+            
+            if self.verbosity >= 2:
+                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, train_acc, val_acc))
 
             summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
             self.writer.add_summary(summary, epoch)
 
-
-        print("\nTraining complete!")
+        print('------------------------------------')
+        print("\nTraining completed!")
         
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
@@ -423,6 +476,7 @@ class CNNWhale():
         # to do strides of 2 in the x and y directions.
         strides = [1, 2, 2, 1]
         out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='SAME')
+###oli        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='VALID')
 
         return out_layer
     
