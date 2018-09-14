@@ -515,7 +515,7 @@ def write_sig_to_h5_database(seg_file_name,table, pad=False, duration=None ):
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
-    seg_r["signal"] = seg_data 
+    seg_r["signal"] = seg_data
     seg_r.append()
 
 
@@ -807,6 +807,44 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
+def sig_h5_to_spectrogram(h5, raw_sig_table, spec_table, spec_class, **kwargs):
+    """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
+             
+        Args:
+            h5: tables.File
+                Reference to HDF5 database
+            raw_sig_table: tables.Table
+                Table containing raw signals
+            where: str
+                The group in which the table is/will be located. Ex: '/features/spectrograms'
+            table_name: str
+                The name of the table. This name will be part of the table's path.
+                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
+            spec_class: subclass of :class:`spectrogram.Spectrogram`
+                One of :class:`spectrogram.MagSpectrogram`, :class:`spectrogram.PowerSpectrogram` or
+                :class:`spectrogram.MelSpectrogram`.
+            kwargs:
+                any keyword arguments to be passed to the sec_class
+    
+        Returns:
+            None
+    """
+    rate=raw_sig_rate.attrs.sample_rate
+    ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
+    ex_spec = spec_class(audio_signal=audio, **kwargs)
+
+    spec_table_description = dh.create_image_table_description(dimensions=ex_spec.shape)
+    spec_table = dh.open_or_create_table(h5, where, table_name, mel_table_description, None)
+
+
+    for segment in raw_sig_rate.iterrows():
+        signal = segment['signal']
+        audio = AudioSignal(rate,signal)
+        spec = spec_class(audio_signal=audio, **kwargs)
+        spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
+        dh.write_spectogram_to_database(spec, mel_table )
+
+    spec_table.flush()
 
 
 
