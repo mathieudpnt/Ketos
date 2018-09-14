@@ -549,7 +549,7 @@ def write_spectrogram_to_h5_database(spectrogram,table):
     seg_r["signal"] = spectrogram.image
     seg_r.append()
 
-def open_or_create_table(h5, where, table_name,table_description, chunkshape=None):
+def open_or_create_table(h5, where, table_name,table_description, sample_rate, chunkshape=None):
     """ Open the specified table or creates it if it does not exist.
 
         Args:
@@ -564,6 +564,8 @@ def open_or_create_table(h5, where, table_name,table_description, chunkshape=Non
             Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             table_description: tables.IsDescription object
             The descriptor class. See :func:`create_raw_signal_table_description` and :func:create_image_table_description
+            sample_rate: int
+            The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
             chunkshape: tuple
             The chinkshape to be used for compression
 
@@ -588,6 +590,7 @@ def open_or_create_table(h5, where, table_name,table_description, chunkshape=Non
         filters = tables.Filters(complevel=1, fletcher32=True)
         table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
 
+    table.attrs.sample_rate = sample_rate
     return table
 
 
@@ -741,7 +744,6 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     out_seg = os.path.join(save_to, name)
     sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
     librosa.output.write_wav(out_seg, sig, rate)
-
 
 
 def segs_from_annotations(annotations, save_to):
