@@ -24,7 +24,6 @@ import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
 import datetime
 import datetime_glob
-from sound_classification.audio_signal import AudioSignal
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
     """
@@ -810,6 +809,10 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
+#WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
+#TODO: Reorganize modules to prevent circular dependency
+from sound_classification.audio_signal import AudioSignal
+
 def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
     """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
              
@@ -832,6 +835,7 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class
         Returns:
             None
     """
+
     rate=raw_sig_table.attrs.sample_rate
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=audio, **kwargs)
