@@ -486,7 +486,7 @@ def get_data_from_seg_name(seg_name):
 
     return (id,labels)
 
-def write_sig_to_h5_database(seg_file_name,table):
+def write_sig_to_h5_database(seg_file_name,table, pad=False, duration=None ):
     """ Write data form .wav files containing segments into the h5 database.
 
         Args:
@@ -497,13 +497,21 @@ def write_sig_to_h5_database(seg_file_name,table):
             table: tables.Table
                 Table in which the segment will be stored
                 (described by create_raw_signal_table_description()).
+            pad: bool
+                True if signal should be padded with zeros until it's duration
+                 is equal to the 'duration' argument. Flase if signal should be
+                 written as it is.
+            duration: float
+                Desired duration for the padded signal in seconds. 
         Returns:
             None.
     """
 
-    _, seg_data = read_wave(seg_file_name)
+    rate, seg_data = read_wave(seg_file_name)
     id, labels = get_data_from_seg_name(os.path.basename(seg_file_name))
 
+    if pad:
+        seg_data = pad_signal(seg_data, rate, duration)
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
