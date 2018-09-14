@@ -809,7 +809,7 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
-def sig_h5_to_spectrogram(h5, raw_sig_table, spec_table, spec_class, **kwargs):
+def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
     """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
              
         Args:
@@ -819,7 +819,7 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, spec_table, spec_class, **kwargs):
                 Table containing raw signals
             where: str
                 The group in which the table is/will be located. Ex: '/features/spectrograms'
-            table_name: str
+            spec_table_name: str
                 The name of the table. This name will be part of the table's path.
                 Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             spec_class: subclass of :class:`spectrogram.Spectrogram`
@@ -836,7 +836,7 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, spec_table, spec_class, **kwargs):
     ex_spec = spec_class(audio_signal=audio, **kwargs)
 
     spec_table_description = dh.create_image_table_description(dimensions=ex_spec.shape)
-    spec_table = dh.open_or_create_table(h5, where, table_name, mel_table_description, None)
+    spec_table = dh.open_or_create_table(h5, where, spec_table_name, mel_table_description, None)
 
 
     for segment in raw_sig_rate.iterrows():
