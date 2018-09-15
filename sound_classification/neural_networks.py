@@ -335,7 +335,7 @@ class CNNWhale():
 
             dense_layers.append(l)
             if self.verbosity >= 2:
-                print('\nFully-connected layer #{0}:'.format(i))
+                print('\nFully-connected layer #{0}:'.format(i+1))
                 print('-------------------------------')
                 print('Name: {0}'.format(n))
                 print('Output dimension: {0}'.format(size))            
