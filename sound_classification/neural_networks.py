@@ -295,7 +295,7 @@ class CNNWhale():
         conv_layers = [x_shaped]
         for i in range(len(conv_params)):
             p = conv_params[i] # config parameters
-            n = 'conv_layer_{0}'.format(i+1) # name
+            n = 'conv_{0}'.format(i+1) # name
             l_prev = conv_layers[i] # previous layer
             l = self.create_new_conv_layer(l_prev, p[0], p[1], [p[2], p[3]], pool_shape, name=n) # new layer
             conv_layers.append(l)
