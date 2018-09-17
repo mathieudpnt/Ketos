@@ -344,7 +344,5 @@ def test_get_correct_labels(start,end,expected_label):
     label = dh.get_label_from_annotations(file='2min',start=start, end=end,
                              annotations=annotations, not_in_annotations=0)
     print(label)
-    #print("start: {0}, end: {1}, label: {3} | {4}".format(start,end,label,expected_label))
-
     assert label == expected_label
     
