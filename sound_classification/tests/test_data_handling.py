@@ -253,13 +253,14 @@ def test_parse_datetime_with_non_matching_format():
     assert dt == None
 
 
-@pytest.mark.test_create_segments
+@pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,0,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
+    shutil.rmtree(path_to_assets + "/2s_segs")
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
     
@@ -267,5 +268,20 @@ def test_creates_correct_number_of_segments():
 
     assert n_seg == 60
     shutil.rmtree(path_to_assets + "/2s_segs")
+
+
+
+@pytest.mark.test_divide_audio_into_segments
+def test_creates_segments_without_annotations():
+    audio_file = path_to_assets+ "/2min.wav"
+    
+    dh.divide_audio_into_segs(audio_file=audio_file,
+        seg_duration=2.0, annotations=None, save_to=path_to_assets + "/2s_segs")
+    
+    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l[NULL].wav"))
+
+    assert n_seg == 60
+    shutil.rmtree(path_to_assets + "/2s_segs")
+
 
 
