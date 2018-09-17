@@ -261,6 +261,14 @@ def test_create_raw_signal_table_description():
     assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
     assert description.columns['signal'].shape == (5000,)
 
+@pytest.mark.create_image_table_description
+def test_create_image_table_description():
+    description = dh.create_image_table_description(dimensions=(20,64))
+    description_columns = list(description.columns.keys())
+    assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
+    assert description.columns['signal'].shape == (20, 64)
+
+
 
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
