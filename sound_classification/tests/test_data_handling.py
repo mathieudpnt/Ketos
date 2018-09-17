@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
 import sound_classification.pre_processing as pp
+import shutil
 import os
 from glob import glob
 
@@ -73,21 +74,6 @@ def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col
     divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
     dh.prepare_database(raw, "image", "label", divisions) 
 
-@pytest.mark.test_create_segments
-def test_creates_correct_number_of_segments(sine_wave_file):
-    prefix="halifax123456789"
-    # clean
-    for f in glob(path_to_assets + "/*" + prefix + "*"):
-        os.remove(f)
-    # create segment files
-    dh.divide_audio_into_segs(sine_wave_file, 0.5, path_to_assets, prefix)
-    # count them
-    files = dh.get_files(path_to_assets, prefix)
-    n = len(files)
-    # clean
-    for f in glob(path_to_assets + "/*" + prefix + "*"):
-        os.remove(f)
-    assert n == 6
 
 @pytest.mark.test_def_slice_ffmpeg
 def test_sliced_audio_file_has_correct_properties(sine_wave_file):
@@ -176,7 +162,7 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
 @pytest.mark.test_get_wave_files
 def test_get_wave_files():
     # clean
-    for f in glob(path_to_assets + "/*.wav"):
+    for f in glob(path_to_assets + "/f*.wav"):
         os.remove(f)  #clean
     # create two wave files
     f1 = path_to_assets + "/f1.wav"
@@ -262,3 +248,21 @@ def test_parse_datetime_with_non_matching_format():
     dt = dh.parse_datetime(fname=fname, fmt=fmt)
     os.remove(full_path)
     assert dt == None
+
+
+@pytest.mark.test_create_segments
+def test_creates_correct_number_of_segments():
+    audio_file = path_to_assets+ "/2min.wav"
+    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+                                 'label':[1,0,1], 'start':[5.0, 70.34, 105.8],
+                                 'end':[6.0,75.98,110.0]})
+
+    dh.divide_audio_into_segs(audio_file=audio_file,
+        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+    
+    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+
+    assert n_seg == 60
+    shutil.rmtree(path_to_assets + "/2s_segs")
+
+
