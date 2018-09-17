@@ -470,9 +470,9 @@ def get_data_from_seg_name(seg_name):
 
         Args:
             segment_name: str
-            Name of the segment in the format id_*_l_*.wav, where 'id' is 
-            followed by any number of characters identifying the segment and 'l' is
-            followed by any number of characters describing the label(s).
+            Name of the segment in the format id_*_*_l_*.wav, where 'id' is 
+            followed by base name of the audio file from which the segment was extracted, '_',
+            and a sequence number. The 'l' is followed by any number of characters describing the label(s).
 
         Returns:
             (id,label) : tuple (str,str)
@@ -480,7 +480,7 @@ def get_data_from_seg_name(seg_name):
 
     """
 
-    id = seg_name.split("_")[1]
+    id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
     tmp = seg_name.split("_")[3]
     labels = tmp.split(".")[0]
 
