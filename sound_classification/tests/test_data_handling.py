@@ -268,7 +268,27 @@ def test_create_image_table_description():
     assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
     assert description.columns['signal'].shape == (20, 64)
 
+@pytest.mark.get_data_from_seg_name
+def test_get_data_from_seg_name():
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[0].wav')
+    assert id == 'rb001_89'
+    assert labels == 'l[0]' 
 
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[0]')
+    assert id == 'rb001_89'
+    assert labels == 'l[0]' 
+
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[1,2].wav')
+    assert id == 'rb001_89'
+    assert labels == 'l[1,2]' 
+
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[1,2]')
+    assert id == 'rb001_89'
+    assert labels == 'l[1,2]' 
+
+
+    
+ 
 
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
