@@ -280,8 +280,8 @@ def test_creates_correct_number_of_segments():
 def test_labels_are_correct():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
-                                 'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
-                                 'end':[6.0,75.98,110.0]})
+                                 'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
+                                 'end':[6.0,73.0,108.0]})
 
     try:
         shutil.rmtree(path_to_assets + "/2s_segs")
@@ -292,13 +292,13 @@ def test_labels_are_correct():
         seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
     
     label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]0].wav"))
-    assert label_0 == 57
+    assert label_0 == 53
 
     label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]1].wav"))
-    assert label_1 == 2
+    assert label_1 == 5
 
     label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]2].wav"))
-    assert label_2 == 1
+    assert label_2 == 2
 
     shutil.rmtree(path_to_assets + "/2s_segs")
 
