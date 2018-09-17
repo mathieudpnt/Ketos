@@ -645,7 +645,7 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
         path_to_seg = os.path.join(save_to, out_name)    
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         print("Creating segment......", path_to_seg)
-        librosa.output.write_wave(path_to_seg, sig, rate)
+        librosa.output.write_wav(path_to_seg, sig, rate)
 
 def _filter_annotations_by_orig_file(annotations, orig_file_name):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
@@ -848,12 +848,12 @@ def sig_h5_to_spectrogram(h5, raw_sig_table, where, spec_table_name,  spec_class
     spec_table = open_or_create_table(h5, where, spec_table_name, spec_table_description, None)
 
 
-    for segment in raw_sig_rate.iterrows():
+    for segment in raw_sig_table.iterrows():
         signal = segment['signal']
         audio = AudioSignal(rate,signal)
         spec = spec_class(audio_signal=audio, **kwargs)
         spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spectogram_to_database(spec, spec_table )
+        write_spectrogram_to_h5_database(spec, spec_table )
 
     spec_table.flush()
 
