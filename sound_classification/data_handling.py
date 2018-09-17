@@ -624,7 +624,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file. 
             If None, the segments will be created and file names will have 'NULL' as labels. 
-            Ex: 'id_rec03_87_l_NULL.wav.
+            Ex: 'id_rec03_87_l[NULL].wav.
                     
             save_to: str
             path to the directory where segments will be saved.
@@ -643,7 +643,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
         end = start + seg_duration
 
         if annotations is None:
-            label = 'NULL'
+            label = '[NULL]'
         else:
             label =  get_label_from_annotations(prefix, start, end, annotations)
 
