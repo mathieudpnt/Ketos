@@ -257,21 +257,52 @@ def test_parse_datetime_with_non_matching_format():
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
-                                 'label':[1,0,1], 'start':[5.0, 70.34, 105.8],
+                                 'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
     try:
         shutil.rmtree(path_to_assets + "/2s_segs")
     except FileNotFoundError:
         pass
-        
+
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
     
     n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
-
     assert n_seg == 60
+
+
+
     shutil.rmtree(path_to_assets + "/2s_segs")
+
+
+@pytest.mark.test_divide_audio_into_segments
+def test_labels_are_correct():
+    audio_file = path_to_assets+ "/2min.wav"
+    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+                                 'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
+                                 'end':[6.0,75.98,110.0]})
+
+    try:
+        shutil.rmtree(path_to_assets + "/2s_segs")
+    except FileNotFoundError:
+        pass
+
+    dh.divide_audio_into_segs(audio_file=audio_file,
+        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+    
+    label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]0].wav"))
+    assert label_0 == 57
+
+    label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]1].wav"))
+    assert label_1 == 2
+
+    label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]2].wav"))
+    assert label_2 == 1
+
+    shutil.rmtree(path_to_assets + "/2s_segs")
+
+
 
 
 
