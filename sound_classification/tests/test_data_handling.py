@@ -161,20 +161,23 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
 
 @pytest.mark.test_get_wave_files
 def test_get_wave_files():
-    # clean
-    for f in glob(path_to_assets + "/f*.wav"):
-        os.remove(f)  #clean
+      
+    dir = os.path.join(path_to_assets,'test_get_wave_files')
+    dh.create_dir(dir)
+
     # create two wave files
-    f1 = path_to_assets + "/f1.wav"
-    f2 = path_to_assets + "/f2.wav"
+    f1 = os.path.join(dir, "f1.wav")
+    f2 = os.path.join(dir, "f2.wav")
     pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
     pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.get_wave_files(path_to_assets, fullpath=False)
+    files = dh.get_wave_files(dir, fullpath=False)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
     
+    #delete directory and files within
+    shutil.rmtree(dir)
     
 ################################
 # from1hot() tests
