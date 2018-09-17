@@ -346,3 +346,24 @@ def test_get_correct_labels(start,end,expected_label):
     print(label)
     assert label == expected_label
     
+@pytest.mark.test_filter_annotations_by_orig_file
+def test_filter_annotations_by_orig_file():
+     annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
+                                 'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
+                                 'end':[6.0,103.0,108.0, 87.0, 94.0]})
+
+     annot_01 = dh._filter_annotations_by_orig_file(annotations,'2min_01')
+     assert annot_01.equals(pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav'],
+                                 'label':[1,2], 'start':[5.0, 100.5],
+                                 'end':[6.0,103.0]}))
+                                 
+     annot_02 = dh._filter_annotations_by_orig_file(annotations,'2min_02')
+     assert annot_02.equals(pd.DataFrame({'orig_file':['2min_02.wav','2min_02.wav','2min_02.wav'],
+                                 'label':[1,1,1], 'start':[105.0, 80.0, 90.0],
+                                 'end':[108.0, 87.0, 94.0]}, index=[2,3,4]))
+ 
+     annot_03 = dh._filter_annotations_by_orig_file(annotations,'2min_03')               
+     assert annot_03.empty
+ 
+
+
