@@ -253,6 +253,15 @@ def test_parse_datetime_with_non_matching_format():
     assert dt == None
 
 
+
+@pytest.mark.create_raw_signal_table_description
+def test_create_raw_signal_table_description():
+    description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.5)
+    description_columns = list(description.columns.keys())
+    assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
+    assert description.columns['signal'].shape == (5000,)
+
+
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets+ "/2min.wav"
