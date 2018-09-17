@@ -260,7 +260,11 @@ def test_creates_correct_number_of_segments():
                                  'label':[1,0,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    try:
+        shutil.rmtree(path_to_assets + "/2s_segs")
+    except FileNotFoundError:
+        pass
+        
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
     
@@ -275,10 +279,15 @@ def test_creates_correct_number_of_segments():
 def test_creates_segments_without_annotations():
     audio_file = path_to_assets+ "/2min.wav"
     
+    try:
+        shutil.rmtree(path_to_assets + "/2s_segs")
+    except FileNotFoundError:
+        pass
+
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=None, save_to=path_to_assets + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l[NULL].wav"))
+    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]NULL].wav"))
 
     assert n_seg == 60
     shutil.rmtree(path_to_assets + "/2s_segs")
