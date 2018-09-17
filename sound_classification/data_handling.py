@@ -599,14 +599,15 @@ def open_or_create_table(h5, where, table_name,table_description, sample_rate, c
 
 
 
-def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
+def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
 
-        Note: segments will be saved following the name pattern "orig_*_s_*_e_*.wav",
-            where 'orig_' is followed by the name of the original file,
-            's_' is followed by the start time (relative to the beginning of the original file),
-             and 'e_' is followed by the end time (relative to the beginning of the original file).
+        Note: segments will be saved following the name pattern "id_*_*_l_*.wav",
+            where 'id_' is followed by the name of the original file, underscore ('_') 
+            and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
+            Ex: 'id_rec03_87_l[1,3]', 'id_rec03_88_l[0]
+            
 
 
         Args:
@@ -622,6 +623,8 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
                 "label": the label value for each annotaded event
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file. 
+            If None, the segments will be created and file names will have 'NULL' as labels. 
+            Ex: 'id_rec03_87_l_NULL.wav.
                     
             save_to: str
             path to the directory where segments will be saved.
@@ -639,8 +642,11 @@ def divide_audio_into_segs(audio_file, seg_duration, annotations, save_to):
         start = s * seg_duration
         end = start + seg_duration
 
-        label =  get_label_from_annotations(prefix, start, end, annotations)
-        
+        if annotations is None:
+            label = 'NULL'
+        else:
+            label =  get_label_from_annotations(prefix, start, end, annotations)
+
         out_name = "id_" + prefix + "_" + str(s) + "_l" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
