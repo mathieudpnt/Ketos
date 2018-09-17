@@ -277,7 +277,7 @@ def test_creates_correct_number_of_segments():
 
 
 @pytest.mark.test_divide_audio_into_segments
-def test_labels_are_correct():
+def test_seg_labels_are_correct():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
@@ -324,4 +324,27 @@ def test_creates_segments_without_annotations():
     shutil.rmtree(path_to_assets + "/2s_segs")
 
 
+@pytest.mark.parametrize("start,end,expected_label",[
+    (4.0,5.0,'[1]'),
+    (4.0,5.5,'[1]'),
+    (5.0,6.0,'[1]'),
+    (5.1,6.0,'[1]'),
+    (100.0,100.5,'[2]'),
+    (100.5,101.0,'[2]'),
+    (99.0,103.0,'[2]'),
+    (90.0,110.0,'[2, 1]'),
+     ])
+@pytest.mark.test_get_label_from_annotations
+def test_get_correct_labels(start,end,expected_label):
+    audio_file="2min"
+    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+                                 'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
+                                 'end':[6.0,103.0,108.0]})
+    
+    label = dh.get_label_from_annotations(file='2min',start=start, end=end,
+                             annotations=annotations, not_in_annotations=0)
+    print(label)
+    #print("start: {0}, end: {1}, label: {3} | {4}".format(start,end,label,expected_label))
 
+    assert label == expected_label
+    
