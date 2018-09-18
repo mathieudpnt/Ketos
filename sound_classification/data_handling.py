@@ -481,7 +481,6 @@ def get_data_from_seg_name(seg_name):
     """
 
     id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
-    print(seg_name.split("_"))
     tmp = seg_name.split("_")[4]
     labels = tmp.split(".")[0]
 
@@ -753,13 +752,12 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     """
 
     out_seg = os.path.join(save_to, name)
-    sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
+    sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
     librosa.output.write_wav(out_seg, sig, rate)
 
 
 def segs_from_annotations(annotations, save_to):
     """ Generates segments based on the annotations DataFrame.
-
 
         Args:
             annotations: pandas.DataFrame
@@ -781,7 +779,7 @@ def segs_from_annotations(annotations, save_to):
         start = row.start
         end= row.end
         base_name = os.path.basename(row.orig_file).split(".wav")[0]
-        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + str(row.label) + "]"
+        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + str(row.label) + "].wav"
         seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
         print("Creating segment......", save_to, seg_name)
 
@@ -813,8 +811,6 @@ def pad_signal(signal,rate, length):
 
     pad1 =  np.zeros((pad1_len))
     pad2 =  np.zeros((pad2_len))
-
-    print(input_length,difference, pad1_len, pad2_len)
 
     padded_signal =  np.concatenate([pad1,signal,pad2])
     return padded_signal
