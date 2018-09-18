@@ -446,20 +446,21 @@ def test_creates_segments_without_annotations():
 def test_seg_from_time_tag():
 
     
-    audio_file = path_to_assets+ "/2min.wav"
+    audio_file = os.path.join(path_to_assets, "2min.wav")
     
     try:
-        shutil.rmtree(os.path.join(path_to_tmp + "from_tags"))
+        shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
     except FileNotFoundError:
         pass
 
+    dh.create_dir(os.path.join(path_to_tmp, "from_tags"))
     
-    dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp + "from_tags") )
+    dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp, "from_tags") )
 
     
-    duration = dh.librosa.get_duration(os.path.join(path_to_tmp + "from_tags", "seg_1.wav"))
+    duration = dh.librosa.get_duration(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
     assert duration == 2.5
-    shutil.rmtree(os.path.join(path_to_tmp + "from_tags"))
+    shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
 
 
 @pytest.mark.parametrize("start,end,expected_label",[
