@@ -191,7 +191,11 @@ class Spectrogram():
 
             Returns:
                 img: 2d numpy array
-                     Cropped image
+                    Cropped image
+                t1: int
+                    Lower time bin
+                f1: int
+                    Lower frequency bin
         """
         Nt = self.tbins()
         Nf = self.fbins()
@@ -363,6 +367,38 @@ class Spectrogram():
         
         self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
     
+    def add(self, spec, delay=0, scale=1):
+        """ Add another spectrogram to this spectrogram.
+            The spectrograms must have the same time and frequency resolution.
+            The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be added
+                delay: float
+                    Shift the audio signal by this many seconds
+                scale: float
+                    Scaling factor for signal to be added        
+        """
+        assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
+        assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
+
+        # crop spectrogram
+        if delay < 0:
+            tlow = spec.tmin - delay
+        else:
+            tlow = spec.tmin
+        thigh = spec.tmin + self.duration() - delay  
+        spec.crop(tlow, thigh, self.fmin, self.fmax())
+        
+        # add
+        nt = spec.tbins()
+        nf = spec.fbins()
+        t1 = self._find_tbin(self.tmin + delay)
+        f1 = self._find_fbin(spec.fmin)
+        self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
+
+
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 

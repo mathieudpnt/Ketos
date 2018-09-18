@@ -72,6 +72,26 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     assert spec.tres == winstep
     assert spec.fmin == 0
     
+def test_sum_spectrogram_has_same_shape_as_original(sine_audio):
+    spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    orig_shape = spec1.shape
+    spec2 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    spec2.crop(tlow=1.0, thigh=2.5, flow=1000, fhigh=4000)
+    spec1.add(spec2, delay=0, scale=1)
+    assert spec1.image.shape == orig_shape
+
+def test_add_spectrograms_with_different_shapes(sine_audio):
+    spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    v_00 = spec1.image[0,0]
+    t = spec1._find_tbin(1.5)
+    f = spec1._find_fbin(2000)
+    v_tf = spec1.image[t,f]
+    print(v_00, v_tf)
+    spec2 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    spec2.crop(tlow=1.0, thigh=2.5, flow=1000, fhigh=4000)
+    spec1.add(spec2, delay=1.0, scale=1.3)
+    assert spec1.image[0,0] == v_00 # values outside addition region are unchanged
+    assert spec1.image[t,f] == pytest.approx(2.3 * v_tf, rel=0.001) # values outside addition region have changed
 
 def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
