@@ -248,4 +248,10 @@ def test_mel_spectrogram_has_correct_NFFT(sine_audio):
     
     assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
- 
+def test_create_audio_from_spectrogram(sine_audio):
+    duration = sine_audio.seconds()
+    winlen = duration/4
+    winstep = duration/10
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    audio = spec.audio_signal()
+    assert audio.rate == pytest.approx(sine_audio.rate, abs=3)

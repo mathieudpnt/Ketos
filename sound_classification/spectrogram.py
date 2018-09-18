@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import datetime
 import cv2
 from sound_classification.pre_processing import make_frames
+from sound_classification.audio_signal import AudioSignal
 
 
 class Spectrogram():
@@ -398,7 +399,6 @@ class Spectrogram():
         f1 = self._find_fbin(spec.fmin)
         self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
 
-
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
@@ -495,6 +495,28 @@ class MagSpectrogram(Spectrogram):
         image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         
         return image, NFFT, fres
+
+    def audio_signal(self):
+        """ Generate audio signal from magnitude spectrogram
+            
+            Returns:
+                a: AudioSignal
+                    Audio signal
+
+        """
+        y = np.fft.irfft(self.image)
+        d = self.tres * self.fres * y.shape[1]
+        N = int(np.ceil(y.shape[0] * d))
+        s = np.zeros(N)
+        for i in range(y.shape[0]):
+            i0 = i * d
+            for j in range(0, y.shape[1]):
+                k = int(np.ceil(i0 + j))
+                if k < N:
+                    s[k] += y[i,j]
+        rate = int(np.ceil((N+1) / self.duration()))
+        a = AudioSignal(rate=rate, data=s[:N])
+        return a
 
 
 class PowerSpectrogram(Spectrogram):
