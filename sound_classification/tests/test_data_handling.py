@@ -316,10 +316,33 @@ def test_open_or_create_tables():
     existing_table = dh.open_or_create_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
 
     assert existing_table == table_2
+    
+    h5.close()
+    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 
+@pytest.mark.test_write_sig_to_h5_database
+def test_write_sig_to_h5_database(sine_wave):
+    
+    rate, sig = sine_wave
+    pp.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
+    
+    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
+    raw_description = dh.create_raw_signal_table_description(signal_rate=44100, segment_length=3.0)
+    spec_description = dh.create_image_table_description(dimensions=(20,60))
 
+    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
+    
+    dh.write_sig_to_h5_database(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
+    table_1.flush()
+
+    np.testing.assert_array_almost_equal(table_1[0]['signal'],sig,decimal=3)
+    assert table_1[0]['id'].decode() == 'ex789_107'
+    assert table_1[0]['labels'].decode() == '[1]'
+
+    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
+    os.remove(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"))
 
 
     
