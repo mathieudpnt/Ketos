@@ -421,9 +421,6 @@ def test_seg_labels_are_correct():
     shutil.rmtree(path_to_assets + "/2s_segs")
 
 
-
-
-
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_segments_without_annotations():
     audio_file = path_to_assets+ "/2min.wav"
@@ -549,5 +546,39 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
+@pytest.mark.test_sig_h5_to_spectrogram
+def test_sig_h5_to_spectrogram():
+    audio_file = path_to_assets+ "/2min.wav"
+    
+    try:
+        shutil.rmtree(path_to_assets + "/2s_segs")
+    except FileNotFoundError:
+        pass
 
+    dir = path_to_assets + "/2s_segs"
+    dh.divide_audio_into_segs(audio_file=audio_file,
+        seg_duration=2.0, annotations=None, save_to=dir)
+
+    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
+
+    raw_description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.0)
+    spec_description = dh.create_image_table_description(dimensions=(20,60))
+
+    table_raw = dh.open_or_create_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
+    
+    segs = os.listdir(dir)
+    for seg in segs:
+        dh.write_sig_to_h5_database(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
+
+    table_raw.flush()
+    
+    dh.sig_h5_to_spectrogram(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
+    spec_table = h5.root.features.mag_spectrograms.seq_2s
+
+    assert len(spec_table) == len(segs)
+    assert pytest.approx(spec_table[:]['id'], table_raw[:]['id'])
+    assert pytest.approx(spec_table[:]['labels'], table_raw[:]['labels'])
+    
+    h5.close()
+    
 
