@@ -463,6 +463,31 @@ def test_seg_from_time_tag():
     assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
 
+@pytest.mark.test_seg_from_annotations
+def test_segs_from_annotations():
+    audio_file_path = os.path.join(path_to_assets,'2min.wav')
+    annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
+                                 'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
+                                 'end':[6.0,73.0,108.0]})
+
+    try:
+        shutil.rmtree(path_to_assets + "/from_annot")
+    except FileNotFoundError:
+        pass
+    dh.segs_from_annotations(annotations,path_to_assets + "/from_annot")
+    
+    # label_0 = len(glob(path_to_assets + "/from_annot/id_2min*l_[[]0].wav"))
+    # assert label_0 == 53
+
+    label_1 = len(glob(path_to_assets + "/from_annot/id_2min*l_[[]1].wav"))
+    assert label_1 == 2
+
+    label_2 = len(glob(path_to_assets + "/from_annot/id_2min*l_[[]2].wav"))
+    assert label_2 == 1
+
+    shutil.rmtree(path_to_assets + "/from_annot")
+    
+
 
 @pytest.mark.parametrize("start,end,expected_label",[
     (4.0,5.0,'[1]'),
