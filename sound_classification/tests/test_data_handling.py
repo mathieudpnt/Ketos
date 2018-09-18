@@ -458,8 +458,9 @@ def test_seg_from_time_tag():
     dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp, "from_tags") )
 
     
-    duration = dh.librosa.get_duration(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
-    assert duration == 2.5
+    sig, rate  = dh.librosa.load(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
+    duration = len(sig)/rate
+    assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
 
 
