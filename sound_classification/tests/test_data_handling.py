@@ -22,6 +22,7 @@ import os
 from glob import glob
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 @pytest.mark.test_encode_database
@@ -285,6 +286,40 @@ def test_get_data_from_seg_name():
     id,labels = dh.get_data_from_seg_name('id_rb001_89_l[1,2]')
     assert id == 'rb001_89'
     assert labels == 'l[1,2]' 
+
+@pytest.mark.test_open_or_create_table
+def test_open_or_create_tables():
+    
+    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
+
+    raw_description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.0)
+    spec_description = dh.create_image_table_description(dimensions=(20,60))
+
+    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
+    assert '/group_1' in h5
+    assert '/group_1/table_1' in h5
+
+    table_2 = dh.open_or_create_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000)
+    assert '/group_2' in h5
+    assert '/group_2/table_1' in h5
+
+    table_3 = dh.open_or_create_table(h5, '/group_2/subgroup_1', 'table_1',spec_description, sample_rate=2000)
+    assert '/group_2/subgroup_1' in h5
+    assert '/group_2/subgroup_1/table_1' in h5
+
+    table_4 = dh.open_or_create_table(h5, '/group_3/subgroup_1', 'table_1',spec_description, sample_rate=2000)
+    assert '/group_3/subgroup_1' in h5
+    assert '/group_3/subgroup_1/table_1' in h5
+
+
+    #When information about an existing table is given, it should return the table and not create a new one
+    existing_table = dh.open_or_create_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
+
+    assert existing_table == table_2
+
+
+
+
 
 
     
