@@ -481,7 +481,8 @@ def get_data_from_seg_name(seg_name):
     """
 
     id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
-    tmp = seg_name.split("_")[3]
+    print(seg_name.split("_"))
+    tmp = seg_name.split("_")[4]
     labels = tmp.split(".")[0]
 
     return (id,labels)
@@ -606,7 +607,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
         Note: segments will be saved following the name pattern "id_*_*_l_*.wav",
             where 'id_' is followed by the name of the original file, underscore ('_') 
             and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
-            Ex: 'id_rec03_87_l[1,3]', 'id_rec03_88_l[0]
+            Ex: 'id_rec03_87_l_[1,3]', 'id_rec03_88_l_[0]
             
 
 
@@ -647,7 +648,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
         else:
             label =  get_label_from_annotations(prefix, start, end, annotations)
 
-        out_name = "id_" + prefix + "_" + str(s) + "_l" + label + ".wav"
+        out_name = "id_" + prefix + "_" + str(s) + "_l_" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         print("Creating segment......", path_to_seg)
