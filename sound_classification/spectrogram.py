@@ -391,13 +391,14 @@ class Spectrogram():
             tlow = spec.tmin
         thigh = spec.tmin + self.duration() - delay  
         spec.crop(tlow, thigh, self.fmin, self.fmax())
-        
+
         # add
         nt = spec.tbins()
         nf = spec.fbins()
         t1 = self._find_tbin(self.tmin + delay)
         f1 = self._find_fbin(spec.fmin)
         self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
+
 
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -503,9 +504,12 @@ class MagSpectrogram(Spectrogram):
                 a: AudioSignal
                     Audio signal
 
+            TODO: Check that this implementation is correct!
+                  (For example, the window function is not being 
+                  taken into account which I believe it should be)
         """
         y = np.fft.irfft(self.image)
-        d = self.tres * self.fres * y.shape[1]
+        d = self.tres * self.fres * (y.shape[1] + 1)
         N = int(np.ceil(y.shape[0] * d))
         s = np.zeros(N)
         for i in range(y.shape[0]):

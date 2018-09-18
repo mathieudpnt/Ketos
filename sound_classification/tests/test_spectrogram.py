@@ -254,4 +254,4 @@ def test_create_audio_from_spectrogram(sine_audio):
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
     audio = spec.audio_signal()
-    assert audio.rate == pytest.approx(sine_audio.rate, abs=3)
+    assert audio.rate == sine_audio.rate
