@@ -530,5 +530,24 @@ def test_filter_annotations_by_orig_file():
      annot_03 = dh._filter_annotations_by_orig_file(annotations,'2min_03')               
      assert annot_03.empty
  
+@pytest.mark.test_pad_signal
+def test_pad_signal():
+
+    sig=np.ones((100))
+    rate = 50 
+    desired_length = 3.0
+    sig_length = len(sig)/rate #sig length in seconds
+
+    padded = dh.pad_signal(signal=sig, rate=rate, length=desired_length)
+    
+
+    assert len(padded) == desired_length * rate
+    pad_1_limit = int((desired_length - sig_length) * rate / 2)
+    pad_2_limit = int(desired_length * rate - pad_1_limit)
+    assert sum(padded[:pad_1_limit]) == 0
+    assert sum(padded[pad_2_limit:]) == 0
+    assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
+
+    
 
 
