@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
 import sound_classification.pre_processing as pp
+from sound_classification.spectrogram import MagSpectrogram
 import shutil
 import os
 from glob import glob
@@ -271,21 +272,21 @@ def test_create_image_table_description():
 
 @pytest.mark.get_data_from_seg_name
 def test_get_data_from_seg_name():
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[0].wav')
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[0].wav')
     assert id == 'rb001_89'
-    assert labels == 'l[0]' 
+    assert labels == '[0]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[0]')
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[0]')
     assert id == 'rb001_89'
-    assert labels == 'l[0]' 
+    assert labels == '[0]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[1,2].wav')
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[1,2].wav')
     assert id == 'rb001_89'
-    assert labels == 'l[1,2]' 
+    assert labels == '[1,2]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l[1,2]')
+    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[1,2]')
     assert id == 'rb001_89'
-    assert labels == 'l[1,2]' 
+    assert labels == '[1,2]' 
 
 @pytest.mark.test_open_or_create_table
 def test_open_or_create_tables():
@@ -337,13 +338,35 @@ def test_write_sig_to_h5_database(sine_wave):
     dh.write_sig_to_h5_database(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
     table_1.flush()
 
-    np.testing.assert_array_almost_equal(table_1[0]['signal'],sig,decimal=3)
+    pytest.approx(table_1[0]['signal'], sig)
     assert table_1[0]['id'].decode() == 'ex789_107'
     assert table_1[0]['labels'].decode() == '[1]'
 
+    h5.close()
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
     os.remove(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"))
 
+@pytest.mark.test_write_spetrogram_to_h5_database
+def test_write_spectrogram_to_h5_database(sine_audio):
+    
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    spec.tag = "id_ex789_107_l_[1]"
+        
+    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
+    spec_description = dh.create_image_table_description(dimensions=(26, 11026))
+    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
+    
+    dh.write_spectrogram_to_h5_database(spec, table_1)
+    table_1.flush()
+
+    assert pytest.approx(table_1[0]['signal'],spec.image)
+    assert table_1[0]['id'].decode() == 'ex789_107'
+    assert table_1[0]['labels'].decode() == '[1]'
+
+
+    h5.close()
+    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
+    
 
     
  
@@ -386,13 +409,13 @@ def test_seg_labels_are_correct():
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
     
-    label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]0].wav"))
+    label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]0].wav"))
     assert label_0 == 53
 
-    label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]1].wav"))
+    label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]1].wav"))
     assert label_1 == 5
 
-    label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]2].wav"))
+    label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]2].wav"))
     assert label_2 == 2
 
     shutil.rmtree(path_to_assets + "/2s_segs")
@@ -413,7 +436,7 @@ def test_creates_segments_without_annotations():
     dh.divide_audio_into_segs(audio_file=audio_file,
         seg_duration=2.0, annotations=None, save_to=path_to_assets + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l[[]NULL].wav"))
+    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]NULL].wav"))
 
     assert n_seg == 60
     shutil.rmtree(path_to_assets + "/2s_segs")
