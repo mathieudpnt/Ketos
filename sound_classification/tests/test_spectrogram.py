@@ -86,7 +86,6 @@ def test_add_spectrograms_with_different_shapes(sine_audio):
     t = spec1._find_tbin(1.5)
     f = spec1._find_fbin(2000)
     v_tf = spec1.image[t,f]
-    print(v_00, v_tf)
     spec2 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     spec2.crop(tlow=1.0, thigh=2.5, flow=1000, fhigh=4000)
     spec1.add(spec2, delay=1.0, scale=1.3)
