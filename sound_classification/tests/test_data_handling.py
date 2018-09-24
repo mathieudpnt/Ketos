@@ -369,6 +369,7 @@ def test_write_spectrogram_to_h5_database(sine_audio):
     h5.close()
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
     
+    
 
     
  
@@ -582,5 +583,6 @@ def test_sig_h5_to_spectrogram():
     assert pytest.approx(spec_table[:]['labels'], table_raw[:]['labels'])
     
     h5.close()
+    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
     
 
