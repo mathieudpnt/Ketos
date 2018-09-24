@@ -260,14 +260,16 @@ def test_parse_datetime_with_non_matching_format():
 def test_create_raw_signal_table_description():
     description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.5)
     description_columns = list(description.columns.keys())
-    assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
+    description_columns.sort()
+    assert description_columns ==  ['boxes','id', 'labels', 'signal']
     assert description.columns['signal'].shape == (5000,)
 
 @pytest.mark.create_image_table_description
 def test_create_image_table_description():
     description = dh.create_image_table_description(dimensions=(20,64))
     description_columns = list(description.columns.keys())
-    assert description_columns ==  ['id', 'labels', 'signal', 'boxes']
+    description_columns.sort()
+    assert description_columns ==  ['boxes','id', 'labels', 'signal']
     assert description.columns['signal'].shape == (20, 64)
 
 @pytest.mark.get_data_from_seg_name
