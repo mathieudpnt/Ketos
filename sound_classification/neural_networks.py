@@ -155,6 +155,7 @@ class CNNWhale():
         self.merged = tf_nodes['merged']
         self.writer = tf_nodes['writer']
         self.saver = tf_nodes['saver']
+        self.keep_prob = tf_nodes['keep_prob']
 
 
     @classmethod
@@ -229,7 +230,7 @@ class CNNWhale():
         predict = graph.get_tensor_by_name("predict:0")
         correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
-       
+        keep_prob = graph.get_tensor_by_name("keep_prob:0")        
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -247,6 +248,7 @@ class CNNWhale():
                 'merged': merged,
                 'writer': writer,
                 'saver': saver,
+                'keep_prob': keep_prob,
                 }
 
         return tf_nodes
@@ -278,6 +280,8 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
+        keep_prob = tf.placeholder(tf.float32,name='keep_prob')
+
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
@@ -310,9 +314,14 @@ class CNNWhale():
                 print('Output shape: [{0},{1}]'.format(l.shape[1], l.shape[2]))            
                 print('Output dimension: {0}'.format(dim))            
                 print('-------------------------------')
-        
-        # flatten
+
         last = conv_layers[-1]
+
+        # apply DropOut to last hidden layer
+        drop_out = tf.nn.dropout(last, keep_prob)  # DROP-OUT here
+        last = drop_out
+            
+        # flatten
         dim = last.shape[1] * last.shape[2] * last.shape[3]
         flattened = tf.reshape(last, [-1, dim])
 
@@ -374,6 +383,7 @@ class CNNWhale():
                 'merged': merged,
                 'writer': writer,
                 'saver': saver,
+                'keep_prob': keep_prob,
                 }
 
         return tf_nodes
@@ -391,35 +401,42 @@ class CNNWhale():
         """
         if self.verbosity >= 2:
             print("\nTraining  started")
-            print('\nEpoch  Cost  Test acc.  Val acc.')
+            print('\nEpoch  Cost  Test acc.  Val acc.  Feat. used')
             print('------------------------------------')
 
         sess = self.sess
 
         self.writer.add_graph(sess.graph)
 
+        validation_x_reshaped = self.reshape_x(self.validation_x)
+
+        features = sess.graph.get_tensor_by_name("dense_2:0")
+
         # initialise the variables
         sess.run(self.init_op)
         total_batch = int(self.train_size / self.batch_size)
         for epoch in range(self.num_epochs):
             avg_cost = 0
+            feat_used = 0
             for i in range(total_batch):
                 offset = i*self.batch_size
                 batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
                 batch_x_reshaped = self.reshape_x(batch_x)
                 batch_y = self.train_y[offset:(offset + self.batch_size)]
                
-                _, c = sess.run([self.optimizer, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
+                _, c, feat = sess.run(fetches=[self.optimizer, self.cost_function, features], feed_dict={self.x: batch_x_reshaped, self.y: batch_y, self.keep_prob: 0.5})
                 avg_cost += c / total_batch
             
-            validation_x_reshaped = self.reshape_x(self.validation_x)
-            train_acc = self.accuracy_on_train()
-            val_acc = self.accuracy_on_validation()
+                feat = np.sum(feat, axis=0)
+                feat_used += np.sum(feat > 0) / total_batch
             
             if self.verbosity >= 2:
-                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, train_acc, val_acc))
+                train_acc = self.accuracy_on_train()
+                val_acc = self.accuracy_on_validation()
+                max_feat = np.max(feat)
+                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}  {4:.1f}'.format(epoch + 1, avg_cost, train_acc, val_acc, feat_used))
 
-            summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
+            summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
 
         print('------------------------------------')
@@ -509,7 +526,7 @@ class CNNWhale():
             results: float
                 The accuracy value
         """
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
+        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -523,7 +540,7 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        results = self.sess.run(self.predict, feed_dict={self.x:x})
+        results = self.sess.run(self.predict, feed_dict={self.x:x, self.keep_prob:1.0})
         return results
 
     def reshape_x(self, x):
