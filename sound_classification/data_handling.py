@@ -464,11 +464,11 @@ def spec_h5_description(dimensions):
     return TableDescription
 
 
-def get_data_from_seg_name(seg_name):
+def parse_seg_name(seg_name):
     """ Retrieves the segment id and label from the segment name
 
         Args:
-            segment_name: str
+            seg_name: str
             Name of the segment in the format id_*_*_l_*.wav, where 'id' is 
             followed by base name of the audio file from which the segment was extracted, '_',
             and a sequence number. The 'l' is followed by any number of characters describing the label(s).
