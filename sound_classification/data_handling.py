@@ -518,11 +518,7 @@ def write_audio_to_h5(seg_file_name,table, pad=False, duration=None ):
     seg_r.append()
 
 
-#TODO: Consider passing an instance of the spectrogram class. 
-# It could include the id+label string in it's tag attribute.
-# Provided that the  id_*_l_* format is used, the get_data_from_seg_name()
-# function could then be used to extract the id and label.
-def write_spectrogram_to_h5_database(spectrogram,table):
+def write_spec_to_h5(spectrogram, table):
     """ Write data from spectrogram object into the h5 database.
 
         Note: the spectrogram object is expected to have the id and label information in it's 
