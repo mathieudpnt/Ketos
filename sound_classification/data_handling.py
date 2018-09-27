@@ -495,7 +495,7 @@ def write_audio_to_h5(seg_file_name,table, pad=False, duration=None ):
                 where * denotes 'any number of characters'.
             table: tables.Table
                 Table in which the segment will be stored
-                (described by create_raw_signal_table_description()).
+                (described by audio_h5_description()).
             pad: bool
                 True if signal should be padded with zeros until it's duration
                  is equal to the 'duration' argument. Flase if signal should be
@@ -507,7 +507,7 @@ def write_audio_to_h5(seg_file_name,table, pad=False, duration=None ):
     """
 
     rate, seg_data = read_wave(seg_file_name)
-    id, labels = get_data_from_seg_name(os.path.basename(seg_file_name))
+    id, labels = parse_seg_name(os.path.basename(seg_file_name))
 
     if pad:
         seg_data = pad_signal(seg_data, rate, duration)
@@ -532,12 +532,12 @@ def write_spec_to_h5(spectrogram, table):
 
             table: tables.Table
                 Table in which the spectrogram will be stored
-                (described by create_image_table_description()).
+                (described by spec_h5_description()).
         Returns:
             None.
     """
 
-    id, labels = get_data_from_seg_name(spectrogram.tag)
+    id, labels = parse_seg_name(spectrogram.tag)
     seg_r = table.row
     seg_r["id"] = id
     seg_r["labels"] = labels
@@ -558,7 +558,7 @@ def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=
             The name of the table. This name will be part of the table's path.
             Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             table_description: tables.IsDescription object
-            The descriptor class. See :func:`create_raw_signal_table_description` and :func:create_image_table_description
+            The descriptor class. See :func:`audio_h5_description` and :func:spec_h5_description
             sample_rate: int
             The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
             chunkshape: tuple
@@ -640,7 +640,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
         if annotations is None:
             label = '[NULL]'
         else:
-            label =  get_label_from_annotations(prefix, start, end, annotations)
+            label =  get_labels(prefix, start, end, annotations)
 
         out_name = "id_" + prefix + "_" + str(s) + "_l_" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
@@ -842,8 +842,8 @@ def audio_h5_to_spec(h5, raw_sig_table, where, spec_table_name,  spec_class, **k
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
 
-    spec_table_description = create_image_table_description(dimensions=ex_spec.shape)
-    spec_table = open_or_create_table(h5, where, spec_table_name, spec_table_description, None)
+    spec_table_description = spec_h5_description(dimensions=ex_spec.shape)
+    spec_table = open_table(h5, where, spec_table_name, spec_table_description, None)
 
 
     for segment in raw_sig_table.iterrows():
@@ -851,7 +851,7 @@ def audio_h5_to_spec(h5, raw_sig_table, where, spec_table_name,  spec_class, **k
         audio = AudioSignal(rate,signal)
         spec = spec_class(audio_signal=audio, **kwargs)
         spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spectrogram_to_h5_database(spec, spec_table )
+        write_spec_to_h5(spec, spec_table )
 
     spec_table.flush()
 
