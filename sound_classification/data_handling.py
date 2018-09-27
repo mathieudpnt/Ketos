@@ -440,10 +440,9 @@ def audio_h5_description(signal_rate, segment_length):
     return TableDescription
 
 
-def create_image_table_description(dimensions):
+def spec_h5_description(dimensions):
     """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
-     
-        
+             
         Args:
             dimension : tuple (ints)
             A tuple with ints describing the number of rows and number of collumns of each 
