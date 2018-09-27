@@ -256,67 +256,67 @@ def test_parse_datetime_with_non_matching_format():
 
 
 
-@pytest.mark.create_raw_signal_table_description
-def test_create_raw_signal_table_description():
-    description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.5)
+@pytest.mark.audio_h5_description
+def test_audio_h5_description():
+    description = dh.audio_h5_description(signal_rate=2000, segment_length=2.5)
     description_columns = list(description.columns.keys())
     description_columns.sort()
     assert description_columns ==  ['boxes','id', 'labels', 'signal']
     assert description.columns['signal'].shape == (5000,)
 
-@pytest.mark.create_image_table_description
-def test_create_image_table_description():
-    description = dh.create_image_table_description(dimensions=(20,64))
+@pytest.mark.spec_h5_description
+def test_spec_h5_description():
+    description = dh.spec_h5_description(dimensions=(20,64))
     description_columns = list(description.columns.keys())
     description_columns.sort()
     assert description_columns ==  ['boxes','id', 'labels', 'signal']
     assert description.columns['signal'].shape == (20, 64)
 
-@pytest.mark.get_data_from_seg_name
-def test_get_data_from_seg_name():
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[0].wav')
+@pytest.mark.parse_seg_name
+def test_parse_seg_name():
+    id,labels = dh.parse_seg_name('id_rb001_89_l_[0].wav')
     assert id == 'rb001_89'
     assert labels == '[0]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[0]')
+    id,labels = dh.parse_seg_name('id_rb001_89_l_[0]')
     assert id == 'rb001_89'
     assert labels == '[0]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[1,2].wav')
+    id,labels = dh.parse_seg_name('id_rb001_89_l_[1,2].wav')
     assert id == 'rb001_89'
     assert labels == '[1,2]' 
 
-    id,labels = dh.get_data_from_seg_name('id_rb001_89_l_[1,2]')
+    id,labels = dh.parse_seg_name('id_rb001_89_l_[1,2]')
     assert id == 'rb001_89'
     assert labels == '[1,2]' 
 
-@pytest.mark.test_open_or_create_table
-def test_open_or_create_tables():
+@pytest.mark.test_open_table
+def test_open_tables():
     
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
-    raw_description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.create_image_table_description(dimensions=(20,60))
+    raw_description = dh.audio_h5_description(signal_rate=2000, segment_length=2.0)
+    spec_description = dh.spec_h5_description(dimensions=(20,60))
 
-    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
+    table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
     assert '/group_1' in h5
     assert '/group_1/table_1' in h5
 
-    table_2 = dh.open_or_create_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000)
+    table_2 = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000)
     assert '/group_2' in h5
     assert '/group_2/table_1' in h5
 
-    table_3 = dh.open_or_create_table(h5, '/group_2/subgroup_1', 'table_1',spec_description, sample_rate=2000)
+    table_3 = dh.open_table(h5, '/group_2/subgroup_1', 'table_1',spec_description, sample_rate=2000)
     assert '/group_2/subgroup_1' in h5
     assert '/group_2/subgroup_1/table_1' in h5
 
-    table_4 = dh.open_or_create_table(h5, '/group_3/subgroup_1', 'table_1',spec_description, sample_rate=2000)
+    table_4 = dh.open_table(h5, '/group_3/subgroup_1', 'table_1',spec_description, sample_rate=2000)
     assert '/group_3/subgroup_1' in h5
     assert '/group_3/subgroup_1/table_1' in h5
 
 
     #When information about an existing table is given, it should return the table and not create a new one
-    existing_table = dh.open_or_create_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
+    existing_table = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
 
     assert existing_table == table_2
     
@@ -324,20 +324,20 @@ def test_open_or_create_tables():
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 
-@pytest.mark.test_write_sig_to_h5_database
-def test_write_sig_to_h5_database(sine_wave):
+@pytest.mark.test_write_audio_to_h5
+def test_write_audio_to_h5(sine_wave):
     
     rate, sig = sine_wave
     pp.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
     
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
-    raw_description = dh.create_raw_signal_table_description(signal_rate=44100, segment_length=3.0)
-    spec_description = dh.create_image_table_description(dimensions=(20,60))
+    raw_description = dh.audio_h5_description(signal_rate=44100, segment_length=3.0)
+    spec_description = dh.spec_h5_description(dimensions=(20,60))
 
-    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
+    table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
     
-    dh.write_sig_to_h5_database(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
+    dh.write_audio_to_h5(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
     table_1.flush()
 
     pytest.approx(table_1[0]['signal'], sig)
@@ -349,16 +349,16 @@ def test_write_sig_to_h5_database(sine_wave):
     os.remove(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"))
 
 @pytest.mark.test_write_spetrogram_to_h5_database
-def test_write_spectrogram_to_h5_database(sine_audio):
+def test_write_spec_to_h5(sine_audio):
     
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     spec.tag = "id_ex789_107_l_[1]"
         
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-    spec_description = dh.create_image_table_description(dimensions=(26, 11026))
-    table_1 = dh.open_or_create_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
+    spec_description = dh.spec_h5_description(dimensions=(26, 11026))
+    table_1 = dh.open_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
     
-    dh.write_spectrogram_to_h5_database(spec, table_1)
+    dh.write_spec_to_h5(spec, table_1)
     table_1.flush()
 
     assert pytest.approx(table_1[0]['signal'],spec.image)
@@ -499,14 +499,14 @@ def test_segs_from_annotations():
     (99.0,103.0,'[2]'),
     (90.0,110.0,'[2, 1]'),
      ])
-@pytest.mark.test_get_label_from_annotations
+@pytest.mark.test_get_labels
 def test_get_correct_labels(start,end,expected_label):
     audio_file="2min"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
                                  'end':[6.0,103.0,108.0]})
     
-    label = dh.get_label_from_annotations(file='2min',start=start, end=end,
+    label = dh.get_labels(file='2min',start=start, end=end,
                              annotations=annotations, not_in_annotations=0)
     print(label)
     assert label == expected_label
@@ -549,8 +549,8 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-@pytest.mark.test_sig_h5_to_spectrogram
-def test_sig_h5_to_spectrogram():
+@pytest.mark.test_audio_h5_to_spec
+def test_audio_h5_to_spec():
     audio_file = path_to_assets+ "/2min.wav"
     
     try:
@@ -564,18 +564,18 @@ def test_sig_h5_to_spectrogram():
 
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
-    raw_description = dh.create_raw_signal_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.create_image_table_description(dimensions=(20,60))
+    raw_description = dh.audio_h5_description(signal_rate=2000, segment_length=2.0)
+    spec_description = dh.spec_h5_description(dimensions=(20,60))
 
-    table_raw = dh.open_or_create_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
+    table_raw = dh.open_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
     
     segs = os.listdir(dir)
     for seg in segs:
-        dh.write_sig_to_h5_database(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
+        dh.write_audio_to_h5(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
 
     table_raw.flush()
     
-    dh.sig_h5_to_spectrogram(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
+    dh.audio_h5_to_spec(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
     spec_table = h5.root.features.mag_spectrograms.seq_2s
 
     assert len(spec_table) == len(segs)
