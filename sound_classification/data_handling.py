@@ -544,7 +544,7 @@ def write_spec_to_h5(spectrogram, table):
     seg_r["signal"] = spectrogram.image
     seg_r.append()
 
-def open_or_create_table(h5, where, table_name,table_description, sample_rate, chunkshape=None):
+def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=None):
     """ Open the specified table or creates it if it does not exist.
 
         Args:
