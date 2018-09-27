@@ -411,7 +411,7 @@ def get_image_size(images):
     return image_shape
 
 
-def create_raw_signal_table_description(signal_rate, segment_length):
+def audio_h5_description(signal_rate, segment_length):
     """ Create the class that describes the raw signal table structure for the HDF5 database.
      
         Args:
