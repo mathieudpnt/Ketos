@@ -300,7 +300,7 @@ class CNNWhale():
         for i in range(len(conv_params)):
             p = conv_params[i] # config parameters
             n = 'conv_{0}'.format(i+1) # name
-            l_prev = conv_layers[i] # previous layer
+            l_prev = conv_layers[len(conv_layers)-1] # previous layer
             l = self.create_new_conv_layer(l_prev, p[0], p[1], [p[2], p[3]], pool_shape, name=n) # new layer
             conv_layers.append(l)
             dim = l.shape[1] * l.shape[2] * l.shape[3]
@@ -314,13 +314,13 @@ class CNNWhale():
                 print('Output shape: [{0},{1}]'.format(l.shape[1], l.shape[2]))            
                 print('Output dimension: {0}'.format(dim))            
                 print('-------------------------------')
+            # apply DropOut 
+            drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
+            conv_layers.append(drop_out)
 
+        # last layer
         last = conv_layers[-1]
 
-        # apply DropOut to last hidden layer
-        drop_out = tf.nn.dropout(last, keep_prob)  # DROP-OUT here
-        last = drop_out
-            
         # flatten
         dim = last.shape[1] * last.shape[2] * last.shape[3]
         flattened = tf.reshape(last, [-1, dim])
@@ -388,7 +388,7 @@ class CNNWhale():
 
         return tf_nodes
 
-    def train(self):
+    def train(self, dropout=0.5):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -417,24 +417,24 @@ class CNNWhale():
         total_batch = int(self.train_size / self.batch_size)
         for epoch in range(self.num_epochs):
             avg_cost = 0
+            avg_acc = 0
             feat_used = 0
             for i in range(total_batch):
                 offset = i*self.batch_size
                 batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
                 batch_x_reshaped = self.reshape_x(batch_x)
                 batch_y = self.train_y[offset:(offset + self.batch_size)]
-               
-                _, c, feat = sess.run(fetches=[self.optimizer, self.cost_function, features], feed_dict={self.x: batch_x_reshaped, self.y: batch_y, self.keep_prob: 0.5})
+                _, c, a, feat = sess.run(fetches=[self.optimizer, self.cost_function, self.accuracy, features], feed_dict={self.x: batch_x_reshaped, self.y: batch_y, self.keep_prob: dropout})
                 avg_cost += c / total_batch
-            
+                avg_acc += a / total_batch
+
                 feat = np.sum(feat, axis=0)
                 feat_used += np.sum(feat > 0) / total_batch
             
             if self.verbosity >= 2:
-                train_acc = self.accuracy_on_train()
+#                train_acc = self.accuracy_on_train()
                 val_acc = self.accuracy_on_validation()
-                max_feat = np.max(feat)
-                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}  {4:.1f}'.format(epoch + 1, avg_cost, train_acc, val_acc, feat_used))
+                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}  {4:.1f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, feat_used))
 
             summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
@@ -676,7 +676,6 @@ class CNNWhale():
                     The accuracy on the training set.
         """
         train_x_reshaped = self.reshape_x(self.train_x)
-        #validation_x_reshaped = reshape_x(x, input_shape)
         results = self._check_accuracy(train_x_reshaped, self.train_y)
         return results
 
