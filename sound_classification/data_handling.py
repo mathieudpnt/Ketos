@@ -676,7 +676,7 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
 
 
 
-def get_label_from_annotations(file,start, end, annotations, not_in_annotations=0):
+def get_labels(file,start, end, annotations, not_in_annotations=0):
     """ Retrieves the labels that fall in the specified interval.
     
         Args:
