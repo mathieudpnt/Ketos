@@ -254,7 +254,7 @@ class CNNWhale():
         return tf_nodes
 
 
-    def create_net_structure(self, conv_params=[[1,32,2,8],[32,64,30,8]], dense_params=[512]):
+    def create_net_structure(self, conv_params=[[1,32,2,8],[32,64,30,8]], dense_params=[512], learning_rate=0):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -280,6 +280,9 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
+        if learning_rate == 0:
+            learning_rate = self.learning_rate
+
         keep_prob = tf.placeholder(tf.float32,name='keep_prob')
 
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
@@ -388,7 +391,7 @@ class CNNWhale():
 
         return tf_nodes
 
-    def train(self, dropout=0.5):
+    def train(self, batch_size=0, epochs=0, dropout=0.5, feature_layer_name="dense_2:0"):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -404,43 +407,56 @@ class CNNWhale():
             print('\nEpoch  Cost  Test acc.  Val acc.  Feat. used')
             print('------------------------------------')
 
+        if batch_size == 0:
+            batch_size = self.batch_size
+        if epochs == 0:
+            epochs = self.num_epochs
+
         sess = self.sess
+        x = self.train_x
+        y = self.train_y
+        x_val = self.validation_x
+        y_val = self.validation_y
 
         self.writer.add_graph(sess.graph)
 
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-
-        features = sess.graph.get_tensor_by_name("dense_2:0")
+        features = sess.graph.get_tensor_by_name(feature_layer_name)
 
         # initialise the variables
         sess.run(self.init_op)
-        total_batch = int(self.train_size / self.batch_size)
-        for epoch in range(self.num_epochs):
+
+        batches = int(y.shape[0] / batch_size)
+        for epoch in range(epochs):
             avg_cost = 0
             avg_acc = 0
             feat_used = 0
-            for i in range(total_batch):
-                offset = i*self.batch_size
-                batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
-                batch_x_reshaped = self.reshape_x(batch_x)
-                batch_y = self.train_y[offset:(offset + self.batch_size)]
-                _, c, a, feat = sess.run(fetches=[self.optimizer, self.cost_function, self.accuracy, features], feed_dict={self.x: batch_x_reshaped, self.y: batch_y, self.keep_prob: dropout})
-                avg_cost += c / total_batch
-                avg_acc += a / total_batch
+            for i in range(batches):
+                offset = i * batch_size
+                x_i = x[offset:(offset + batch_size), :, :, :]
+                x_i = self.reshape_x(x_i)
+                y_i = y[offset:(offset + batch_size)]
+                _, c, a, f = sess.run(fetches=[self.optimizer, self.cost_function, self.accuracy, features], feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                avg_cost += c / batches
+                avg_acc += a / batches
 
-                feat = np.sum(feat, axis=0)
-                feat_used += np.sum(feat > 0) / total_batch
+                f = np.sum(f, axis=0)
+                feat_used += np.sum(f > 0) / batches
             
             if self.verbosity >= 2:
 #                train_acc = self.accuracy_on_train()
                 val_acc = self.accuracy_on_validation()
                 print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}  {4:.1f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, feat_used))
 
-            summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y, self.keep_prob: 1.0})
+            x_val = self.reshape_x(x_val)
+            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
 
-        print('------------------------------------')
-        print("\nTraining completed!")
+        if self.verbosity >= 2:
+            print('------------------------------------')
+            print("\nTraining completed!")
+
+        return avg_cost
+
         
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
