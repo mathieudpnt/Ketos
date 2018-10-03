@@ -265,11 +265,20 @@ class CNNWhale():
             and one fully connected layers with ReLU activation.
 
             Args:
-                conv_params: array
-                    Configuration parameters for the convolutional layers
-                dense_params: array
-                    Size of the fully connected layers (not including the output layer)
-                    
+                conv_params: list
+                    Configuration parameters for the convolutional layers.
+                    Each item in the list represents a convolutional layer.
+                    The items are themselves lists of four integers:
+                        - 0: number of input channels
+                        - 1: number of filters
+                        - 2+3: filter shape
+                dense_params: list
+                    Size of the fully connected layers preceeding the output layer.
+                    The number of such layers is determined by the length of the list.
+                learning_rate: float
+                    Learning rate. Overwrites learning rate specified at initialization.
+
+
             Returns:
                 tf_nodes: dict
                     A dictionary with the tensorflow objects necessary
@@ -398,9 +407,20 @@ class CNNWhale():
            Once training is done, check the accuracy on the validation set.
            Record summary statics during training. 
 
+        Args:
+            batch_size: int
+                Batch size. Overwrites batch size specified at initialization.
+            epochs: int
+                Number of epochs: Overwrites number of epochs specified at initialization.
+            dropout: float
+                Float in the range [0,1] specifying the probability of keeping the weights, 
+                i.e., drop out will only be effectuated if dropout < 1.
+            feature_layer_name: str
+                Name of 'feature' layer.
 
         Returns:
-            None
+            avg_cost: float
+                Average cost of last completed training epoch.
         """
         if self.verbosity >= 2:
             print("\nTraining  started")
