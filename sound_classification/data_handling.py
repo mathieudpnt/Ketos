@@ -594,7 +594,7 @@ def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=
 
 
 
-def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
+def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
 
@@ -602,6 +602,9 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
             where 'id_' is followed by the name of the original file, underscore ('_') 
             and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
             Ex: 'id_rec03_87_l_[1,3]', 'id_rec03_88_l_[0]
+
+            The start_seg and end_seg arguments can be used to segment only part of audio files,
+            which is usefule when processing large files in parallel.
             
 
 
@@ -623,6 +626,16 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
                     
             save_to: str
             path to the directory where segments will be saved.
+
+            start_seg: int
+                Indicates the number of the segment on which the segmentation will start.
+                A value of 3 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
+                that would corresponfd to 6.0 seconds from the beginning of the file')
+            end_seg:int
+                Indicates the number of the segment where the segmentation will stop.
+                art.
+                A value of 6 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
+                that would corresponfd to 12.0 seconds from the beginning of the file'
                         
          Returns:
             None   
@@ -633,8 +646,13 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None):
 
     prefix = os.path.basename(audio_file).split(".wav")[0]
 
-    for s in range(n_seg):
-        start = s * seg_duration
+    if start_seg is None:
+        start_seg = 0
+    if end_seg is None:
+        end_seg = n_seg
+
+    for s in range(start_seg, end_seg + 1):
+        start = s * seg_duration - seg_duration
         end = start + seg_duration
 
         if annotations is None:
@@ -798,10 +816,11 @@ def pad_signal(signal,rate, length):
 
         
     """
-    input_length = signal.shape[0] / rate
+    length = length * rate
+    input_length = signal.shape[0] 
     
-    difference = (length - input_length) * rate
-    pad1_len =  int(round(difference/2))
+    difference = ( length - input_length) 
+    pad1_len =  int(np.ceil(difference/2))
     pad2_len = int(difference - pad1_len)
 
     pad1 =  np.zeros((pad1_len))
