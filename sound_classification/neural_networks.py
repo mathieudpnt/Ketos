@@ -400,7 +400,7 @@ class CNNWhale():
 
         return tf_nodes
 
-    def train(self, batch_size=0, epochs=0, dropout=0.5, feature_layer_name="dense_2:0"):
+    def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -422,11 +422,6 @@ class CNNWhale():
             avg_cost: float
                 Average cost of last completed training epoch.
         """
-        if self.verbosity >= 2:
-            print("\nTraining  started")
-            print('\nEpoch  Cost  Test acc.  Val acc.  Feat. used')
-            print('------------------------------------')
-
         if batch_size == 0:
             batch_size = self.batch_size
         if epochs == 0:
@@ -440,7 +435,19 @@ class CNNWhale():
 
         self.writer.add_graph(sess.graph)
 
-        features = sess.graph.get_tensor_by_name(feature_layer_name)
+        features = None
+        if feature_layer_name is not None:
+            features = sess.graph.get_tensor_by_name(feature_layer_name)
+
+        if self.verbosity >= 2:
+            print("\nTraining  started")
+            header = '\nEpoch  Cost  Test acc.  Val acc.'
+            line   = '----------------------------------'
+            if features is not None:
+                header += '   No. Feat. used'
+                line   += '-----------------'
+            print(header)
+            print(line)
 
         # initialise the variables
         sess.run(self.init_op)
@@ -455,24 +462,32 @@ class CNNWhale():
                 x_i = x[offset:(offset + batch_size), :, :, :]
                 x_i = self.reshape_x(x_i)
                 y_i = y[offset:(offset + batch_size)]
-                _, c, a, f = sess.run(fetches=[self.optimizer, self.cost_function, self.accuracy, features], feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                fetch = [self.optimizer, self.cost_function, self.accuracy]
+
+                if features is not None:
+                    fetch.append(features)
+                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    f = np.sum(f, axis=0)
+                    feat_used += np.sum(f > 0) / batches
+                else:
+                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                
                 avg_cost += c / batches
                 avg_acc += a / batches
-
-                f = np.sum(f, axis=0)
-                feat_used += np.sum(f > 0) / batches
             
             if self.verbosity >= 2:
-#                train_acc = self.accuracy_on_train()
                 val_acc = self.accuracy_on_validation()
-                print(' {0}  {1:.3f}  {2:.3f}  {3:.3f}  {4:.1f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, feat_used))
+                s = ' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc)
+                if features is not None:
+                    s += '  {4:.1f}'.format(feat_used)
+                print(s)
 
             x_val = self.reshape_x(x_val)
             summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
 
         if self.verbosity >= 2:
-            print('------------------------------------')
+            print(line)
             print("\nTraining completed!")
 
         return avg_cost
