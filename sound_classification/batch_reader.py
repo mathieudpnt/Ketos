@@ -79,7 +79,12 @@ class BatchReader:
 
         # time stamps
         for f in fnames:
-            t = parse_datetime(f, datetime_fmt)
+            fmt = datetime_fmt
+            folder = f[:f.rfind('/')+1]
+            if folder is not None and fmt is not None:
+                fmt = folder + fmt
+                print(fmt)
+            t = parse_datetime(f, fmt)
             if t is None:
                 t = t0
             self.files.append([f, t])

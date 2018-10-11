@@ -66,7 +66,7 @@ def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
 
 def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
-    fmt = '{0}*HMS_%H_%M_%S__DMY_%d_%m_%y*'.format(folder)
+    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     reader = BatchReader(source=folder, datetime_fmt=fmt)
     b = reader.next(700)
     assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=0, microsecond=0)
@@ -79,7 +79,7 @@ def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
 
 def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
-    fmt = '{0}*HMS_%H_%M_%S__DMY_%d_%m_%y*'.format(folder)
+    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     reader = BatchReader(source=folder, datetime_fmt=fmt)
     reader.next()
     log = reader.log()
