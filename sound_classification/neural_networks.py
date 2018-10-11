@@ -265,7 +265,7 @@ class CNNWhale():
         return tf_nodes
 
 
-    def create_net_structure(self, conv_params=[[1,32,2,8],[32,64,30,8]], dense_params=[512], learning_rate=0):
+    def create_net_structure(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512], learning_rate=0):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -276,16 +276,11 @@ class CNNWhale():
             and one fully connected layers with ReLU activation.
 
             Args:
-                conv_params: list
+                conv_params: list(ConvParams)
                     Configuration parameters for the convolutional layers.
                     Each item in the list represents a convolutional layer.
-                    The items are themselves lists of four integers:
-                        - 0: number of input channels
-                        - 1: number of filters
-                        - 2+3: filter shape
-                dense_params: list
-                    Size of the fully connected layers preceeding the output layer.
-                    The number of such layers is determined by the length of the list.
+                dense_size: list(int)
+                    Sizes of the fully connected layers preceeding the output layer.
                 learning_rate: float
                     Learning rate. Overwrites learning rate specified at initialization.
 
@@ -311,32 +306,31 @@ class CNNWhale():
 
         pool_shape=[2,2]
 
-        # enforce that first convolutional has dimensions [1, X]
-        if len(conv_params) > 0:
-            conv_params[0][0] = 1
+        # input and convolutional layers
+        params = [ConvParams(name='input', n_filters=1, filter_shape=[1,1])] # input layer with dimension 1
+        params.extend(conv_params)
             
-        # enforce output layer
-        dense_params.append(self.num_labels)
+        # dense layers including output layer
+        dense_size.append(self.num_labels)
 
         # create convolutional layers
         conv_layers = [x_shaped]
-        for i in range(len(conv_params)):
-            p = conv_params[i] # config parameters
-            n = 'conv_{0}'.format(i+1) # name
-            l_prev = conv_layers[len(conv_layers)-1] # previous layer
-            l = self.create_new_conv_layer(l_prev, p[0], p[1], [p[2], p[3]], pool_shape, name=n) # new layer
+        N = len(params)
+        conv_summary = list()
+        for i in range(1,N):
+            # previous layer
+            l_prev = conv_layers[len(conv_layers)-1]
+            # layer parameters
+            n_input = params[i-1].n_filters
+            n_filters = params[i].n_filters
+            filter_shape = params[i].filter_shape
+            name = params[i].name
+            # create new layer
+            l = self.create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
             conv_layers.append(l)
+            # collect info
             dim = l.shape[1] * l.shape[2] * l.shape[3]
-            if self.verbosity >= 2:
-                print('\nConvolutional layer #{0}:'.format(i+1))
-                print('-------------------------------')
-                print('Name: {0}'.format(n))
-                print('Input channels: {0}'.format(p[0]))            
-                print('Filters: {0}'.format(p[1]))            
-                print('Filter shape: [{0},{1}]'.format(p[2],p[3]))
-                print('Output shape: [{0},{1}]'.format(l.shape[1], l.shape[2]))            
-                print('Output dimension: {0}'.format(dim))            
-                print('-------------------------------')
+            conv_summary.append("  {0}       {1} x {2}          [{3},{4}]         {5}".format(name, n_input, n_filters, filter_shape[0], filter_shape[1], dim))
             # apply DropOut 
             drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
             conv_layers.append(drop_out)
@@ -350,8 +344,9 @@ class CNNWhale():
 
         # fully-connected layers with ReLu activation
         dense_layers = [flattened]
-        for i in range(len(dense_params)):
-            size = dense_params[i] 
+        dense_summary = list()
+        for i in range(len(dense_size)):
+            size = dense_size[i] 
             l_prev = dense_layers[i]
             w_name = 'w_{0}'.format(i+1)
             w = tf.Variable(tf.truncated_normal([int(l_prev.shape[1]), size], stddev=0.03), name=w_name)
@@ -359,19 +354,32 @@ class CNNWhale():
             b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
             l = tf.matmul(l_prev, w) + b
             n = 'dense_{0}'.format(i+1)
-            if i < len(dense_params) - 1:
+            if i < len(dense_size) - 1:
                 l = tf.nn.relu(l, name=n) # ReLu activation
             else: # output layer
                 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
                 l = tf.nn.softmax(l, name=n) # softmax                    
 
             dense_layers.append(l)
-            if self.verbosity >= 2:
-                print('\nFully-connected layer #{0}:'.format(i+1))
-                print('-------------------------------')
-                print('Name: {0}'.format(n))
-                print('Output dimension: {0}'.format(size))            
-                print('-------------------------------')
+            dense_summary.append("  {0}    {1}".format(n, size))
+
+        if self.verbosity >= 2:
+            print('\n')
+            print('======================================================')
+            print('                   Convolutional layers               ')
+            print('------------------------------------------------------')
+            print('  Name   Input x Filters   Filter Shape   Output dim. ')
+            print('------------------------------------------------------')
+            for line in conv_summary:
+                print(line)
+            print('======================================================')
+            print('                  Fully connected layers              ')
+            print('------------------------------------------------------')
+            print('  Name       Size                                      ')
+            print('------------------------------------------------------')
+            for line in dense_summary:
+                print(line)
+            print('======================================================')
 
         # output layer
         y_ = dense_layers[-1]
