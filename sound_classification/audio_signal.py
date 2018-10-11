@@ -313,7 +313,10 @@ class AudioSignal:
 
         if delay is None:
             delay = 0
+
         delay = max(0, delay)
+        if max_length is not None:
+            delay = min(max_length / self.rate, delay)
 
         # ensure that overlap region is shorter than either signals
         n_smooth = min(n_smooth, len(self.data) - 1)

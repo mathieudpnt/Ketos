@@ -83,7 +83,6 @@ class BatchReader:
             folder = f[:f.rfind('/')+1]
             if folder is not None and fmt is not None:
                 fmt = folder + fmt
-                print(fmt)
             t = parse_datetime(f, fmt)
             if t is None:
                 t = t0
