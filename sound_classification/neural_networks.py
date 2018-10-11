@@ -18,7 +18,18 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+from collections import namedtuple
 import sound_classification.data_handling as dh
+
+
+ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
+ConvParams.__doc__ = '''\
+Name and dimensions of convolutional layer in neural network
+
+name - Name of convolutional layer, e.g. "conv_layer"
+n_filters - Number of filters, e.g. 16
+filter_shape - Filter shape, e.g. [4,4]'''
+
 
 
 class CNNWhale():
