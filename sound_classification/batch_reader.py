@@ -97,13 +97,13 @@ class BatchReader:
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
 
         if self.verbose:
-            print(' File {0} of {1}\r'.format(i+1, len(self.files)))
+            print(' File {0} of {1}'.format(i+1, len(self.files)), end="\r")
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
         
         if self.rate is not None:
-            s.resample(new_rate=self.rate) # resample
+            s.resample(new_rate=self.rate) # resamples
 
         return s
         
@@ -181,6 +181,9 @@ class BatchReader:
             self._add_to_batch(size, new_batch=(length==0))
             
             length = len(self.batch.data)
+
+        if self.finished() and self.verbose:
+            print(' Successfully processed {0} files'.format(len(self.files)))
 
         return self.batch
         
