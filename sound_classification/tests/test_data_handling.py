@@ -188,7 +188,36 @@ def test_get_wave_files():
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    
+    files = dh.get_wave_files(path_to_assets, fullpath=True)
+    assert len(files) == 2
+    assert files[0] == f1
+    assert files[1] == f2
+
+def test_get_wave_files_from_multiple_folders():
+    # clean
+    for f in glob(path_to_assets + "/*.wav"):
+        os.remove(f)  #clean
+    # create two wave files in separate subfolders
+    sub1 = path_to_assets + "/sub1"
+    sub2 = path_to_assets + "/sub2"
+    if not os.path.exists(sub1):
+        os.mkdir(sub1)
+    if not os.path.exists(sub2):
+        os.mkdir(sub2)
+    f1 = sub1 + "/f1.wav"
+    f2 = sub2 + "/f2.wav"
+    pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
+    pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    # get file names
+    files = dh.get_wave_files(path_to_assets, fullpath=False, subdirs=True)
+    assert len(files) == 2
+    assert files[0] == "f1.wav"
+    assert files[1] == "f2.wav"
+    files = dh.get_wave_files(path_to_assets, fullpath=True, subdirs=True)
+    assert len(files) == 2
+    assert files[0] == f1
+    assert files[1] == f2
+
     
 ################################
 # from1hot() tests
