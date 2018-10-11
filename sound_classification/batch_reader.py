@@ -107,10 +107,7 @@ class BatchReader:
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
         
         if self.rate is not None:
-            if len(s.data) > 0:
-                s.resample(new_rate=self.rate) # resamples
-            else:
-                s.rate = self.rate
+            s.resample(new_rate=self.rate) # resamples
 
         return s
         
@@ -125,6 +122,8 @@ class BatchReader:
         else:
             self.signal = None
             self.time = None
+            
+        if self.signal is None:
             self.eof = True
 
     def _add_to_batch(self, size, new_batch):
@@ -139,6 +138,9 @@ class BatchReader:
         """
         if self.signal.empty():
             self._read_next_file()
+           
+        if self.signal is None:
+            return
 
         file_is_new = self.signal.begin() == self.time # check if we have already read from this file
 
@@ -191,7 +193,8 @@ class BatchReader:
 
             self._add_to_batch(size, new_batch=(length==0))
             
-            length = len(self.batch.data)
+            if self.batch is not None:
+                length = len(self.batch.data)
 
         if self.finished() and self.verbose:
             print(' Successfully processed {0} files'.format(len(self.files)))

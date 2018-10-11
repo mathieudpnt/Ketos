@@ -145,6 +145,16 @@ def test_next_batch_with_two_very_short_files():
     assert reader.finished() == True
     assert len(b.data) == n1+n2-2
 
+def test_next_batch_with_empty_file_and_resampling():
+    empty = os.path.join(path_to_assets, "empty.wav")
+    pp.wave.write(empty, rate=4000, data=np.empty(0))
+    s = AudioSignal.from_wav(empty)
+    n = len(s.data)
+    reader = BatchReader(source=[empty], rate=2000)
+    b = reader.next()
+    assert reader.finished() == True
+    assert b is None
+
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
     reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
     b = reader.next()

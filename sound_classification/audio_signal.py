@@ -491,22 +491,25 @@ class AudioSignal:
             new_rate: int
                 New sampling rate in Hz
         """
+        if len(self.data) < 2:
+            self.rate = new_rate
 
-        orig_rate = self.rate
-        sig = self.data
+        else:                
+            orig_rate = self.rate
+            sig = self.data
 
-        duration = sig.shape[0] / orig_rate
+            duration = sig.shape[0] / orig_rate
 
-        time_old  = np.linspace(0, duration, sig.shape[0])
-        time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
+            time_old  = np.linspace(0, duration, sig.shape[0])
+            time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
 
-        interpolator = interpolate.interp1d(time_old, sig.T)
-        new_audio = interpolator(time_new).T
+            interpolator = interpolate.interp1d(time_old, sig.T)
+            new_audio = interpolator(time_new).T
 
-        new_sig = np.round(new_audio).astype(sig.dtype)
+            new_sig = np.round(new_audio).astype(sig.dtype)
 
-        self.rate = new_rate
-        self.data = new_sig
+            self.rate = new_rate
+            self.data = new_sig
 
     def copy(self):
         """ Makes a copy of the time stamped audio signal.
