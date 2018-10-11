@@ -606,8 +606,6 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             The start_seg and end_seg arguments can be used to segment only part of audio files,
             which is usefule when processing large files in parallel.
             
-
-
         Args:
             audio_file:str
             .wav file name (including path).
@@ -633,9 +631,8 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
                 that would corresponfd to 6.0 seconds from the beginning of the file')
             end_seg:int
                 Indicates the number of the segment where the segmentation will stop.
-                art.
                 A value of 6 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
-                that would corresponfd to 12.0 seconds from the beginning of the file'
+                that would correspond to 12.0 seconds from the beginning of the file'
                         
          Returns:
             None   
@@ -649,7 +646,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
     if start_seg is None:
         start_seg = 0
     if end_seg is None:
-        end_seg = n_seg
+        end_seg = n_seg - 1
 
     for s in range(start_seg, end_seg + 1):
         start = s * seg_duration - seg_duration
