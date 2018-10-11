@@ -20,6 +20,8 @@ class BatchReader:
         Args:
             source: str or list
                 File name, list of file names, or directory name 
+            recursive_search: bool
+                Include files from all subdirectories 
             rate: float
                 Sampling rate in Hz
             datetime_fmt: str
@@ -27,7 +29,7 @@ class BatchReader:
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
     """
-    def __init__(self, source, rate=None, datetime_fmt=None, n_smooth=100):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -37,9 +39,9 @@ class BatchReader:
         self.index = -1
         self.time = None
         self.eof = False
-        self.load(source=source, datetime_fmt=datetime_fmt)
+        self.load(source=source, recursive_search=recursive_search, datetime_fmt=datetime_fmt)
 
-    def load(self, source, datetime_fmt=None):
+    def load(self, source, recursive_search=False, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
@@ -59,7 +61,7 @@ class BatchReader:
             if source[-4:] == '.wav':
                 fnames = [source]
             else:
-                fnames = get_wave_files(source)
+                fnames = get_wave_files(path=source, subdirs=recursive_search)
         
         # check that files exist
         for f in fnames:
