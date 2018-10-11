@@ -90,7 +90,6 @@ def get_files(path, substr, fullpath=True, subdirs=False):
             else:
                 allfiles.append(fil)
     else:
-        print('*********************************************\n\n')
         for r, _, f in os.walk(path):
             for fil in f:
                 if fullpath:
