@@ -60,7 +60,7 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
 
     return None
 
-def get_files(path, substr, fullpath=True):
+def get_files(path, substr, fullpath=True, subdirs=False):
     """ Find all files in the specified directory containing the specified substring in their file name
 
         Args:
@@ -70,27 +70,46 @@ def get_files(path, substr, fullpath=True):
                 Substring contained in file name
             fullpath: bool
                 Return full path to each file or just the file name 
+            subdirs: bool
+                Also search all subdirectories
 
         Returns:
             files: list (str)
                 Alphabetically sorted list of file names
     """
-    allfiles = os.listdir(path)
-    files = list()
-    for f in allfiles:
-        if substr in f:
+    # find all files
+    allfiles = list()
+    if not subdirs:
+        f = os.listdir(path)
+        for fil in f:
             if fullpath:
                 x = path
                 if path[-1] is not '/':
                     x += '/'
-                files.append(x + f)
+                allfiles.append(os.path.join(x, fil))
             else:
-                files.append(f)
+                allfiles.append(fil)
+    else:
+        for r, _, f in os.walk(path):
+            for fil in f:
+                if fullpath:
+                    allfiles.append(os.path.join(r, fil))
+                else:
+                    allfiles.append(fil)
+
+    # select those that contain specified substring
+    files = list()
+    for f in allfiles:
+        if substr in f:
+            files.append(f)
+
+    # sort alphabetically
     files.sort()
+
     return files
 
 
-def get_wave_files(path, fullpath=True):
+def get_wave_files(path, fullpath=True, subdirs=False):
     """ Find all wave files in the specified directory
 
         Args:
@@ -103,7 +122,7 @@ def get_wave_files(path, fullpath=True):
             wavefiles: list (str)
                 Alphabetically sorted list of file names
     """
-    wavefiles = get_files(path, '.wav', fullpath)
+    wavefiles = get_files(path, '.wav', fullpath, subdirs)
     return wavefiles
 
 
