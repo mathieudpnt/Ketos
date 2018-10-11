@@ -398,6 +398,28 @@ def test_creates_correct_number_of_segments():
 
 
 @pytest.mark.test_divide_audio_into_segments
+def test_start_end_args():
+    audio_file = path_to_assets+ "/2min.wav"
+    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+                                 'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
+                                 'end':[6.0,75.98,110.0]})
+
+    try:
+        shutil.rmtree(path_to_assets + "/2s_segs")
+    except FileNotFoundError:
+        pass
+
+    dh.divide_audio_into_segs(audio_file=audio_file,
+        seg_duration=2.0, start_seg=10, end_seg=19, save_to=path_to_assets + "/2s_segs")
+    
+    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+    assert n_seg == 10
+
+
+
+    shutil.rmtree(path_to_assets + "/2s_segs")
+
+@pytest.mark.test_divide_audio_into_segments
 def test_seg_labels_are_correct():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
@@ -584,5 +606,7 @@ def test_audio_h5_to_spec():
     
     h5.close()
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
+
+    shutil.rmtree(path_to_assets + "/2s_segs")
     
 
