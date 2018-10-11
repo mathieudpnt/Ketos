@@ -28,8 +28,10 @@ class BatchReader:
                 Format for parsing date-time data from file names
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
+            verbose: bool
+                Print progress messages during processing 
     """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100, verbose=False):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -39,6 +41,7 @@ class BatchReader:
         self.index = -1
         self.time = None
         self.eof = False
+        self.verbose = verbose
         self.load(source=source, recursive_search=recursive_search, datetime_fmt=datetime_fmt)
 
     def load(self, source, recursive_search=False, datetime_fmt=None):
@@ -92,6 +95,9 @@ class BatchReader:
     def read_file(self, i):
     
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
+
+        if self.verbose:
+            print(' File {0} of {1}'.format(i+1, len(self.files)))
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
