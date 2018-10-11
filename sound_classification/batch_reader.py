@@ -97,7 +97,7 @@ class BatchReader:
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
 
         if self.verbose:
-            print(' File {0} of {1}'.format(i+1, len(self.files)))
+            print(' File {0} of {1}\r'.format(i+1, len(self.files)))
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
