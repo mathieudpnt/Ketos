@@ -17,6 +17,7 @@ import pytest
 from sound_classification.batch_reader import BatchReader
 from sound_classification.audio_signal import AudioSignal
 from sound_classification.audio_signal import AudioSignal
+import sound_classification.pre_processing as pp
 import datetime
 import numpy as np
 import os
@@ -130,3 +131,25 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     assert reader.finished() == True
     assert len(b.data) == n1 + n2 - reader.n_smooth - size
 
+def test_next_batch_with_two_very_short_files():
+    short_file_1 = os.path.join(path_to_assets, "super_short_1.wav")
+    pp.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))
+    short_file_2 = os.path.join(path_to_assets, "super_short_2.wav")
+    pp.wave.write(short_file_2, rate=4000, data=np.array([1.,2.,3.]))
+    s1 = AudioSignal.from_wav(short_file_1)
+    s2 = AudioSignal.from_wav(short_file_2)
+    n1 = len(s1.data)
+    n2 = len(s2.data)
+    reader = BatchReader(source=[short_file_1, short_file_2])
+    b = reader.next()
+    assert reader.finished() == True
+    assert len(b.data) == n1+n2-2
+
+def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
+    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    b = reader.next()
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    s3 = AudioSignal.from_wav(const_wave_file)
+    assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.n_smooth
+    assert reader.finished() == True

@@ -315,6 +315,10 @@ class AudioSignal:
             delay = 0
         delay = max(0, delay)
 
+        # ensure that overlap region is shorter than either signals
+        n_smooth = min(n_smooth, len(self.data) - 1)
+        n_smooth = min(n_smooth, len(signal.data) - 1)
+
         # compute total length
         len_tot = self.merged_length(signal, delay, n_smooth)
 
@@ -323,22 +327,19 @@ class AudioSignal:
         # extract data from overlap region
         if delay == 0 and n_smooth > 0:
 
-            overlap = min(n_smooth, len(self.data))
-            overlap = min(n_smooth, len(signal.data))
-
             # signal 1
-            a = self.clip(-overlap)
+            a = self.clip(-n_smooth)
 
             # signal 2
-            b = signal.clip(overlap)
+            b = signal.clip(n_smooth)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
             # TODO: Cache values returned by smoothclamp to avoid repeated calculation
             # TODO: Use coarser binning for smoothing function to speed things up even more
-            c = np.empty(overlap)
-            for i in range(overlap):
-                w = smoothclamp(i, 0, overlap-1)
+            c = np.empty(n_smooth)
+            for i in range(n_smooth):
+                w = smoothclamp(i, 0, n_smooth-1)
                 c[i] = (1.-w) * a.data[i] + w * b.data[i]
             
             append_time = len(self.data) / self.rate

@@ -150,7 +150,11 @@ class BatchReader:
                 self.times.append(self.batch.begin()) # collect times
         else:
             l = len(self.signal.data)
-            t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=size) # add to existing batch
+            if file_is_new:
+                n_smooth = self.n_smooth
+            else:
+                n_smooth = 0
+            t = self.batch.append(signal=self.signal, n_smooth=n_smooth, max_length=size) # add to existing batch
             if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
                 self.times.append(t) # collect times
         
