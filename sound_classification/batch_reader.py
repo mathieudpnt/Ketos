@@ -107,7 +107,10 @@ class BatchReader:
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
         
         if self.rate is not None:
-            s.resample(new_rate=self.rate) # resamples
+            if len(s.data) > 0:
+                s.resample(new_rate=self.rate) # resamples
+            else:
+                s.rate = self.rate
 
         return s
         
