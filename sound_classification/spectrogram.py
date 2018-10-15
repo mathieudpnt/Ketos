@@ -384,14 +384,13 @@ class Spectrogram():
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
-        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
-        ax = plt.gca()
+        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         if decibel:
-            ax.colorbar(format='%+2.0f dB')
+            fig.colorbar(img_plot, format='%+2.0f dB')
         else:
-            ax.colorbar(format='%+2.0f')  
+            fig.colorbar(img_plot,format='%+2.0f')  
         return fig
 
 
@@ -673,12 +672,11 @@ class MelSpectrogram(Spectrogram):
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
-        ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
-        ax = plt.gca()
+        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
         if decibel:
-            ax.colorbar(format='%+2.0f dB')
+            fig.colorbar(img_plot,format='%+2.0f dB')
         else:
-            ax.colorbar(format='%+2.0f')  
+            fig.colorbar(img_plot,format='%+2.0f')  
         return fig

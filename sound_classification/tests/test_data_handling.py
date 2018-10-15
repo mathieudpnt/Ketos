@@ -163,10 +163,10 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
 
 @pytest.mark.test_get_wave_files
 def test_get_wave_files():
-      
     dir = os.path.join(path_to_assets,'test_get_wave_files')
+    #delete directory and files within
+    shutil.rmtree(dir)
     dh.create_dir(dir)
-
     # create two wave files
     f1 = os.path.join(dir, "f1.wav")
     f2 = os.path.join(dir, "f2.wav")
@@ -177,9 +177,41 @@ def test_get_wave_files():
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    
+    files = dh.get_wave_files(path_to_assets, fullpath=True)
+    assert len(files) == 2
+    assert files[0] == f1
+    assert files[1] == f2
     #delete directory and files within
     shutil.rmtree(dir)
+
+def test_get_wave_files_from_multiple_folders():
+    folder = path_to_assets + "/sub"
+    # create two wave files in separate subfolders
+    sub1 = folder + "/sub1"
+    sub2 = folder + "/sub2"
+    if not os.path.exists(sub1):
+        os.makedirs(sub1)
+    if not os.path.exists(sub2):
+        os.makedirs(sub2)
+    # clean
+    for f in glob(sub1 + "/*.wav"):
+        os.remove(f)  #clean
+    for f in glob(sub2 + "/*.wav"):
+        os.remove(f)  #clean
+    f1 = sub1 + "/f1.wav"
+    f2 = sub2 + "/f2.wav"
+    pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
+    pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    # get file names
+    files = dh.get_wave_files(folder, fullpath=False, subdirs=True)
+    assert len(files) == 2
+    assert files[0] == "f1.wav"
+    assert files[1] == "f2.wav"
+    files = dh.get_wave_files(folder, fullpath=True, subdirs=True)
+    assert len(files) == 2
+    assert files[0] == f1
+    assert files[1] == f2
+
     
 ################################
 # from1hot() tests

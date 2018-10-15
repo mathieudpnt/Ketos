@@ -313,7 +313,14 @@ class AudioSignal:
 
         if delay is None:
             delay = 0
+
         delay = max(0, delay)
+        if max_length is not None:
+            delay = min(max_length / self.rate, delay)
+
+        # ensure that overlap region is shorter than either signals
+        n_smooth = min(n_smooth, len(self.data) - 1)
+        n_smooth = min(n_smooth, len(signal.data) - 1)
 
         # compute total length
         len_tot = self.merged_length(signal, delay, n_smooth)
@@ -323,22 +330,19 @@ class AudioSignal:
         # extract data from overlap region
         if delay == 0 and n_smooth > 0:
 
-            overlap = min(n_smooth, len(self.data))
-            overlap = min(n_smooth, len(signal.data))
-
             # signal 1
-            a = self.clip(-overlap)
+            a = self.clip(-n_smooth)
 
             # signal 2
-            b = signal.clip(overlap)
+            b = signal.clip(n_smooth)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
             # TODO: Cache values returned by smoothclamp to avoid repeated calculation
             # TODO: Use coarser binning for smoothing function to speed things up even more
-            c = np.empty(overlap)
-            for i in range(overlap):
-                w = smoothclamp(i, 0, overlap-1)
+            c = np.empty(n_smooth)
+            for i in range(n_smooth):
+                w = smoothclamp(i, 0, n_smooth-1)
                 c[i] = (1.-w) * a.data[i] + w * b.data[i]
             
             append_time = len(self.data) / self.rate
@@ -487,22 +491,25 @@ class AudioSignal:
             new_rate: int
                 New sampling rate in Hz
         """
+        if len(self.data) < 2:
+            self.rate = new_rate
 
-        orig_rate = self.rate
-        sig = self.data
+        else:                
+            orig_rate = self.rate
+            sig = self.data
 
-        duration = sig.shape[0] / orig_rate
+            duration = sig.shape[0] / orig_rate
 
-        time_old  = np.linspace(0, duration, sig.shape[0])
-        time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
+            time_old  = np.linspace(0, duration, sig.shape[0])
+            time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
 
-        interpolator = interpolate.interp1d(time_old, sig.T)
-        new_audio = interpolator(time_new).T
+            interpolator = interpolate.interp1d(time_old, sig.T)
+            new_audio = interpolator(time_new).T
 
-        new_sig = np.round(new_audio).astype(sig.dtype)
+            new_sig = np.round(new_audio).astype(sig.dtype)
 
-        self.rate = new_rate
-        self.data = new_sig
+            self.rate = new_rate
+            self.data = new_sig
 
     def copy(self):
         """ Makes a copy of the time stamped audio signal.
