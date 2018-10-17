@@ -850,7 +850,7 @@ def pad_signal(signal,rate, length):
 #TODO: Reorganize modules to prevent circular dependency
 from sound_classification.audio_signal import AudioSignal
 
-def audio_h5_to_spec(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
+def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
     """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
              
         Args:
