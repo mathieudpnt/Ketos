@@ -604,8 +604,8 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-@pytest.mark.test_audio_h5_to_spec
-def test_audio_h5_to_spec():
+@pytest.mark.test_create_spec_table_from_audio_table
+def test_create_spec_table_from_audio_table():
     audio_file = path_to_assets+ "/2min.wav"
     
     try:
@@ -630,7 +630,7 @@ def test_audio_h5_to_spec():
 
     table_raw.flush()
     
-    dh.audio_h5_to_spec(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
+    dh.create_spec_table_from_audio_table(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
     spec_table = h5.root.features.mag_spectrograms.seq_2s
 
     assert len(spec_table) == len(segs)
