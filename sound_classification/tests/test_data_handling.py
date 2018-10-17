@@ -165,7 +165,8 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
 def test_get_wave_files():
     dir = os.path.join(path_to_assets,'test_get_wave_files')
     #delete directory and files within
-    shutil.rmtree(dir)
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
     dh.create_dir(dir)
     # create two wave files
     f1 = os.path.join(dir, "f1.wav")
@@ -177,7 +178,7 @@ def test_get_wave_files():
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.get_wave_files(path_to_assets, fullpath=True)
+    files = dh.get_wave_files(dir, fullpath=True)
     assert len(files) == 2
     assert files[0] == f1
     assert files[1] == f2
