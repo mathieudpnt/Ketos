@@ -80,7 +80,10 @@ class BatchReader:
         # time stamps
         for f in fnames:
             fmt = datetime_fmt
-            folder = f[:f.rfind('/')+1]
+            p_unix = f.rfind('/')
+            p_win = f.rfind('\\')
+            p = max(p_unix, p_win)
+            folder = f[:p+1]
             if folder is not None and fmt is not None:
                 fmt = folder + fmt
             t = parse_datetime(f, fmt)
