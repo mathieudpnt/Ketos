@@ -459,7 +459,7 @@ def audio_table_description(signal_rate, segment_length):
     return TableDescription
 
 
-def spec_h5_description(dimensions):
+def spec_table_description(dimensions):
     """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
              
         Args:
@@ -551,7 +551,7 @@ def write_spec_to_h5(spectrogram, table):
 
             table: tables.Table
                 Table in which the spectrogram will be stored
-                (described by spec_h5_description()).
+                (described by spec_table_description()).
         Returns:
             None.
     """
@@ -577,7 +577,7 @@ def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=
             The name of the table. This name will be part of the table's path.
             Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             table_description: tables.IsDescription object
-            The descriptor class. See :func:`audio_table_description` and :func:spec_h5_description
+            The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
             sample_rate: int
             The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
             chunkshape: tuple
@@ -877,7 +877,7 @@ def audio_h5_to_spec(h5, raw_sig_table, where, spec_table_name,  spec_class, **k
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
 
-    spec_table_description = spec_h5_description(dimensions=ex_spec.shape)
+    spec_table_description = spec_table_description(dimensions=ex_spec.shape)
     spec_table = open_table(h5, where, spec_table_name, spec_table_description, None)
 
 
