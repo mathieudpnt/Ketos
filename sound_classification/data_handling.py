@@ -537,7 +537,7 @@ def write_audio_to_table(seg_file_name,table, pad=False, duration=None ):
     seg_r.append()
 
 
-def write_spec_to_h5(spectrogram, table):
+def write_spec_to_table(spectrogram, table):
     """ Write data from spectrogram object into the h5 database.
 
         Note: the spectrogram object is expected to have the id and label information in it's 
@@ -886,7 +886,7 @@ def audio_h5_to_spec(h5, raw_sig_table, where, spec_table_name,  spec_class, **k
         audio = AudioSignal(rate,signal)
         spec = spec_class(audio_signal=audio, **kwargs)
         spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spec_to_h5(spec, spec_table )
+        write_spec_to_table(spec, spec_table )
 
     spec_table.flush()
 
