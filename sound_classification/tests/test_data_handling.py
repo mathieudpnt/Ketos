@@ -382,7 +382,7 @@ def test_write_audio_to_table(sine_wave):
     os.remove(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"))
 
 @pytest.mark.test_write_spetrogram_to_h5_database
-def test_write_spec_to_h5(sine_audio):
+def test_write_spec_to_table(sine_audio):
     
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     spec.tag = "id_ex789_107_l_[1]"
@@ -391,7 +391,7 @@ def test_write_spec_to_h5(sine_audio):
     spec_description = dh.spec_table_description(dimensions=(26, 11026))
     table_1 = dh.open_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
     
-    dh.write_spec_to_h5(spec, table_1)
+    dh.write_spec_to_table(spec, table_1)
     table_1.flush()
 
     assert pytest.approx(table_1[0]['signal'],spec.image)
