@@ -297,9 +297,9 @@ def test_audio_table_description():
     assert description_columns ==  ['boxes','id', 'labels', 'signal']
     assert description.columns['signal'].shape == (5000,)
 
-@pytest.mark.spec_h5_description
-def test_spec_h5_description():
-    description = dh.spec_h5_description(dimensions=(20,64))
+@pytest.mark.spec_table_description
+def test_spec_table_description():
+    description = dh.spec_table_description(dimensions=(20,64))
     description_columns = list(description.columns.keys())
     description_columns.sort()
     assert description_columns ==  ['boxes','id', 'labels', 'signal']
@@ -329,7 +329,7 @@ def test_open_tables():
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
     raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_h5_description(dimensions=(20,60))
+    spec_description = dh.spec_table_description(dimensions=(20,60))
 
     table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
     assert '/group_1' in h5
@@ -366,7 +366,7 @@ def test_write_audio_to_h5(sine_wave):
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
     raw_description = dh.audio_table_description(signal_rate=44100, segment_length=3.0)
-    spec_description = dh.spec_h5_description(dimensions=(20,60))
+    spec_description = dh.spec_table_description(dimensions=(20,60))
 
     table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
     
@@ -388,7 +388,7 @@ def test_write_spec_to_h5(sine_audio):
     spec.tag = "id_ex789_107_l_[1]"
         
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-    spec_description = dh.spec_h5_description(dimensions=(26, 11026))
+    spec_description = dh.spec_table_description(dimensions=(26, 11026))
     table_1 = dh.open_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
     
     dh.write_spec_to_h5(spec, table_1)
@@ -620,7 +620,7 @@ def test_audio_h5_to_spec():
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
     raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_h5_description(dimensions=(20,60))
+    spec_description = dh.spec_table_description(dimensions=(20,60))
 
     table_raw = dh.open_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
     
