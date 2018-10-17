@@ -357,8 +357,8 @@ def test_open_tables():
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 
-@pytest.mark.test_write_audio_to_h5
-def test_write_audio_to_h5(sine_wave):
+@pytest.mark.test_write_audio_to_table
+def test_write_audio_to_table(sine_wave):
     
     rate, sig = sine_wave
     pp.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
@@ -370,7 +370,7 @@ def test_write_audio_to_h5(sine_wave):
 
     table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
     
-    dh.write_audio_to_h5(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
+    dh.write_audio_to_table(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
     table_1.flush()
 
     pytest.approx(table_1[0]['signal'], sig)
@@ -626,7 +626,7 @@ def test_audio_h5_to_spec():
     
     segs = os.listdir(dir)
     for seg in segs:
-        dh.write_audio_to_h5(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
+        dh.write_audio_to_table(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
 
     table_raw.flush()
     
