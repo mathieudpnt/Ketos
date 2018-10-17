@@ -504,7 +504,7 @@ def parse_seg_name(seg_name):
 
     return (id,labels)
 
-def write_audio_to_h5(seg_file_name,table, pad=False, duration=None ):
+def spec_table_description(seg_file_name,table, pad=False, duration=None ):
     """ Write data form .wav files containing segments into the h5 database.
 
         Args:
