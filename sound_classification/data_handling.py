@@ -430,7 +430,7 @@ def get_image_size(images):
     return image_shape
 
 
-def audio_h5_description(signal_rate, segment_length):
+def audio_table_description(signal_rate, segment_length):
     """ Create the class that describes the raw signal table structure for the HDF5 database.
      
         Args:
@@ -514,7 +514,7 @@ def write_audio_to_h5(seg_file_name,table, pad=False, duration=None ):
                 where * denotes 'any number of characters'.
             table: tables.Table
                 Table in which the segment will be stored
-                (described by audio_h5_description()).
+                (described by audio_table_description()).
             pad: bool
                 True if signal should be padded with zeros until it's duration
                  is equal to the 'duration' argument. Flase if signal should be
@@ -577,7 +577,7 @@ def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=
             The name of the table. This name will be part of the table's path.
             Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             table_description: tables.IsDescription object
-            The descriptor class. See :func:`audio_h5_description` and :func:spec_h5_description
+            The descriptor class. See :func:`audio_table_description` and :func:spec_h5_description
             sample_rate: int
             The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
             chunkshape: tuple
