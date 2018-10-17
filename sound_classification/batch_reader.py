@@ -238,6 +238,7 @@ class BatchReader:
                     Table with file names and time stamps
             
         """
+        n = len(self.times)
         fnames = [x[0] for x in self.files]
-        df = pd.DataFrame(data={'time':self.times,'file':fnames})
+        df = pd.DataFrame(data={'time':self.times,'file':fnames[:n]})
         return df
