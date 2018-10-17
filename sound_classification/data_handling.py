@@ -18,6 +18,7 @@ import numpy as np
 import librosa
 import os
 import errno
+import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
@@ -177,41 +178,6 @@ def slice_ffmpeg(file,start,end,out_name):
     """
     call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
-
-def create_segments(audio_file, seg_duration, destination, prefix=None):
-    """ Creates a series of segments of the same length
-
-        Args:
-            audio_file: str
-                Path to the original audio file.
-            seg_duration:float
-                Duration of each segment (in seconds).
-            destination:str
-                Path to the folder where the segments will be saved.
-            prefix: str
-                The prefix to be used in the name of segment files.
-                The file name will have the format <prefix>_xx.wav,
-                where 'xx' is the segment number in the sequence.
-                If set to none, the prefix will be the name of the original file.
-
-    """
-
-    create_dir(destination)
-    orig_audio_duration = librosa.get_duration(filename=audio_file)
-    n_seg = round(orig_audio_duration/seg_duration)
-    
-    for s in range(n_seg):
-        start = str(s)
-        end = str(s + seg_duration)
-
-        if prefix is None:
-            prefix = os.path.basename(audio_file).split(".wav")[0]
-
-        out_name = prefix + "_" + str(s) + ".wav"
-        path_to_seg = os.path.join(destination, out_name)    
-        slice_ffmpeg(file=audio_file, start=start, end=end, out_name=path_to_seg)
-        print("Creating segment......", path_to_seg)
-    
 
 
 def to1hot(value,depth):
@@ -462,3 +428,467 @@ def get_image_size(images):
     assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
 
     return image_shape
+
+
+def audio_table_description(signal_rate, segment_length):
+    """ Create the class that describes the raw signal table structure for the HDF5 database.
+     
+        Args:
+            signal_rate: int
+                The sampling rate of the signals to be stored in this table
+            segment_length: float
+                The duration of each segment (in seconds) that will be stored in this table.
+                All segments must have the same length
+
+        Results:
+            TableDescription: class (tables.IsDescription)
+                The class describing the table structure. To be used when creating tables 
+                in the HDF5 database.
+    """
+
+
+    signal_length = int(np.ceil(signal_rate * segment_length))
+
+    class TableDescription(tables.IsDescription):
+            id = tables.StringCol(25)
+            labels = tables.StringCol(100)
+            signal = tables.Float32Col(shape=(signal_length))
+            boxes = tables.StringCol(100)
+
+    
+    return TableDescription
+
+
+def spec_table_description(dimensions):
+    """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
+             
+        Args:
+            dimension : tuple (ints)
+            A tuple with ints describing the number of rows and number of collumns of each 
+            image to be stored in the table (n_rows,n_cols). Optionally, a third integer 
+            can be added if the image has multiple channels (n_rows, n_cols, n_channels)
+        Results:
+            TableDescription: class (tables.IsDescription)
+                The class describing the table structure to be used when creating tables that 
+                will store images in the HDF5 database.
+    """
+
+
+    class TableDescription(tables.IsDescription):
+            id = tables.StringCol(25)
+            labels = tables.StringCol(100)
+            signal = tables.Float32Col(shape=dimensions)
+            boxes = tables.StringCol(100) 
+    
+    return TableDescription
+
+
+def parse_seg_name(seg_name):
+    """ Retrieves the segment id and label from the segment name
+
+        Args:
+            seg_name: str
+            Name of the segment in the format id_*_*_l_*.wav, where 'id' is 
+            followed by base name of the audio file from which the segment was extracted, '_',
+            and a sequence number. The 'l' is followed by any number of characters describing the label(s).
+
+        Returns:
+            (id,label) : tuple (str,str)
+            A tuple with the id and label strings.
+
+    """
+
+    id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
+    tmp = seg_name.split("_")[4]
+    labels = tmp.split(".")[0]
+
+    return (id,labels)
+
+def write_audio_to_table(seg_file_name,table, pad=False, duration=None ):
+    """ Write data form .wav files containing segments into the h5 database.
+
+        Args:
+            seg_file: str
+                .wav file name (including path).
+                Expected to follow the format:format id_*_l_*.wav,
+                where * denotes 'any number of characters'.
+            table: tables.Table
+                Table in which the segment will be stored
+                (described by audio_table_description()).
+            pad: bool
+                True if signal should be padded with zeros until it's duration
+                 is equal to the 'duration' argument. Flase if signal should be
+                 written as it is.
+            duration: float
+                Desired duration for the padded signal in seconds. 
+        Returns:
+            None.
+    """
+
+    rate, seg_data = read_wave(seg_file_name)
+    id, labels = parse_seg_name(os.path.basename(seg_file_name))
+
+    if pad:
+        seg_data = pad_signal(seg_data, rate, duration)
+    seg_r = table.row
+    seg_r["id"] = id
+    seg_r["labels"] = labels
+    seg_r["signal"] = seg_data
+    seg_r.append()
+
+
+def write_spec_to_table(spectrogram, table):
+    """ Write data from spectrogram object into the h5 database.
+
+        Note: the spectrogram object is expected to have the id and label information in it's 
+        .tag attribute, following the format id_*_l_*.
+        Example: spec.tag="id_78536_l_1"
+
+        Args:
+            spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
+            :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
+                Spectrogram object.
+
+            table: tables.Table
+                Table in which the spectrogram will be stored
+                (described by spec_table_description()).
+        Returns:
+            None.
+    """
+
+    id, labels = parse_seg_name(spectrogram.tag)
+    seg_r = table.row
+    seg_r["id"] = id
+    seg_r["labels"] = labels
+    seg_r["signal"] = spectrogram.image
+    seg_r.append()
+
+def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=None):
+    """ Open the specified table or creates it if it does not exist.
+
+        Args:
+            h5: tables.file.File object
+            HDF5 file handler for the database where the table is/will be located
+            where: str
+            The group in which the table is/will be located. Ex: '/features/spectrograms'
+            group_name: str
+            The path to the group from the root node. Ex: "/group_1/subgroup_1"
+            table_name: str
+            The name of the table. This name will be part of the table's path.
+            Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
+            table_description: tables.IsDescription object
+            The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
+            sample_rate: int
+            The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
+            chunkshape: tuple
+            The chinkshape to be used for compression
+
+        Returns:
+            table: table.Table object
+            The opened/created table.    
+    """
+
+    try:
+       group = h5.get_node(where)
+    
+    except tables.NoSuchNodeError:
+        print("group '{0}' not found. Creating it now...".format(where))
+        if where.endswith('/'): 
+             where = where[:-1]
+        name=os.path.basename(where)
+        path=where.split(name)[0]
+        if path.endswith('/'): 
+             path = path[:-1]
+        group = h5.create_group(path, name, createparents=True)
+        
+    try:
+       table = h5.get_node("{0}/{1}".format(where,table_name))
+    
+    except tables.NoSuchNodeError:    
+        filters = tables.Filters(complevel=1, fletcher32=True)
+        table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
+
+    table.attrs.sample_rate = sample_rate
+    return table
+
+
+
+def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
+    """ Divides a large .wav file into a sequence of smaller segments with the same duration.
+        Names the resulting segments sequentially and save them as .wav files in the specified directory.
+
+        Note: segments will be saved following the name pattern "id_*_*_l_*.wav",
+            where 'id_' is followed by the name of the original file, underscore ('_') 
+            and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
+            Ex: 'id_rec03_87_l_[1,3]', 'id_rec03_88_l_[0]
+
+            The start_seg and end_seg arguments can be used to segment only part of audio files,
+            which is usefule when processing large files in parallel.
+            
+        Args:
+            audio_file:str
+            .wav file name (including path).
+
+            seg_duration: float
+            desired duration for each segment
+
+            annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file. 
+            If None, the segments will be created and file names will have 'NULL' as labels. 
+            Ex: 'id_rec03_87_l[NULL].wav.
+                    
+            save_to: str
+            path to the directory where segments will be saved.
+
+            start_seg: int
+                Indicates the number of the segment on which the segmentation will start.
+                A value of 3 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
+                that would corresponfd to 6.0 seconds from the beginning of the file')
+            end_seg:int
+                Indicates the number of the segment where the segmentation will stop.
+                A value of 6 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
+                that would correspond to 12.0 seconds from the beginning of the file'
+                        
+         Returns:
+            None   
+    """
+    create_dir(save_to)
+    orig_audio_duration = librosa.get_duration(filename=audio_file)
+    n_seg = round(orig_audio_duration/seg_duration)
+
+    prefix = os.path.basename(audio_file).split(".wav")[0]
+
+    if start_seg is None:
+        start_seg = 0
+    if end_seg is None:
+        end_seg = n_seg - 1
+
+    for s in range(start_seg, end_seg + 1):
+        start = s * seg_duration - seg_duration
+        end = start + seg_duration
+
+        if annotations is None:
+            label = '[NULL]'
+        else:
+            label =  get_labels(prefix, start, end, annotations)
+
+        out_name = "id_" + prefix + "_" + str(s) + "_l_" + label + ".wav"
+        path_to_seg = os.path.join(save_to, out_name)    
+        sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
+        print("Creating segment......", path_to_seg)
+        librosa.output.write_wav(path_to_seg, sig, rate)
+
+def _filter_annotations_by_orig_file(annotations, orig_file_name):
+    """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
+
+        Args:
+        file: str
+           The original audio file name without path or extensions.
+           Ex: 'file_1' will match the entry './data/sample_a/file_1.wav" in the orig_file
+           column of the annotations DataFrame.
+
+        annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+
+        Returns:
+            filtered annotations: pandas.DataFrame
+            A subset of the annotations DataFrame containing only the entries for the specified file.
+            
+
+    """
+    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name)
+    filtered_annotations = annotations[filtered_indices]
+    return filtered_annotations
+
+
+
+def get_labels(file,start, end, annotations, not_in_annotations=0):
+    """ Retrieves the labels that fall in the specified interval.
+    
+        Args:
+        file: str
+           The base name (without paths or extensions) for the original audio file. Will be used to match the 'orig_file' field
+           in the annotations Dataframe. Important: The name of the files must be
+           unique within the annotations, even if the path is different.
+           Ex: '/data/sample_a/file_1.wav' and '/data/sample_b/file_1.wav'
+
+        annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+            
+        not_in_annotations: str
+            Label to be used if the segment is not included in the annotations.
+
+        Returns:
+            labels: str
+                The labels corresponding to the interval specified.
+                if the interval is not in the annotations, the value 
+                specified in 'not_in_annotations' will be used.
+
+    """
+    interval_start = start
+    interval_end = end
+
+    data = _filter_annotations_by_orig_file(annotations, file)
+    query_results = data.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
+    #print(query_results)
+    
+    if query_results.empty:
+        label = [not_in_annotations]
+    else:
+        label=[]
+        for l in query_results.label:
+          label.append(l)
+                 
+    return str(label)
+
+
+def seg_from_time_tag(audio_file, start, end, name, save_to):
+    """ Extracts a segment from the audio_file according to the start and end tags.
+
+        Args:
+            audio_file:str
+            .wav file name (including path).
+
+            start:float
+            Start point for segment (in seconds from start of the source audio_file)
+
+            end:float
+            End point for segment (in seconds from start of the source audio_file)
+            
+            save_to: str
+            Path to the directory where segments will be saved.
+            
+            name: str
+            Name of segment file name (including '.wav')
+            
+
+         Returns:
+
+            None   
+
+    """
+
+    out_seg = os.path.join(save_to, name)
+    sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
+    librosa.output.write_wav(out_seg, sig, rate)
+
+
+def segs_from_annotations(annotations, save_to):
+    """ Generates segments based on the annotations DataFrame.
+
+        Args:
+            annotations: pandas.DataFrame
+            DataFrame with the the annotations. At least the following columns are expected:
+                "orig_file": the file name. Must be the the same as audio_file
+                "label": the label value for each annotaded event
+                "start": the start time relative to the beginning of the audio_file.
+                "end": the end time relative to the beginning of the file.
+            save_to: str
+            path to the directory where segments will be saved.
+            
+            
+         Returns:
+            None   
+
+    """ 
+    create_dir(save_to)
+    for i, row in annotations.iterrows():
+        start = row.start
+        end= row.end
+        base_name = os.path.basename(row.orig_file).split(".wav")[0]
+        seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + str(row.label) + "].wav"
+        seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
+        print("Creating segment......", save_to, seg_name)
+
+def pad_signal(signal,rate, length):
+    """Pad a signal with zeros so it has the specified length
+
+        Zeros will be added before and after the signal in approximately equal quantities.
+        Args:
+            signal: numpy.array
+            The signal to be padded
+
+            rate: int
+            The sample rate
+
+            length: float
+            The desired length for the signal
+
+         Returns:
+            padded_signal: numpy.array
+            Array with the original signal padded with zeros.
+
+        
+    """
+    length = length * rate
+    input_length = signal.shape[0] 
+    
+    difference = ( length - input_length) 
+    pad1_len =  int(np.ceil(difference/2))
+    pad2_len = int(difference - pad1_len)
+
+    pad1 =  np.zeros((pad1_len))
+    pad2 =  np.zeros((pad2_len))
+
+    padded_signal =  np.concatenate([pad1,signal,pad2])
+    return padded_signal
+
+
+#WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
+#TODO: Reorganize modules to prevent circular dependency
+from sound_classification.audio_signal import AudioSignal
+
+def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
+    """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
+             
+        Args:
+            h5: tables.File
+                Reference to HDF5 database
+            raw_sig_table: tables.Table
+                Table containing raw signals
+            where: str
+                The group in which the table is/will be located. Ex: '/features/spectrograms'
+            spec_table_name: str
+                The name of the table. This name will be part of the table's path.
+                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
+            spec_class: subclass of :class:`spectrogram.Spectrogram`
+                One of :class:`spectrogram.MagSpectrogram`, :class:`spectrogram.PowerSpectrogram` or
+                :class:`spectrogram.MelSpectrogram`.
+            kwargs:
+                any keyword arguments to be passed to the sec_class
+    
+        Returns:
+            None
+    """
+
+    rate=raw_sig_table.attrs.sample_rate
+    ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
+    ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
+
+    spec_description = spec_table_description(dimensions=ex_spec.shape)
+    spec_table = open_table(h5, where, spec_table_name, spec_description, None)
+
+
+    for segment in raw_sig_table.iterrows():
+        signal = segment['signal']
+        audio = AudioSignal(rate,signal)
+        spec = spec_class(audio_signal=audio, **kwargs)
+        spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
+        write_spec_to_table(spec, spec_table )
+
+    spec_table.flush()
+
+
+
