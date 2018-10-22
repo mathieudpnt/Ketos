@@ -24,21 +24,62 @@ from sound_classification.data_handling import check_data_sanity, from1hot, get_
 
 class DataUse(Enum):
     TRAINING = 1
-    EVALUATION = 2
-    TEST = 3
+    VALIDATION = 2
+    TESTING = 3
 
 
 class MNet():
     """ MERIDIAN Neural Network.
 
         Parent class for all MERIDIAN neural network implementations.
-    """
-    def __init__(self, seed=42, verbosity=2):
 
-        self.verbosity = verbosity
+        Args:
+            train_x: pandas DataFrame
+                Data Frame in which each row holds one image.
+            train_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            validation_x: pandas DataFrame
+                Data Frame in which each row holds one image
+            validation_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            test_x: pandas DataFrame
+                Data Frame in which each row holds one image
+            test_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            num_labels: int
+                Number of labels
+            batch_size: int
+                The number of examples in each batch
+            num_epochs: int
+                The number of epochs
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob: float
+                Probability of keeping weights. If keep_prob < 1.0, drop-out is enabled during training.
+            seed: int
+                Seed to be used by both tensorflow and numpy when generating random numbers            
+            verbosity: int
+                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
+    """
+    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+                 test_x=None, test_y=None, num_labels=2, batch_size=128, 
+                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
+
+        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TESTING: None}
+        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TESTING: None}
+
+        self.num_labels = num_labels
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.learning_rate_value = learning_rate
+        self.keep_prob_value = keep_prob
         self.set_seed(seed)
-        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
-        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
+        self.verbosity = verbosity
+
+        self._set_data(train_x, train_y, use=DataUse.TRAINING)        
+        self._set_data(validation_x, validation_y, use=DataUse.VALIDATION)        
+        self._set_data(test_x, test_y, use=DataUse.TESTING)        
+
         self.sess = tf.Session()
 
     def _set_data(self, x, y, use):
@@ -61,17 +102,17 @@ class MNet():
     def add_training_data(self, x, y):
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
-    def set_evaluation_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.EVALUATION)
+    def set_VALIDATION_data(self, x, y):
+        self._set_data(x=x, y=y, use=DataUse.VALIDATION)
 
-    def add_evaluation_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.EVALUATION)
+    def add_VALIDATION_data(self, x, y):
+        self._add_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def set_test_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.TEST)
+        self._set_data(x=x, y=y, use=DataUse.TESTING)
 
     def add_test_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.TEST)
+        self._add_data(x=x, y=y, use=DataUse.TESTING)
 
     def set_tf_nodes(self, tf_nodes):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
@@ -100,6 +141,7 @@ class MNet():
         self.writer = tf_nodes['writer']
         self.saver = tf_nodes['saver']
         self.keep_prob = tf_nodes['keep_prob']
+        self.learning_rate = tf_nodes['learning_rate']
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -154,6 +196,7 @@ class MNet():
         correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
         keep_prob = graph.get_tensor_by_name("keep_prob:0")        
+        learning_rate = graph.get_tensor_by_name("learning_rate:0")        
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -172,11 +215,15 @@ class MNet():
                 'writer': writer,
                 'saver': saver,
                 'keep_prob': keep_prob,
+                'learning_rate': learning_rate,
                 }
 
         return tf_nodes
 
-    def create_net_structure(self):
+    def _create_net_structure(self, input_shape, num_labels, **kwargs):
+        return None
+
+    def create_net_structure(self, **kwargs):
         """Create the neural network structure.
 
             Returns:
@@ -190,29 +237,23 @@ class MNet():
 
         """
         img_shape = self._image_shape()
-        tf_nodes = _create_net_structure(input_shape=img_shape)
+        tf_nodes = self._create_net_structure(input_shape=img_shape, num_labels=self.num_labels, kwargs=kwargs)
         return tf_nodes
 
     def _image_shape(self):
-        assert self.images[DataUse.TRAIN] is not None, "Training data must be provided before the neural network structure can be created."
+        assert self.images[DataUse.TRAINING] is not None, "Training data must be provided before the neural network structure can be created."
 
-        img_shape = get_image_size(self.images[DataUse.TRAIN]) 
+        img_shape = get_image_size(self.images[DataUse.TRAINING]) 
 
         if self.images[DataUse.VALIDATION] is not None:
             assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
 
-        if self.images[DataUse.TEST] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
+        if self.images[DataUse.TESTING] is not None:
+            assert img_shape == get_image_size(self.images[DataUse.TESTING]), "Training and test images must have same shape."
 
         return img_shape
 
-        tf_nodes = self._create_net_structure(input_shape=img_shape)
-        return tf_nodes
-
-    def _create_net_structure(self, input_shape):
-        return None
-
-    def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
+    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -222,11 +263,13 @@ class MNet():
         Args:
             batch_size: int
                 Batch size. Overwrites batch size specified at initialization.
-            epochs: int
+            num_epochs: int
                 Number of epochs: Overwrites number of epochs specified at initialization.
-            dropout: float
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob: float
                 Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop out will only be effectuated if dropout < 1.
+                i.e., drop-out will be applied if keep_prob < 1.
             feature_layer_name: str
                 Name of 'feature' layer.
 
@@ -234,16 +277,21 @@ class MNet():
             avg_cost: float
                 Average cost of last completed training epoch.
         """
-        if batch_size == 0:
+        if batch_size is None:
             batch_size = self.batch_size
-        if epochs == 0:
-            epochs = self.num_epochs
+        if num_epochs is None:
+            num_epochs = self.num_epochs
+        if keep_prob is None:
+            keep_prob = self.keep_prob_value
+        if learning_rate is None:
+            learning_rate = self.learning_rate_value
 
         sess = self.sess
-        x = self.train_x
-        y = self.train_y
-        x_val = self.validation_x
-        y_val = self.validation_y
+        
+        x = self.images[DataUse.TRAINING]
+        y = self.labels[DataUse.TRAINING]
+        x_val = self.images[DataUse.VALIDATION]
+        y_val = self.labels[DataUse.VALIDATION]
 
         self.writer.add_graph(sess.graph)
 
@@ -265,7 +313,7 @@ class MNet():
         sess.run(self.init_op)
 
         batches = int(y.shape[0] / batch_size)
-        for epoch in range(epochs):
+        for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
             feat_used = 0
@@ -278,11 +326,11 @@ class MNet():
 
                 if features is not None:
                     fetch.append(features)
-                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
                     f = np.sum(f, axis=0)
                     feat_used += np.sum(f > 0) / batches
                 else:
-                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
@@ -295,7 +343,7 @@ class MNet():
                 print(s)
 
             x_val = self.reshape_x(x_val)
-            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
+            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
 
         if self.verbosity >= 2:
@@ -303,62 +351,6 @@ class MNet():
             print("\nTraining completed!")
 
         return avg_cost
-
-        
-    def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
-        """Create a convolutional layer.
-
-            Args:
-                input_data: tensorflow tensor
-                    The input nodes for the convolutional layer
-                num_input_channels: int
-                    The number of input channels in input image
-                num_filters: int
-                    Number of filters to be used in the convolution
-                filter_shape: list (int)
-                    List of integers defining the shape of the filters.
-                    Example: [2,8]
-                pool_shape: list (int)
-                    List of integers defining the shape of the pooling window.
-                    Example: [2,8]
-                name: str
-                    Name by which the layer will be identified in the graph.
-
-            Returns:
-                out_layer: tensorflow layer
-                    The convolutional layer.
-
-        """
-        # setup the filter input shape for tf.nn.conv_2d
-        conv_filt_shape = [filter_shape[0], filter_shape[1], num_input_channels, num_filters]
-
-        # initialise weights and bias for the filter
-        weights = tf.Variable(tf.truncated_normal(conv_filt_shape, stddev=0.03), name=name+'_W')
-        bias = tf.Variable(tf.truncated_normal([num_filters]), name=name+'_b')
-
-        # setup the convolutional layer operation
-        out_layer = tf.nn.conv2d(input_data, weights, [1, 1, 1, 1], padding='SAME')
-
-        # add the bias
-        out_layer += bias
-
-        # apply a ReLU non-linear activation
-        out_layer = tf.nn.relu(out_layer)
-
-        # now perform max pooling
-        # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
-        # calculated).  It must be 4D to match the convolution - in this case, for each image we want to use a 2 x 2 area
-        # applied to each channel
-        ksize = [1, pool_shape[0], pool_shape[1], 1]
-        # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
-        # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
-        # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
-        # to do strides of 2 in the x and y directions.
-        strides = [1, 2, 2, 1]
-        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='SAME')
-###oli        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='VALID')
-
-        return out_layer
     
     def save_model(self, destination):
         """ Save the model to destination
@@ -389,7 +381,10 @@ class MNet():
             results: float
                 The accuracy value
         """
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.keep_prob:1.0})
+        if x is None:
+            return 0
+        x = self.reshape_x(x)        
+        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -403,7 +398,8 @@ class MNet():
             results: vector
                 A vector containing the predicted labels.                
         """
-        results = self.sess.run(self.predict, feed_dict={self.x:x, self.keep_prob:1.0})
+        x = self.reshape_x(x)
+        results = self.sess.run(self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def reshape_x(self, x):
@@ -416,7 +412,8 @@ class MNet():
             results: vector
                 A vector containing the flattened inputs.                
         """
-        reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
+        img_shape = self._image_shape()
+        reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
         return reshaped_x
 
     def predict_on_validation(self):
@@ -426,8 +423,8 @@ class MNet():
             results: vector
                 A vector containing the predicted labels.                
         """
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self.get_predictions(validation_x_reshaped)
+        x = self.images[DataUse.VALIDATION]
+        results = self.get_predictions(x)
         return results
 
     def predict_on_test(self):
@@ -437,8 +434,8 @@ class MNet():
             results: vector
                 A vector containing the predicted labels.                
         """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self.get_predictions(test_x_reshaped)
+        x = self.images[DataUse.TESTING]
+        results = self.get_predictions(x)
         return results
     
     def _get_mislabelled(self, x, y, print_report=False):
@@ -460,7 +457,6 @@ class MNet():
                 the incorrect examples indices with incorrect and correct labels. 
         
         """
-
         x_reshaped = self.reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
         pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y))), "pred": predicted})
@@ -505,8 +501,9 @@ class MNet():
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
         """
-
-        results = self._get_mislabelled(x=self.validation_x,y=self.validation_y, print_report=print_report)
+        x = self.images[DataUse.VALIDATION]
+        y = self.labels[DataUse.VALIDATION]
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
         return results
 
     def mislabelled_on_test(self, print_report=False):
@@ -526,7 +523,9 @@ class MNet():
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
         """
-        report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
+        x = self.images[DataUse.TESTING]
+        y = self.labels[DataUse.TESTING]
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
         return report
 
     def accuracy_on_train(self):
@@ -538,8 +537,9 @@ class MNet():
                 results: float
                     The accuracy on the training set.
         """
-        train_x_reshaped = self.reshape_x(self.train_x)
-        results = self._check_accuracy(train_x_reshaped, self.train_y)
+        x = self.images[DataUse.TRAINING]
+        y = self.labels[DataUse.TRAINING]
+        results = self._check_accuracy(x,y)
         return results
 
     def accuracy_on_validation(self):
@@ -551,9 +551,9 @@ class MNet():
                 results: float
                     The accuracy on the validation set.
         """
-
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self._check_accuracy(validation_x_reshaped, self.validation_y)
+        x = self.images[DataUse.VALIDATION]
+        y = self.labels[DataUse.VALIDATION]
+        results = self._check_accuracy(x,y)
         return results
 
     def accuracy_on_test(self):
@@ -565,6 +565,7 @@ class MNet():
                 results: float
                     The accuracy on the test set.
         """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self._check_accuracy(test_x_reshaped, self.test_y)
+        x = self.images[DataUse.TESTING]
+        y = self.labels[DataUse.TESTING]
+        results = self._check_accuracy(x,y)
         return results

@@ -6,7 +6,7 @@ import scipy.signal as sg
 import pandas as pd
 import sound_classification.pre_processing as pp
 import sound_classification.data_handling as dh
-import sound_classification.neural_networks as nn
+from sound_classification.cnn_whale import CNNWhale
 import sound_classification.audio_signal as aud
 from tensorflow import reset_default_graph
 
@@ -233,7 +233,7 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=2, num_labels=2)
+    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
     tf_nodes = network.create_net_structure()
     network.set_tf_nodes(tf_nodes)
     network.train()

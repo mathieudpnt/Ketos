@@ -34,147 +34,24 @@ filter_shape - Filter shape, e.g. [4,4]'''
 
 
 class CNNWhale(MNet):
-    """ Create a Convolutional Neural Network.
-
-        The Network has two convolutional layers
-        and two fully connected layers with ReLU activation functions.
-
-        Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image. 
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
-
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            batch_size: int
-                The number of examples in each batch
-            num_channels: int
-                ...
-            input_shape: tuple (int)
-                A tuple of ints specifying the shape of the input images. Example: (60,20)
-            learning_rate: float
-                The learning rate to be using by the optimization algorithm
-            num_epochs: int
-                The number of epochs
-            verbosity: int
-                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
-            
-        Attributes:
-            sess: tensorflow Session
-                The session object that will run operations in the network's graph.
-            x: tensorflow tensor
-                The input images.
-            y: tensorflow tensor
-                The labels.
-            cost_function: tensorflow operation
-                The cost function node in the network's graph.
-            optimizer: tensorflow operation
-                The optimizer that optimizes the weights.
-            predict: tensorflow operation
-                The prediction operation. Uses the trained model to predict labels.
-            correct_prediction: tensorflow operation
-                The operation that verifies if a prediction is correct.
-            accuracy: tensorflow operation
-                The operation that computes the predictions accuracy.
-            init_op: tensorflow operation
-                Initializer.
-            merged: tensorflow summary
-                The merged version of all summary statiscs collected. 
-            writer: tensorflow writer
-                Writer object that records model information on the saved model file.
-            saver: tensorflow saver
-                Saver object that save model information to a file.
+    """ Create a Convolutional Neural Network for classification tasks.
     """
 
-    def __init__(self, train_x, train_y, validation_x, validation_y,
-                 test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate=0.01, num_epochs=10, seed=42, verbosity=2):
-                 
-        dh.check_data_sanity(train_x, train_y) # check sanity of training data
-        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
-        dh.check_data_sanity(test_x, test_y) # check sanity of test data
+    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+                 test_x=None, test_y=None, num_labels=2, batch_size=128, 
+                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
 
-        train_img_size = dh.get_image_size(train_x) # automatically determine image size
-        val_img_size = dh.get_image_size(validation_x)
-        test_img_size = dh.get_image_size(test_x)
-        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
+        super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
+                validation_x=validation_x, validation_y=validation_y,
+                test_x=test_x, test_y=test_y, num_labels=num_labels, 
+                batch_size=batch_size, num_epochs=num_epochs, 
+                learning_rate=learning_rate, keep_prob=keep_prob, 
+                seed=seed, verbosity=verbosity)
         
-        self.verbosity = verbosity
-        self.train_x = train_x
-        self.train_y = train_y
-        self.validation_x = validation_x
-        self.validation_y = validation_y
-        self.test_x = test_x
-        self.test_y = test_y
-        self.batch_size = batch_size
-        self.num_channels = num_channels
-        self.num_labels = num_labels
-        self.input_shape = train_img_size[0:2]
-        self.learning_rate = learning_rate
-        self.num_epochs = num_epochs
-        self.set_seed(seed)
-        self.train_size = self.train_y.shape[0]
-
-        
-
-        self.sess = tf.Session()
-        # tf_operations = self.create_net_structure()
-        
-        # self.x = tf_operations['x']
-        # self.y = tf_operations['y']
-        # self.cost_function = tf_operations['cost_function']
-        # self.optimizer = tf_operations['optimizer']
-        # self.predict = tf_operations['predict']
-        # self.correct_prediction = tf_operations['correct_prediction']
-        # self.accuracy = tf_operations['accuracy']
-        # self.init_op = tf_operations['init_op']
-        # self.merged = tf_operations['merged']
-        # self.writer = tf_operations['writer']
-        # self.saver = tf_operations['saver']
-
-
-    def set_tf_nodes(self, tf_nodes):
-        """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
-
-            Args:
-                tf_nodes:dict
-                A dictionary with the tensorflow objects necessary
-                to train and run the model.
-                sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                accuracy,init_op, merged, writer, saver
-                These objects are stored as
-                instance attributes when the class is instantiated.
-
-            Returns:
-                None
-        """
-
-        self.x = tf_nodes['x']
-        self.y = tf_nodes['y']
-        self.cost_function = tf_nodes['cost_function']
-        self.optimizer = tf_nodes['optimizer']
-        self.predict = tf_nodes['predict']
-        self.correct_prediction = tf_nodes['correct_prediction']
-        self.accuracy = tf_nodes['accuracy']
-        self.init_op = tf_nodes['init_op']
-        self.merged = tf_nodes['merged']
-        self.writer = tf_nodes['writer']
-        self.saver = tf_nodes['saver']
-        self.keep_prob = tf_nodes['keep_prob']
-
-
     @classmethod
-    def from_prepared_data(cls, prepared_data, 
-                           batch_size, num_channels, num_labels, 
-                           learning_rate=0.01, 
-                           num_epochs=10, seed=42):
+    def from_prepared_data(cls, prepared_data, num_labels=2, batch_size=128,
+                num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
+
         train_x = prepared_data["train_x"]
         train_y = prepared_data["train_y"]
         validation_x = prepared_data["validation_x"]
@@ -182,91 +59,14 @@ class CNNWhale(MNet):
         test_x = prepared_data["test_x"]
         test_y = prepared_data["test_y"]
 
-        return cls(train_x, train_y, validation_x, validation_y,
-                 test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate, num_epochs, seed)
+        return cls(train_x=train_x, train_y=train_y, 
+                validation_x=validation_x, validation_y=validation_y,
+                test_x=test_x, test_y=test_y, num_labels=num_labels, 
+                batch_size=batch_size, num_epochs=num_epochs, 
+                learning_rate=learning_rate, keep_prob=keep_prob, 
+                seed=seed, verbosity=verbosity)
 
-
-    def set_seed(self,seed):
-        """Set the random seed.
-
-            Useful to generate reproducible results.
-
-            Args:
-                seed: int
-                    Seed to be used by both tensorflow and numpy when generating random numbers
-            Returns:
-                None        
-        """
-        np.random.seed(seed)
-        tf.set_random_seed(seed)
-        
-     
-    def set_verbosity(self, verbosity):
-        self.verbosity = verbosity
-
-
-    def load_net_structure(self, saved_meta, checkpoint):
-        """Load the Neural Network structure from a saved model.
-
-        See the save_model() method. 
-
-        Args:
-            saved_meta: str
-                Path to the saved .meta file.
-
-            checkpoint: str
-                Path to the checkpoint to be used when loading the saved model
-            
-
-        Returns:
-            tf_nodes: dict
-                A dictionary with the tensorflow objects necessary
-                to train and run the model.
-                sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                accuracy,init_op, merged, writer, saver
-                These objects are stored as
-                instance attributes when the class is instantiated.
-
-        """
-
-        sess = self.sess
-        restorer = tf.train.import_meta_graph(saved_meta)
-        restorer.restore(sess, tf.train.latest_checkpoint(checkpoint))
-
-        graph = tf.get_default_graph()
-        x = graph.get_tensor_by_name("x:0")
-        y = graph.get_tensor_by_name("y:0")
-        cost_function = graph.get_tensor_by_name("cost_function:0")
-        optimizer = graph.get_operation_by_name("optimizer")
-        predict = graph.get_tensor_by_name("predict:0")
-        correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
-        accuracy = graph.get_tensor_by_name("accuracy:0")
-        keep_prob = graph.get_tensor_by_name("keep_prob:0")        
-
-        init_op = tf.global_variables_initializer()
-        merged = tf.summary.merge_all()
-        writer = tf.summary.FileWriter('summaries')
-        saver = tf.train.Saver()
-
-        tf_nodes = {'x': x,
-                'y':y,            
-                'cost_function': cost_function,
-                'optimizer': optimizer,
-                'predict': predict,
-                'correct_prediction':correct_prediction,
-                'accuracy': accuracy,
-                'init_op': init_op,
-                'merged': merged,
-                'writer': writer,
-                'saver': saver,
-                'keep_prob': keep_prob,
-                }
-
-        return tf_nodes
-
-
-    def create_net_structure(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512], learning_rate=0):
+    def _create_net_structure(self, input_shape, num_labels, **kwargs):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -296,14 +96,24 @@ class CNNWhale(MNet):
                     instance attributes when the class is instantiated.
 
         """
-        if learning_rate == 0:
-            learning_rate = self.learning_rate
+        # default configuration:
+        layer1 = ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8])
+        layer2 = ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])
+        conv_params = [layer1, layer2] 
+        dense_size = [512]
 
-        keep_prob = tf.placeholder(tf.float32,name='keep_prob')
+        for a in kwargs:
+            if a == 'conv_params':
+                conv_params = kwargs[a]
+            elif a == 'dense_size':
+                dense_size = kwargs[a]
 
-        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
-        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
-        y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
+        keep_prob = tf.placeholder(tf.float32, name='keep_prob')
+        learning_rate = tf.placeholder(tf.float32, name='learning_rate')
+
+        x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1]], name="x")
+        x_shaped = tf.reshape(x, [-1, input_shape[0], input_shape[1], 1])
+        y = tf.placeholder(tf.float32, [None, num_labels], name="y")
 
         pool_shape=[2,2]
 
@@ -312,7 +122,7 @@ class CNNWhale(MNet):
         params.extend(conv_params)
             
         # dense layers including output layer
-        dense_size.append(self.num_labels)
+        dense_size.append(num_labels)
 
         # create convolutional layers
         conv_layers = [x_shaped]
@@ -386,7 +196,7 @@ class CNNWhale(MNet):
         y_ = dense_layers[-1]
 
         # add an optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate,name = "optimizer").minimize(cross_entropy)
 
         # define an accuracy assessment operation
         predict = tf.argmax(y_, 1, name="predict")
@@ -416,102 +226,10 @@ class CNNWhale(MNet):
                 'writer': writer,
                 'saver': saver,
                 'keep_prob': keep_prob,
+                'learning_rate': learning_rate,
                 }
 
         return tf_nodes
-
-    def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
-        """Train the neural network. on the training set.
-
-           Devide the training set in batches in orther to train.
-           Once training is done, check the accuracy on the validation set.
-           Record summary statics during training. 
-
-        Args:
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
-            dropout: float
-                Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop out will only be effectuated if dropout < 1.
-            feature_layer_name: str
-                Name of 'feature' layer.
-
-        Returns:
-            avg_cost: float
-                Average cost of last completed training epoch.
-        """
-        if batch_size == 0:
-            batch_size = self.batch_size
-        if epochs == 0:
-            epochs = self.num_epochs
-
-        sess = self.sess
-        x = self.train_x
-        y = self.train_y
-        x_val = self.validation_x
-        y_val = self.validation_y
-
-        self.writer.add_graph(sess.graph)
-
-        features = None
-        if feature_layer_name is not None:
-            features = sess.graph.get_tensor_by_name(feature_layer_name)
-
-        if self.verbosity >= 2:
-            print("\nTraining  started")
-            header = '\nEpoch  Cost  Test acc.  Val acc.'
-            line   = '----------------------------------'
-            if features is not None:
-                header += '   No. Feat. used'
-                line   += '-----------------'
-            print(header)
-            print(line)
-
-        # initialise the variables
-        sess.run(self.init_op)
-
-        batches = int(y.shape[0] / batch_size)
-        for epoch in range(epochs):
-            avg_cost = 0
-            avg_acc = 0
-            feat_used = 0
-            for i in range(batches):
-                offset = i * batch_size
-                x_i = x[offset:(offset + batch_size), :, :, :]
-                x_i = self.reshape_x(x_i)
-                y_i = y[offset:(offset + batch_size)]
-                fetch = [self.optimizer, self.cost_function, self.accuracy]
-
-                if features is not None:
-                    fetch.append(features)
-                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
-                    f = np.sum(f, axis=0)
-                    feat_used += np.sum(f > 0) / batches
-                else:
-                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
-                
-                avg_cost += c / batches
-                avg_acc += a / batches
-            
-            if self.verbosity >= 2:
-                val_acc = self.accuracy_on_validation()
-                s = ' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc)
-                if features is not None:
-                    s += '  {4:.1f}'.format(feat_used)
-                print(s)
-
-            x_val = self.reshape_x(x_val)
-            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
-            self.writer.add_summary(summary, epoch)
-
-        if self.verbosity >= 2:
-            print(line)
-            print("\nTraining completed!")
-
-        return avg_cost
-
         
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
@@ -567,212 +285,3 @@ class CNNWhale(MNet):
 ###oli        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='VALID')
 
         return out_layer
-    
-    def save_model(self, destination):
-        """ Save the model to destination
-
-            Args:
-                destination: str
-                    Path to the file in which the model will be saved. 
-
-            Returns:
-                None.
-        
-        """
-        self.saver.save(self.sess, destination)
-
-    def _check_accuracy(self, x, y):
-        """ Check accuracy of the model by checking how close
-         to y the models predictions are when fed x
-
-            Based on the accuracy operation stored in the attribute 'self.accuracy'),
-            which is defined by the 'create_net_structure()' method.
-
-        Args:
-            x:tensor
-                Tensor containing the input data
-            y: tensor
-                Tensor containing the one hot encoded labels
-        Returns:
-            results: float
-                The accuracy value
-        """
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.keep_prob:1.0})
-        return results
-
-    def get_predictions(self, x):
-        """ Predict labels by running the model on x
-
-        Args:
-            x:tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
-        """
-        results = self.sess.run(self.predict, feed_dict={self.x:x, self.keep_prob:1.0})
-        return results
-
-    def reshape_x(self, x):
-        """ Reshape input data from a 2s matrix to a 1d vector.
-
-        Args:
-            x: numpy array
-                2d array containing the input data.
-        Returns:
-            results: vector
-                A vector containing the flattened inputs.                
-        """
-        reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
-        return reshaped_x
-
-    def predict_on_validation(self):
-        """ Predict labels by running the model on the validation set.
-        
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
-        """
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self.get_predictions(validation_x_reshaped)
-        return results
-
-    def predict_on_test(self):
-        """ Predict labels by running the model on the test set.
-        
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
-        """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self.get_predictions(test_x_reshaped)
-        return results
-    
-    def _get_mislabelled(self, x, y, print_report=False):
-        """ Report the number of examples mislabelled by the model.
-
-            Args:
-                x:tensor
-                    Tensor containing the input data.
-                y: tensor
-                    Tensor containing the one hot encoded labels.
-                print_report:bool
-                    If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
-                    correct and predicted labels.
-            Returns:
-                results: tuple (pandas DataFrames)
-                Tuple with two  DataFrames (report, incorrect). The first contains
-                number and percentage of correct/incorrect classification. The second,
-                the incorrect examples indices with incorrect and correct labels. 
-        
-        """
-
-        x_reshaped = self.reshape_x(x)
-        predicted = self.get_predictions(x_reshaped)
-        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot,y))), "pred": predicted})
-       
-        n_predictions = len(pred_df)
-        n_correct = sum(pred_df.label == pred_df.pred)
-        perc_correct = round(n_correct/n_predictions * 100, 2)
-        incorrect = pred_df[pred_df.label != pred_df.pred]
-        n_incorrect = len(incorrect)  
-        perc_incorrect = round(n_incorrect/n_predictions * 100, 2)
-        
-        #pred_df.to_csv("predictions.csv")
-        report = pd.DataFrame({"correct":[n_correct], "incorrect":[n_incorrect],
-                            "%correct":[perc_correct],"%incorrect":[perc_incorrect],
-                            "total":[n_predictions]})
-
-        if print_report:
-            print("=============================================")
-            print("Correct classifications: {0} of {1} ({2}%)".format(n_correct, n_predictions, perc_correct))
-            print("Incorrect classifications: {0} of {1} ({2})%".format(n_incorrect, n_predictions, perc_incorrect))
-            print("These were the incorrect classifications:")
-            print(incorrect)
-            print("=============================================") 
-        
-        results =(report,incorrect)    
-        return results
-
-    def mislabelled_on_validation(self, print_report=False):
-        """ Report the number of examples mislabelled by the trained model on
-            the validation set.
-
-            This method wraps around the '_get_mislabelled()' method in the same class.
-
-            Args:
-                print_report:bool
-                    If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
-                    correct and predicted labels.
-            Returns:
-                results: tuple (pandas DataFrames)
-                Tuple with two  DataFrames. The first contains
-                number and percentage of correct/incorrect classification. The second,
-                the incorrect examples indices with incorrect and correct labels. 
-        """
-
-        results = self._get_mislabelled(x=self.validation_x,y=self.validation_y, print_report=print_report)
-        return results
-
-    def mislabelled_on_test(self, print_report=False):
-        """ Report the number of examples mislabelled by the trained model on
-            the test set.
-
-            This method wraps around the '_get_mislabelled()' method in the same class.
-
-            Args:
-                print_report:bool
-                    If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
-                    correct and predicted labels.
-            Returns:
-                results: tuple (pandas DataFrames)
-                Tuple with two  DataFrames. The first contains
-                number and percentage of correct/incorrect classification. The second,
-                the incorrect examples indices with incorrect and correct labels. 
-        """
-        report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
-        return report
-
-    def accuracy_on_train(self):
-        """ Report the model accuracy on the training set
-
-            This method wraps around 'check_accuracy()' in the same class.
-
-            Returns:
-                results: float
-                    The accuracy on the training set.
-        """
-        train_x_reshaped = self.reshape_x(self.train_x)
-        results = self._check_accuracy(train_x_reshaped, self.train_y)
-        return results
-
-    def accuracy_on_validation(self):
-        """Report the model accuracy on the validation set
-
-            This method wraps around 'check_accuracy()' in the same class.
-
-            Returns:
-                results: float
-                    The accuracy on the validation set.
-        """
-
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self._check_accuracy(validation_x_reshaped, self.validation_y)
-        return results
-
-    def accuracy_on_test(self):
-        """Report the model accuracy on the test set
-
-            This method wraps around 'check_accuracy()' in the same class.
-
-            Returns:
-                results: float
-                    The accuracy on the test set.
-        """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self._check_accuracy(test_x_reshaped, self.test_y)
-        return results
