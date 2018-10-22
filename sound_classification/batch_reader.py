@@ -20,14 +20,18 @@ class BatchReader:
         Args:
             source: str or list
                 File name, list of file names, or directory name 
+            recursive_search: bool
+                Include files from all subdirectories 
             rate: float
                 Sampling rate in Hz
             datetime_fmt: str
                 Format for parsing date-time data from file names
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
+            verbose: bool
+                Print progress messages during processing 
     """
-    def __init__(self, source, rate=None, datetime_fmt=None, n_smooth=100):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100, verbose=False):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -37,9 +41,10 @@ class BatchReader:
         self.index = -1
         self.time = None
         self.eof = False
-        self.load(source=source, datetime_fmt=datetime_fmt)
+        self.verbose = verbose
+        self.load(source=source, recursive_search=recursive_search, datetime_fmt=datetime_fmt)
 
-    def load(self, source, datetime_fmt=None):
+    def load(self, source, recursive_search=False, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
@@ -59,7 +64,7 @@ class BatchReader:
             if source[-4:] == '.wav':
                 fnames = [source]
             else:
-                fnames = get_wave_files(source)
+                fnames = get_wave_files(path=source, subdirs=recursive_search)
         
         # check that files exist
         for f in fnames:
@@ -74,7 +79,14 @@ class BatchReader:
 
         # time stamps
         for f in fnames:
-            t = parse_datetime(f, datetime_fmt)
+            fmt = datetime_fmt
+            p_unix = f.rfind('/')
+            p_win = f.rfind('\\')
+            p = max(p_unix, p_win)
+            folder = f[:p+1]
+            if folder is not None and fmt is not None:
+                fmt = folder + fmt
+            t = parse_datetime(f, fmt)
             if t is None:
                 t = t0
             self.files.append([f, t])
@@ -90,12 +102,15 @@ class BatchReader:
     def read_file(self, i):
     
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
+
+        if self.verbose:
+            print(' File {0} of {1}'.format(i+1, len(self.files)), end="\r")
             
         f = self.files[i]
         s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
         
         if self.rate is not None:
-            s.resample(new_rate=self.rate) # resample
+            s.resample(new_rate=self.rate) # resamples
 
         return s
         
@@ -110,6 +125,8 @@ class BatchReader:
         else:
             self.signal = None
             self.time = None
+            
+        if self.signal is None:
             self.eof = True
 
     def _add_to_batch(self, size, new_batch):
@@ -124,6 +141,9 @@ class BatchReader:
         """
         if self.signal.empty():
             self._read_next_file()
+           
+        if self.signal is None:
+            return
 
         file_is_new = self.signal.begin() == self.time # check if we have already read from this file
 
@@ -142,7 +162,11 @@ class BatchReader:
                 self.times.append(self.batch.begin()) # collect times
         else:
             l = len(self.signal.data)
-            t = self.batch.append(signal=self.signal, n_smooth=self.n_smooth, max_length=size) # add to existing batch
+            if file_is_new:
+                n_smooth = self.n_smooth
+            else:
+                n_smooth = 0
+            t = self.batch.append(signal=self.signal, n_smooth=n_smooth, max_length=size) # add to existing batch
             if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
                 self.times.append(t) # collect times
         
@@ -172,7 +196,11 @@ class BatchReader:
 
             self._add_to_batch(size, new_batch=(length==0))
             
-            length = len(self.batch.data)
+            if self.batch is not None:
+                length = len(self.batch.data)
+
+        if self.finished() and self.verbose:
+            print(' Successfully processed {0} files'.format(len(self.files)))
 
         return self.batch
         
@@ -210,6 +238,7 @@ class BatchReader:
                     Table with file names and time stamps
             
         """
+        n = len(self.times)
         fnames = [x[0] for x in self.files]
-        df = pd.DataFrame(data={'time':self.times,'file':fnames})
+        df = pd.DataFrame(data={'time':self.times,'file':fnames[:n]})
         return df
