@@ -18,60 +18,127 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from enum import Enum
-from sound_classification.data_handling import check_data_sanity, from1hot, get_image_size
+from collections import namedtuple
+import sound_classification.data_handling as dh
+from sound_classification.neural_networks import MNet
 
 
-class DataUse(Enum):
-    TRAINING = 1
-    EVALUATION = 2
-    TEST = 3
+ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
+ConvParams.__doc__ = '''\
+Name and dimensions of convolutional layer in neural network
+
+name - Name of convolutional layer, e.g. "conv_layer"
+n_filters - Number of filters, e.g. 16
+filter_shape - Filter shape, e.g. [4,4]'''
 
 
-class MNet():
-    """ MERIDIAN Neural Network.
 
-        Parent class for all MERIDIAN neural network implementations.
+class CNNWhale(MNet):
+    """ Create a Convolutional Neural Network.
+
+        The Network has two convolutional layers
+        and two fully connected layers with ReLU activation functions.
+
+        Args:
+            train_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image. 
+            train_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            validation_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
+
+            validation_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            test_x: pandas DataFrame
+                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
+            test_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            batch_size: int
+                The number of examples in each batch
+            num_channels: int
+                ...
+            input_shape: tuple (int)
+                A tuple of ints specifying the shape of the input images. Example: (60,20)
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            num_epochs: int
+                The number of epochs
+            verbosity: int
+                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
+            
+        Attributes:
+            sess: tensorflow Session
+                The session object that will run operations in the network's graph.
+            x: tensorflow tensor
+                The input images.
+            y: tensorflow tensor
+                The labels.
+            cost_function: tensorflow operation
+                The cost function node in the network's graph.
+            optimizer: tensorflow operation
+                The optimizer that optimizes the weights.
+            predict: tensorflow operation
+                The prediction operation. Uses the trained model to predict labels.
+            correct_prediction: tensorflow operation
+                The operation that verifies if a prediction is correct.
+            accuracy: tensorflow operation
+                The operation that computes the predictions accuracy.
+            init_op: tensorflow operation
+                Initializer.
+            merged: tensorflow summary
+                The merged version of all summary statiscs collected. 
+            writer: tensorflow writer
+                Writer object that records model information on the saved model file.
+            saver: tensorflow saver
+                Saver object that save model information to a file.
     """
-    def __init__(self, seed=42, verbosity=2):
 
+    def __init__(self, train_x, train_y, validation_x, validation_y,
+                 test_x, test_y, batch_size, num_channels, num_labels,
+                 learning_rate=0.01, num_epochs=10, seed=42, verbosity=2):
+                 
+        dh.check_data_sanity(train_x, train_y) # check sanity of training data
+        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
+        dh.check_data_sanity(test_x, test_y) # check sanity of test data
+
+        train_img_size = dh.get_image_size(train_x) # automatically determine image size
+        val_img_size = dh.get_image_size(validation_x)
+        test_img_size = dh.get_image_size(test_x)
+        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
+        
         self.verbosity = verbosity
+        self.train_x = train_x
+        self.train_y = train_y
+        self.validation_x = validation_x
+        self.validation_y = validation_y
+        self.test_x = test_x
+        self.test_y = test_y
+        self.batch_size = batch_size
+        self.num_channels = num_channels
+        self.num_labels = num_labels
+        self.input_shape = train_img_size[0:2]
+        self.learning_rate = learning_rate
+        self.num_epochs = num_epochs
         self.set_seed(seed)
-        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
-        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
+        self.train_size = self.train_y.shape[0]
+
+        
+
         self.sess = tf.Session()
+        # tf_operations = self.create_net_structure()
+        
+        # self.x = tf_operations['x']
+        # self.y = tf_operations['y']
+        # self.cost_function = tf_operations['cost_function']
+        # self.optimizer = tf_operations['optimizer']
+        # self.predict = tf_operations['predict']
+        # self.correct_prediction = tf_operations['correct_prediction']
+        # self.accuracy = tf_operations['accuracy']
+        # self.init_op = tf_operations['init_op']
+        # self.merged = tf_operations['merged']
+        # self.writer = tf_operations['writer']
+        # self.saver = tf_operations['saver']
 
-    def _set_data(self, x, y, use):
-        check_data_sanity(x, y)
-        self.images[use] = x
-        self.labels[use] = y
-
-    def _add_data(self, x, y, use):
-        x0 = self.images[use]
-        y0 = self.labels[use]
-        if x0 is not None:
-            x = np.append(x0, x, axis=0)
-        if y0 is not None:
-            y = np.append(y0, y, axis=0)
-        self._set_data(x=x, y=y, use=use)
-
-    def set_training_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.TRAINING)
-
-    def add_training_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.TRAINING)
-
-    def set_evaluation_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.EVALUATION)
-
-    def add_evaluation_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.EVALUATION)
-
-    def set_test_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.TEST)
-
-    def add_test_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def set_tf_nodes(self, tf_nodes):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
@@ -88,6 +155,7 @@ class MNet():
             Returns:
                 None
         """
+
         self.x = tf_nodes['x']
         self.y = tf_nodes['y']
         self.cost_function = tf_nodes['cost_function']
@@ -100,6 +168,24 @@ class MNet():
         self.writer = tf_nodes['writer']
         self.saver = tf_nodes['saver']
         self.keep_prob = tf_nodes['keep_prob']
+
+
+    @classmethod
+    def from_prepared_data(cls, prepared_data, 
+                           batch_size, num_channels, num_labels, 
+                           learning_rate=0.01, 
+                           num_epochs=10, seed=42):
+        train_x = prepared_data["train_x"]
+        train_y = prepared_data["train_y"]
+        validation_x = prepared_data["validation_x"]
+        validation_y = prepared_data["validation_y"]
+        test_x = prepared_data["test_x"]
+        test_y = prepared_data["test_y"]
+
+        return cls(train_x, train_y, validation_x, validation_y,
+                 test_x, test_y, batch_size, num_channels, num_labels,
+                 learning_rate, num_epochs, seed)
+
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -114,9 +200,11 @@ class MNet():
         """
         np.random.seed(seed)
         tf.set_random_seed(seed)
-             
+        
+     
     def set_verbosity(self, verbosity):
         self.verbosity = verbosity
+
 
     def load_net_structure(self, saved_meta, checkpoint):
         """Load the Neural Network structure from a saved model.
@@ -141,6 +229,7 @@ class MNet():
                 instance attributes when the class is instantiated.
 
         """
+
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
         restorer.restore(sess, tf.train.latest_checkpoint(checkpoint))
@@ -176,8 +265,26 @@ class MNet():
 
         return tf_nodes
 
-    def create_net_structure(self):
-        """Create the neural network structure.
+
+    def create_net_structure(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512], learning_rate=0):
+        """Create the Neural Network structure.
+
+            The Network has a number of convolutional layers followed by a number 
+            of fully connected layers with ReLU activation functions and a final 
+            output layer with softmax activation.
+            
+            The default network structure has two convolutional layers 
+            and one fully connected layers with ReLU activation.
+
+            Args:
+                conv_params: list(ConvParams)
+                    Configuration parameters for the convolutional layers.
+                    Each item in the list represents a convolutional layer.
+                dense_size: list(int)
+                    Sizes of the fully connected layers preceeding the output layer.
+                learning_rate: float
+                    Learning rate. Overwrites learning rate specified at initialization.
+
 
             Returns:
                 tf_nodes: dict
@@ -189,28 +296,129 @@ class MNet():
                     instance attributes when the class is instantiated.
 
         """
-        img_shape = self._image_shape()
-        tf_nodes = _create_net_structure(input_shape=img_shape)
+        if learning_rate == 0:
+            learning_rate = self.learning_rate
+
+        keep_prob = tf.placeholder(tf.float32,name='keep_prob')
+
+        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
+        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
+        y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
+
+        pool_shape=[2,2]
+
+        # input and convolutional layers
+        params = [ConvParams(name='input', n_filters=1, filter_shape=[1,1])] # input layer with dimension 1
+        params.extend(conv_params)
+            
+        # dense layers including output layer
+        dense_size.append(self.num_labels)
+
+        # create convolutional layers
+        conv_layers = [x_shaped]
+        N = len(params)
+        conv_summary = list()
+        for i in range(1,N):
+            # previous layer
+            l_prev = conv_layers[len(conv_layers)-1]
+            # layer parameters
+            n_input = params[i-1].n_filters
+            n_filters = params[i].n_filters
+            filter_shape = params[i].filter_shape
+            name = params[i].name
+            # create new layer
+            l = self.create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
+            conv_layers.append(l)
+            # collect info
+            dim = l.shape[1] * l.shape[2] * l.shape[3]
+            conv_summary.append("  {0}       {1} x {2}          [{3},{4}]         {5}".format(name, n_input, n_filters, filter_shape[0], filter_shape[1], dim))
+            # apply DropOut 
+            drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
+            conv_layers.append(drop_out)
+
+        # last layer
+        last = conv_layers[-1]
+
+        # flatten
+        dim = last.shape[1] * last.shape[2] * last.shape[3]
+        flattened = tf.reshape(last, [-1, dim])
+
+        # fully-connected layers with ReLu activation
+        dense_layers = [flattened]
+        dense_summary = list()
+        for i in range(len(dense_size)):
+            size = dense_size[i] 
+            l_prev = dense_layers[i]
+            w_name = 'w_{0}'.format(i+1)
+            w = tf.Variable(tf.truncated_normal([int(l_prev.shape[1]), size], stddev=0.03), name=w_name)
+            b_name = 'b_{0}'.format(i+1)
+            b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
+            l = tf.matmul(l_prev, w) + b
+            n = 'dense_{0}'.format(i+1)
+            if i < len(dense_size) - 1:
+                l = tf.nn.relu(l, name=n) # ReLu activation
+            else: # output layer
+                cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
+                l = tf.nn.softmax(l, name=n) # softmax                    
+
+            dense_layers.append(l)
+            dense_summary.append("  {0}    {1}".format(n, size))
+
+        if self.verbosity >= 2:
+            print('\n')
+            print('======================================================')
+            print('                   Convolutional layers               ')
+            print('------------------------------------------------------')
+            print('  Name   Input x Filters   Filter Shape   Output dim. ')
+            print('------------------------------------------------------')
+            for line in conv_summary:
+                print(line)
+            print('======================================================')
+            print('                  Fully connected layers              ')
+            print('------------------------------------------------------')
+            print('  Name       Size                                      ')
+            print('------------------------------------------------------')
+            for line in dense_summary:
+                print(line)
+            print('======================================================')
+
+        # output layer
+        y_ = dense_layers[-1]
+
+        # add an optimizer
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
+
+        # define an accuracy assessment operation
+        predict = tf.argmax(y_, 1, name="predict")
+        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1), name="correct_prediction")
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),name="accuracy")
+
+        # setup the initialisation operator
+        init_op = tf.global_variables_initializer()
+
+        # setup recording variables
+        # add a summary to store the accuracy
+        tf.summary.scalar('accuracy', accuracy)
+        merged = tf.summary.merge_all()
+
+        writer = tf.summary.FileWriter('summaries')
+        saver = tf.train.Saver()
+
+        tf_nodes = {'x': x,
+                'y':y,            
+                'cost_function': cross_entropy,
+                'optimizer': optimizer,
+                'predict': predict,
+                'correct_prediction': correct_prediction,
+                'accuracy': accuracy,
+                'init_op': init_op,
+                'merged': merged,
+                'writer': writer,
+                'saver': saver,
+                'keep_prob': keep_prob,
+                }
+
         return tf_nodes
-
-    def _image_shape(self):
-        assert self.images[DataUse.TRAIN] is not None, "Training data must be provided before the neural network structure can be created."
-
-        img_shape = get_image_size(self.images[DataUse.TRAIN]) 
-
-        if self.images[DataUse.VALIDATION] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
-
-        if self.images[DataUse.TEST] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
-
-        return img_shape
-
-        tf_nodes = self._create_net_structure(input_shape=img_shape)
-        return tf_nodes
-
-    def _create_net_structure(self, input_shape):
-        return None
 
     def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
         """Train the neural network. on the training set.
@@ -463,7 +671,7 @@ class MNet():
 
         x_reshaped = self.reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
-        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot,y))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
