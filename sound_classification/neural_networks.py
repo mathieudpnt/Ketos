@@ -83,11 +83,33 @@ class MNet():
         self.sess = tf.Session()
 
     def _set_data(self, x, y, use):
+        """ Set data for specified use (training, validation, or test). 
+            Replaces any existing data for that use type.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+        """
         check_data_sanity(x, y)
         self.images[use] = x
         self.labels[use] = y
 
     def _add_data(self, x, y, use):
+        """ Add data for specified use (training, validation, or test). 
+            Will be appended to any existing data for that use type.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+        """
         x0 = self.images[use]
         y0 = self.labels[use]
         if x0 is not None:
@@ -97,21 +119,69 @@ class MNet():
         self._set_data(x=x, y=y, use=use)
 
     def set_training_data(self, x, y):
+        """ Set training data. Replaces any existing training data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._set_data(x=x, y=y, use=DataUse.TRAINING)
 
     def add_training_data(self, x, y):
+        """ Add training data. Will be appended to any existing training data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
     def set_validation_data(self, x, y):
+        """ Set validation data. Replaces any existing validation data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._set_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def add_validation_data(self, x, y):
+        """ Add validation data. Will be appended to any existing validation data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._add_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def set_test_data(self, x, y):
+        """ Set test data. Replaces any existing test data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._set_data(x=x, y=y, use=DataUse.TEST)
 
     def add_test_data(self, x, y):
+        """ Add test data. Will be appended to any existing test data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
         self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def set_tf_nodes(self, tf_nodes):
