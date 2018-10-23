@@ -25,7 +25,7 @@ from sound_classification.data_handling import check_data_sanity, from1hot, get_
 class DataUse(Enum):
     TRAINING = 1
     VALIDATION = 2
-    TESTING = 3
+    TEST = 3
 
 
 class MNet():
@@ -65,8 +65,8 @@ class MNet():
                  test_x=None, test_y=None, num_labels=2, batch_size=128, 
                  num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
 
-        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TESTING: None}
-        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TESTING: None}
+        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
+        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
 
         self.num_labels = num_labels
         self.batch_size = batch_size
@@ -78,7 +78,7 @@ class MNet():
 
         self._set_data(train_x, train_y, use=DataUse.TRAINING)        
         self._set_data(validation_x, validation_y, use=DataUse.VALIDATION)        
-        self._set_data(test_x, test_y, use=DataUse.TESTING)        
+        self._set_data(test_x, test_y, use=DataUse.TEST)        
 
         self.sess = tf.Session()
 
@@ -102,17 +102,17 @@ class MNet():
     def add_training_data(self, x, y):
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
-    def set_VALIDATION_data(self, x, y):
+    def set_validation_data(self, x, y):
         self._set_data(x=x, y=y, use=DataUse.VALIDATION)
 
-    def add_VALIDATION_data(self, x, y):
+    def add_validation_data(self, x, y):
         self._add_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def set_test_data(self, x, y):
-        self._set_data(x=x, y=y, use=DataUse.TESTING)
+        self._set_data(x=x, y=y, use=DataUse.TEST)
 
     def add_test_data(self, x, y):
-        self._add_data(x=x, y=y, use=DataUse.TESTING)
+        self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def set_tf_nodes(self, tf_nodes):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
@@ -248,8 +248,8 @@ class MNet():
         if self.images[DataUse.VALIDATION] is not None:
             assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
 
-        if self.images[DataUse.TESTING] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.TESTING]), "Training and test images must have same shape."
+        if self.images[DataUse.TEST] is not None:
+            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
 
         return img_shape
 
@@ -434,7 +434,7 @@ class MNet():
             results: vector
                 A vector containing the predicted labels.                
         """
-        x = self.images[DataUse.TESTING]
+        x = self.images[DataUse.TEST]
         results = self.get_predictions(x)
         return results
     
@@ -523,8 +523,8 @@ class MNet():
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
         """
-        x = self.images[DataUse.TESTING]
-        y = self.labels[DataUse.TESTING]
+        x = self.images[DataUse.TEST]
+        y = self.labels[DataUse.TEST]
         results = self._get_mislabelled(x=x,y=y, print_report=print_report)
         return report
 
@@ -565,7 +565,7 @@ class MNet():
                 results: float
                     The accuracy on the test set.
         """
-        x = self.images[DataUse.TESTING]
-        y = self.labels[DataUse.TESTING]
+        x = self.images[DataUse.TEST]
+        y = self.labels[DataUse.TEST]
         results = self._check_accuracy(x,y)
         return results

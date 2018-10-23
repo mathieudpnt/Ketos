@@ -200,8 +200,6 @@ def database_prepared_for_NN():
 def database_prepared_for_NN_2_classes():
     img1 = np.zeros((20, 20))
     img2 = np.ones((20, 20))
-
-
     d = {'image': [img1, img2, img1, img2, img1, img2,
                    img1, img2, img1, img2, img1, img2,
                    img1, img2, img1, img2, img1, img2,
@@ -210,12 +208,10 @@ def database_prepared_for_NN_2_classes():
                    0, 1, 0, 1, 0, 1,
                    0, 1, 0, 1, 0, 1,
                    0, 1, 0, 1, 0, 1]}
-
     database = pd.DataFrame(data=d)
     divisions= {"train":(0,12),
                 "validation":(12,18),
                 "test":(18,len(database))}
-
     prepared = dh.prepare_database(database=database,x_column="image",y_column="label",
                                 divisions=divisions)    
     return prepared
