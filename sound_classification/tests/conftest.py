@@ -221,8 +221,7 @@ def database_prepared_for_NN_2_classes():
 def trained_CNNWhale(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")     
-    
+    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")         
     train_x = d["train_x"]
     train_y = d["train_y"]
     validation_x = d["validation_x"]
@@ -234,11 +233,8 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     network.set_tf_nodes(tf_nodes)
     network.train()
     network.save_model(path_to_meta)
-
     test_acc = network.accuracy_on_test()
-
     meta = path_to_meta + ".meta"
-
     reset_default_graph()
     return meta, path_to_saved_model, test_acc
 

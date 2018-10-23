@@ -212,6 +212,7 @@ class MNet():
         self.saver = tf_nodes['saver']
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
+        self.class_weights = tf_nodes['class_weights']
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -228,6 +229,15 @@ class MNet():
         tf.set_random_seed(seed)
              
     def set_verbosity(self, verbosity):
+        """Set verbosity level.
+            0: no messages
+            1: warnings only
+            2: warnings and diagnostics
+
+            Args:
+                verbosity: int
+                    Verbosity level.        
+        """
         self.verbosity = verbosity
 
     def load_net_structure(self, saved_meta, checkpoint):
@@ -266,7 +276,8 @@ class MNet():
         correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
         keep_prob = graph.get_tensor_by_name("keep_prob:0")        
-        learning_rate = graph.get_tensor_by_name("learning_rate:0")        
+        learning_rate = graph.get_tensor_by_name("learning_rate:0")      
+        class_weights = graph.get_tensor_by_name("class_weights:0")  
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -286,11 +297,16 @@ class MNet():
                 'saver': saver,
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
+                'class_weights': class_weights,
                 }
 
         return tf_nodes
 
     def _create_net_structure(self, input_shape, num_labels, **kwargs):
+        """Create the neural network structure.
+
+            Implemented in any derived class.
+        """
         return None
 
     def create_net_structure(self, **kwargs):
@@ -311,6 +327,13 @@ class MNet():
         return tf_nodes
 
     def _image_shape(self):
+        """Get the image shape.
+
+            Returns:
+                img_shape: array
+                    Shape of the input data images
+
+        """
         assert self.images[DataUse.TRAINING] is not None, "Training data must be provided before the neural network structure can be created."
 
         img_shape = get_image_size(self.images[DataUse.TRAINING]) 
@@ -412,9 +435,10 @@ class MNet():
                     s += '  {4:.1f}'.format(feat_used)
                 print(s)
 
-            x_val = self.reshape_x(x_val)
-            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
-            self.writer.add_summary(summary, epoch)
+            if x_val is not None:
+                x_val = self.reshape_x(x_val)
+                summary = sess.run(fetches=self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
+                self.writer.add_summary(summary, epoch)
 
         if self.verbosity >= 2:
             print(line)
@@ -454,7 +478,7 @@ class MNet():
         if x is None:
             return 0
         x = self.reshape_x(x)        
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -469,7 +493,24 @@ class MNet():
                 A vector containing the predicted labels.                
         """
         x = self.reshape_x(x)
-        results = self.sess.run(self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        results = self.sess.run(fetches=self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        return results
+
+    def get_class_weights(self, x):
+        """ Compute classification weights by running the model on x.
+
+        Args:
+            x:tensor
+                Tensor containing the input data.
+            
+        Returns:
+            results: vector
+                A vector containing the classification weights. 
+        """
+        x = self.reshape_x(x)
+        fetch = self.class_weights
+        feed = {self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0}
+        results = self.sess.run(fetches=fetch, feed_dict=feed)
         return results
 
     def reshape_x(self, x):
@@ -596,7 +637,7 @@ class MNet():
         x = self.images[DataUse.TEST]
         y = self.labels[DataUse.TEST]
         results = self._get_mislabelled(x=x,y=y, print_report=print_report)
-        return report
+        return results
 
     def accuracy_on_train(self):
         """ Report the model accuracy on the training set
@@ -639,3 +680,14 @@ class MNet():
         y = self.labels[DataUse.TEST]
         results = self._check_accuracy(x,y)
         return results
+
+def remove_rights(x, y, class_weights, certainty_cut):
+    p = np.argmax(class_weights, axis=1) # predictions
+    idx = np.argsort(class_weights, axis=1)
+    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
+    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
+    cert = w0 - w1
+    rights = (p == y) & (cert >= certainty_cut)
+    x_trimmed = x[np.logical_not(rights)]
+    y_trimmed = y[np.logical_not(rights)]
+    return x_trimmed, y_trimmed

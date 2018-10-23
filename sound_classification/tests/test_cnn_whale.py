@@ -23,18 +23,18 @@ from tensorflow import reset_default_graph
 @pytest.mark.test_CNNWhale
 def test_initialize_CNNWhale_with_class_method_and_default_args(database_prepared_for_NN):
     d = database_prepared_for_NN
-    _ = CNNWhale.from_prepared_data(d)
+    _ = CNNWhale.from_prepared_data(d, verbosity=0)
 
 @pytest.mark.test_CNNWhale
 def test_initialize_CNNWhale_with_default_constructor_and_default_args(database_prepared_for_NN):
     d = database_prepared_for_NN
     train_x = d["train_x"]
     train_y = d["train_y"]
-    _ = CNNWhale(train_x, train_y)
+    _ = CNNWhale(train_x, train_y, verbosity=0)
     reset_default_graph()
 
 @pytest.mark.test_CNNWhale
-def test_train_neural_net_with_default_args(database_prepared_for_NN):
+def test_train_CNNWhale_with_default_args(database_prepared_for_NN):
     d = database_prepared_for_NN
     train_x = d["train_x"]
     train_y = d["train_y"]
@@ -42,15 +42,14 @@ def test_train_neural_net_with_default_args(database_prepared_for_NN):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=1)
+    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=1, verbosity=0)
     tf_nodes = network.create_net_structure()
     network.set_tf_nodes(tf_nodes)
     network.train()
     reset_default_graph()
 
-
 @pytest.mark.test_CNNWhale
-def test_train_neural_net_with_default_args2(database_prepared_for_NN_2_classes):
+def test_train_CNNWhale_with_default_args2(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     train_x = d["train_x"]
     train_y = d["train_y"]
@@ -58,14 +57,14 @@ def test_train_neural_net_with_default_args2(database_prepared_for_NN_2_classes)
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2)
+    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2, verbosity=0)
     tf_nodes = network.create_net_structure()
     network.set_tf_nodes(tf_nodes)
     network.train()
     reset_default_graph()
 
 @pytest.mark.test_CNNWhale
-def test_load_model(database_prepared_for_NN_2_classes, trained_CNNWhale):
+def test_load_CNNWhale_model(database_prepared_for_NN_2_classes, trained_CNNWhale):
     d = database_prepared_for_NN_2_classes
     train_x = d["train_x"]
     train_y = d["train_y"]
@@ -74,11 +73,25 @@ def test_load_model(database_prepared_for_NN_2_classes, trained_CNNWhale):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = CNNWhale(train_x, train_y, validation_x, validation_y,
-                          test_x, test_y, num_labels=2)
+                          test_x, test_y, num_labels=2, verbosity=0)
     path_to_meta, path_to_saved_model, test_acc = trained_CNNWhale
     tf_nodes = network.load_net_structure(path_to_meta, path_to_saved_model)
     network.set_tf_nodes(tf_nodes)
     assert test_acc == network.accuracy_on_test()
     reset_default_graph()
     
-
+@pytest.mark.test_CNNWhale
+def test_compute_class_weights_with_CNNWhale(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    x = d["train_x"]
+    y = d["train_y"]
+    network = CNNWhale(train_x=x, train_y=y,  num_labels=2, verbosity=0, seed=41)
+    tf_nodes = network.create_net_structure()
+    network.set_tf_nodes(tf_nodes)
+    network.train()
+    img = np.zeros((20, 20))
+    result = network.get_class_weights(x=[img])
+    weights = result[0]
+    assert weights[0] == pytest.approx(0.555, abs=0.001)
+    assert weights[1] == pytest.approx(0.445, abs=0.001)
+    

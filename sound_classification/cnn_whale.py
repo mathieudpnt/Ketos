@@ -82,9 +82,6 @@ class CNNWhale(MNet):
                     Each item in the list represents a convolutional layer.
                 dense_size: list(int)
                     Sizes of the fully connected layers preceeding the output layer.
-                learning_rate: float
-                    Learning rate. Overwrites learning rate specified at initialization.
-
 
             Returns:
                 tf_nodes: dict
@@ -164,11 +161,12 @@ class CNNWhale(MNet):
             b_name = 'b_{0}'.format(i+1)
             b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
             l = tf.matmul(l_prev, w) + b
-            n = 'dense_{0}'.format(i+1)
             if i < len(dense_size) - 1:
+                n = 'dense_{0}'.format(i+1)
                 l = tf.nn.relu(l, name=n) # ReLu activation
             else: # output layer
                 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
+                n = 'class_weights'
                 l = tf.nn.softmax(l, name=n) # softmax                    
 
             dense_layers.append(l)
@@ -227,6 +225,7 @@ class CNNWhale(MNet):
                 'saver': saver,
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
+                'class_weights': y_,
                 }
 
         return tf_nodes
