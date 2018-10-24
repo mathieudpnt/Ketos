@@ -680,14 +680,136 @@ class MNet():
         y = self.labels[DataUse.TEST]
         results = self._check_accuracy(x,y)
         return results
+        
+    def remove_correct_predictions(self, x, y, confidence_cut=0):
+        """Removes correct predictions that have confidence greater than a specified cut.
+        
+           Confidence is computed as the difference between the largest class weight 
+           and the second largest class weight. E.g. if there are three classes and 
+           the neural network assigns weights 0.2, 0.55, 0.25, the confidence is 0.55-0.25=0.25.
 
-def remove_rights(x, y, class_weights, certainty_cut):
-    p = np.argmax(class_weights, axis=1) # predictions
-    idx = np.argsort(class_weights, axis=1)
-    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
-    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
-    cert = w0 - w1
-    rights = (p == y) & (cert >= certainty_cut)
+            Args:
+                x: numpy array
+                    Images
+                y: numpy array
+                    Labels
+                confidence_cut: float
+                    Float between 0 and 1 defining the threshold confidence for the cut.
+
+            Returns:
+                xr: numpy array
+                    Remaining images
+                yr: numpy array
+                    Remainig labels
+        """
+        w = self.get_class_weights(x)
+        xr, yr = remove_correct_predictions(x=x, y=y, class_weights=w, confidence_cut=confidence_cut)        
+        return xr, yr
+        
+    def get_class_confidences(self, x):
+        """Compute the classification confidence for all images.
+
+            Args:
+                x: numpy array
+                    Images
+
+            Returns:
+                conf: numpy array
+                    Confidence level
+        """
+        w = self.get_class_weights(x)
+        conf = get_class_confidences(w)
+        return conf        
+
+    def get_correct_class_confidences(self, x, y):
+        """Compute the classification confidence for correctly classified images.
+
+            Args:
+                x: numpy array
+                    Images
+                y: numpy array
+                    Labels
+
+            Returns:
+                conf: numpy array
+                    Confidence level
+        """
+        w = self.get_class_weights(x)
+        conf = get_correct_class_confidences(w, y)
+        return conf
+        
+def remove_correct_predictions(x, y, class_weights, confidence_cut=0):
+    """Removes correct predictions that have confidence greater than a specified cut.
+    
+        Args:
+            x: numpy array
+                Images
+            y: numpy array
+                Labels
+            class_weights: numpy array
+                Classification weights
+            confidence_cut: float
+                Float between 0 and 1 defining the threshold confidence for the cut.
+
+        Returns:
+            xr: numpy array
+                Remaining images
+            yr: numpy array
+                Remainig labels
+    """
+    pred = predictions(class_weights) # predictions
+    conf = get_class_confidences(class_weights)
+    rights = (pred == y) & (conf >= confidence_cut)
     x_trimmed = x[np.logical_not(rights)]
     y_trimmed = y[np.logical_not(rights)]
     return x_trimmed, y_trimmed
+    
+def get_class_confidences(class_weights):
+    """Compute the classification confidence for all images.
+
+        Args:
+            class_weights: numpy array
+                Classification weights
+
+        Returns:
+            conf: numpy array
+                Confidence level
+    """
+    idx = np.argsort(class_weights, axis=1)
+    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
+    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
+    conf = w0 - w1 # classification confidence
+    return conf
+
+def get_correct_class_confidences(class_weights, y):
+    """Compute the classification confidence for correctly classified images.
+
+        Args:
+            class_weights: numpy array
+                Classification weights
+            y: numpy array
+                Labels
+
+        Returns:
+            conf: numpy array
+                Confidence level
+    """
+    conf = get_class_confidences(class_weights)
+    pred = predictions(class_weights)
+    conf = conf[pred == y]        
+    return conf
+
+def predictions(class_weights):
+    """Compute predicted labels from classification weights.
+
+        Args:
+            class_weights: numpy array
+                Classification weights
+
+        Returns:
+            p: numpy array
+                Predicted labels
+    """
+    p = np.argmax(class_weights, axis=1)
+    return p     
+

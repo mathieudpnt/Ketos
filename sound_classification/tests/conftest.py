@@ -251,3 +251,14 @@ def sine_audio_without_time_stamp(sine_wave):
     rate, data = sine_wave
     a = aud.AudioSignal(rate=rate, data=data)
     return a
+    
+@pytest.fixture
+def data_classified_by_nn():
+    x = [1, 2, 3, 4, 5, 6] # input data
+    x = np.array(x)
+    y = [0, 1, 0, 1, 0, 1] # labels
+    y = np.array(y)
+    w = [[0.8, 0.2], [0.1, 0.9], [0.96, 0.04], [0.49, 0.51], [0.45, 0.55], [0.60, 0.40]] # class weights computed by NN
+    w = np.array(w)
+    return x,y,w
+
