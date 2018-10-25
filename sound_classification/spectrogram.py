@@ -1,10 +1,10 @@
 from abc import ABC
 import numpy as np
 from scipy.fftpack import dct
+from scipy import ndimage
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
-import cv2
 from sound_classification.pre_processing import make_frames
 
 
@@ -317,9 +317,9 @@ class Spectrogram():
     def blur_gaussian(self, tsigma, fsigma):
         """ Blur the spectrogram using a Gaussian filter.
 
-            This uses the GaussianBlur method from the cv2 package:
+            This uses the Gaussian filter method from the scipy.ndimage package:
             
-                https://docs.opencv.org/3.0-beta/modules/imgproc/doc/filtering.html#gaussianblur
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html
 
             Args:
                 tsigma: float
@@ -361,7 +361,7 @@ class Spectrogram():
         sigmaX = tsigma / self.tres
         sigmaY = fsigma / self.fres
         
-        self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
+        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaY,sigmaX))
     
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
