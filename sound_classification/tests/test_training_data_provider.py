@@ -1,0 +1,43 @@
+""" Unit tests for the the 'training_data_provider' module in the 'sound_classification' package
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
+    Organization: MERIDIAN-Intitute for Big Data Analytics
+    Team: Acoustic data Analytics, Dalhousie University
+    Project: packages/sound_classification
+             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+     
+    License:
+
+"""
+
+import pytest
+import numpy as np
+import pandas as pd
+from sound_classification.training_data_provider import TrainingDataProvider
+from sound_classification.neural_networks import get_class_confidences, predictions
+
+
+@pytest.mark.test_TrainingDataSampler
+def test_get_samples(data_classified_by_nn):
+    x, y, w = data_classified_by_nn
+    p = predictions(w)
+    c = get_class_confidences(w)
+
+    sampler = TrainingDataProvider(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5)
+
+    x1, y1 = sampler.get_samples(num_samples=2) #0,1
+    assert np.all(x1 == x[0:2])    
+    sampler.update_prediction_confidence(pred=p[:2], conf=c[:2])
+
+    x1, y1 = sampler.get_samples(num_samples=2) #2,3
+    assert np.all(x1 == x[2:4])    
+    sampler.update_prediction_confidence(pred=p[2:4], conf=c[2:4])
+
+    x1, y1 = sampler.get_samples(num_samples=2) #3,4 (keeps one from previous iteration)
+    assert np.all(x1 == x[3:5])    
+    sampler.update_prediction_confidence(pred=p[3:5], conf=c[3:5])
+
+    x1, y1 = sampler.get_samples(num_samples=2) #4,5 (keeps one from previous iteration)
+    assert np.all(x1 == x[4:6])    
+    sampler.update_prediction_confidence(pred=p[4:6], conf=c[4:6])
