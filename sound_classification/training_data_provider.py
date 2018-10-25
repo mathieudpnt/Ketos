@@ -36,7 +36,8 @@ class TrainingDataProvider():
     def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0):
 
         N = x.shape[0]
-        self.df = pd.DataFrame({'x':x, 'y':y, 'pred':y, 'conf':np.ones(N), 'prev':np.zeros(N, dtype=bool)})
+        self.x = x
+        self.df = pd.DataFrame({'y':y, 'pred':y, 'conf':np.ones(N), 'prev':np.zeros(N, dtype=bool)})
         self.randomize = randomize
         self.num_samples = num_samples
         self.max_keep = max_keep
@@ -66,14 +67,15 @@ class TrainingDataProvider():
 
         # combine poorly performing and new samples
         df = self.df.loc[idx]
-        x = df.x.values
+        x = self.x[idx]
         y = df.y.values
 
         # internal book keeping
         self.df.prev = False
         self.df.loc[idx,'prev'] = True
 
-        return x, y
+        keep_frac = num_poor / len(idx)
+        return x, y, keep_frac
 
     def update_prediction_confidence(self, pred, conf):
         assert len(pred) == len(conf),'length of prediction and confidence arrays do not match'
@@ -99,6 +101,7 @@ class TrainingDataProvider():
         if self.randomize:
             df_new = self.df[self.df.prev == False]
             idx = np.random.choice(df_new.index, num_samples, replace=False)
+            idx = pd.Index(idx)
         else:
             df_prev = self.df[self.df.prev == True]
             if len(df_prev) == 0:

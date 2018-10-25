@@ -81,6 +81,7 @@ class MNet():
         self._set_data(test_x, test_y, use=DataUse.TEST)        
 
         self.sess = tf.Session()
+        self.epoch_counter = 0
 
     def _set_data(self, x, y, use):
         """ Set data for specified use (training, validation, or test). 
@@ -117,6 +118,10 @@ class MNet():
         if y0 is not None:
             y = np.append(y0, y, axis=0)
         self._set_data(x=x, y=y, use=use)
+
+    def reset(self):
+        self.epoch_counter = 0
+        self.sess.run(self.init_op)
 
     def set_training_data(self, x, y):
         """ Set training data. Replaces any existing training data.
@@ -213,6 +218,7 @@ class MNet():
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
+        self.reset()
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -346,7 +352,7 @@ class MNet():
 
         return img_shape
 
-    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
+    def train(self, init=True, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -403,7 +409,8 @@ class MNet():
             print(line)
 
         # initialise the variables
-        sess.run(self.init_op)
+        if self.epoch_counter == 0:
+            sess.run(self.init_op)
 
         batches = int(y.shape[0] / batch_size)
         for epoch in range(num_epochs):
@@ -438,7 +445,9 @@ class MNet():
             if x_val is not None:
                 x_val = self.reshape_x(x_val)
                 summary = sess.run(fetches=self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
-                self.writer.add_summary(summary, epoch)
+                self.writer.add_summary(summary, self.epoch_counter)
+
+            self.epoch_counter += 1
 
         if self.verbosity >= 2:
             print(line)

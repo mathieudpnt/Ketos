@@ -92,6 +92,6 @@ def test_compute_class_weights_with_CNNWhale(database_prepared_for_NN_2_classes)
     img = np.zeros((20, 20))
     result = network.get_class_weights(x=[img])
     weights = result[0]
-    assert weights[0] == pytest.approx(0.555, abs=0.001)
-    assert weights[1] == pytest.approx(0.445, abs=0.001)
+    assert weights[0] == pytest.approx(0.3659692, abs=0.001)
+    assert weights[1] == pytest.approx(1-0.3659692, abs=0.001)
     
