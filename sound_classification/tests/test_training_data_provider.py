@@ -15,14 +15,14 @@ import pytest
 import numpy as np
 import pandas as pd
 from sound_classification.training_data_provider import TrainingDataProvider
-from sound_classification.neural_networks import get_class_confidences, predictions
+from sound_classification.neural_networks import class_confidences, predictions
 
 
 @pytest.mark.test_TrainingDataSampler
 def test_get_samples(data_classified_by_nn):
     x, y, w = data_classified_by_nn
     p = predictions(w)
-    c = get_class_confidences(w)
+    c = class_confidences(w)
 
     sampler = TrainingDataProvider(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5)
 

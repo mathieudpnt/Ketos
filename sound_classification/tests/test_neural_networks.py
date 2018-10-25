@@ -16,7 +16,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
-from sound_classification.neural_networks import MNet, DataUse, remove_correct_predictions, get_class_confidences, get_correct_class_confidences
+from sound_classification.neural_networks import MNet, DataUse, class_confidences
 from tensorflow import reset_default_graph
 
 
@@ -58,32 +58,11 @@ def test_add_data_to_MNet(database_prepared_for_NN_2_classes):
     assert x.shape[1:] == network.images[DataUse.TRAINING].shape[1:]
     assert 2 * y.shape[0] == network.labels[DataUse.TRAINING].shape[0]
     assert y.shape[1:] == network.labels[DataUse.TRAINING].shape[1:]
-
-@pytest.mark.test_remove_correct_predictions
-def test_remove_correct_predictions(data_classified_by_nn):
-    x,y,w = data_classified_by_nn
-    x_trim, y_trim = remove_correct_predictions(x=x, y=y, class_weights=w, confidence_cut=0)
-    assert len(x_trim) == 2
-    assert x_trim[0] == 5
-    assert x_trim[1] == 6
-    x_trim, y_trim = remove_correct_predictions(x=x, y=y, class_weights=w, confidence_cut=0.5)
-    assert len(x_trim) == 3
-    assert x_trim[0] == 4
-    assert x_trim[1] == 5
-    assert x_trim[2] == 6
     
-@pytest.mark.test_get_class_confidences
-def test_get_class_confidences(data_classified_by_nn):
+@pytest.mark.test_class_confidences
+def test_class_confidences(data_classified_by_nn):
     x,y,w = data_classified_by_nn
-    conf = get_class_confidences(class_weights=w)
+    conf = class_confidences(class_weights=w)
     assert len(conf) == 6
-    assert conf[0] == pytest.approx(0.6, abs=0.001)
-    assert conf[1] == pytest.approx(0.8, abs=0.001)
-    
-@pytest.mark.test_get_correct_class_confidences
-def test_get_correct_class_confidences(data_classified_by_nn):
-    x,y,w = data_classified_by_nn
-    conf = get_correct_class_confidences(class_weights=w, y=y)
-    assert len(conf) == 4
     assert conf[0] == pytest.approx(0.6, abs=0.001)
     assert conf[1] == pytest.approx(0.8, abs=0.001)
