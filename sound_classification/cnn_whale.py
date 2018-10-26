@@ -99,11 +99,11 @@ class CNNWhale(MNet):
         conv_params = [layer1, layer2] 
         dense_size = [512]
 
-        for a in kwargs:
+        for a in kwargs['kwargs']:
             if a == 'conv_params':
-                conv_params = kwargs[a]
+                conv_params = kwargs['kwargs'][a]
             elif a == 'dense_size':
-                dense_size = kwargs[a]
+                dense_size = kwargs['kwargs'][a]
 
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
