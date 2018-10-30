@@ -32,7 +32,6 @@ n_filters - Number of filters, e.g. 16
 filter_shape - Filter shape, e.g. [4,4]'''
 
 
-
 class CNNWhale(MNet):
     """ Create a Convolutional Neural Network for classification tasks.
     """
