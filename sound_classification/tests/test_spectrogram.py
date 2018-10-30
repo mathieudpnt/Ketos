@@ -14,7 +14,7 @@
 
 import pytest
 import numpy as np
-from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram
+from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram
 from sound_classification.json_parsing import Interval
 from sound_classification.audio_signal import AudioSignal
 import datetime
@@ -202,7 +202,6 @@ def test_mel_spectrogram_has_correct_time_axis(sine_audio):
     assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
     assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)
 
-@pytest.mark.test_from_signal
 def test_mag_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.seconds()
     winlen = duration/4
@@ -211,7 +210,6 @@ def test_mag_spectrogram_has_correct_NFFT(sine_audio):
     
     assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
-@pytest.mark.test_from_signal
 def test_power_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.seconds()
     winlen = duration/4
@@ -220,7 +218,6 @@ def test_power_spectrogram_has_correct_NFFT(sine_audio):
     
     assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
-@pytest.mark.test_from_signal
 def test_mel_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.seconds()
     winlen = duration/4
@@ -229,4 +226,32 @@ def test_mel_spectrogram_has_correct_NFFT(sine_audio):
     
     assert spec.NFFT == int(round(winlen * sine_audio.rate))
 
- 
+def test_blur_time_axis():
+    spec = Spectrogram()
+    img = np.zeros((21,21))
+    img[10,10] = 1
+    spec.image = img
+    spec.shape = img.shape
+    sig = 2.0
+    spec.blur_gaussian(tsigma=sig, fsigma=0.01)
+    xy = spec.image / np.max(spec.image)
+    x = xy[:,10]
+    assert x[10] == pytest.approx(1, rel=0.001)
+    assert x[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
+    assert x[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
+    assert xy[10,9] == pytest.approx(0, rel=0.001) 
+    
+def test_blur_freq_axis():
+    spec = Spectrogram()
+    img = np.zeros((21,21))
+    img[10,10] = 1
+    spec.image = img
+    spec.shape = img.shape
+    sig = 4.2
+    spec.blur_gaussian(tsigma=0.01, fsigma=sig)
+    xy = spec.image / np.max(spec.image)
+    y = xy[10,:]
+    assert y[10] == pytest.approx(1, rel=0.001)
+    assert y[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
+    assert y[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
+    assert xy[9,10] == pytest.approx(0, rel=0.001) 

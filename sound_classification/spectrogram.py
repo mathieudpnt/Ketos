@@ -38,8 +38,8 @@ class Spectrogram():
         self.image = np.zeros((2,2))
         self.shape = self.image.shape
         self.NFFT = 0
-        self.tres = 0
-        self.tmin = 1
+        self.tres = 1
+        self.tmin = 0
         self.fres = 1
         self.fmin = 0
         self.timestamp = None
