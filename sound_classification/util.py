@@ -22,7 +22,7 @@ def print_octave_bands_json(band_min, band_max):
         print(endpar)
     print("]")
 
-def morlet_func(time, frequency, width, displacement, norm=True):
+def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
     """ Morlet wavelet function
 
         The function is implemented as in Eq. (15) in John Ashmead, "Morlet Wavelets in Quantum Mechanics",
@@ -40,12 +40,20 @@ def morlet_func(time, frequency, width, displacement, norm=True):
                 Wavelet centroid in seconds
             norm: bool
                 Include [pi^1/4*sqrt(sigma)]^-1 normalization factor
+            dfdt: float
+                Rate of change in frequency as a function of time in Hz per second.
+                If dfdt is non-zero, the frequency is computed as 
+                    
+                    f = frequency + (time - displacement) * dfdt 
 
         Returns:
             y: float
                 Value of Morlet wavelet function at time t
     """
-    assert frequency > 0, "Frequency must be a strictly positive float"
+    if dfdt != 0:
+        frequency += (time - displacement) * dfdt
+    
+    assert np.all(frequency > 0), "Frequency must be a strictly positive float"
     assert width > 0, "Width must be a strictly positive float"
 
     t = time
