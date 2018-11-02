@@ -366,7 +366,7 @@ class Spectrogram():
         sigmaX = tsigma / self.tres
         sigmaY = fsigma / self.fres
         
-        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaY,sigmaX))
+        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
     def add(self, spec, delay=0, scale=1):
         """ Add another spectrogram to this spectrogram.
