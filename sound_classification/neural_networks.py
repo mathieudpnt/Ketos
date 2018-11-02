@@ -18,7 +18,18 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+from collections import namedtuple
 import sound_classification.data_handling as dh
+
+
+ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
+ConvParams.__doc__ = '''\
+Name and dimensions of convolutional layer in neural network
+
+name - Name of convolutional layer, e.g. "conv_layer"
+n_filters - Number of filters, e.g. 16
+filter_shape - Filter shape, e.g. [4,4]'''
+
 
 
 class CNNWhale():
@@ -51,6 +62,8 @@ class CNNWhale():
                 The learning rate to be using by the optimization algorithm
             num_epochs: int
                 The number of epochs
+            verbosity: int
+                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
             
         Attributes:
             sess: tensorflow Session
@@ -81,7 +94,8 @@ class CNNWhale():
 
     def __init__(self, train_x, train_y, validation_x, validation_y,
                  test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate=0.01, num_epochs=10, seed=42):
+                 learning_rate=0.01, num_epochs=10, seed=42, verbosity=2):
+                 
         dh.check_data_sanity(train_x, train_y) # check sanity of training data
         dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
         dh.check_data_sanity(test_x, test_y) # check sanity of test data
@@ -90,7 +104,8 @@ class CNNWhale():
         val_img_size = dh.get_image_size(validation_x)
         test_img_size = dh.get_image_size(test_x)
         assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
-
+        
+        self.verbosity = verbosity
         self.train_x = train_x
         self.train_y = train_y
         self.validation_x = validation_x
@@ -151,6 +166,7 @@ class CNNWhale():
         self.merged = tf_nodes['merged']
         self.writer = tf_nodes['writer']
         self.saver = tf_nodes['saver']
+        self.keep_prob = tf_nodes['keep_prob']
 
 
     @classmethod
@@ -183,6 +199,10 @@ class CNNWhale():
         """
         np.random.seed(seed)
         tf.set_random_seed(seed)
+        
+     
+    def set_verbosity(self, verbosity):
+        self.verbosity = verbosity
 
 
     def load_net_structure(self, saved_meta, checkpoint):
@@ -221,7 +241,7 @@ class CNNWhale():
         predict = graph.get_tensor_by_name("predict:0")
         correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
-       
+        keep_prob = graph.get_tensor_by_name("keep_prob:0")        
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -239,16 +259,31 @@ class CNNWhale():
                 'merged': merged,
                 'writer': writer,
                 'saver': saver,
+                'keep_prob': keep_prob,
                 }
 
         return tf_nodes
 
 
-    def create_net_structure(self):
+    def create_net_structure(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512], learning_rate=0):
         """Create the Neural Network structure.
 
-            The Network has two convolutional layers
-            and two fully connected layers with ReLU activation functions.
+            The Network has a number of convolutional layers followed by a number 
+            of fully connected layers with ReLU activation functions and a final 
+            output layer with softmax activation.
+            
+            The default network structure has two convolutional layers 
+            and one fully connected layers with ReLU activation.
+
+            Args:
+                conv_params: list(ConvParams)
+                    Configuration parameters for the convolutional layers.
+                    Each item in the list represents a convolutional layer.
+                dense_size: list(int)
+                    Sizes of the fully connected layers preceeding the output layer.
+                learning_rate: float
+                    Learning rate. Overwrites learning rate specified at initialization.
+
 
             Returns:
                 tf_nodes: dict
@@ -260,35 +295,94 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
+        if learning_rate == 0:
+            learning_rate = self.learning_rate
+
+        keep_prob = tf.placeholder(tf.float32,name='keep_prob')
+
         x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
         x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
 
         pool_shape=[2,2]
 
-        layer1 = self.create_new_conv_layer(x_shaped, 1, 32, [2, 8], pool_shape, name='layer1')
-        layer2 = self.create_new_conv_layer(layer1, 32, 64, [30, 8], pool_shape, name='layer2')
+        # input and convolutional layers
+        params = [ConvParams(name='input', n_filters=1, filter_shape=[1,1])] # input layer with dimension 1
+        params.extend(conv_params)
+            
+        # dense layers including output layer
+        dense_size.append(self.num_labels)
 
-        x_after_pool = int(np.ceil(self.input_shape[0]/(pool_shape[0]**2)))
-        y_after_pool = int(np.ceil(self.input_shape[1]/(pool_shape[1]**2)))
-        
-        flattened = tf.reshape(layer2, [-1, x_after_pool * y_after_pool * 64])
+        # create convolutional layers
+        conv_layers = [x_shaped]
+        N = len(params)
+        conv_summary = list()
+        for i in range(1,N):
+            # previous layer
+            l_prev = conv_layers[len(conv_layers)-1]
+            # layer parameters
+            n_input = params[i-1].n_filters
+            n_filters = params[i].n_filters
+            filter_shape = params[i].filter_shape
+            name = params[i].name
+            # create new layer
+            l = self.create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
+            conv_layers.append(l)
+            # collect info
+            dim = l.shape[1] * l.shape[2] * l.shape[3]
+            conv_summary.append("  {0}       {1} x {2}          [{3},{4}]         {5}".format(name, n_input, n_filters, filter_shape[0], filter_shape[1], dim))
+            # apply DropOut 
+            drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
+            conv_layers.append(drop_out)
 
-        n_dense = 512
+        # last layer
+        last = conv_layers[-1]
 
-        # setup some weights and bias values for this layer, then activate with ReLU
-        wd1 = tf.Variable(tf.truncated_normal([x_after_pool* y_after_pool * 64, n_dense], stddev=0.03), name='wd1')
-        bd1 = tf.Variable(tf.truncated_normal([n_dense], stddev=0.01), name='bd1')
-        dense_layer1 = tf.matmul(flattened, wd1) + bd1
-        dense_layer1 = tf.nn.relu(dense_layer1,name='dense1')
+        # flatten
+        dim = last.shape[1] * last.shape[2] * last.shape[3]
+        flattened = tf.reshape(last, [-1, dim])
 
-        # another layer with softmax activations
-        wd2 = tf.Variable(tf.truncated_normal([n_dense,self.num_labels], stddev=0.03), name='wd2')
-        bd2 = tf.Variable(tf.truncated_normal([self.num_labels], stddev=0.01), name='bd2')
-        dense_layer2 = tf.matmul(dense_layer1, wd2) + bd2
-        y_ = tf.nn.softmax(dense_layer2,name='dense2')
+        # fully-connected layers with ReLu activation
+        dense_layers = [flattened]
+        dense_summary = list()
+        for i in range(len(dense_size)):
+            size = dense_size[i] 
+            l_prev = dense_layers[i]
+            w_name = 'w_{0}'.format(i+1)
+            w = tf.Variable(tf.truncated_normal([int(l_prev.shape[1]), size], stddev=0.03), name=w_name)
+            b_name = 'b_{0}'.format(i+1)
+            b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
+            l = tf.matmul(l_prev, w) + b
+            n = 'dense_{0}'.format(i+1)
+            if i < len(dense_size) - 1:
+                l = tf.nn.relu(l, name=n) # ReLu activation
+            else: # output layer
+                cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
+                l = tf.nn.softmax(l, name=n) # softmax                    
 
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y),name="cost_function")
+            dense_layers.append(l)
+            dense_summary.append("  {0}    {1}".format(n, size))
+
+        if self.verbosity >= 2:
+            print('\n')
+            print('======================================================')
+            print('                   Convolutional layers               ')
+            print('------------------------------------------------------')
+            print('  Name   Input x Filters   Filter Shape   Output dim. ')
+            print('------------------------------------------------------')
+            for line in conv_summary:
+                print(line)
+            print('======================================================')
+            print('                  Fully connected layers              ')
+            print('------------------------------------------------------')
+            print('  Name       Size                                      ')
+            print('------------------------------------------------------')
+            for line in dense_summary:
+                print(line)
+            print('======================================================')
+
+        # output layer
+        y_ = dense_layers[-1]
 
         # add an optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
@@ -320,50 +414,103 @@ class CNNWhale():
                 'merged': merged,
                 'writer': writer,
                 'saver': saver,
+                'keep_prob': keep_prob,
                 }
 
         return tf_nodes
 
-    def train(self):
+    def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
            Once training is done, check the accuracy on the validation set.
            Record summary statics during training. 
 
+        Args:
+            batch_size: int
+                Batch size. Overwrites batch size specified at initialization.
+            epochs: int
+                Number of epochs: Overwrites number of epochs specified at initialization.
+            dropout: float
+                Float in the range [0,1] specifying the probability of keeping the weights, 
+                i.e., drop out will only be effectuated if dropout < 1.
+            feature_layer_name: str
+                Name of 'feature' layer.
 
         Returns:
-            None
+            avg_cost: float
+                Average cost of last completed training epoch.
         """
-        print("=============================================")
-        print("Training  started")
+        if batch_size == 0:
+            batch_size = self.batch_size
+        if epochs == 0:
+            epochs = self.num_epochs
+
         sess = self.sess
+        x = self.train_x
+        y = self.train_y
+        x_val = self.validation_x
+        y_val = self.validation_y
 
         self.writer.add_graph(sess.graph)
 
+        features = None
+        if feature_layer_name is not None:
+            features = sess.graph.get_tensor_by_name(feature_layer_name)
+
+        if self.verbosity >= 2:
+            print("\nTraining  started")
+            header = '\nEpoch  Cost  Test acc.  Val acc.'
+            line   = '----------------------------------'
+            if features is not None:
+                header += '   No. Feat. used'
+                line   += '-----------------'
+            print(header)
+            print(line)
+
         # initialise the variables
         sess.run(self.init_op)
-        total_batch = int(self.train_size / self.batch_size)
-        for epoch in range(self.num_epochs):
-            avg_cost = 0
-            for i in range(total_batch):
-                offset = i*self.batch_size
-                batch_x = self.train_x[offset:(offset + self.batch_size), :, :, :]
-                batch_x_reshaped = self.reshape_x(batch_x)
-                batch_y = self.train_y[offset:(offset + self.batch_size)]
-               
-                _, c = sess.run([self.optimizer, self.cost_function], feed_dict={self.x: batch_x_reshaped, self.y: batch_y})
-                avg_cost += c / total_batch
-            
-            validation_x_reshaped = self.reshape_x(self.validation_x)
-            train_acc = self.accuracy_on_train()
-            print("Epoch:", (epoch + 1), "cost =", "{:.3f}".format(avg_cost), "train accuracy: {:.3f}".format(train_acc))
 
-            summary = sess.run(self.merged, feed_dict={self.x: validation_x_reshaped, self.y: self.validation_y})
+        batches = int(y.shape[0] / batch_size)
+        for epoch in range(epochs):
+            avg_cost = 0
+            avg_acc = 0
+            feat_used = 0
+            for i in range(batches):
+                offset = i * batch_size
+                x_i = x[offset:(offset + batch_size), :, :, :]
+                x_i = self.reshape_x(x_i)
+                y_i = y[offset:(offset + batch_size)]
+                fetch = [self.optimizer, self.cost_function, self.accuracy]
+
+                if features is not None:
+                    fetch.append(features)
+                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    f = np.sum(f, axis=0)
+                    feat_used += np.sum(f > 0) / batches
+                else:
+                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                
+                avg_cost += c / batches
+                avg_acc += a / batches
+            
+            if self.verbosity >= 2:
+                val_acc = self.accuracy_on_validation()
+                s = ' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc)
+                if features is not None:
+                    s += '  {4:.1f}'.format(feat_used)
+                print(s)
+
+            x_val = self.reshape_x(x_val)
+            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
             self.writer.add_summary(summary, epoch)
 
+        if self.verbosity >= 2:
+            print(line)
+            print("\nTraining completed!")
 
-        print("\nTraining complete!")
+        return avg_cost
+
         
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
@@ -416,6 +563,7 @@ class CNNWhale():
         # to do strides of 2 in the x and y directions.
         strides = [1, 2, 2, 1]
         out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='SAME')
+###oli        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='VALID')
 
         return out_layer
     
@@ -448,7 +596,7 @@ class CNNWhale():
             results: float
                 The accuracy value
         """
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y})
+        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -462,7 +610,7 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        results = self.sess.run(self.predict, feed_dict={self.x:x})
+        results = self.sess.run(self.predict, feed_dict={self.x:x, self.keep_prob:1.0})
         return results
 
     def reshape_x(self, x):
@@ -598,7 +746,6 @@ class CNNWhale():
                     The accuracy on the training set.
         """
         train_x_reshaped = self.reshape_x(self.train_x)
-        #validation_x_reshaped = reshape_x(x, input_shape)
         results = self._check_accuracy(train_x_reshaped, self.train_y)
         return results
 

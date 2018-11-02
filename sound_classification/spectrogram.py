@@ -6,6 +6,7 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
 from sound_classification.pre_processing import make_frames
+from sound_classification.audio_signal import AudioSignal
 
 
 class Spectrogram():
@@ -191,7 +192,11 @@ class Spectrogram():
 
             Returns:
                 img: 2d numpy array
-                     Cropped image
+                    Cropped image
+                t1: int
+                    Lower time bin
+                f1: int
+                    Lower frequency bin
         """
         Nt = self.tbins()
         Nf = self.fbins()
@@ -363,6 +368,38 @@ class Spectrogram():
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaY,sigmaX))
     
+    def add(self, spec, delay=0, scale=1):
+        """ Add another spectrogram to this spectrogram.
+            The spectrograms must have the same time and frequency resolution.
+            The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
+
+            Args:
+                signal: AudioSignal
+                    Audio signal to be added
+                delay: float
+                    Shift the audio signal by this many seconds
+                scale: float
+                    Scaling factor for signal to be added        
+        """
+        assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
+        assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
+
+        # crop spectrogram
+        if delay < 0:
+            tlow = spec.tmin - delay
+        else:
+            tlow = spec.tmin
+        thigh = spec.tmin + self.duration() - delay  
+        spec.crop(tlow, thigh, self.fmin, self.fmax())
+
+        # add
+        nt = spec.tbins()
+        nf = spec.fbins()
+        t1 = self._find_tbin(self.tmin + delay)
+        f1 = self._find_fbin(spec.fmin)
+        self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
+
+
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
@@ -459,6 +496,31 @@ class MagSpectrogram(Spectrogram):
         image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         
         return image, NFFT, fres
+
+    def audio_signal(self):
+        """ Generate audio signal from magnitude spectrogram
+            
+            Returns:
+                a: AudioSignal
+                    Audio signal
+
+            TODO: Check that this implementation is correct!
+                  (For example, the window function is not being 
+                  taken into account which I believe it should be)
+        """
+        y = np.fft.irfft(self.image)
+        d = self.tres * self.fres * (y.shape[1] + 1)
+        N = int(np.ceil(y.shape[0] * d))
+        s = np.zeros(N)
+        for i in range(y.shape[0]):
+            i0 = i * d
+            for j in range(0, y.shape[1]):
+                k = int(np.ceil(i0 + j))
+                if k < N:
+                    s[k] += y[i,j]
+        rate = int(np.ceil((N+1) / self.duration()))
+        a = AudioSignal(rate=rate, data=s[:N])
+        return a
 
 
 class PowerSpectrogram(Spectrogram):
@@ -560,10 +622,10 @@ class MelSpectrogram(Spectrogram):
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None):
+                 NFFT=None, timestamp=None, **kwargs):
 
         self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
-                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp)
+                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
