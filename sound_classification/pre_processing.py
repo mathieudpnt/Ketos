@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
@@ -196,17 +195,22 @@ def filter_isolated_spots(img, struct):
     
     return filtered_array
 
-def blur_image(img,ksize=3,Gaussian=True):
+def blur_image(img, size=20, sigma=5, Gaussian=True):
     """ Smooth the input image using a median or Gaussian blur filter.
         Note that the input image is recasted as np.float32.
 
     Args:
         img : numpy array
             Image to be processed. 
-        ksize: int 
-            Aperture linear size. Must be odd integer greater than or equal to 1. For the median filter, the only allowed values are 1, 3, 5. 
+        size: int
+            Only used by the median filter. Describes  the shape that is taken from the input array,
+            at every element position, to define the input to the filter function
+        sigma: scalar of sequence of scalars
+            Standard deviation for Gaussian kernel (Only used if Gaussian=True). The standard deviations of the Gaussian
+            filter are given for each axis as a sequence, or as a single number, in which case it is equal for all axes.
         Gaussian: bool
             Switch between median (default) and Gaussian filter
+
 
     Returns:
         blur_img: numpy array
@@ -219,14 +223,9 @@ def blur_image(img,ksize=3,Gaussian=True):
         numpy.ndarray.astype(dtype = np.float32)    
     
     if (Gaussian):
-        img_blur = cv2.GaussianBlur(img,(ksize,ksize),0)
+        img_blur = ndimage.gaussian_filter(img,sigma=sigma)
     else:
-        try:
-            assert ksize < 6, "ksize must be 1, 3, or 5"
-        except AssertionError:
-            ksize = 5
-
-        img_blur = cv2.medianBlur(img,ksize)
+        img_blur = ndimage.median_filter(img,size=size)
 
     return img_blur
 
