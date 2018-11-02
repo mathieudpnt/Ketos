@@ -399,7 +399,8 @@ class MNet():
             features = sess.graph.get_tensor_by_name(feature_layer_name)
 
         if self.verbosity >= 2:
-            print("\nTraining  started")
+            if self.epoch_counter == 0: 
+                print("\nTraining  started")
             header = '\nEpoch  Cost  Test acc.  Val acc.'
             line   = '----------------------------------'
             if features is not None:
