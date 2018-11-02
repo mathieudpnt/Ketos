@@ -622,10 +622,10 @@ class MelSpectrogram(Spectrogram):
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None):
+                 NFFT=None, timestamp=None, **kwargs):
 
         self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
-                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp)
+                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
