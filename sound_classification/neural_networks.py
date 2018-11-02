@@ -438,7 +438,7 @@ class MNet():
             
             if self.verbosity >= 2:
                 val_acc = self.accuracy_on_validation()
-                s = ' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc)
+                s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
                 if features is not None:
                     s += '  {4:.1f}'.format(feat_used)
                 print(s)
@@ -452,7 +452,6 @@ class MNet():
 
         if self.verbosity >= 2:
             print(line)
-            print("\nTraining completed!")
 
         return avg_cost
     
