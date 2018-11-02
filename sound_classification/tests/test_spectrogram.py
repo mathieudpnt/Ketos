@@ -71,6 +71,24 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     assert spec.NFFT == NFFT
     assert spec.tres == winstep
     assert spec.fmin == 0
+
+def test_init_mel_spectrogram_with_kwargs(sine_audio):
+    
+    duration = sine_audio.seconds()
+    winlen = duration/4
+    winstep = duration/10
+    NFFT = 256
+    spec = MelSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep, NFFT=NFFT, n_filters=80, n_ceps=40)
+    mag = spec.image
+    for i in range(mag.shape[0]):
+        freq = np.argmax(mag[i])
+        freqHz = freq * spec.fres
+        assert freqHz == pytest.approx(4444, abs=spec.fres)
+    
+    assert spec.NFFT == NFFT
+    assert spec.tres == winstep
+    assert spec.fmin == 0
+    assert spec.image.shape[1] == 40
     
 def test_sum_spectrogram_has_same_shape_as_original(sine_audio):
     spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
