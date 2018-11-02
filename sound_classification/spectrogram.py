@@ -1,10 +1,10 @@
 from abc import ABC
 import numpy as np
 from scipy.fftpack import dct
+from scipy import ndimage
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
-import cv2
 from sound_classification.pre_processing import make_frames
 from sound_classification.audio_signal import AudioSignal
 
@@ -39,8 +39,8 @@ class Spectrogram():
         self.image = np.zeros((2,2))
         self.shape = self.image.shape
         self.NFFT = 0
-        self.tres = 0
-        self.tmin = 1
+        self.tres = 1
+        self.tmin = 0
         self.fres = 1
         self.fmin = 0
         self.timestamp = None
@@ -322,9 +322,9 @@ class Spectrogram():
     def blur_gaussian(self, tsigma, fsigma):
         """ Blur the spectrogram using a Gaussian filter.
 
-            This uses the GaussianBlur method from the cv2 package:
+            This uses the Gaussian filter method from the scipy.ndimage package:
             
-                https://docs.opencv.org/3.0-beta/modules/imgproc/doc/filtering.html#gaussianblur
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html
 
             Args:
                 tsigma: float
@@ -366,7 +366,7 @@ class Spectrogram():
         sigmaX = tsigma / self.tres
         sigmaY = fsigma / self.fres
         
-        self.image = cv2.GaussianBlur(src=self.image, ksize=(0,0), sigmaX=sigmaY, sigmaY=sigmaX)
+        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
     def add(self, spec, delay=0, scale=1):
         """ Add another spectrogram to this spectrogram.
