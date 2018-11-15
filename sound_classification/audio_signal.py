@@ -28,7 +28,7 @@ class AudioSignal:
         self.tag = tag
 
     @classmethod
-    def from_wav(cls, path):
+    def from_wav(cls, path, channel=0):
         """ Generate audio signal from wave file
 
             Args:
@@ -39,7 +39,7 @@ class AudioSignal:
                 Instance of AudioSignal
                     Audio signal from wave file
         """        
-        rate, data = read_wave(path)
+        rate, data = read_wave(file=path, channel=channel)
         return cls(rate, data, path[path.rfind('/')+1:])
 
     @classmethod
