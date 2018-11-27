@@ -94,7 +94,7 @@ class EDTCN(MNet):
         for i in range(n_layers):
             model = tf.keras.layers.UpSampling1D(2)(model)
             model = tf.keras.layers.Convolution1D(n_nodes[-i-1], conv_len, padding='same')(model)
-            model = tf.keras.layers.SpatialDropout1D(0.3)(model)
+            model = tf.keras.layers.SpatialDropout1D(rate=dropout_rate)(model)
             model = tf.keras.layers.Activation('relu')(model)
             model = tf.keras.layers.Lambda(channel_normalization, name="decoder_norm_{}".format(i))(model)
 
