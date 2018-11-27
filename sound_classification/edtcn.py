@@ -105,6 +105,7 @@ class EDTCN(MNet):
         model = tf.keras.models.Model(inputs=inputs, outputs=model)
         model.compile(loss='categorical_crossentropy', optimizer="rmsprop", sample_weight_mode="temporal", metrics=['accuracy'])
 
-        tf_nodes = {}
+        tf_nodes = {'x': model.layers[0].output
+            }
 
         return tf_nodes
