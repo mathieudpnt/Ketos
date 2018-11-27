@@ -16,23 +16,23 @@ import pytest
 import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
-from sound_classification.neural_networks import MNet, DataUse, class_confidences
+from sound_classification.neural_networks import DataHandler, DataUse, class_confidences
 from tensorflow import reset_default_graph
 
 
-@pytest.mark.test_MNet
-def test_initialize_MNet(database_prepared_for_NN_2_classes):
+@pytest.mark.test_DataHandler
+def test_initialize_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
     y = d["train_y"]
-    _ = MNet(train_x=x, train_y=y, verbosity=0)
+    _ = DataHandler(train_x=x, train_y=y)
 
-@pytest.mark.test_MNet
-def test_set_data_to_MNet(database_prepared_for_NN_2_classes):
+@pytest.mark.test_DataHandler
+def test_set_data_to_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
     y = d["train_y"]
-    network = MNet(train_x=x, train_y=y, verbosity=0)
+    network = DataHandler(train_x=x, train_y=y)
     # set training data
     network.set_training_data(x=x, y=y)
     assert np.all(x == network.images[DataUse.TRAINING])
@@ -46,12 +46,12 @@ def test_set_data_to_MNet(database_prepared_for_NN_2_classes):
     assert np.all(x == network.images[DataUse.TEST])
     assert np.all(y == network.labels[DataUse.TEST])    
 
-@pytest.mark.test_MNet
-def test_add_data_to_MNet(database_prepared_for_NN_2_classes):
+@pytest.mark.test_DataHandler
+def test_add_data_to_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
     y = d["train_y"]
-    network = MNet(train_x=x, train_y=y, verbosity=0)
+    network = DataHandler(train_x=x, train_y=y)
     # add training data
     network.add_training_data(x=x, y=y)
     assert 2 * x.shape[0] == network.images[DataUse.TRAINING].shape[0]
@@ -61,7 +61,7 @@ def test_add_data_to_MNet(database_prepared_for_NN_2_classes):
     
 @pytest.mark.test_class_confidences
 def test_class_confidences(data_classified_by_nn):
-    x,y,w = data_classified_by_nn
+    _,_,w = data_classified_by_nn
     conf = class_confidences(class_weights=w)
     assert len(conf) == 6
     assert conf[0] == pytest.approx(0.6, abs=0.001)

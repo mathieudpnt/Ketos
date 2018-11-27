@@ -24,5 +24,5 @@ def test_initialize_EDTCN_with_default_constructor_and_default_args(database_pre
     d = database_prepared_for_NN
     x = d["train_x"]
     y = d["train_y"]
-    _ = EDTCN(train_x=x, train_y=y, verbosity=0)
+    _ = EDTCN(train_x=x, train_y=y)
     reset_default_graph()

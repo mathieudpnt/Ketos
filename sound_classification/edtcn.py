@@ -16,7 +16,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import sound_classification.data_handling as dh
-from sound_classification.neural_networks import MNet
+from sound_classification.neural_networks import DataHandler
 
 
 def channel_normalization(x):
@@ -26,22 +26,43 @@ def channel_normalization(x):
     return out
 
 
-class EDTCN(MNet):
+class EDTCN(DataHandler):
     """ Create an Encoder-Decoder Temporal Convolutional Network (ED-TCN) for classification tasks.
+
+        Args:
+            train_x: pandas DataFrame
+                Data Frame in which each row holds one image.
+            train_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            validation_x: pandas DataFrame
+                Data Frame in which each row holds one image
+            validation_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            test_x: pandas DataFrame
+                Data Frame in which each row holds one image
+            test_y: pandas DataFrame
+                Data Frame in which each row contains the one hot encoded label
+            num_labels: int
+                Number of labels
+            batch_size: int
+                The number of examples in each batch
+            num_epochs: int
+                The number of epochs
     """
 
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=2, batch_size=4, 
-                 num_epochs=100, learning_rate=0.01, keep_prob=0.7, seed=42, verbosity=2):
+                 num_epochs=100):
+
+        self.num_labels = num_labels
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
 
         super(EDTCN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
-                test_x=test_x, test_y=test_y, num_labels=num_labels, 
-                batch_size=batch_size, num_epochs=num_epochs, 
-                learning_rate=learning_rate, keep_prob=keep_prob, 
-                seed=seed, verbosity=verbosity)
+                test_x=test_x, test_y=test_y)
         
-    def _create_net_structure(self, input_shape, num_labels, **kwargs):
+    def create(self, n_nodes=[16, 32], conv_len=16, max_len=100):
         """Create the Neural Network structure.
 
             Args:
@@ -64,19 +85,9 @@ class EDTCN(MNet):
         """
         dropout_rate = 1.0 - self.keep_prob
 
-        # default configuration:
-        n_nodes = [16, 32]
-        conv_len = 16
-        max_len = 100
-
-        for a in kwargs['kwargs']:
-            if a == 'n_nodes': n_nodes = kwargs['kwargs'][a]
-            elif a == 'conv_len': conv_len = kwargs['kwargs'][a]
-            elif a == 'max_len': max_len = kwargs['kwargs'][a]
-
-        n_feat = input_shape.shape[0]
+        n_feat = self.get_training_data().shape[1]
         n_layers = len(n_nodes)
-        n_classes = num_labels
+        n_classes = self.num_labels
 
         # --- Input layer ---
         inputs = tf.keras.layers.Input(shape=(max_len, n_feat))

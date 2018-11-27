@@ -229,10 +229,10 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
-    tf_nodes = network.create_net_structure()
+    tf_nodes = network.create()
     network.set_tf_nodes(tf_nodes)
     network.train()
-    network.save_model(path_to_meta)
+    network.save(path_to_meta)
     test_acc = network.accuracy_on_test()
     meta = path_to_meta + ".meta"
     reset_default_graph()
