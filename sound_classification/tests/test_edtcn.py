@@ -32,7 +32,7 @@ def test_train_EDTCN_network_with_default_args(data_for_TCN):
     train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
     net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
     net.create()
-    net.train()
+    net.train(num_epochs=1)
 
 def test_create_EDTCN_network_with_max_len_not_divisible_by_four(data_for_TCN):
     train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
@@ -51,3 +51,13 @@ def test_predict_labels_with_default_EDTCN_network(data_for_TCN):
     assert p[0] == train_y[0]
     assert p[1] == train_y[1]
 
+def test_get_class_weights_with_default_EDTCN_network(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+    net.create()
+    net.train(num_epochs=1)
+    N = 2
+    w = net.get_class_weights(x=train_x[0:N])
+    assert w.shape[0] == 2
+    assert w[0,0]+w[0,1] == pytest.approx(1.0, abs=0.001)
+    assert w[1,0]+w[1,1] == pytest.approx(1.0, abs=0.001)

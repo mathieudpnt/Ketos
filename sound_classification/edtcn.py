@@ -20,7 +20,8 @@ from sound_classification.neural_networks import DataHandler
 
 
 def channel_normalization(x):
-    # Normalize by the highest activation
+    """ Normalize by the highest activation.
+    """
     max_values = tf.keras.backend.max(tf.keras.backend.abs(x), 2, keepdims=True) + 1e-5
     out = x / max_values
     return out
@@ -49,7 +50,6 @@ class EDTCN(DataHandler):
             num_epochs: int
                 The number of epochs
     """
-
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=2, batch_size=4, 
                  num_epochs=100, keep_prob=0.7, verbosity=0):
@@ -62,6 +62,7 @@ class EDTCN(DataHandler):
         self.max_len = 500
 
         self.model = None
+        self.class_weights_func = None
 
         super(EDTCN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
@@ -136,6 +137,11 @@ class EDTCN(DataHandler):
 
         self.model = model
 
+        # make function to retrieve classification weights
+        inp = self.model.input                
+        output = self.model.layers[-1].output
+        self.class_weights_func = tf.keras.backend.function([inp, tf.keras.backend.learning_phase()], [output])
+
     def train(self, batch_size=None, num_epochs=None):
         """Train the neural network on the training set.
 
@@ -187,6 +193,24 @@ class EDTCN(DataHandler):
         results = np.reshape(results, newshape=(results.shape[0]*results.shape[1], results.shape[2]))
         results = from1hot(results)
         return results[:orig_len]
+
+    def get_class_weights(self, x):
+        """ Compute classification weights by running the model on x.
+
+        Args:
+            x:tensor
+                Tensor containing the input data.
+            
+        Returns:
+            results: vector
+                A vector containing the classification weights. 
+        """
+        orig_len = x.shape[0]
+        x = self._reshape(x)
+        
+        w = np.array(self.class_weights_func([x, False]))
+        w = np.squeeze(w)
+        return w[:orig_len]
 
     def _reshape(self, a):
         """Split the data into chunks with size max_len.
