@@ -452,7 +452,7 @@ class CNNWhale(DataHandler):
         return img_shape
 
     def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
-        """Train the neural network. on the training set.
+        """Train the neural network on the training set.
 
            Devide the training set in batches in orther to train.
            Once training is done, check the accuracy on the validation set.

@@ -39,3 +39,15 @@ def test_create_EDTCN_network_with_max_len_not_divisible_by_four(data_for_TCN):
     net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
     net.create(max_len=15)
     assert net.max_len == 12
+
+def test_predict_labels_with_default_EDTCN_network(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+    net.create()
+    net.train()
+    N = 2
+    p = net.get_predictions(x=train_x[0:N])
+    assert len(p) == N
+    assert p[0] == train_y[0]
+    assert p[1] == train_y[1]
+

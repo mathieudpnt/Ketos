@@ -15,7 +15,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from sound_classification.data_handling import to1hot
+from sound_classification.data_handling import to1hot, from1hot
 from sound_classification.neural_networks import DataHandler
 
 
@@ -96,6 +96,7 @@ class EDTCN(DataHandler):
 
         self.max_len = max_len
 
+        # ensure that max_len is divisible by four (as this seems to be required by keras.layers.Input)
         if self.max_len % 4 > 0:
             self.max_len -= self.max_len % 4
             if self.verbosity >= 1: 
@@ -136,7 +137,20 @@ class EDTCN(DataHandler):
         self.model = model
 
     def train(self, batch_size=None, num_epochs=None):
+        """Train the neural network on the training set.
 
+           Devide the training set in batches in orther to train. 
+
+        Args:
+            batch_size: int
+                Batch size. Overwrites batch size specified at initialization.
+            num_epochs: int
+                Number of epochs: Overwrites number of epochs specified at initialization.
+
+        Returns:
+            history: 
+                Keras training history.
+        """
         if batch_size is None:
             batch_size = self.batch_size
         if num_epochs is None:
@@ -148,30 +162,47 @@ class EDTCN(DataHandler):
         y = to1hot(y, self.num_labels)
         y_val = to1hot(y_val, self.num_labels)
 
-        x = split(x, self.max_len)
-        y = split(y, self.max_len)
-        x_val = split(x_val, self.max_len)
-        y_val = split(y_val, self.max_len)
+        x = self._reshape(x)
+        y = self._reshape(y)
+        x_val = self._reshape(x_val)
+        y_val = self._reshape(y_val)
 
-        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=(x_val, y_val))        
+        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=(x_val, y_val))   
+        return history     
 
-def split(a, n):
-    """Split the data into chunks with certain size.
-        
+    def get_predictions(self, x):
+        """ Predict labels by running the model on x
+
         Args:
-            a: numpy array
-                Array containing the data to be split.
+            x:tensor
+                Tensor containing the input data.
             
-            n: int
-                Chunk size.
-    """
-    orig_len = a.shape[0]
-    nsegs = int(np.ceil(orig_len / n))
-    new_len = nsegs * n
-    pad_shape = np.array([new_len - orig_len], dtype=np.int32)
-    pad_shape = np.append(pad_shape, a.shape[1:])
-    a = np.append(a, np.zeros(shape=pad_shape), axis=0)
-    new_shape = np.array([nsegs, n], dtype=np.int32)
-    new_shape = np.append(new_shape, a.shape[1:])
-    a = np.reshape(a=a, newshape=new_shape)
-    return a
+        Returns:
+            results: vector
+                A vector containing the predicted labels.                
+        """
+        orig_len = x.shape[0]
+        x = self._reshape(x)
+        results = self.model.predict(x=x)
+        results = np.reshape(results, newshape=(results.shape[0]*results.shape[1], results.shape[2]))
+        results = from1hot(results)
+        return results[:orig_len]
+
+    def _reshape(self, a):
+        """Split the data into chunks with size max_len.
+            
+            Args:
+                a: numpy array
+                    Array containing the data to be split.
+        """
+        n = self.max_len
+        orig_len = a.shape[0]
+        nsegs = int(np.ceil(orig_len / n))
+        new_len = nsegs * n
+        pad_shape = np.array([new_len - orig_len], dtype=np.int32)
+        pad_shape = np.append(pad_shape, a.shape[1:])
+        a = np.append(a, np.zeros(shape=pad_shape), axis=0)
+        new_shape = np.array([nsegs, n], dtype=np.int32)
+        new_shape = np.append(new_shape, a.shape[1:])
+        a = np.reshape(a=a, newshape=new_shape)
+        return a
