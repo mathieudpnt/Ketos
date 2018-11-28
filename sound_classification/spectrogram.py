@@ -469,11 +469,8 @@ class MagSpectrogram(Spectrogram):
             timestamp: datetime
                 Spectrogram time stamp (default: None)
             flabels: list of strings
-                List of labels for the frequency bins. 
-                      
+                List of labels for the frequency bins.     
     """
-
-
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False):
 
@@ -505,7 +502,8 @@ class MagSpectrogram(Spectrogram):
 
             Returns:
                 (image, NFFT, fres):numpy.array,int, int
-                A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
+                A tuple with the resulting magnitude spectrogram, the NFFT, the frequency resolution
+                and the phase spectrogram (only if compute_phase=True).
         """
 
         image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
@@ -564,8 +562,6 @@ class PowerSpectrogram(Spectrogram):
                 List of labels for the frequency bins.
                         
     """
-
-
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
                  hamming=True, NFFT=None, timestamp=None, compute_phase=False):
 
@@ -596,8 +592,9 @@ class PowerSpectrogram(Spectrogram):
                     Spectrogram time stamp (default: None)
 
             Returns:
-                (power_spec, NFFT, fres):numpy.array,int, int
-                A tuple with the resulting power spectrogram, the NFFT and the frequency resolution
+                (power_spec, NFFT, fres, phase):numpy.array,int,int,numpy.array
+                A tuple with the resulting power spectrogram, the NFFT, the frequency resolution, 
+                and the phase spectrogram (only if compute_phase=True).
         """
 
         image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
