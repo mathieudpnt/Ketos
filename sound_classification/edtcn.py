@@ -166,14 +166,19 @@ class EDTCN(DataHandler):
         x_val, y_val = self.get_validation_data()
 
         y = to1hot(y, self.num_labels)
-        y_val = to1hot(y_val, self.num_labels)
+
+        if y_val is not None:
+            y_val = to1hot(y_val, self.num_labels)
+            val_data = (x_val, y_val)
+        else:
+            val_data = None
 
         x = self._reshape(x)
         y = self._reshape(y)
         x_val = self._reshape(x_val)
         y_val = self._reshape(y_val)
 
-        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=(x_val, y_val))   
+        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=val_data)   
         return history     
 
     def get_predictions(self, x):
