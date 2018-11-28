@@ -18,126 +18,176 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from collections import namedtuple
-import sound_classification.data_handling as dh
+from enum import Enum
+from sound_classification.data_handling import check_data_sanity, from1hot, get_image_size
 
 
-ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
-ConvParams.__doc__ = '''\
-Name and dimensions of convolutional layer in neural network
-
-name - Name of convolutional layer, e.g. "conv_layer"
-n_filters - Number of filters, e.g. 16
-filter_shape - Filter shape, e.g. [4,4]'''
+class DataUse(Enum):
+    TRAINING = 1
+    VALIDATION = 2
+    TEST = 3
 
 
+class MNet():
+    """ MERIDIAN Neural Network.
 
-class CNNWhale():
-    """ Create a Convolutional Neural Network.
-
-        The Network has two convolutional layers
-        and two fully connected layers with ReLU activation functions.
+        Parent class for all MERIDIAN neural network implementations.
 
         Args:
             train_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image. 
+                Data Frame in which each row holds one image.
             train_y: pandas DataFrame
                 Data Frame in which each row contains the one hot encoded label
             validation_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
-
+                Data Frame in which each row holds one image
             validation_y: pandas DataFrame
                 Data Frame in which each row contains the one hot encoded label
             test_x: pandas DataFrame
-                Data Frame in which each row hold one flatten (as a vector, not matrix) image.
+                Data Frame in which each row holds one image
             test_y: pandas DataFrame
                 Data Frame in which each row contains the one hot encoded label
+            num_labels: int
+                Number of labels
             batch_size: int
                 The number of examples in each batch
-            num_channels: int
-                ...
-            input_shape: tuple (int)
-                A tuple of ints specifying the shape of the input images. Example: (60,20)
-            learning_rate: float
-                The learning rate to be using by the optimization algorithm
             num_epochs: int
                 The number of epochs
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob: float
+                Probability of keeping weights. If keep_prob < 1.0, drop-out is enabled during training.
+            seed: int
+                Seed to be used by both tensorflow and numpy when generating random numbers            
             verbosity: int
                 Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
-            
-        Attributes:
-            sess: tensorflow Session
-                The session object that will run operations in the network's graph.
-            x: tensorflow tensor
-                The input images.
-            y: tensorflow tensor
-                The labels.
-            cost_function: tensorflow operation
-                The cost function node in the network's graph.
-            optimizer: tensorflow operation
-                The optimizer that optimizes the weights.
-            predict: tensorflow operation
-                The prediction operation. Uses the trained model to predict labels.
-            correct_prediction: tensorflow operation
-                The operation that verifies if a prediction is correct.
-            accuracy: tensorflow operation
-                The operation that computes the predictions accuracy.
-            init_op: tensorflow operation
-                Initializer.
-            merged: tensorflow summary
-                The merged version of all summary statiscs collected. 
-            writer: tensorflow writer
-                Writer object that records model information on the saved model file.
-            saver: tensorflow saver
-                Saver object that save model information to a file.
     """
+    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+                 test_x=None, test_y=None, num_labels=2, batch_size=128, 
+                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
 
-    def __init__(self, train_x, train_y, validation_x, validation_y,
-                 test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate=0.01, num_epochs=10, seed=42, verbosity=2):
-                 
-        dh.check_data_sanity(train_x, train_y) # check sanity of training data
-        dh.check_data_sanity(validation_x, validation_y) # check sanity of validation data
-        dh.check_data_sanity(test_x, test_y) # check sanity of test data
+        self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
+        self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
 
-        train_img_size = dh.get_image_size(train_x) # automatically determine image size
-        val_img_size = dh.get_image_size(validation_x)
-        test_img_size = dh.get_image_size(test_x)
-        assert train_img_size == val_img_size and val_img_size == test_img_size, "test, validation and train images do not have same size"
-        
-        self.verbosity = verbosity
-        self.train_x = train_x
-        self.train_y = train_y
-        self.validation_x = validation_x
-        self.validation_y = validation_y
-        self.test_x = test_x
-        self.test_y = test_y
-        self.batch_size = batch_size
-        self.num_channels = num_channels
         self.num_labels = num_labels
-        self.input_shape = train_img_size[0:2]
-        self.learning_rate = learning_rate
+        self.batch_size = batch_size
         self.num_epochs = num_epochs
+        self.learning_rate_value = learning_rate
+        self.keep_prob_value = keep_prob
         self.set_seed(seed)
-        self.train_size = self.train_y.shape[0]
+        self.verbosity = verbosity
 
-        
+        self._set_data(train_x, train_y, use=DataUse.TRAINING)        
+        self._set_data(validation_x, validation_y, use=DataUse.VALIDATION)        
+        self._set_data(test_x, test_y, use=DataUse.TEST)        
 
         self.sess = tf.Session()
-        # tf_operations = self.create_net_structure()
-        
-        # self.x = tf_operations['x']
-        # self.y = tf_operations['y']
-        # self.cost_function = tf_operations['cost_function']
-        # self.optimizer = tf_operations['optimizer']
-        # self.predict = tf_operations['predict']
-        # self.correct_prediction = tf_operations['correct_prediction']
-        # self.accuracy = tf_operations['accuracy']
-        # self.init_op = tf_operations['init_op']
-        # self.merged = tf_operations['merged']
-        # self.writer = tf_operations['writer']
-        # self.saver = tf_operations['saver']
+        self.epoch_counter = 0
 
+    def _set_data(self, x, y, use):
+        """ Set data for specified use (training, validation, or test). 
+            Replaces any existing data for that use type.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+        """
+        check_data_sanity(x, y)
+        self.images[use] = x
+        self.labels[use] = y
+
+    def _add_data(self, x, y, use):
+        """ Add data for specified use (training, validation, or test). 
+            Will be appended to any existing data for that use type.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+        """
+        x0 = self.images[use]
+        y0 = self.labels[use]
+        if x0 is not None:
+            x = np.append(x0, x, axis=0)
+        if y0 is not None:
+            y = np.append(y0, y, axis=0)
+        self._set_data(x=x, y=y, use=use)
+
+    def reset(self):
+        self.epoch_counter = 0
+        self.sess.run(self.init_op)
+
+    def set_training_data(self, x, y):
+        """ Set training data. Replaces any existing training data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._set_data(x=x, y=y, use=DataUse.TRAINING)
+
+    def add_training_data(self, x, y):
+        """ Add training data. Will be appended to any existing training data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._add_data(x=x, y=y, use=DataUse.TRAINING)
+
+    def set_validation_data(self, x, y):
+        """ Set validation data. Replaces any existing validation data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._set_data(x=x, y=y, use=DataUse.VALIDATION)
+
+    def add_validation_data(self, x, y):
+        """ Add validation data. Will be appended to any existing validation data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._add_data(x=x, y=y, use=DataUse.VALIDATION)
+
+    def set_test_data(self, x, y):
+        """ Set test data. Replaces any existing test data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._set_data(x=x, y=y, use=DataUse.TEST)
+
+    def add_test_data(self, x, y):
+        """ Add test data. Will be appended to any existing test data.
+
+            Args:
+                x: pandas DataFrame
+                    Data Frame in which each row holds one image. 
+                y: pandas DataFrame
+                    Data Frame in which each row contains the one hot encoded label
+        """
+        self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def set_tf_nodes(self, tf_nodes):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
@@ -154,7 +204,6 @@ class CNNWhale():
             Returns:
                 None
         """
-
         self.x = tf_nodes['x']
         self.y = tf_nodes['y']
         self.cost_function = tf_nodes['cost_function']
@@ -167,24 +216,9 @@ class CNNWhale():
         self.writer = tf_nodes['writer']
         self.saver = tf_nodes['saver']
         self.keep_prob = tf_nodes['keep_prob']
-
-
-    @classmethod
-    def from_prepared_data(cls, prepared_data, 
-                           batch_size, num_channels, num_labels, 
-                           learning_rate=0.01, 
-                           num_epochs=10, seed=42):
-        train_x = prepared_data["train_x"]
-        train_y = prepared_data["train_y"]
-        validation_x = prepared_data["validation_x"]
-        validation_y = prepared_data["validation_y"]
-        test_x = prepared_data["test_x"]
-        test_y = prepared_data["test_y"]
-
-        return cls(train_x, train_y, validation_x, validation_y,
-                 test_x, test_y, batch_size, num_channels, num_labels,
-                 learning_rate, num_epochs, seed)
-
+        self.learning_rate = tf_nodes['learning_rate']
+        self.class_weights = tf_nodes['class_weights']
+        self.reset()
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -199,11 +233,18 @@ class CNNWhale():
         """
         np.random.seed(seed)
         tf.set_random_seed(seed)
-        
-     
+             
     def set_verbosity(self, verbosity):
-        self.verbosity = verbosity
+        """Set verbosity level.
+            0: no messages
+            1: warnings only
+            2: warnings and diagnostics
 
+            Args:
+                verbosity: int
+                    Verbosity level.        
+        """
+        self.verbosity = verbosity
 
     def load_net_structure(self, saved_meta, checkpoint):
         """Load the Neural Network structure from a saved model.
@@ -228,7 +269,6 @@ class CNNWhale():
                 instance attributes when the class is instantiated.
 
         """
-
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
         restorer.restore(sess, tf.train.latest_checkpoint(checkpoint))
@@ -242,6 +282,8 @@ class CNNWhale():
         correct_prediction = graph.get_tensor_by_name("correct_prediction:0")
         accuracy = graph.get_tensor_by_name("accuracy:0")
         keep_prob = graph.get_tensor_by_name("keep_prob:0")        
+        learning_rate = graph.get_tensor_by_name("learning_rate:0")      
+        class_weights = graph.get_tensor_by_name("class_weights:0")  
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -260,30 +302,21 @@ class CNNWhale():
                 'writer': writer,
                 'saver': saver,
                 'keep_prob': keep_prob,
+                'learning_rate': learning_rate,
+                'class_weights': class_weights,
                 }
 
         return tf_nodes
 
+    def _create_net_structure(self, input_shape, num_labels, **kwargs):
+        """Create the neural network structure.
 
-    def create_net_structure(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512], learning_rate=0):
-        """Create the Neural Network structure.
+            Implemented in any derived class.
+        """
+        return None
 
-            The Network has a number of convolutional layers followed by a number 
-            of fully connected layers with ReLU activation functions and a final 
-            output layer with softmax activation.
-            
-            The default network structure has two convolutional layers 
-            and one fully connected layers with ReLU activation.
-
-            Args:
-                conv_params: list(ConvParams)
-                    Configuration parameters for the convolutional layers.
-                    Each item in the list represents a convolutional layer.
-                dense_size: list(int)
-                    Sizes of the fully connected layers preceeding the output layer.
-                learning_rate: float
-                    Learning rate. Overwrites learning rate specified at initialization.
-
+    def create_net_structure(self, **kwargs):
+        """Create the neural network structure.
 
             Returns:
                 tf_nodes: dict
@@ -295,131 +328,31 @@ class CNNWhale():
                     instance attributes when the class is instantiated.
 
         """
-        if learning_rate == 0:
-            learning_rate = self.learning_rate
-
-        keep_prob = tf.placeholder(tf.float32,name='keep_prob')
-
-        x = tf.placeholder(tf.float32, [None, self.input_shape[0] * self.input_shape[1]], name="x")
-        x_shaped = tf.reshape(x, [-1, self.input_shape[0], self.input_shape[1], 1])
-        y = tf.placeholder(tf.float32, [None, self.num_labels],name="y")
-
-        pool_shape=[2,2]
-
-        # input and convolutional layers
-        params = [ConvParams(name='input', n_filters=1, filter_shape=[1,1])] # input layer with dimension 1
-        params.extend(conv_params)
-            
-        # dense layers including output layer
-        dense_size.append(self.num_labels)
-
-        # create convolutional layers
-        conv_layers = [x_shaped]
-        N = len(params)
-        conv_summary = list()
-        for i in range(1,N):
-            # previous layer
-            l_prev = conv_layers[len(conv_layers)-1]
-            # layer parameters
-            n_input = params[i-1].n_filters
-            n_filters = params[i].n_filters
-            filter_shape = params[i].filter_shape
-            name = params[i].name
-            # create new layer
-            l = self.create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
-            conv_layers.append(l)
-            # collect info
-            dim = l.shape[1] * l.shape[2] * l.shape[3]
-            conv_summary.append("  {0}       {1} x {2}          [{3},{4}]         {5}".format(name, n_input, n_filters, filter_shape[0], filter_shape[1], dim))
-            # apply DropOut 
-            drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
-            conv_layers.append(drop_out)
-
-        # last layer
-        last = conv_layers[-1]
-
-        # flatten
-        dim = last.shape[1] * last.shape[2] * last.shape[3]
-        flattened = tf.reshape(last, [-1, dim])
-
-        # fully-connected layers with ReLu activation
-        dense_layers = [flattened]
-        dense_summary = list()
-        for i in range(len(dense_size)):
-            size = dense_size[i] 
-            l_prev = dense_layers[i]
-            w_name = 'w_{0}'.format(i+1)
-            w = tf.Variable(tf.truncated_normal([int(l_prev.shape[1]), size], stddev=0.03), name=w_name)
-            b_name = 'b_{0}'.format(i+1)
-            b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
-            l = tf.matmul(l_prev, w) + b
-            n = 'dense_{0}'.format(i+1)
-            if i < len(dense_size) - 1:
-                l = tf.nn.relu(l, name=n) # ReLu activation
-            else: # output layer
-                cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
-                l = tf.nn.softmax(l, name=n) # softmax                    
-
-            dense_layers.append(l)
-            dense_summary.append("  {0}    {1}".format(n, size))
-
-        if self.verbosity >= 2:
-            print('\n')
-            print('======================================================')
-            print('                   Convolutional layers               ')
-            print('------------------------------------------------------')
-            print('  Name   Input x Filters   Filter Shape   Output dim. ')
-            print('------------------------------------------------------')
-            for line in conv_summary:
-                print(line)
-            print('======================================================')
-            print('                  Fully connected layers              ')
-            print('------------------------------------------------------')
-            print('  Name       Size                                      ')
-            print('------------------------------------------------------')
-            for line in dense_summary:
-                print(line)
-            print('======================================================')
-
-        # output layer
-        y_ = dense_layers[-1]
-
-        # add an optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate,name = "optimizer").minimize(cross_entropy)
-
-        # define an accuracy assessment operation
-        predict = tf.argmax(y_, 1, name="predict")
-        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1), name="correct_prediction")
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),name="accuracy")
-
-        # setup the initialisation operator
-        init_op = tf.global_variables_initializer()
-
-        # setup recording variables
-        # add a summary to store the accuracy
-        tf.summary.scalar('accuracy', accuracy)
-        merged = tf.summary.merge_all()
-
-        writer = tf.summary.FileWriter('summaries')
-        saver = tf.train.Saver()
-
-        tf_nodes = {'x': x,
-                'y':y,            
-                'cost_function': cross_entropy,
-                'optimizer': optimizer,
-                'predict': predict,
-                'correct_prediction': correct_prediction,
-                'accuracy': accuracy,
-                'init_op': init_op,
-                'merged': merged,
-                'writer': writer,
-                'saver': saver,
-                'keep_prob': keep_prob,
-                }
-
+        img_shape = self._image_shape()
+        tf_nodes = self._create_net_structure(input_shape=img_shape, num_labels=self.num_labels, kwargs=kwargs)
         return tf_nodes
 
-    def train(self, batch_size=0, epochs=0, dropout=1.0, feature_layer_name=None):
+    def _image_shape(self):
+        """Get the image shape.
+
+            Returns:
+                img_shape: array
+                    Shape of the input data images
+
+        """
+        assert self.images[DataUse.TRAINING] is not None, "Training data must be provided before the neural network structure can be created."
+
+        img_shape = get_image_size(self.images[DataUse.TRAINING]) 
+
+        if self.images[DataUse.VALIDATION] is not None:
+            assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
+
+        if self.images[DataUse.TEST] is not None:
+            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
+
+        return img_shape
+
+    def train(self, init=True, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -429,11 +362,13 @@ class CNNWhale():
         Args:
             batch_size: int
                 Batch size. Overwrites batch size specified at initialization.
-            epochs: int
+            num_epochs: int
                 Number of epochs: Overwrites number of epochs specified at initialization.
-            dropout: float
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob: float
                 Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop out will only be effectuated if dropout < 1.
+                i.e., drop-out will be applied if keep_prob < 1.
             feature_layer_name: str
                 Name of 'feature' layer.
 
@@ -441,16 +376,21 @@ class CNNWhale():
             avg_cost: float
                 Average cost of last completed training epoch.
         """
-        if batch_size == 0:
+        if batch_size is None:
             batch_size = self.batch_size
-        if epochs == 0:
-            epochs = self.num_epochs
+        if num_epochs is None:
+            num_epochs = self.num_epochs
+        if keep_prob is None:
+            keep_prob = self.keep_prob_value
+        if learning_rate is None:
+            learning_rate = self.learning_rate_value
 
         sess = self.sess
-        x = self.train_x
-        y = self.train_y
-        x_val = self.validation_x
-        y_val = self.validation_y
+        
+        x = self.images[DataUse.TRAINING]
+        y = self.labels[DataUse.TRAINING]
+        x_val = self.images[DataUse.VALIDATION]
+        y_val = self.labels[DataUse.VALIDATION]
 
         self.writer.add_graph(sess.graph)
 
@@ -459,7 +399,8 @@ class CNNWhale():
             features = sess.graph.get_tensor_by_name(feature_layer_name)
 
         if self.verbosity >= 2:
-            print("\nTraining  started")
+            if self.epoch_counter == 0: 
+                print("\nTraining  started")
             header = '\nEpoch  Cost  Test acc.  Val acc.'
             line   = '----------------------------------'
             if features is not None:
@@ -469,10 +410,11 @@ class CNNWhale():
             print(line)
 
         # initialise the variables
-        sess.run(self.init_op)
+        if self.epoch_counter == 0:
+            sess.run(self.init_op)
 
         batches = int(y.shape[0] / batch_size)
-        for epoch in range(epochs):
+        for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
             feat_used = 0
@@ -485,87 +427,33 @@ class CNNWhale():
 
                 if features is not None:
                     fetch.append(features)
-                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
                     f = np.sum(f, axis=0)
                     feat_used += np.sum(f > 0) / batches
                 else:
-                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.keep_prob: dropout})
+                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
             
             if self.verbosity >= 2:
                 val_acc = self.accuracy_on_validation()
-                s = ' {0}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc)
+                s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
                 if features is not None:
                     s += '  {4:.1f}'.format(feat_used)
                 print(s)
 
-            x_val = self.reshape_x(x_val)
-            summary = sess.run(self.merged, feed_dict={self.x: x_val, self.y: y_val, self.keep_prob: 1.0})
-            self.writer.add_summary(summary, epoch)
+            if x_val is not None:
+                x_val = self.reshape_x(x_val)
+                summary = sess.run(fetches=self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
+                self.writer.add_summary(summary, self.epoch_counter)
+
+            self.epoch_counter += 1
 
         if self.verbosity >= 2:
             print(line)
-            print("\nTraining completed!")
 
         return avg_cost
-
-        
-    def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
-        """Create a convolutional layer.
-
-            Args:
-                input_data: tensorflow tensor
-                    The input nodes for the convolutional layer
-                num_input_channels: int
-                    The number of input channels in input image
-                num_filters: int
-                    Number of filters to be used in the convolution
-                filter_shape: list (int)
-                    List of integers defining the shape of the filters.
-                    Example: [2,8]
-                pool_shape: list (int)
-                    List of integers defining the shape of the pooling window.
-                    Example: [2,8]
-                name: str
-                    Name by which the layer will be identified in the graph.
-
-            Returns:
-                out_layer: tensorflow layer
-                    The convolutional layer.
-
-        """
-        # setup the filter input shape for tf.nn.conv_2d
-        conv_filt_shape = [filter_shape[0], filter_shape[1], num_input_channels, num_filters]
-
-        # initialise weights and bias for the filter
-        weights = tf.Variable(tf.truncated_normal(conv_filt_shape, stddev=0.03), name=name+'_W')
-        bias = tf.Variable(tf.truncated_normal([num_filters]), name=name+'_b')
-
-        # setup the convolutional layer operation
-        out_layer = tf.nn.conv2d(input_data, weights, [1, 1, 1, 1], padding='SAME')
-
-        # add the bias
-        out_layer += bias
-
-        # apply a ReLU non-linear activation
-        out_layer = tf.nn.relu(out_layer)
-
-        # now perform max pooling
-        # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
-        # calculated).  It must be 4D to match the convolution - in this case, for each image we want to use a 2 x 2 area
-        # applied to each channel
-        ksize = [1, pool_shape[0], pool_shape[1], 1]
-        # strides defines how the max pooling area moves through the image - a stride of 2 in the x direction will lead to
-        # max pooling areas starting at x=0, x=2, x=4 etc. through your image.  If the stride is 1, we will get max pooling
-        # overlapping previous max pooling areas (and no reduction in the number of parameters).  In this case, we want
-        # to do strides of 2 in the x and y directions.
-        strides = [1, 2, 2, 1]
-        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='SAME')
-###oli        out_layer = tf.nn.max_pool(out_layer, ksize=ksize, strides=strides, padding='VALID')
-
-        return out_layer
     
     def save_model(self, destination):
         """ Save the model to destination
@@ -596,7 +484,10 @@ class CNNWhale():
             results: float
                 The accuracy value
         """
-        results = self.sess.run(self.accuracy, feed_dict={self.x:x, self.y:y, self.keep_prob:1.0})
+        if x is None:
+            return 0
+        x = self.reshape_x(x)        
+        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -610,7 +501,25 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        results = self.sess.run(self.predict, feed_dict={self.x:x, self.keep_prob:1.0})
+        x = self.reshape_x(x)
+        results = self.sess.run(fetches=self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        return results
+
+    def get_class_weights(self, x):
+        """ Compute classification weights by running the model on x.
+
+        Args:
+            x:tensor
+                Tensor containing the input data.
+            
+        Returns:
+            results: vector
+                A vector containing the classification weights. 
+        """
+        x = self.reshape_x(x)
+        fetch = self.class_weights
+        feed = {self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0}
+        results = self.sess.run(fetches=fetch, feed_dict=feed)
         return results
 
     def reshape_x(self, x):
@@ -623,7 +532,8 @@ class CNNWhale():
             results: vector
                 A vector containing the flattened inputs.                
         """
-        reshaped_x = np.reshape(x, (-1, self.input_shape[0] * self.input_shape[1]))
+        img_shape = self._image_shape()
+        reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
         return reshaped_x
 
     def predict_on_validation(self):
@@ -633,8 +543,8 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self.get_predictions(validation_x_reshaped)
+        x = self.images[DataUse.VALIDATION]
+        results = self.get_predictions(x)
         return results
 
     def predict_on_test(self):
@@ -644,8 +554,8 @@ class CNNWhale():
             results: vector
                 A vector containing the predicted labels.                
         """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self.get_predictions(test_x_reshaped)
+        x = self.images[DataUse.TEST]
+        results = self.get_predictions(x)
         return results
     
     def _get_mislabelled(self, x, y, print_report=False):
@@ -667,10 +577,9 @@ class CNNWhale():
                 the incorrect examples indices with incorrect and correct labels. 
         
         """
-
         x_reshaped = self.reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
-        pred_df = pd.DataFrame({"label":np.array(list(map(dh.from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
@@ -712,8 +621,9 @@ class CNNWhale():
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
         """
-
-        results = self._get_mislabelled(x=self.validation_x,y=self.validation_y, print_report=print_report)
+        x = self.images[DataUse.VALIDATION]
+        y = self.labels[DataUse.VALIDATION]
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
         return results
 
     def mislabelled_on_test(self, print_report=False):
@@ -733,8 +643,10 @@ class CNNWhale():
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
         """
-        report = self._get_mislabelled(x=self.test_x,y=self.test_y, print_report=print_report)
-        return report
+        x = self.images[DataUse.TEST]
+        y = self.labels[DataUse.TEST]
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
+        return results
 
     def accuracy_on_train(self):
         """ Report the model accuracy on the training set
@@ -745,8 +657,9 @@ class CNNWhale():
                 results: float
                     The accuracy on the training set.
         """
-        train_x_reshaped = self.reshape_x(self.train_x)
-        results = self._check_accuracy(train_x_reshaped, self.train_y)
+        x = self.images[DataUse.TRAINING]
+        y = self.labels[DataUse.TRAINING]
+        results = self._check_accuracy(x,y)
         return results
 
     def accuracy_on_validation(self):
@@ -758,9 +671,9 @@ class CNNWhale():
                 results: float
                     The accuracy on the validation set.
         """
-
-        validation_x_reshaped = self.reshape_x(self.validation_x)
-        results = self._check_accuracy(validation_x_reshaped, self.validation_y)
+        x = self.images[DataUse.VALIDATION]
+        y = self.labels[DataUse.VALIDATION]
+        results = self._check_accuracy(x,y)
         return results
 
     def accuracy_on_test(self):
@@ -772,6 +685,44 @@ class CNNWhale():
                 results: float
                     The accuracy on the test set.
         """
-        test_x_reshaped = self.reshape_x(self.test_x)
-        results = self._check_accuracy(test_x_reshaped, self.test_y)
+        x = self.images[DataUse.TEST]
+        y = self.labels[DataUse.TEST]
+        results = self._check_accuracy(x,y)
         return results
+
+
+def class_confidences(class_weights):
+    """Compute the classification confidence from classification weights.
+
+        Confidence is computed as the difference between the largest class weight 
+        and the second largest class weight. E.g. if there are three classes and 
+        the neural network assigns weights 0.2, 0.55, 0.25, the confidence is 0.55-0.25=0.25.
+
+        Args:
+            class_weights: numpy array
+                Classification weights
+
+        Returns:
+            conf: numpy array
+                Confidence level
+    """
+    idx = np.argsort(class_weights, axis=1)
+    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
+    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
+    conf = w0 - w1 # classification confidence
+    return conf
+
+def predictions(class_weights):
+    """Compute predicted labels from classification weights.
+
+        Args:
+            class_weights: numpy array
+                Classification weights
+
+        Returns:
+            p: numpy array
+                Predicted labels
+    """
+    p = np.argmax(class_weights, axis=1)
+    return p     
+

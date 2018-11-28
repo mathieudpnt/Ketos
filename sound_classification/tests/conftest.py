@@ -6,7 +6,7 @@ import scipy.signal as sg
 import pandas as pd
 import sound_classification.pre_processing as pp
 import sound_classification.data_handling as dh
-import sound_classification.neural_networks as nn
+from sound_classification.cnn_whale import CNNWhale
 import sound_classification.audio_signal as aud
 from tensorflow import reset_default_graph
 
@@ -200,8 +200,6 @@ def database_prepared_for_NN():
 def database_prepared_for_NN_2_classes():
     img1 = np.zeros((20, 20))
     img2 = np.ones((20, 20))
-
-
     d = {'image': [img1, img2, img1, img2, img1, img2,
                    img1, img2, img1, img2, img1, img2,
                    img1, img2, img1, img2, img1, img2,
@@ -210,12 +208,10 @@ def database_prepared_for_NN_2_classes():
                    0, 1, 0, 1, 0, 1,
                    0, 1, 0, 1, 0, 1,
                    0, 1, 0, 1, 0, 1]}
-
     database = pd.DataFrame(data=d)
     divisions= {"train":(0,12),
                 "validation":(12,18),
                 "test":(18,len(database))}
-
     prepared = dh.prepare_database(database=database,x_column="image",y_column="label",
                                 divisions=divisions)    
     return prepared
@@ -225,24 +221,20 @@ def database_prepared_for_NN_2_classes():
 def trained_CNNWhale(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")     
-    
+    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")         
     train_x = d["train_x"]
     train_y = d["train_y"]
     validation_x = d["validation_x"]
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = nn.CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_channels=2, num_labels=2)
+    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
     tf_nodes = network.create_net_structure()
     network.set_tf_nodes(tf_nodes)
     network.train()
     network.save_model(path_to_meta)
-
     test_acc = network.accuracy_on_test()
-
     meta = path_to_meta + ".meta"
-
     reset_default_graph()
     return meta, path_to_saved_model, test_acc
 
@@ -259,3 +251,14 @@ def sine_audio_without_time_stamp(sine_wave):
     rate, data = sine_wave
     a = aud.AudioSignal(rate=rate, data=data)
     return a
+    
+@pytest.fixture
+def data_classified_by_nn():
+    x = [1, 2, 3, 4, 5, 6] # input data
+    x = np.array(x)
+    y = [0, 1, 0, 1, 0, 1] # labels
+    y = np.array(y)
+    w = [[0.8, 0.2], [0.1, 0.9], [0.96, 0.04], [0.49, 0.51], [0.45, 0.55], [0.60, 0.40]] # class weights computed by NN
+    w = np.array(w)
+    return x,y,w
+

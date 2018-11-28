@@ -400,6 +400,9 @@ def check_data_sanity(images, labels):
             image_size: tuple (int,int)
                 Image size
     """
+    if images is None and labels is None:
+        return True
+
     # check that number of images matches numbers of labels
     assert len(images) == len(labels), "Image and label columns have different lengths"
 
