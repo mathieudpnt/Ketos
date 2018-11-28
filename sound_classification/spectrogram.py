@@ -46,7 +46,7 @@ class Spectrogram():
         self.timestamp = None
         self.flabels = None
     
-    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -62,10 +62,18 @@ class Spectrogram():
                     Number of points for the FFT. If None, set equal to the number of samples.
                 timestamp: datetime
                     Spectrogram time stamp (default: None)
+                phase: bool
+                    Compute phase spectrogram in addition to magnitude spectrogram
 
             Returns:
-                (image, NFFT, fres):numpy.array,int, int
-                A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
+                image: numpy.array
+                    Magnitude spectrogram
+                NFFT: int, int
+                    Number of points used for the FFT
+                fres: int
+                    Frequency resolution
+                phase: numpy.array
+                    Phase spectrogram. Only computed if compute_phase=True.
         """
 
          # Make frames
@@ -76,7 +84,14 @@ class Spectrogram():
             frames *= np.hamming(frames.shape[1])
 
         # Compute fast fourier transform
-        image = np.abs(np.fft.rfft(frames, n=NFFT))
+        fft = np.fft.rfft(frames, n=NFFT)
+
+        # Compute magnitude and phase
+        image = np.abs(fft)
+        if compute_phase:
+            phase = np.angle(fft)
+        else:
+            phase = None
 
         # Number of points used for FFT
         if NFFT is None:
@@ -85,7 +100,7 @@ class Spectrogram():
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
 
-        return image, NFFT, fres
+        return image, NFFT, fres, phase
 
 
     def _find_tbin(self, t):
@@ -460,9 +475,9 @@ class MagSpectrogram(Spectrogram):
 
 
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False):
 
-        self.image, self. NFFT, self.fres = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.image, self. NFFT, self.fres, self.phase = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -471,7 +486,7 @@ class MagSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -493,9 +508,9 @@ class MagSpectrogram(Spectrogram):
                 A tuple with the resulting magnitude spectrogram, the NFFT and the frequency resolution
         """
 
-        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         
-        return image, NFFT, fres
+        return image, NFFT, fres, phase
 
     def audio_signal(self):
         """ Generate audio signal from magnitude spectrogram
@@ -552,9 +567,9 @@ class PowerSpectrogram(Spectrogram):
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
-                 hamming=True, NFFT=None, timestamp=None):
+                 hamming=True, NFFT=None, timestamp=None, compute_phase=False):
 
-        self.image, self. NFFT, self.fres = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        self.image, self. NFFT, self.fres, self.phase = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -563,7 +578,7 @@ class PowerSpectrogram(Spectrogram):
         self.flabels = flabels
 
 
-    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None):
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -585,10 +600,10 @@ class PowerSpectrogram(Spectrogram):
                 A tuple with the resulting power spectrogram, the NFFT and the frequency resolution
         """
 
-        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         power_spec = (1.0/NFFT) * (image ** 2)
         
-        return power_spec, NFFT, fres
+        return power_spec, NFFT, fres, phase
 
        
     
@@ -670,7 +685,7 @@ class MelSpectrogram(Spectrogram):
            
         """
 
-        image, NFFT, fres = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        image, NFFT, fres, _ = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
@@ -696,15 +711,12 @@ class MelSpectrogram(Spectrogram):
         
         
         mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
-        
-        
+                
         (nframes, ncoeff) = mel_spec.shape
         n = np.arange(ncoeff)
         lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
         mel_spec *= lift  
         
-
-
         return mel_spec, filter_banks, NFFT, fres
 
     def plot(self,filter_bank=False, decibel=False):
