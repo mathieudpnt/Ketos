@@ -59,6 +59,17 @@ def test_add_data_to_DataHandler(database_prepared_for_NN_2_classes):
     assert 2 * y.shape[0] == network.labels[DataUse.TRAINING].shape[0]
     assert y.shape[1:] == network.labels[DataUse.TRAINING].shape[1:]
     
+@pytest.mark.test_DataHandler
+def test_get_data_from_DataHandler(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    x = d["train_x"]
+    y = d["train_y"]
+    network = DataHandler(train_x=x, train_y=y)
+    # get training data
+    xx, yy = network.get_training_data()
+    assert x.shape == xx.shape
+    assert y.shape == yy.shape
+
 @pytest.mark.test_class_confidences
 def test_class_confidences(data_classified_by_nn):
     _,_,w = data_classified_by_nn

@@ -16,13 +16,26 @@ import pytest
 import numpy as np
 import pandas as pd
 from sound_classification.edtcn import EDTCN
-from tensorflow import reset_default_graph
 
 
 @pytest.mark.test_EDTCN
-def test_initialize_EDTCN_with_default_constructor_and_default_args(database_prepared_for_NN):
-    d = database_prepared_for_NN
-    x = d["train_x"]
-    y = d["train_y"]
-    _ = EDTCN(train_x=x, train_y=y)
-    reset_default_graph()
+def test_initialize_EDTCN_with_default_constructor_and_default_args(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    _ = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+
+def test_create_EDTCN_network_with_default_args(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+    net.create()
+
+def test_train_EDTCN_network_with_default_args(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+    net.create()
+    net.train()
+
+def test_create_EDTCN_network_with_max_len_not_divisible_by_four(data_for_TCN):
+    train_x, train_y, val_x, val_y, test_x, test_y = data_for_TCN
+    net = EDTCN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y, test_x=test_x, test_y=test_y)
+    net.create(max_len=15)
+    assert net.max_len == 12

@@ -15,7 +15,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-import sound_classification.data_handling as dh
+from sound_classification.data_handling import to1hot
 from sound_classification.neural_networks import DataHandler
 
 
@@ -52,45 +52,62 @@ class EDTCN(DataHandler):
 
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=2, batch_size=4, 
-                 num_epochs=100):
+                 num_epochs=100, keep_prob=0.7, verbosity=0):
 
         self.num_labels = num_labels
         self.batch_size = batch_size
         self.num_epochs = num_epochs
+        self.keep_prob = keep_prob
+        self.verbosity = verbosity
+        self.max_len = 500
+
+        self.model = None
 
         super(EDTCN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y)
-        
-    def create(self, n_nodes=[16, 32], conv_len=16, max_len=100):
+
+    def set_verbosity(self, verbosity):
+        """Set verbosity level.
+            0: no messages
+            1: warnings only
+            2: warnings and diagnostics
+
+            Args:
+                verbosity: int
+                    Verbosity level.        
+        """
+        self.verbosity = verbosity
+
+    def create(self, n_nodes=[16, 32], conv_len=16, max_len=500):
         """Create the Neural Network structure.
 
             Args:
-                n_nodes: int tuple
-                    bla ...
+                n_nodes: tuple(int)
+                    Number of output filters in each 1D convolutional layer.
+                    (The number of convolutional layers is given by the length of n_nodes)
                 conv_len: int
-                    bla ...
+                    Length of the 1D convolution window.
                 max_len: int
-                    bla ...
-
-            Returns:
-                tf_nodes: dict
-                    A dictionary with the tensorflow objects necessary
-                    to train and run the model.
-                    sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                    accuracy,init_op, merged, writer, saver
-                    These objects are stored as
-                    instance attributes when the class is instantiated.
-
+                    The input data will be split into chuncks of size max_len. 
+                    Thus, max_len effectively limits the extent of the memory of the network. 
         """
         dropout_rate = 1.0 - self.keep_prob
 
-        n_feat = self.get_training_data().shape[1]
+        self.max_len = max_len
+
+        if self.max_len % 4 > 0:
+            self.max_len -= self.max_len % 4
+            if self.verbosity >= 1: 
+                print(' Warning: max_len must be divisible by 4; max_len has been adjust to {0}'.format(self.max_len))
+
+        x, _ = self.get_training_data()
+        n_feat = x.shape[1]
         n_layers = len(n_nodes)
         n_classes = self.num_labels
 
         # --- Input layer ---
-        inputs = tf.keras.layers.Input(shape=(max_len, n_feat))
+        inputs = tf.keras.layers.Input(shape=(self.max_len, n_feat))
         model = inputs
 
         # ---- Encoder ----
@@ -116,7 +133,45 @@ class EDTCN(DataHandler):
         model = tf.keras.models.Model(inputs=inputs, outputs=model)
         model.compile(loss='categorical_crossentropy', optimizer="rmsprop", sample_weight_mode="temporal", metrics=['accuracy'])
 
-        tf_nodes = {'x': model.layers[0].output
-            }
+        self.model = model
 
-        return tf_nodes
+    def train(self, batch_size=None, num_epochs=None):
+
+        if batch_size is None:
+            batch_size = self.batch_size
+        if num_epochs is None:
+            num_epochs = self.num_epochs
+
+        x, y = self.get_training_data()
+        x_val, y_val = self.get_validation_data()
+
+        y = to1hot(y, self.num_labels)
+        y_val = to1hot(y_val, self.num_labels)
+
+        x = split(x, self.max_len)
+        y = split(y, self.max_len)
+        x_val = split(x_val, self.max_len)
+        y_val = split(y_val, self.max_len)
+
+        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=(x_val, y_val))        
+
+def split(a, n):
+    """Split the data into chunks with certain size.
+        
+        Args:
+            a: numpy array
+                Array containing the data to be split.
+            
+            n: int
+                Chunk size.
+    """
+    orig_len = a.shape[0]
+    nsegs = int(np.ceil(orig_len / n))
+    new_len = nsegs * n
+    pad_shape = np.array([new_len - orig_len], dtype=np.int32)
+    pad_shape = np.append(pad_shape, a.shape[1:])
+    a = np.append(a, np.zeros(shape=pad_shape), axis=0)
+    new_shape = np.array([nsegs, n], dtype=np.int32)
+    new_shape = np.append(new_shape, a.shape[1:])
+    a = np.reshape(a=a, newshape=new_shape)
+    return a

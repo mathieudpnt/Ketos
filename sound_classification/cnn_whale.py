@@ -451,7 +451,7 @@ class CNNWhale(DataHandler):
 
         return img_shape
 
-    def train(self, init=True, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
+    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
         """Train the neural network. on the training set.
 
            Devide the training set in batches in orther to train.
@@ -485,11 +485,9 @@ class CNNWhale(DataHandler):
             learning_rate = self.learning_rate_value
 
         sess = self.sess
-        
-        x = self.images[DataUse.TRAINING]
-        y = self.labels[DataUse.TRAINING]
-        x_val = self.images[DataUse.VALIDATION]
-        y_val = self.labels[DataUse.VALIDATION]
+
+        x, y = self.get_training_data()
+        x_val, y_val = self.get_validation_data()
 
         self.writer.add_graph(sess.graph)
 

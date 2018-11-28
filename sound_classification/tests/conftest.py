@@ -262,3 +262,14 @@ def data_classified_by_nn():
     w = np.array(w)
     return x,y,w
 
+@pytest.fixture
+def data_for_TCN():
+    fv0 = np.zeros((64))
+    fv1 = np.ones((64))
+    x_train = np.array([fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1])
+    y_train = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+    x_val = np.array([fv0, fv1, fv0, fv1])
+    y_val = np.array([0, 1, 0, 1])
+    x_test = np.array([fv0, fv1, fv0, fv1])
+    y_test = np.array([0, 1, 0, 1])
+    return x_train, y_train, x_val, y_val, x_test, y_test
