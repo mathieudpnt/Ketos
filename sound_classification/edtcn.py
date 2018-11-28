@@ -167,16 +167,16 @@ class EDTCN(DataHandler):
 
         y = to1hot(y, self.num_labels)
 
-        if y_val is not None:
+        if x_val is not None and y_val is not None:
             y_val = to1hot(y_val, self.num_labels)
+            x_val = self._reshape(x_val)
+            y_val = self._reshape(y_val)
             val_data = (x_val, y_val)
         else:
             val_data = None
 
         x = self._reshape(x)
         y = self._reshape(y)
-        x_val = self._reshape(x_val)
-        y_val = self._reshape(y_val)
 
         history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=val_data)   
         return history     
@@ -228,8 +228,12 @@ class EDTCN(DataHandler):
         orig_len = a.shape[0]
         nsegs = int(np.ceil(orig_len / n))
         new_len = nsegs * n
+        print('-------------------------')
+        print(orig_len, new_len)
         pad_shape = np.array([new_len - orig_len], dtype=np.int32)
+        print(pad_shape)
         pad_shape = np.append(pad_shape, a.shape[1:])
+        print(pad_shape)
         a = np.append(a, np.zeros(shape=pad_shape), axis=0)
         new_shape = np.array([nsegs, n], dtype=np.int32)
         new_shape = np.append(new_shape, a.shape[1:])
