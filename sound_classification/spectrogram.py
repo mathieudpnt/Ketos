@@ -86,12 +86,14 @@ class Spectrogram():
         # Compute fast fourier transform
         fft = np.fft.rfft(frames, n=NFFT)
 
-        # Compute magnitude and phase
+        # Compute magnitude
         image = np.abs(fft)
+
+        # Compute phase
         if compute_phase:
             phase = np.angle(fft)
 
-            # phase discontinuity due to mismatch between step size and bin frequency:
+            # phase discontinuity due to mismatch between step size and bin frequency
             N = int(round(winstep * audio_signal.rate))
             T = N / audio_signal.rate
             f = np.arange(image.shape[1], dtype=np.float64)
@@ -111,7 +113,7 @@ class Spectrogram():
             diff -= dphi
             diff[diff < 0] = diff[diff < 0] + 2*np.pi
 
-            # "roll over"
+            # mirror at pi
             diff[diff > np.pi] = 2*np.pi - diff[diff > np.pi]
 
         else:
