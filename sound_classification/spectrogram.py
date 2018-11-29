@@ -62,7 +62,7 @@ class Spectrogram():
                     Number of points for the FFT. If None, set equal to the number of samples.
                 timestamp: datetime
                     Spectrogram time stamp (default: None)
-                phase: bool
+                compute_phase: bool
                     Compute phase spectrogram in addition to magnitude spectrogram
 
             Returns:
@@ -90,8 +90,39 @@ class Spectrogram():
         image = np.abs(fft)
         if compute_phase:
             phase = np.angle(fft)
+
+            N = int(round(winstep * audio_signal.rate))
+            T = N / audio_signal.rate
+            f = np.arange(image.shape[1], dtype=np.float64)
+            f += 0.5
+            f *= audio_signal.rate / 2. / image.shape[1]
+            cycles = f * T
+            dphi_vec = np.ceil(cycles) - cycles
+            dphi = np.repeat([dphi_vec], image.shape[0], axis=0)
+            mul_vec = np.arange(image.shape[0])
+            mul = np.repeat([mul_vec], image.shape[1], axis=0)
+            mul = np.swapaxes(mul,0,1)
+            dphi *= mul
+            dphi = 2*np.pi * (np.ceil(dphi) - dphi)
+            
+#            phase += dphi
+#            phase[phase > np.pi] = -(2*np.pi - phase[phase > np.pi])
+#            phase[phase < -np.pi] = 2*np.pi + phase[phase < -np.pi]
+#            if_cfd = phase
+ 
+#            pos = np.append(phase, [phase[-1,:]], axis=0)
+#            pos = pos[1:,:]
+#            neg = np.insert(phase, 0, [phase[0,:]], axis=0)
+#            neg = neg[:-1,:]
+#            if_cfd = 1./(4.*np.pi) * (pos - neg)  # instantaneous frequency (CFD estimator)
+#            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 1.0
+
+            pos = np.append(phase, [phase[-1,:]], axis=0)
+            pos = pos[1:,:]
+            if_cfd = 1./(2.*np.pi) * (pos - phase)  # instantaneous frequency (CFD estimator)
+            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 1.0
         else:
-            phase = None
+            if_cfd = None
 
         # Number of points used for FFT
         if NFFT is None:
@@ -100,6 +131,7 @@ class Spectrogram():
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
 
+        phase = if_cfd
         return image, NFFT, fres, phase
 
 
@@ -470,6 +502,8 @@ class MagSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels: list of strings
                 List of labels for the frequency bins.     
+            compute_phase: bool
+                Compute phase spectrogram in addition to magnitude spectrogram
     """
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False):
@@ -499,6 +533,8 @@ class MagSpectrogram(Spectrogram):
                     Number of points for the FFT. If None, set equal to the number of samples.
                 timestamp: datetime
                     Spectrogram time stamp (default: None)
+                compute_phase: bool
+                    Compute phase spectrogram in addition to magnitude spectrogram
 
             Returns:
                 (image, NFFT, fres):numpy.array,int, int
@@ -560,7 +596,8 @@ class PowerSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels:list of strings
                 List of labels for the frequency bins.
-                        
+            compute_phase: bool
+                Compute phase spectrogram in addition to power spectrogram                        
     """
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
                  hamming=True, NFFT=None, timestamp=None, compute_phase=False):
@@ -590,6 +627,8 @@ class PowerSpectrogram(Spectrogram):
                     Number of points for the FFT. If None, set equal to the number of samples.
                 timestamp: datetime
                     Spectrogram time stamp (default: None)
+                compute_phase: bool
+                    Compute phase spectrogram in addition to power spectrogram
 
             Returns:
                 (power_spec, NFFT, fres, phase):numpy.array,int,int,numpy.array
@@ -628,8 +667,6 @@ class MelSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels: list of strings
                 List of labels for the frequency bins.
-               
-                        
     """
 
 

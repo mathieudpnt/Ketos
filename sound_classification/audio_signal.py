@@ -109,6 +109,40 @@ class AudioSignal:
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
+    @classmethod
+    def cosine(cls, rate, frequency, duration=1, height=1, displacement=0):
+        """ Audio signal with the shape of a cosine function
+
+            Args:
+                rate: float
+                    Sampling rate in Hz
+                frequency: float
+                    Frequency of the Morlet wavelet in Hz
+                duration: float
+                    Duration of the signal in seconds
+                height: float
+                    Peak value of the audio signal
+                displacement: float
+                    Phase offset in fractions of 2*pi
+
+            Returns:
+                Instance of AudioSignal
+                    Audio signal sampling of the cosine function 
+        """        
+        N = int(duration * rate)
+
+        # compute cosine function at N equally spaced points
+        dt = 1. / rate
+        stop = (N-1.)/2. * dt
+        start = -stop
+        time = np.linspace(start, stop, N)
+        x = (time * frequency + displacement) * 2 * np.pi
+        y = height * np.cos(x)
+        
+        tag = "cosine_f{0:.0f}Hz".format(frequency) # this is just a string with some helpful info
+
+        return cls(rate=rate, data=np.array(y), tag=tag)
+
     def to_wav(self, path):
         """ Save audio signal to wave file
 
