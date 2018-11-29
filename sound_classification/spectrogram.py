@@ -73,7 +73,7 @@ class Spectrogram():
                 fres: int
                     Frequency resolution
                 phase: numpy.array
-                    Phase spectrogram. Only computed if compute_phase=True.
+                    Phase difference spectrogram. Only computed if compute_phase=True.
         """
 
          # Make frames
@@ -91,35 +91,31 @@ class Spectrogram():
         if compute_phase:
             phase = np.angle(fft)
 
+            # phase discontinuity due to mismatch between step size and bin frequency:
             N = int(round(winstep * audio_signal.rate))
             T = N / audio_signal.rate
             f = np.arange(image.shape[1], dtype=np.float64)
             f += 0.5
             f *= audio_signal.rate / 2. / image.shape[1]
             cycles = f * T
-            dphi_vec = 2*np.pi * (np.ceil(cycles) - cycles)
+            dphi_vec = 2*np.pi * (cycles - np.floor(cycles))
             dphi = np.repeat([dphi_vec], image.shape[0], axis=0)
             
-#            phase += dphi
-#            phase[phase > np.pi] = -(2*np.pi - phase[phase > np.pi])
-#            phase[phase < -np.pi] = 2*np.pi + phase[phase < -np.pi]
-#            if_cfd = phase
- 
-#            pos = np.append(phase, [phase[-1,:]], axis=0)
-#            pos = pos[1:,:]
-#            neg = np.insert(phase, 0, [phase[0,:]], axis=0)
-#            neg = neg[:-1,:]
-#            if_cfd = 1./(4.*np.pi) * (pos - neg)  # instantaneous frequency (CFD estimator)
-#            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 1.0
-
+            # observed phase difference
             pos = np.append(phase, [phase[-1,:]], axis=0)
             pos = pos[1:,:]
-            if_cfd = pos - phase
-            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 2*np.pi
-            if_cfd -= dphi
+            diff = pos - phase
+
+            # compute difference
+            diff[diff < 0] = diff[diff < 0] + 2*np.pi
+            diff -= dphi
+            diff[diff < 0] = diff[diff < 0] + 2*np.pi
+
+            # "roll over"
+            diff[diff > np.pi] = 2*np.pi - diff[diff > np.pi]
 
         else:
-            if_cfd = None
+            diff = None
 
         # Number of points used for FFT
         if NFFT is None:
@@ -128,7 +124,7 @@ class Spectrogram():
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
 
-        phase = if_cfd
+        phase = diff
         return image, NFFT, fres, phase
 
 
