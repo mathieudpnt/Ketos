@@ -97,13 +97,8 @@ class Spectrogram():
             f += 0.5
             f *= audio_signal.rate / 2. / image.shape[1]
             cycles = f * T
-            dphi_vec = np.ceil(cycles) - cycles
+            dphi_vec = 2*np.pi * (np.ceil(cycles) - cycles)
             dphi = np.repeat([dphi_vec], image.shape[0], axis=0)
-            mul_vec = np.arange(image.shape[0])
-            mul = np.repeat([mul_vec], image.shape[1], axis=0)
-            mul = np.swapaxes(mul,0,1)
-            dphi *= mul
-            dphi = 2*np.pi * (np.ceil(dphi) - dphi)
             
 #            phase += dphi
 #            phase[phase > np.pi] = -(2*np.pi - phase[phase > np.pi])
@@ -119,8 +114,10 @@ class Spectrogram():
 
             pos = np.append(phase, [phase[-1,:]], axis=0)
             pos = pos[1:,:]
-            if_cfd = 1./(2.*np.pi) * (pos - phase)  # instantaneous frequency (CFD estimator)
-            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 1.0
+            if_cfd = pos - phase
+            if_cfd[if_cfd < 0] = if_cfd[if_cfd < 0] + 2*np.pi
+            if_cfd -= dphi
+
         else:
             if_cfd = None
 
