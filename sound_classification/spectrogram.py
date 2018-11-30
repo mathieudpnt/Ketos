@@ -72,8 +72,8 @@ class Spectrogram():
                     Number of points used for the FFT
                 fres: int
                     Frequency resolution
-                phase: numpy.array
-                    Phase difference spectrogram. Only computed if compute_phase=True.
+                phase_change: numpy.array
+                    Phase change spectrogram. Only computed if compute_phase=True.
         """
 
          # Make frames
@@ -99,18 +99,18 @@ class Spectrogram():
             f = np.arange(image.shape[1], dtype=np.float64)
             f += 0.5
             f *= audio_signal.rate / 2. / image.shape[1]
-            cycles = f * T
-            dphi_vec = 2*np.pi * (cycles - np.floor(cycles))
-            dphi = np.repeat([dphi_vec], image.shape[0], axis=0)
+            p = f * T
+            jump = 2*np.pi * (p - np.floor(p))
+            corr = np.repeat([jump], image.shape[0], axis=0)
             
             # observed phase difference
-            pos = np.append(phase, [phase[-1,:]], axis=0)
-            pos = pos[1:,:]
-            diff = pos - phase
+            shifted = np.append(phase, [phase[-1,:]], axis=0)
+            shifted = shifted[1:,:]
+            diff = shifted - phase
 
-            # compute difference
+            # observed phase difference corrected for discontinuity
             diff[diff < 0] = diff[diff < 0] + 2*np.pi
-            diff -= dphi
+            diff -= corr
             diff[diff < 0] = diff[diff < 0] + 2*np.pi
 
             # mirror at pi
@@ -126,8 +126,8 @@ class Spectrogram():
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
 
-        phase = diff
-        return image, NFFT, fres, phase
+        phase_change = diff
+        return image, NFFT, fres, phase_change
 
 
     def _find_tbin(self, t):
@@ -503,7 +503,7 @@ class MagSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False):
 
-        self.image, self. NFFT, self.fres, self.phase = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -537,9 +537,9 @@ class MagSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         
-        return image, NFFT, fres, phase
+        return image, NFFT, fres, phase_change
 
     def audio_signal(self):
         """ Generate audio signal from magnitude spectrogram
@@ -597,7 +597,7 @@ class PowerSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
                  hamming=True, NFFT=None, timestamp=None, compute_phase=False):
 
-        self.image, self. NFFT, self.fres, self.phase = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
         self.tmin = 0
@@ -631,10 +631,10 @@ class PowerSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         power_spec = (1.0/NFFT) * (image ** 2)
         
-        return power_spec, NFFT, fres, phase
+        return power_spec, NFFT, fres, phase_change
 
        
     
