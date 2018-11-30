@@ -696,7 +696,7 @@ class CNNWhale(DataHandler):
         results = self.get_predictions(x)
         return results
     
-    def _get_mislabelled(self, x, y, print_report=False):
+    def _get_mislabelled(self, x, y, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the model.
 
             Args:
@@ -733,18 +733,19 @@ class CNNWhale(DataHandler):
                             "%correct":[perc_correct],"%incorrect":[perc_incorrect],
                             "total":[n_predictions]})
 
-        if print_report:
+        if print_report or print_detailed_report:
             print("=============================================")
             print("Correct classifications: {0} of {1} ({2}%)".format(n_correct, n_predictions, perc_correct))
             print("Incorrect classifications: {0} of {1} ({2})%".format(n_incorrect, n_predictions, perc_incorrect))
-            print("These were the incorrect classifications:")
-            print(incorrect)
+            if print_detailed_report:
+                print("These were the incorrect classifications:")
+                print(incorrect)
             print("=============================================") 
         
         results =(report,incorrect)    
         return results
 
-    def mislabelled_on_validation(self, print_report=False):
+    def mislabelled_on_validation(self, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the trained model on
             the validation set.
 
@@ -763,10 +764,10 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.VALIDATION]
         y = self.labels[DataUse.VALIDATION]
-        results = self._get_mislabelled(x=x, y=y, print_report=print_report)
+        results = self._get_mislabelled(x=x, y=y, print_report=print_report, print_detailed_report=print_detailed_report)
         return results
 
-    def mislabelled_on_test(self, print_report=False):
+    def mislabelled_on_test(self, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the trained model on
             the test set.
 
@@ -785,7 +786,7 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.TEST]
         y = self.labels[DataUse.TEST]
-        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report, print_detailed_report=print_detailed_report)
         return results
 
     def accuracy_on_train(self):
