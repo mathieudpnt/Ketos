@@ -19,8 +19,9 @@ import numpy as np
 import pandas as pd
 from collections import namedtuple
 import sound_classification.data_handling as dh
-from sound_classification.neural_networks import DataHandler, DataUse
-from sound_classification.data_handling import from1hot, get_image_size
+from sound_classification.neural_networks import DataHandler, DataUse, predictions, class_confidences
+from sound_classification.data_handling import from1hot, to1hot, get_image_size
+from sound_classification.training_data_provider import TrainingDataProvider
 
 
 ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
@@ -451,7 +452,7 @@ class CNNWhale(DataHandler):
 
         return img_shape
 
-    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, feature_layer_name=None):
+    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
         """Train the neural network on the training set.
 
            Devide the training set in batches in orther to train.
@@ -468,8 +469,6 @@ class CNNWhale(DataHandler):
             keep_prob: float
                 Float in the range [0,1] specifying the probability of keeping the weights, 
                 i.e., drop-out will be applied if keep_prob < 1.
-            feature_layer_name: str
-                Name of 'feature' layer.
 
         Returns:
             avg_cost: float
@@ -491,18 +490,11 @@ class CNNWhale(DataHandler):
 
         self.writer.add_graph(sess.graph)
 
-        features = None
-        if feature_layer_name is not None:
-            features = sess.graph.get_tensor_by_name(feature_layer_name)
-
         if self.verbosity >= 2:
             if self.epoch_counter == 0: 
                 print("\nTraining  started")
             header = '\nEpoch  Cost  Test acc.  Val acc.'
             line   = '----------------------------------'
-            if features is not None:
-                header += '   No. Feat. used'
-                line   += '-----------------'
             print(header)
             print(line)
 
@@ -514,7 +506,6 @@ class CNNWhale(DataHandler):
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
-            feat_used = 0
             for i in range(batches):
                 offset = i * batch_size
                 x_i = x[offset:(offset + batch_size), :, :, :]
@@ -522,13 +513,7 @@ class CNNWhale(DataHandler):
                 y_i = y[offset:(offset + batch_size)]
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
-                if features is not None:
-                    fetch.append(features)
-                    _, c, a, f = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
-                    f = np.sum(f, axis=0)
-                    feat_used += np.sum(f > 0) / batches
-                else:
-                    _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
+                _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
@@ -536,8 +521,6 @@ class CNNWhale(DataHandler):
             if self.verbosity >= 2:
                 val_acc = self.accuracy_on_validation()
                 s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
-                if features is not None:
-                    s += '  {4:.1f}'.format(feat_used)
                 print(s)
 
             if x_val is not None:
@@ -551,7 +534,51 @@ class CNNWhale(DataHandler):
             print(line)
 
         return avg_cost
-    
+
+    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
+        """Train the neural network in an active manner using a data provider module.
+        
+        Args:
+            provider: TrainingDataProvider
+                Training data provider
+            iterations: int
+                Number of training iterations.
+            batch_size: int
+                Batch size. Overwrites batch size specified at initialization.
+            num_epochs: int
+                Number of epochs: Overwrites number of epochs specified at initialization.
+            learning_rate: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob: float
+                Float in the range [0,1] specifying the probability of keeping the weights, 
+                i.e., drop-out will be applied if keep_prob < 1.
+
+        Returns:
+            avg_cost: float
+                Average cost of last completed training epoch.
+        """    
+        for i in range(iterations):
+
+            # get data from provider
+            x_train, y_train, keep_frac = provider.get_samples()    
+
+            if self.verbosity >= 2:
+                print('\nIteration: {0}/{1}'.format(i+1, iterations))
+                print('Keep frac: {0:.1f}%'.format(100.*keep_frac))
+
+            # feed data to neural net
+            self.set_training_data(x=x_train, y=to1hot(y_train,2))
+
+            # train
+            self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob)
+
+            # update predictions and confidences
+            w = self.get_class_weights(x_train)
+            pred = predictions(w)
+            conf = class_confidences(w)
+            provider.update_prediction_confidence(pred=pred, conf=conf)
+
+
     def save(self, destination):
         """ Save the model to destination
 
