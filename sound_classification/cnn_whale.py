@@ -18,7 +18,6 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from collections import namedtuple
-import sound_classification.data_handling as dh
 from sound_classification.neural_networks import DataHandler, DataUse, predictions, class_confidences
 from sound_classification.data_handling import from1hot, to1hot, get_image_size
 from sound_classification.training_data_provider import TrainingDataProvider
@@ -492,6 +491,9 @@ class CNNWhale(DataHandler):
         x, y = self.get_training_data()
         x_val, y_val = self.get_validation_data()
 
+        y = self._ensure1hot(y)
+        y_val = self._ensure1hot(y_val)
+
         self.writer.add_graph(sess.graph)
 
         if self.verbosity >= 2:
@@ -582,6 +584,13 @@ class CNNWhale(DataHandler):
             conf = class_confidences(w)
             provider.update_prediction_confidence(pred=pred, conf=conf)
 
+    def _ensure1hot(self, y):
+        y1hot = y
+        if y is not None and y.shape[-1] is not self.num_labels:
+            depth = y.max() + 1 # number of classes
+            y1hot = to1hot(y, depth)
+        
+        return y1hot
 
     def save(self, destination):
         """ Save the model to destination
@@ -614,8 +623,9 @@ class CNNWhale(DataHandler):
         """
         if x is None:
             return 0
-        x = self.reshape_x(x)        
-        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        x = self.reshape_x(x) 
+        y1hot = self._ensure1hot(y)       
+        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -705,9 +715,11 @@ class CNNWhale(DataHandler):
                 the incorrect examples indices with incorrect and correct labels. 
         
         """
+        y1hot = self._ensure1hot(y) 
+
         x_reshaped = self.reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
-        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y1hot))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
@@ -751,7 +763,7 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.VALIDATION]
         y = self.labels[DataUse.VALIDATION]
-        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
+        results = self._get_mislabelled(x=x, y=y, print_report=print_report)
         return results
 
     def mislabelled_on_test(self, print_report=False):
