@@ -221,6 +221,8 @@ class CNNWhale(DataHandler):
                 'class_weights': class_weights,
                 }
 
+        self.set_tf_nodes(tf_nodes)
+
         return tf_nodes
 
     def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512]):
@@ -375,6 +377,8 @@ class CNNWhale(DataHandler):
                 'learning_rate': learning_rate,
                 'class_weights': y_,
                 }
+
+        self.set_tf_nodes(tf_nodes)
 
         return tf_nodes
         
@@ -537,7 +541,7 @@ class CNNWhale(DataHandler):
 
     def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
         """Train the neural network in an active manner using a data provider module.
-        
+
         Args:
             provider: TrainingDataProvider
                 Training data provider

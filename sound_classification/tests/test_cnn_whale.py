@@ -43,8 +43,7 @@ def test_train_CNNWhale_with_default_args(database_prepared_for_NN):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=1, verbosity=0)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
+    network.create()
     network.train()
     reset_default_graph()
 
@@ -58,8 +57,7 @@ def test_train_CNNWhale_with_default_args2(database_prepared_for_NN_2_classes):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2, verbosity=0)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
+    network.create()
     network.train()
     reset_default_graph()
 
@@ -75,8 +73,7 @@ def test_load_CNNWhale_model(database_prepared_for_NN_2_classes, trained_CNNWhal
     network = CNNWhale(train_x, train_y, validation_x, validation_y,
                           test_x, test_y, num_labels=2, verbosity=0)
     path_to_meta, path_to_saved_model, test_acc = trained_CNNWhale
-    tf_nodes = network.load(path_to_meta, path_to_saved_model)
-    network.set_tf_nodes(tf_nodes)
+    network.load(path_to_meta, path_to_saved_model)
     assert test_acc == network.accuracy_on_test()
     reset_default_graph()
     
@@ -86,12 +83,11 @@ def test_compute_class_weights_with_CNNWhale(database_prepared_for_NN_2_classes)
     x = d["train_x"]
     y = d["train_y"]
     network = CNNWhale(train_x=x, train_y=y,  num_labels=2, verbosity=0, seed=41)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
+    network.create()
     network.train()
     img = np.zeros((20, 20))
     result = network.get_class_weights(x=[img])
     weights = result[0]
-    assert weights[0] == pytest.approx(0.4982678, abs=0.001)
-    assert weights[1] == pytest.approx(1-0.4982678, abs=0.001)
+    assert weights[0] == pytest.approx(0.5, abs=0.1)
+    assert weights[1] == pytest.approx(0.5, abs=0.1)
     
