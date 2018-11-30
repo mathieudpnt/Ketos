@@ -229,10 +229,10 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     test_x = d["test_x"]
     test_y = d["test_y"]
     network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
-    tf_nodes = network.create_net_structure()
+    tf_nodes = network.create()
     network.set_tf_nodes(tf_nodes)
     network.train()
-    network.save_model(path_to_meta)
+    network.save(path_to_meta)
     test_acc = network.accuracy_on_test()
     meta = path_to_meta + ".meta"
     reset_default_graph()
@@ -262,3 +262,14 @@ def data_classified_by_nn():
     w = np.array(w)
     return x,y,w
 
+@pytest.fixture
+def data_for_TCN():
+    fv0 = np.zeros((64))
+    fv1 = np.ones((64))
+    x_train = np.array([fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1])
+    y_train = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+    x_val = np.array([fv0, fv1, fv0, fv1])
+    y_val = np.array([0, 1, 0, 1])
+    x_test = np.array([fv0, fv1, fv0, fv1])
+    y_test = np.array([0, 1, 0, 1])
+    return x_train, y_train, x_val, y_val, x_test, y_test
