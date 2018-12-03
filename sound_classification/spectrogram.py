@@ -34,18 +34,19 @@ class Spectrogram():
             timestamp: datetime
                 Spectrogram time stamp (default: None)
 """
-    def __init__(self):
+    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag=''):
         
-        self.image = np.zeros((2,2))
+        self.image = image
         self.shape = self.image.shape
-        self.NFFT = 0
-        self.tres = 1
-        self.tmin = 0
-        self.fres = 1
-        self.fmin = 0
-        self.timestamp = None
-        self.flabels = None
-    
+        self.NFFT = NFFT
+        self.tres = tres
+        self.tmin = tmin
+        self.fres = fres
+        self.fmin = fmin
+        self.timestamp = timestamp
+        self.flabels = flabels
+        self.tag = tag
+
     def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
         """ Create spectrogram from audio signal
         
@@ -129,9 +130,47 @@ class Spectrogram():
         phase_change = diff
         return image, NFFT, fres, phase_change
 
+    def get_data(self):
+        return self.image
 
-    def _find_tbin(self, t):
+    def _find_bin(self, x, bins, x_min, x_max, truncate=False):
+        """ Find bin corresponding to given value.
+
+            Returns -1, if x < x_min
+            Returns N, if x > x_max, where N is the number of bins
+
+            Args:
+                x: float
+                   Value
+
+            Returns:
+                bin : int
+                    Bin number
+        """
+        if np.ndim(x) == 0:
+            x = [x]
+
+        x = np.array(x)
+        dx = (x_max - x_min) / bins
+        b = (x - x_min) / dx
+        b = b.astype(dtype=int, copy=False)
+
+        if truncate:
+            b[b < 0] = 0
+            b[b >= bins] = bins - 1
+        else:
+            b[b < 0] = -1
+            b[b >= bins] = bins
+
+        if len(b) == 1:
+            b = b[0]
+
+        return b
+
+
+    def _find_tbin(self, t, truncate=True):
         """ Find bin corresponding to given time.
+
             Returns -1, if t < t_min
             Returns N, if t > t_max, where N is the number of time bins
 
@@ -143,20 +182,16 @@ class Spectrogram():
                 bin : int
                     Bin number
         """
-        bin = int((t - self.tmin) / self.tres)
-        
-        if bin < 0:
-            bin = -1
-        if bin >= self.tbins():
-            bin = self.tbins()
-        
+        tmax = self.tmin + self.tbins() * self.tres
+        bin = self._find_bin(x=t, bins=self.tbins(), x_min=self.tmin, x_max=tmax, truncate=truncate)
         return bin
 
 
-    def _find_fbin(self, f):
-        """ Find bin corresponding to given frequency
-            Returns -1, if f < f_min
-            Returns N, if f > f_max, where N is the number of frequency bins
+    def _find_fbin(self, f, truncate=True):
+        """ Find bin corresponding to given frequency.
+
+            Returns -1, if f < f_min.
+            Returns N, if f > f_max, where N is the number of frequency bins.
 
             Args:
                 f: float
@@ -166,13 +201,7 @@ class Spectrogram():
                 bin: int
                      Bin number
         """
-        bin = int((f - self.fmin) / self.fres)
-
-        if bin < 0:
-            bin = -1
-        if bin >= self.fbins():
-            bin = self.fbins()
-
+        bin = self._find_bin(x=f, bins=self.fbins(), x_min=self.fmin, x_max=self.fmax(), truncate=truncate)
         return bin
 
 
@@ -249,13 +278,13 @@ class Spectrogram():
         f2 = Nf
 
         if tlow != None:
-            t1 = max(0, self._find_tbin(tlow))
+            t1 = self._find_tbin(tlow, truncate=True)
         if thigh != None:
-            t2 = min(Nt, self._find_tbin(thigh))
+            t2 = self._find_tbin(thigh, truncate=True)
         if flow != None:
-            f1 = max(0, self._find_fbin(flow))
+            f1 = self._find_fbin(flow, truncate=True)
         if fhigh != None:
-            f2 = min(Nf, self._find_fbin(fhigh))
+            f2 = self._find_fbin(fhigh, truncate=True)
             
         if t2 <= t1 or f2 <= f1:
             img = None
@@ -293,6 +322,50 @@ class Spectrogram():
         if self.flabels != None:
             self.flabels = self.flabels[f1:f1+self.shape[1]]
 
+
+    def clip(self, boxes):
+        """ Extract boxed areas from spectrogram.
+
+            Args:
+                boxes: 2d numpy array with shape=(?,4)                   
+        """
+        # sort boxes in chronological order
+        sorted(boxes, key=lambda box: box[0])
+
+        # get cuts
+        t1 = self._find_tbin(boxes[:,0]) # start time
+        t2 = self._find_tbin(boxes[:,1]) # end time
+        f1 = self._find_fbin(boxes[:,2]) # lower frequency
+        f2 = self._find_fbin(boxes[:,3]) # upper frequency
+
+        specs = []
+
+        # loop over boxes
+        N = len(boxes)
+        for i in range(N):
+            
+            fmin = boxes[i,2] # min frequency in Hz
+
+            # select box
+            img = self.image[t1[i]:t2[i], f1[i]:f2[i]]
+            spec = Spectrogram(image=img, tres=self.tres, fmin=fmin, fres=self.fres)
+
+            specs += spec
+
+        # complement
+        t2 = np.insert(t2, 0, 0)
+        t1 = np.append(t1, spec.tbins()-1)
+        for i in range(len(t1)):
+            if t2[i] < t1[i]:
+                if t2[i] == 0:
+                    img_c = self.image[t2[i]:t1[i]]
+                else:
+                    img_c = np.append(img_c, self.image[t2[i]:t1[i]])
+
+        self.image = img_c
+        self.tmin = 0
+
+        return specs
 
     def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
@@ -503,11 +576,10 @@ class MagSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False):
 
+        super(MagSpectrogram, self).__init__()
         self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
-        self.tmin = 0
-        self.fmin = 0
         self.timestamp = timestamp
         self.flabels = flabels
 
@@ -597,11 +669,10 @@ class PowerSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
                  hamming=True, NFFT=None, timestamp=None, compute_phase=False):
 
+        super(PowerSpectrogram, self).__init__()
         self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
         self.shape = self.image.shape
         self.tres = winstep
-        self.tmin = 0
-        self.fmin = 0
         self.timestamp = timestamp
         self.flabels = flabels
 
@@ -668,12 +739,11 @@ class MelSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
                  NFFT=None, timestamp=None, **kwargs):
 
+        super(MelSpectrogram, self).__init__()
         self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
                                                                                  hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
         self.shape = self.image.shape
         self.tres = winstep
-        self.tmin = 0
-        self.fmin = 0
         self.timestamp = timestamp
         self.flabels = flabels
 

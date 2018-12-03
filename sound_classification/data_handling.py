@@ -34,6 +34,7 @@ def tup2str(tup):
     s = re.sub('\ ', '', s)
     s = re.sub('\(', '[', s)
     s = re.sub('\)', ']', s)
+
     return s
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
@@ -500,6 +501,9 @@ def parse_seg_name(seg_name):
             A tuple with the id and label strings.
 
     """
+    if seg_name == '':
+        return (None, None)
+
     id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
     tmp = seg_name.split("_")[4]
     labels = tmp.split(".")[0]

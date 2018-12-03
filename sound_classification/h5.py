@@ -13,6 +13,8 @@ Authors: Fabio Frazao and Oliver Kirsebom
 """
 import tables
 import os
+import ast
+import numpy as np
 import sound_classification.data_handling as dh
 
 def open(h5file, table_path):
@@ -38,7 +40,7 @@ def open(h5file, table_path):
 
     return table
 
-def create(h5file, path, name, description, chunkshape=None, verbose=False):
+def create(h5file, path, name, shape, chunkshape=None, verbose=False):
     """ Create a new table.
 
         Args:
@@ -48,8 +50,10 @@ def create(h5file, path, name, description, chunkshape=None, verbose=False):
                 The group where the table will be located. Ex: '/features/spectrograms'
             name: str
                 The name of the table.
-            description: tables.IsDescription object
-                The descriptor class.
+            shape : tuple (ints)
+                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
+                to be stored in the table. Optionally, a third integer can be added if the 
+                spectrogram has multiple channels (n_rows, n_cols, n_channels).
             chunkshape: tuple
                 The chunk shape to be used for compression
 
@@ -79,18 +83,20 @@ def create(h5file, path, name, description, chunkshape=None, verbose=False):
     
     except tables.NoSuchNodeError:    
         filters = tables.Filters(complevel=1, fletcher32=True)
-        table = h5file.create_table(group, "{0}".format(name), description, filters=filters, chunkshape=chunkshape)
+        descrip = description(shape=shape)
+        table = h5file.create_table(group, "{0}".format(name), descrip, filters=filters, chunkshape=chunkshape)
 
     return table
 
-def spec_description(dimensions):
-    """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
+def description(shape):
+    """ Create the class that describes the table structure for the HDF5 database.
              
         Args:
-            dimension : tuple (ints)
-            A tuple with ints describing the number of rows and number of collumns of each 
-            image to be stored in the table (n_rows,n_cols). Optionally, a third integer 
-            can be added if the image has multiple channels (n_rows, n_cols, n_channels)
+            shape : tuple (ints)
+                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
+                to be stored in the table. Optionally, a third integer can be added if the 
+                spectrogram has multiple channels (n_rows, n_cols, n_channels).
+
         Results:
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure to be used when creating tables that 
@@ -99,16 +105,16 @@ def spec_description(dimensions):
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(25)
             labels = tables.StringCol(100)
-            signal = tables.Float32Col(shape=dimensions)
+            data = tables.Float32Col(shape=shape)
             boxes = tables.StringCol(100) 
     
     return TableDescription
 
-def write_spec(table, spectrogram, id=None, labels=None, boxes=None):
-    """ Write data from spectrogram object into the HDF5 table.
+def write(table, x, id=None, labels=None, boxes=None):
+    """ Write data into the HDF5 table.
 
         Note: If the id and labels fields are left blank, an attempt 
-        will be made to extract these data from the spectrogram tag 
+        will be made to extract these information from the tag 
         attribute assuming the tag format id_*_[l]_*.
         Example: spec.tag="id_78536_l_[1]"
 
@@ -117,15 +123,16 @@ def write_spec(table, spectrogram, id=None, labels=None, boxes=None):
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
 
-            spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
-            :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
-                Spectrogram object.
+            x: instance of :class:`spectrogram.MagSpectrogram', \
+            :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
+            :class:`audio_signal.AudioSignal`.
+                Data
 
             id: str
-                Spectrogram id (overwrites the id parsed from the spectrogram tag).
+                Identifier (overwrites the id parsed from the tag).
 
             labels: tuple(int)
-                Labels (overwrites the labels parsed from the spectrogram tag).
+                Labels (overwrites the labels parsed from the tag).
 
             boxes: tuple(tuple(int))
                 Boxes confining the regions of interest in time-frequency space
@@ -133,7 +140,7 @@ def write_spec(table, spectrogram, id=None, labels=None, boxes=None):
         Returns:
             None.
     """
-    id_parsed, labels_parsed = dh.parse_seg_name(spectrogram.tag)
+    id_parsed, labels_parsed = dh.parse_seg_name(x.tag)
 
     if id is None:
         id_str = id_parsed
@@ -145,15 +152,33 @@ def write_spec(table, spectrogram, id=None, labels=None, boxes=None):
     else:
         labels_str = dh.tup2str(labels)
 
+    if boxes is not None:          
+        if np.ndim(boxes) == 1:
+            boxes = (boxes,)
+
     boxes_str = dh.tup2str(boxes)
 
-    # check that number of labels match number of boxes
-    if labels is not None and boxes is not None:
-        assert len(labels) == len(boxes), 'Number of labels and number of boxes do not match'
-
     seg_r = table.row
-    seg_r["signal"] = spectrogram.image
+    seg_r["data"] = x.get_data()
     seg_r["id"] = id_str
     seg_r["labels"] = labels_str
     seg_r["boxes"] = boxes_str
     seg_r.append()
+
+def get(table, label, length, center=False, folder=None, save_complement=True):
+    # loop over items in table
+    for it in table:
+        labels = parse_labels(it)
+        boxes = parse_boxes(it)
+        data = it['data']
+                
+
+def parse_labels(table):
+    labels_str = table['labels'].decode()
+    labels = np.fromstring(string=labels_str, dtype=int, sep=',')
+    return labels
+
+def parse_boxes(table):
+    boxes_str = ast.literal_eval(table['boxes'].decode())
+    boxes = np.array(boxes_str)
+    return boxes

@@ -38,32 +38,28 @@ def test_h5_create():
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
     f = tables.open_file(fpath, 'w')
-    # table description
-    d = h5.spec_description(dimensions=(20,60))
     # create table
-    _ = h5.create(h5file=f, path='/group_1/', name='table_1', description=d)
+    _ = h5.create(h5file=f, path='/group_1/', name='table_1', shape=(20,60))
     assert '/group_1' in f
     assert '/group_1/table_1' in f    
     # clean
     f.close()
     os.remove(fpath)
 
-@pytest.mark.test_h5_write_spec
-def test_h5_write_spec(sine_audio):
+@pytest.mark.test_h5_write
+def test_h5_write(sine_audio):
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     spec.tag = "id_ex789_107_l_[1]"
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
     f = tables.open_file(fpath, 'w')
-    # table description
-    d = h5.spec_description(dimensions=spec.shape)
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', description=d)
+    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.shape)
     # write spectrogram to table
-    h5.write_spec(table=tbl, spectrogram=spec)
+    h5.write(table=tbl, x=spec)
     # write spectrogram to table with optional args
-    h5.write_spec(table=tbl, spectrogram=spec, id='123%', labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
+    h5.write(table=tbl, x=spec, id='123%', labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
 
     assert tbl[0]['id'].decode() == 'ex789_107'
     assert tbl[0]['labels'].decode() == '[1]'
@@ -75,3 +71,25 @@ def test_h5_write_spec(sine_audio):
 
     f.close()
     os.remove(fpath)
+
+@pytest.mark.test_h5_get
+def test_h5_get(sine_audio):
+    # create spectrogram    
+    spec = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
+    f = tables.open_file(fpath, 'w')
+    # create table
+    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.shape)
+    # write spectrogram to table
+    h5.write(table=tbl, x=spec, id='1', labels=(1), boxes=((1.0, 1.4, 50, 300)))  # Box: 1.0-1.4 s & 50-300 Hz
+    # parse labels and boxes
+    labels = h5.parse_labels(table=tbl[0])
+    boxes = h5.parse_boxes(table=tbl[0])
+    assert labels == [1]
+    assert boxes[0][0] == 1.0
+    assert boxes[0][1] == 1.4
+    assert boxes[0][2] == 50
+    assert boxes[0][3] == 300    
+    # get segments with label=1
+    h5.get(table=tbl, label=1, length=0.8)

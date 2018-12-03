@@ -143,6 +143,9 @@ class AudioSignal:
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
+    def get_data(self):
+        return self.data
+
     def to_wav(self, path):
         """ Save audio signal to wave file
 
