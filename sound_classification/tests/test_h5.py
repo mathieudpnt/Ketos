@@ -92,4 +92,4 @@ def test_h5_get(sine_audio):
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    h5.get(table=tbl, label=1, length=0.8)
+    h5.get(table=tbl, label=1, min_length=0.8)

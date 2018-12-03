@@ -147,7 +147,10 @@ class Spectrogram():
                     Bin number
         """
         if np.ndim(x) == 0:
+            scalar = True
             x = [x]
+        else:
+            scalar = False
 
         x = np.array(x)
         dx = (x_max - x_min) / bins
@@ -160,6 +163,9 @@ class Spectrogram():
         else:
             b[b < 0] = -1
             b[b >= bins] = bins
+
+        if scalar:
+            b = b[0]
 
         return b
 
@@ -319,7 +325,7 @@ class Spectrogram():
             self.flabels = self.flabels[f1:f1+self.image.shape[1]]
 
 
-    def clip(self, boxes):
+    def clip(self, boxes, fpad=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -338,24 +344,34 @@ class Spectrogram():
         sorted(boxes, key=lambda box: box[0])
 
         boxes = np.array(boxes)
+        N = boxes.shape[0]
 
         # get cuts
         t1 = self._find_tbin(boxes[:,0]) # start time
         t2 = self._find_tbin(boxes[:,1]) # end time
-        f1 = self._find_fbin(boxes[:,2]) # lower frequency
-        f2 = self._find_fbin(boxes[:,3]) # upper frequency
-
+        if boxes.shape[1] == 4:
+            f1 = self._find_fbin(boxes[:,2]) # lower frequency
+            f2 = self._find_fbin(boxes[:,3]) # upper frequency
+        else:
+            f1 = np.zeros(N, dtype=int)
+            f2 = np.ones(N, dtype=int) * self.fbins()
+        
         specs = list()
 
         # loop over boxes
-        N = boxes.shape[0]
         for i in range(N):
             
             fmin = self.fmin + self.fres * f1[i]
             fmin = max(fmin, self.fmin) # min frequency in Hz
 
             # select box
-            img = self.image[t1[i]:t2[i], f1[i]:f2[i]]
+            if fpad is True:
+                img = self.image[t1[i]:t2[i],:]
+                img[:,0:f1] = 0
+                img[:,f2:] = 0 
+            else:
+                img = self.image[t1[i]:t2[i], f1[i]:f2[i]]
+
             spec = Spectrogram(image=img, tres=self.tres, fmin=fmin, fres=self.fres)
 
             specs.append(spec)
@@ -363,12 +379,14 @@ class Spectrogram():
         # complement
         t2 = np.insert(t2, 0, 0)
         t1 = np.append(t1, self.tbins())
+        t2max = 0
         for i in range(len(t1)):
-            if t2[i] < t1[i]:
-                if t2[i] == 0:
-                    img_c = self.image[t2[i]:t1[i]]
+            t2max = max(t2[i], t2max)
+            if t2max < t1[i]:
+                if t2max == 0:
+                    img_c = self.image[t2max:t1[i]]
                 else:
-                    img_c = np.append(img_c, self.image[t2[i]:t1[i]], axis=0)
+                    img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
 
         self.image = img_c
         self.tmin = 0

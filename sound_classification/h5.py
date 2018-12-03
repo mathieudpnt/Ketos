@@ -165,12 +165,18 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r["boxes"] = boxes_str
     seg_r.append()
 
-def get(table, label, length, center=False, folder=None, save_complement=True):
+def get(table, label, min_length, center=False, folder=None, save_complement=True):
+    # selected segments
+    segs = list()
+    # complement
+#    compl
     # loop over items in table
     for it in table:
         labels = parse_labels(it)
         boxes = parse_boxes(it)
+        boxes = ensure_min_length(boxes=boxes, min_length=min_length)
         data = it['data']
+
                 
 
 def parse_labels(table):
@@ -181,4 +187,7 @@ def parse_labels(table):
 def parse_boxes(table):
     boxes_str = ast.literal_eval(table['boxes'].decode())
     boxes = np.array(boxes_str)
+    return boxes
+
+def ensure_min_length(boxes, min_length):
     return boxes

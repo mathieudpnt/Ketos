@@ -117,6 +117,17 @@ def test_clip_one_box():
     assert y[0].image[1,0] == 1.2
     assert spec.image[8,0] == 1.66
 
+def test_clip_2d_box():    
+    img = np.ones(shape=(20,30))
+    img[6,0] = 1.2
+    img[13,0] = 1.66
+    spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
+    box = [5.1, 10.5]
+    y = spec.clip(boxes=box)
+    assert len(y) == 1
+    assert y[0].image.shape[0] == 5
+    assert y[0].image.shape[1] == img.shape[1]
+
 def test_clip_two_boxes():    
     img = np.ones(shape=(20,30))
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
@@ -134,7 +145,7 @@ def test_clip_two_boxes():
 
 def test_sum_spectrogram_has_same_shape_as_original(sine_audio):
     spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    orig_shape = spec1.shape
+    orig_shape = spec1.image.shape
     spec2 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     spec2.crop(tlow=1.0, thigh=2.5, flow=1000, fhigh=4000)
     spec1.add(spec2, delay=0, scale=1)
@@ -311,7 +322,6 @@ def test_blur_time_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     spec.image = img
-    spec.shape = img.shape
     sig = 2.0
     spec.blur_gaussian(tsigma=sig, fsigma=0.01)
     xy = spec.image / np.max(spec.image)
@@ -326,7 +336,6 @@ def test_blur_freq_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     spec.image = img
-    spec.shape = img.shape
     sig = 4.2
     spec.blur_gaussian(tsigma=0.01, fsigma=sig)
     xy = spec.image / np.max(spec.image)
