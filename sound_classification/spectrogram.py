@@ -322,8 +322,14 @@ class Spectrogram():
     def clip(self, boxes):
         """ Extract boxed areas from spectrogram.
 
+            After clipping, this instance contains the remaining part of the spectrogram.
+
             Args:
-                boxes: 2d numpy array with shape=(?,4)                   
+                boxes: 2d numpy array with shape=(?,4)   
+
+            Returns:
+                specs: list(Spectrogram)
+                    List of clipped spectrograms.                
         """
         if np.ndim(boxes) == 1:
             boxes = [boxes]
