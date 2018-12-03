@@ -37,7 +37,6 @@ class Spectrogram():
     def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag=''):
         
         self.image = image
-        self.shape = self.image.shape
         self.NFFT = NFFT
         self.tres = tres
         self.tmin = tmin
@@ -161,9 +160,6 @@ class Spectrogram():
         else:
             b[b < 0] = -1
             b[b >= bins] = bins
-
-        if len(b) == 1:
-            b = b[0]
 
         return b
 
@@ -320,7 +316,7 @@ class Spectrogram():
         self.fmin += self.fres * f1
         
         if self.flabels != None:
-            self.flabels = self.flabels[f1:f1+self.shape[1]]
+            self.flabels = self.flabels[f1:f1+self.image.shape[1]]
 
 
     def clip(self, boxes):
@@ -329,8 +325,13 @@ class Spectrogram():
             Args:
                 boxes: 2d numpy array with shape=(?,4)                   
         """
+        if np.ndim(boxes) == 1:
+            boxes = [boxes]
+
         # sort boxes in chronological order
         sorted(boxes, key=lambda box: box[0])
+
+        boxes = np.array(boxes)
 
         # get cuts
         t1 = self._find_tbin(boxes[:,0]) # start time
@@ -338,29 +339,30 @@ class Spectrogram():
         f1 = self._find_fbin(boxes[:,2]) # lower frequency
         f2 = self._find_fbin(boxes[:,3]) # upper frequency
 
-        specs = []
+        specs = list()
 
         # loop over boxes
-        N = len(boxes)
+        N = boxes.shape[0]
         for i in range(N):
             
-            fmin = boxes[i,2] # min frequency in Hz
+            fmin = self.fmin + self.fres * f1[i]
+            fmin = max(fmin, self.fmin) # min frequency in Hz
 
             # select box
             img = self.image[t1[i]:t2[i], f1[i]:f2[i]]
             spec = Spectrogram(image=img, tres=self.tres, fmin=fmin, fres=self.fres)
 
-            specs += spec
+            specs.append(spec)
 
         # complement
         t2 = np.insert(t2, 0, 0)
-        t1 = np.append(t1, spec.tbins()-1)
+        t1 = np.append(t1, self.tbins())
         for i in range(len(t1)):
             if t2[i] < t1[i]:
                 if t2[i] == 0:
                     img_c = self.image[t2[i]:t1[i]]
                 else:
-                    img_c = np.append(img_c, self.image[t2[i]:t1[i]])
+                    img_c = np.append(img_c, self.image[t2[i]:t1[i]], axis=0)
 
         self.image = img_c
         self.tmin = 0
@@ -578,7 +580,6 @@ class MagSpectrogram(Spectrogram):
 
         super(MagSpectrogram, self).__init__()
         self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
-        self.shape = self.image.shape
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels
@@ -671,7 +672,6 @@ class PowerSpectrogram(Spectrogram):
 
         super(PowerSpectrogram, self).__init__()
         self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
-        self.shape = self.image.shape
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels
@@ -742,7 +742,6 @@ class MelSpectrogram(Spectrogram):
         super(MelSpectrogram, self).__init__()
         self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
                                                                                  hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
-        self.shape = self.image.shape
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels

@@ -89,14 +89,48 @@ def test_init_mel_spectrogram_with_kwargs(sine_audio):
     assert spec.fmin == 0
     assert spec.image.shape[1] == 40
 
-def test_find_bins(sine_audio):    
-    duration = sine_audio.seconds()
-    winlen = duration/4
-    winstep = duration/10
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    b0 = spec._find_tbin(t=0)
-    assert b0 == 0
-    bins = spec._find_fbin(f=[0,1])
+def test_find_bins():    
+    img = np.ones(shape=(20,30))
+    spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
+    b = spec._find_tbin(t=[0.5, 4.5, 99])
+    assert b[0] == 0
+    assert b[1] == 4
+    assert b[2] == img.shape[0]-1
+    b = spec._find_fbin(f=[30, 61.2])
+    assert b[0] == 0
+    assert b[1] == 1
+    b = spec._find_fbin(f=[200])
+    assert b[0] == img.shape[1]-1
+
+def test_clip_one_box():    
+    img = np.ones(shape=(20,30))
+    img[6,0] = 1.2
+    img[13,0] = 1.66
+    spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
+    box = [5.1, 10.5, 30., 64.3]
+    y = spec.clip(boxes=box)
+    assert len(y) == 1
+    assert y[0].image.shape[0] == 5
+    assert y[0].image.shape[1] == 7
+    assert y[0].fmin == 60.5
+    assert spec.image.shape[0] == img.shape[0] - y[0].image.shape[0]
+    assert y[0].image[1,0] == 1.2
+    assert spec.image[8,0] == 1.66
+
+def test_clip_two_boxes():    
+    img = np.ones(shape=(20,30))
+    spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
+    box1 = [5.1, 10.5, 30., 64.3]
+    box2 = [6.1, 11.5, 64.1, 65.1]
+    y = spec.clip(boxes=[box1,box2])
+    assert len(y) == 2
+    assert y[0].image.shape[0] == 5
+    assert y[0].image.shape[1] == 7
+    assert y[0].fmin == 60.5
+    assert y[1].image.shape[0] == 5
+    assert y[1].image.shape[1] == 2
+    assert y[1].fmin == 64.0
+    assert spec.image.shape[0] == img.shape[0] - 6
 
 def test_sum_spectrogram_has_same_shape_as_original(sine_audio):
     spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
