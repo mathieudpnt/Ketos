@@ -143,6 +143,14 @@ def test_clip_two_boxes():
     assert y[1].fmin == 64.0
     assert spec.image.shape[0] == img.shape[0] - 6
 
+def test_append_spectrogram(sine_audio):
+    spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    spec2 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    size = spec1.image.shape
+    spec1.append(spec2)
+    assert spec1.image.shape[0] == 2*size[0]
+    assert spec1.image.shape[1] == size[1]
+
 def test_sum_spectrogram_has_same_shape_as_original(sine_audio):
     spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     orig_shape = spec1.image.shape

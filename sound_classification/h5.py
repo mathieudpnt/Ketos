@@ -203,12 +203,12 @@ def get(table, label, min_length, center=False):
         # clip
         segs = x.clip(boxes=boxes)
         for s in segs:
-            selection.append(s.get_data())
+            selection.append(s)
 
         if complement is None:
-            complement = x.get_data()
+            complement = x
         else:
-            complement = np.append(complement, x.get_data(), axis=0)
+            complement.append(x)
 
     return selection, complement
 

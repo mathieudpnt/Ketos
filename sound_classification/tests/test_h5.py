@@ -116,8 +116,8 @@ def test_h5_get(sine_audio):
     selection, complement = h5.get(table=tbl, label=1, min_length=0.8)
     assert len(selection) == 1
     tshape = int(0.8 / spec.tres)
-    assert selection[0].shape[0] == tshape
+    assert selection[0].image.shape[0] == tshape
     fshape = int(250 / spec.fres)
-    assert selection[0].shape[1] == fshape
-    assert complement.shape[0] == spec.image.shape[0] - tshape
+    assert selection[0].image.shape[1] == fshape
+    assert complement.image.shape[0] == spec.image.shape[0] - tshape
     

@@ -331,7 +331,8 @@ class Spectrogram():
             After clipping, this instance contains the remaining part of the spectrogram.
 
             Args:
-                boxes: 2d numpy array with shape=(?,4)   
+                boxes: numpy array
+                    2d numpy array with shape=(?,4)   
 
             Returns:
                 specs: list(Spectrogram)
@@ -515,8 +516,8 @@ class Spectrogram():
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
 
             Args:
-                signal: AudioSignal
-                    Audio signal to be added
+                spec: Spectrogram
+                    Spectrogram to be added
                 delay: float
                     Shift the audio signal by this many seconds
                 scale: float
@@ -539,6 +540,21 @@ class Spectrogram():
         t1 = self._find_tbin(self.tmin + delay)
         f1 = self._find_fbin(spec.fmin)
         self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
+
+    def append(self, spec):
+        """ Append another spectrogram to this spectrogram.
+            The spectrograms must have the same dimensions and resolutions.
+
+            Args:
+                spec: Spectrogram
+                    Spectrogram to be added
+        """
+        assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
+        assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
+
+        assert np.all(self.image.shape == spec.image.shape), 'It is not possible to add spectrograms with different shapes'
+
+        self.image = np.append(self.image, spec.image, axis=0)
 
 
     def plot(self, decibel=False):

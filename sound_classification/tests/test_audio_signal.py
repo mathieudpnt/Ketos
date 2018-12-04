@@ -42,7 +42,7 @@ def test_crop_audio_signal(sine_audio):
     assert audio_cropped.begin() == crop_begin
 
 
-def test_clip_with_positive_sample_id(sine_audio):
+def test_split_with_positive_sample_id(sine_audio):
     audio = sine_audio 
     t0 = audio.time_stamp
     first = audio.data[0]
@@ -50,7 +50,7 @@ def test_clip_with_positive_sample_id(sine_audio):
     n = len(audio.data)
     m = int(0.1*n)
     dt = m / audio.rate
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == m
     assert len(audio.data) == n-m
     assert first == s.data[0]
@@ -58,15 +58,15 @@ def test_clip_with_positive_sample_id(sine_audio):
     assert audio.time_stamp == t0 + datetime.timedelta(microseconds=1e6*dt)
     assert s.time_stamp == t0
 
-def test_clip_with_sample_larger_than_length(sine_audio):
+def test_split_with_sample_larger_than_length(sine_audio):
     audio = sine_audio
     n = len(audio.data)
     m = int(1.5*n)
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == n
     assert audio.empty() == True
 
-def test_clip_with_negative_sample_id(sine_audio):
+def test_split_with_negative_sample_id(sine_audio):
     audio = sine_audio
     t0 = audio.begin()
     t1 = audio.end()
@@ -75,7 +75,7 @@ def test_clip_with_negative_sample_id(sine_audio):
     n = len(audio.data)
     m = -int(0.2*n)
     dt = -m / audio.rate
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == -m
     assert len(audio.data) == n+m
     assert first == audio.data[0]
@@ -193,3 +193,11 @@ def test_gaussian_noise():
     assert noise.std() == pytest.approx(2, rel=0.05) # check standard deviation
     assert noise.average() == pytest.approx(0, abs=3*2/np.sqrt(40000)) # check mean
     assert noise.seconds() == 20 # check length
+
+def test_clip(sine_audio):
+    audio = sine_audio
+    segs = audio.clip(boxes=[[0.1, 0.4],[0.3, 0.7]])
+    assert len(segs) == 2
+    assert segs[0].seconds() == pytest.approx(0.3, abs=2./audio.rate)
+    assert segs[1].seconds() == pytest.approx(0.4, abs=2./audio.rate)
+    assert audio.seconds() == pytest.approx(3.0-0.6, abs=2./audio.rate)
