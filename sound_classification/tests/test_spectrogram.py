@@ -132,7 +132,7 @@ def test_extract_two_boxes():
     img = np.ones(shape=(20,30))
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box1 = [5.1, 10.5, 30., 64.3]
-    box2 = [6.1, 11.5, 64.1, 65.1]
+    box2 = (6.1, 11.5, 64.1, 65.1)
     y = spec._extract(boxes=[box1,box2])
     assert len(y) == 2
     assert y[0].image.shape[0] == 5

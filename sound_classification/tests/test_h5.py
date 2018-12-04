@@ -95,8 +95,8 @@ def test_h5_write_audio_signal(sine_audio):
     f.close()
     os.remove(fpath)
 
-@pytest.mark.test_h5_get
-def test_h5_get(sine_audio):
+@pytest.mark.test_h5_extract
+def test_h5_extract(sine_audio):
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
     # open h5 file
@@ -115,7 +115,7 @@ def test_h5_get(sine_audio):
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    selection, complement = h5.get(table=tbl, label=1, min_length=0.8, fpad=False)
+    selection, complement = h5.extract(table=tbl, label=1, min_length=0.8, fpad=False)
     assert len(selection) == 1
     tshape = int(0.8 / spec.tres)
     assert selection[0].image.shape[0] == tshape

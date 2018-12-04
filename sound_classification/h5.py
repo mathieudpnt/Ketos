@@ -174,7 +174,7 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r["boxes"] = boxes_str
     seg_r.append()
 
-def get(table, label, min_length, center=False, fpad=True):
+def extract(table, label, min_length, center=False, fpad=True):
 
     # selected segments
     selection = list()
