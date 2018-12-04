@@ -174,7 +174,7 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r["boxes"] = boxes_str
     seg_r.append()
 
-def get(table, label, min_length, center=False, folder=None, save_complement=True):
+def get(table, label, min_length, center=False):
 
     # selected segments
     selection = list()
@@ -189,7 +189,7 @@ def get(table, label, min_length, center=False, folder=None, save_complement=Tru
         boxes = select_boxes(boxes=boxes, labels=labels, label=label)
 
         # ensure that time interval has a certain minimum length
-        boxes = ensure_min_length(boxes=boxes, min_length=min_length)
+        boxes = ensure_min_length(boxes=boxes, min_length=min_length, center=center)
 
         # get the data (audio signal or spectrogram)
         data = it['data']
@@ -219,7 +219,6 @@ def select_boxes(boxes, labels, label):
             res.append(b)
     return res
 
-
 def parse_labels(table):
     labels_str = table['labels'].decode()
     labels = np.fromstring(string=labels_str, dtype=int, sep=',')
@@ -230,13 +229,16 @@ def parse_boxes(table):
     boxes = np.array(boxes_str)
     return boxes
 
-def ensure_min_length(boxes, min_length):
+def ensure_min_length(boxes, min_length, center=False):
     for b in boxes:
         t1 = b[0]
         t2 = b[1]
         dt = min_length - (t2 - t1)
         if dt > 0:
-            r = np.random.random_sample()
+            if center:
+                r = 0.5
+            else:
+                r = np.random.random_sample()
             t1 -= r * dt
             t2 += (1-r) * dt
             if t1 < 0:
