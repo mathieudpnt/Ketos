@@ -46,8 +46,8 @@ def test_h5_create():
     f.close()
     os.remove(fpath)
 
-@pytest.mark.test_h5_write
-def test_h5_write(sine_audio):
+@pytest.mark.test_h5_write_spec
+def test_h5_write_spec(sine_audio):
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     spec.tag = "id_ex789_107_l_[1]"
@@ -68,6 +68,29 @@ def test_h5_write(sine_audio):
     assert tbl[1]['id'].decode() == '123%'
     assert tbl[1]['labels'].decode() == '[1,2]'
     assert tbl[1]['boxes'].decode() == '[[1,2,3,4],[1.5,2.5,3.5,4.5]]'
+
+    f.close()
+    os.remove(fpath)
+
+@pytest.mark.test_h5_write_audio_signal
+def test_h5_write_audio_signal(sine_audio):
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
+    f = tables.open_file(fpath, 'w')
+    # create table
+    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
+    # write audio signal to table
+    h5.write(table=tbl, x=sine_audio)
+    # write audio signal to table with optional args
+    h5.write(table=tbl, x=sine_audio, id='123%', labels=(1,2), boxes=((1,2),(1.5,2.5)))
+
+    assert tbl[0]['id'].decode() == 'None'
+    assert tbl[0]['labels'].decode() == 'None'
+    assert tbl[0]['boxes'].decode() == ''
+
+    assert tbl[1]['id'].decode() == '123%'
+    assert tbl[1]['labels'].decode() == '[1,2]'
+    assert tbl[1]['boxes'].decode() == '[[1,2],[1.5,2.5]]'
 
     f.close()
     os.remove(fpath)

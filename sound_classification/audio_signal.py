@@ -22,7 +22,7 @@ class AudioSignal:
             tag: str
                 Optional meta data string
     """
-    def __init__(self, rate, data, tag=""):
+    def __init__(self, rate, data, tag=''):
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
