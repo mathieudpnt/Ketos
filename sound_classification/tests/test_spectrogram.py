@@ -102,13 +102,13 @@ def test_find_bins():
     b = spec._find_fbin(f=[200])
     assert b[0] == img.shape[1]-1
 
-def test_clip_one_box():    
+def test_extract_one_box():    
     img = np.ones(shape=(20,30))
     img[6,0] = 1.2
     img[13,0] = 1.66
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box = [5.1, 10.5, 30., 64.3]
-    y = spec.clip(boxes=box)
+    y = spec._extract(boxes=box)
     assert len(y) == 1
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == 7
@@ -117,23 +117,23 @@ def test_clip_one_box():
     assert y[0].image[1,0] == 1.2
     assert spec.image[8,0] == 1.66
 
-def test_clip_2d_box():    
+def test_extract_2d_box():    
     img = np.ones(shape=(20,30))
     img[6,0] = 1.2
     img[13,0] = 1.66
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box = [5.1, 10.5]
-    y = spec.clip(boxes=box)
+    y = spec._extract(boxes=box)
     assert len(y) == 1
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == img.shape[1]
 
-def test_clip_two_boxes():    
+def test_extract_two_boxes():    
     img = np.ones(shape=(20,30))
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box1 = [5.1, 10.5, 30., 64.3]
     box2 = [6.1, 11.5, 64.1, 65.1]
-    y = spec.clip(boxes=[box1,box2])
+    y = spec._extract(boxes=[box1,box2])
     assert len(y) == 2
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == 7
@@ -361,3 +361,27 @@ def test_create_audio_from_spectrogram(sine_audio):
     audio = spec.audio_signal()
     assert audio.rate == sine_audio.rate
 
+def test_annotate():
+    spec = Spectrogram()
+    spec.annotate(labels=1, boxes=[1,2,3,4])
+    spec.annotate(labels=[2,3], boxes=[[1,2,3,4],[5,6,7,8]])
+    assert len(spec.labels) == 3
+    spec.delete_annotations(id=[0,1])
+    assert len(spec.labels) == 1
+    assert spec.labels[0] == 3
+
+def test_make_spec_from_cut():
+    img = np.zeros((19,31))
+    spec = Spectrogram(image=img)
+    labels = [1,2]
+    box1 = [14.,17.,0.,29.]
+    box2 = [2.1,13.0,1.1,28.5]
+    boxes = [box1, box2]
+    spec.annotate(labels=labels, boxes=boxes)
+    scut = spec._make_spec_from_cut(2,5,24,27)
+    assert len(scut.labels) == 1
+    assert scut.labels[0] == 2
+    assert scut.boxes[0][0] == pytest.approx(0.1, abs=0.001)
+    assert scut.boxes[0][1] == pytest.approx(3.0, abs=0.001)
+    assert scut.boxes[0][2] == pytest.approx(24.0, abs=0.001)
+    assert scut.boxes[0][3] == pytest.approx(27.0, abs=0.001)

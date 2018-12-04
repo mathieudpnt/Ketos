@@ -186,10 +186,6 @@ def get(table, label, min_length, center=False):
         # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
-        boxes = select_boxes(boxes=boxes, labels=labels, label=label)
-
-        # ensure that time interval has a certain minimum length
-        boxes = ensure_min_length(boxes=boxes, min_length=min_length, center=center)
 
         # get the data (audio signal or spectrogram)
         data = it['data']
@@ -199,9 +195,10 @@ def get(table, label, min_length, center=False):
             x = AudioSignal(rate=table.attrs.sample_rate, data=data)
         elif np.ndim(data) == 2:
             x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min)
+            x.annotate(labels=labels, boxes=boxes)
 
         # clip
-        segs = x.clip(boxes=boxes)
+        segs = x.exctract(label=label, min_length=min_length, fpad=True)
         for s in segs:
             selection.append(s)
 

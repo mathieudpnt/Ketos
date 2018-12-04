@@ -5,6 +5,7 @@ from scipy import ndimage
 from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
+import math
 from sound_classification.pre_processing import make_frames
 from sound_classification.audio_signal import AudioSignal
 
@@ -45,6 +46,28 @@ class Spectrogram():
         self.timestamp = timestamp
         self.flabels = flabels
         self.tag = tag
+        self.labels = []
+        self.boxes = []
+
+    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
+
+        # cut image
+        if fpad:
+            img = self.image[tbin1:tbin2]
+            img[:,:fbin1] = 0
+            img[:,fbin2:] = 0 
+            fmin = self.fmin
+        else:
+            img = self.image[tbin1:tbin2, fbin1:fbin2]
+            fmin = self.fmin + self.fres * fbin1
+            fmin = max(fmin, self.fmin)
+
+        # labels and boxes
+        labels, boxes = self._cut_annotations(tbin1=tbin1, tbin2=tbin2, fbin1=fbin1, fbin2=fbin2)
+
+        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=0, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
+        spec.annotate(labels=labels, boxes=boxes)
+        return spec
 
     def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
         """ Create spectrogram from audio signal
@@ -132,6 +155,52 @@ class Spectrogram():
     def get_data(self):
         return self.image
 
+    def annotate(self, labels, boxes):
+        if np.ndim(labels) == 0:
+            self.labels.append(labels)
+            self.boxes.append(boxes)
+        else:
+            assert len(labels) == len(boxes), 'number of boxes must be equal to number of labels'
+
+            for l,b in zip(labels, boxes):
+                self.labels.append(l)
+                self.boxes.append(b)
+
+    def delete_annotations(self, id=None):
+        if id is None:
+            self.labels = []
+            self.boxes = []
+        else:
+            # sort id's in ascending order 
+            id = sorted(id, reverse=True)
+            for i in id:
+                if i < len(self.labels):
+                    del self.labels[i]
+                    del self.boxes[i]
+
+    def _cut_annotations(self, tbin1=0, tbin2=math.inf, fbin1=0, fbin2=math.inf):
+        # convert from bin no. to time/frequency values
+        t1 = self._tbin_low(tbin1)
+        t2 = self._tbin_low(tbin2)
+        f1 = self._fbin_low(fbin1)
+        f2 = self._fbin_low(fbin2)
+
+        # loop over annotations
+        labels, boxes = [], []
+        for l, b in zip(self.labels, self.boxes):
+            # check if box overlaps with cut
+            if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
+                # update box boundaries
+                b[0] -= t1
+                b[1] -= t1
+                b[1] = min(b[1], t2-t1)
+                b[2] = max(b[2], f1)
+                b[3] = min(b[3], f2)
+                labels.append(l)
+                boxes.append(b)
+
+        return labels, boxes
+
     def _find_bin(self, x, bins, x_min, x_max, truncate=False):
         """ Find bin corresponding to given value.
 
@@ -188,6 +257,9 @@ class Spectrogram():
         bin = self._find_bin(x=t, bins=self.tbins(), x_min=self.tmin, x_max=tmax, truncate=truncate)
         return bin
 
+    def _tbin_low(self, bin):
+        t = self.tmin + bin * self.tres
+        return t
 
     def _find_fbin(self, f, truncate=True):
         """ Find bin corresponding to given frequency.
@@ -206,6 +278,9 @@ class Spectrogram():
         bin = self._find_bin(x=f, bins=self.fbins(), x_min=self.fmin, x_max=self.fmax(), truncate=truncate)
         return bin
 
+    def _fbin_low(self, bin):
+        f = self.fmin + bin * self.fres
+        return f
 
     def tbins(self):
         return self.image.shape[0]
@@ -324,8 +399,47 @@ class Spectrogram():
         if self.flabels != None:
             self.flabels = self.flabels[f1:f1+self.image.shape[1]]
 
+    def exctract(self, label, min_length=None, center=False, fpad=False):
+        # select boxes of interest (BOI)
+        boi = self._select_boxes(label)
+        # strech to minimum length, if necessary
+        boi = self._strech(boxes=boi, min_length=min_length, center=center)
+        # extract
+        res = self._extract(boxes=boi, fpad=fpad)
+        return res
 
-    def clip(self, boxes, fpad=False):
+    def _select_boxes(self, label):
+        res = list()
+        if len(self.labels) == 0:
+            return res
+
+        for b, l in zip(self.boxes, self.labels):
+            if l == label:
+                res.append(b)
+
+        return res
+
+    def _strech(self, boxes, min_length, center=False):
+        for b in boxes:
+            t1 = b[0]
+            t2 = b[1]
+            dt = min_length - (t2 - t1)
+            if dt > 0:
+                if center:
+                    r = 0.5
+                else:
+                    r = np.random.random_sample()
+                t1 -= r * dt
+                t2 += (1-r) * dt
+                if t1 < 0:
+                    t2 -= t1
+                    t1 = 0
+            b[0] = t1
+            b[1] = t2
+
+        return boxes
+
+    def _extract(self, boxes, fpad=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -342,17 +456,17 @@ class Spectrogram():
             boxes = [boxes]
 
         # sort boxes in chronological order
-        sorted(boxes, key=lambda box: box[0])
+        boxes = sorted(boxes, key=lambda box: box[0])
 
         boxes = np.array(boxes)
         N = boxes.shape[0]
 
-        # get cuts
-        t1 = self._find_tbin(boxes[:,0]) # start time
-        t2 = self._find_tbin(boxes[:,1]) # end time
+        # convert from time/frequency to bin numbers
+        t1 = self._find_tbin(boxes[:,0]) # start time bin
+        t2 = self._find_tbin(boxes[:,1]) # end time bin
         if boxes.shape[1] == 4:
-            f1 = self._find_fbin(boxes[:,2]) # lower frequency
-            f2 = self._find_fbin(boxes[:,3]) # upper frequency
+            f1 = self._find_fbin(boxes[:,2]) # lower frequency bin
+            f2 = self._find_fbin(boxes[:,3]) # upper frequency bin
         else:
             f1 = np.zeros(N, dtype=int)
             f2 = np.ones(N, dtype=int) * self.fbins()
@@ -360,21 +474,8 @@ class Spectrogram():
         specs = list()
 
         # loop over boxes
-        for i in range(N):
-            
-            fmin = self.fmin + self.fres * f1[i]
-            fmin = max(fmin, self.fmin) # min frequency in Hz
-
-            # select box
-            if fpad is True:
-                img = self.image[t1[i]:t2[i],:]
-                img[:,0:f1] = 0
-                img[:,f2:] = 0 
-            else:
-                img = self.image[t1[i]:t2[i], f1[i]:f2[i]]
-
-            spec = Spectrogram(image=img, tres=self.tres, fmin=fmin, fres=self.fres)
-
+        for i in range(N):            
+            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad)
             specs.append(spec)
 
         # complement
