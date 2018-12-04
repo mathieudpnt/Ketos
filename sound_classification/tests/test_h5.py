@@ -95,27 +95,6 @@ def test_h5_write_audio_signal(sine_audio):
     f.close()
     os.remove(fpath)
 
-@pytest.mark.test_h5_ensure_min_length
-def test_h5_ensure_min_length():
-    box1 = [1.0, 2.0]
-    box2 = [0.5, 4.0]
-    min_length = 2.0
-    boxes = [box1, box2]
-    boxes = h5.ensure_min_length(boxes=boxes, min_length=min_length)
-    assert len(boxes) == 2
-    assert boxes[0][1]-boxes[0][0] == pytest.approx(min_length, abs=0.0001)
-    assert boxes[1][1]-boxes[1][0] > min_length
-
-@pytest.mark.test_h5_select_boxes
-def test_h5_select_boxes():
-    box1 = [1.0, 2.0]
-    box2 = [0.5, 4.0]
-    labels = [1, 2]
-    label = 1
-    boxes = h5.select_boxes(boxes=[box1, box2], labels=labels, label=label)
-    assert len(boxes) == 1
-    assert boxes[0] == [1.0, 2.0]
-
 @pytest.mark.test_h5_get
 def test_h5_get(sine_audio):
     # create spectrogram    
@@ -136,7 +115,7 @@ def test_h5_get(sine_audio):
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    selection, complement = h5.get(table=tbl, label=1, min_length=0.8)
+    selection, complement = h5.get(table=tbl, label=1, min_length=0.8, fpad=False)
     assert len(selection) == 1
     tshape = int(0.8 / spec.tres)
     assert selection[0].image.shape[0] == tshape

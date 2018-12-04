@@ -174,7 +174,7 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r["boxes"] = boxes_str
     seg_r.append()
 
-def get(table, label, min_length, center=False):
+def get(table, label, min_length, center=False, fpad=True):
 
     # selected segments
     selection = list()
@@ -198,7 +198,7 @@ def get(table, label, min_length, center=False):
             x.annotate(labels=labels, boxes=boxes)
 
         # clip
-        segs = x.exctract(label=label, min_length=min_length, fpad=True)
+        segs = x.exctract(label=label, min_length=min_length, fpad=fpad)
         for s in segs:
             selection.append(s)
 
@@ -209,13 +209,6 @@ def get(table, label, min_length, center=False):
 
     return selection, complement
 
-def select_boxes(boxes, labels, label):
-    res = list()
-    for b, l in zip(boxes, labels):
-        if l == label:
-            res.append(b)
-    return res
-
 def parse_labels(table):
     labels_str = table['labels'].decode()
     labels = np.fromstring(string=labels_str, dtype=int, sep=',')
@@ -224,24 +217,4 @@ def parse_labels(table):
 def parse_boxes(table):
     boxes_str = ast.literal_eval(table['boxes'].decode())
     boxes = np.array(boxes_str)
-    return boxes
-
-def ensure_min_length(boxes, min_length, center=False):
-    for b in boxes:
-        t1 = b[0]
-        t2 = b[1]
-        dt = min_length - (t2 - t1)
-        if dt > 0:
-            if center:
-                r = 0.5
-            else:
-                r = np.random.random_sample()
-            t1 -= r * dt
-            t2 += (1-r) * dt
-            if t1 < 0:
-                t2 -= t1
-                t1 = 0
-        b[0] = t1
-        b[1] = t2
-
     return boxes

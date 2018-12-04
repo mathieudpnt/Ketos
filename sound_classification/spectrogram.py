@@ -403,7 +403,7 @@ class Spectrogram():
         # select boxes of interest (BOI)
         boi = self._select_boxes(label)
         # strech to minimum length, if necessary
-        boi = self._strech(boxes=boi, min_length=min_length, center=center)
+        boi = self._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
         res = self._extract(boxes=boi, fpad=fpad)
         return res
@@ -419,7 +419,7 @@ class Spectrogram():
 
         return res
 
-    def _strech(self, boxes, min_length, center=False):
+    def _stretch(self, boxes, min_length, center=False):
         for b in boxes:
             t1 = b[0]
             t2 = b[1]

@@ -385,3 +385,28 @@ def test_make_spec_from_cut():
     assert scut.boxes[0][1] == pytest.approx(3.0, abs=0.001)
     assert scut.boxes[0][2] == pytest.approx(24.0, abs=0.001)
     assert scut.boxes[0][3] == pytest.approx(27.0, abs=0.001)
+
+@pytest.mark.test_stretch
+def test_stretch():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 4.0]
+    min_length = 2.0
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=[box1,box2])
+    boxes = spec._stretch(boxes=boxes, min_length=min_length)
+    assert len(boxes) == 2
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(min_length, abs=0.0001)
+    assert boxes[1][1]-boxes[1][0] > min_length
+
+@pytest.mark.test_select_boxes
+def test_select_boxes():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 4.0]
+    labels = [1, 2]
+    label = 1
+    spec = Spectrogram()
+    spec.annotate(labels=labels, boxes=[box1,box2])
+    boxes = spec._select_boxes(label=label)
+    assert len(boxes) == 1
+    assert boxes[0] == [1.0, 2.0]
