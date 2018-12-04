@@ -901,7 +901,7 @@ def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
 
-    spec_description = spec_table_description(dimensions=ex_spec.shape)
+    spec_description = spec_table_description(dimensions=ex_spec.image.shape)
     spec_table = open_table(h5, where, spec_table_name, spec_description, None)
 
 
