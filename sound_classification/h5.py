@@ -16,6 +16,8 @@ import os
 import ast
 import numpy as np
 import sound_classification.data_handling as dh
+from sound_classification.audio_signal import AudioSignal
+from sound_classification.spectrogram import Spectrogram
 
 def open(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -140,6 +142,13 @@ def write(table, x, id=None, labels=None, boxes=None):
         Returns:
             None.
     """
+    if isinstance(x, AudioSignal):
+        table.attrs.sample_rate = x.rate
+    elif isinstance(x, Spectrogram):
+        table.attrs.time_res = x.tres
+        table.attrs.freq_res = x.fres
+        table.attrs.freq_min = x.fmin
+
     id_parsed, labels_parsed = dh.parse_seg_name(x.tag)
 
     if id is None:
@@ -166,18 +175,50 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r.append()
 
 def get(table, label, min_length, center=False, folder=None, save_complement=True):
+
     # selected segments
-    segs = list()
-    # complement
-#    compl
+    selection = list()
+    complement = None
+
     # loop over items in table
     for it in table:
+
+        # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
+        boxes = select_boxes(boxes=boxes, labels=labels, label=label)
+
+        # ensure that time interval has a certain minimum length
         boxes = ensure_min_length(boxes=boxes, min_length=min_length)
+
+        # get the data (audio signal or spectrogram)
         data = it['data']
 
-                
+        # create audio signal or spectrogram object
+        if np.ndim(data) == 1:
+            x = AudioSignal(rate=table.attrs.sample_rate, data=data)
+        elif np.ndim(data) == 2:
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min)
+
+        # clip
+        segs = x.clip(boxes=boxes)
+        for s in segs:
+            selection.append(s.get_data())
+
+        if complement is None:
+            complement = x.get_data()
+        else:
+            complement = np.append(complement, x.get_data(), axis=0)
+
+    return selection, complement
+
+def select_boxes(boxes, labels, label):
+    res = list()
+    for b, l in zip(boxes, labels):
+        if l == label:
+            res.append(b)
+    return res
+
 
 def parse_labels(table):
     labels_str = table['labels'].decode()
@@ -190,4 +231,18 @@ def parse_boxes(table):
     return boxes
 
 def ensure_min_length(boxes, min_length):
+    for b in boxes:
+        t1 = b[0]
+        t2 = b[1]
+        dt = min_length - (t2 - t1)
+        if dt > 0:
+            r = np.random.random_sample()
+            t1 -= r * dt
+            t2 += (1-r) * dt
+            if t1 < 0:
+                t2 -= t1
+                t1 = 0
+        b[0] = t1
+        b[1] = t2
+
     return boxes

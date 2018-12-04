@@ -55,7 +55,7 @@ def test_h5_write(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
     f = tables.open_file(fpath, 'w')
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.shape)
+    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
     h5.write(table=tbl, x=spec)
     # write spectrogram to table with optional args
@@ -72,6 +72,27 @@ def test_h5_write(sine_audio):
     f.close()
     os.remove(fpath)
 
+@pytest.mark.test_h5_ensure_min_length
+def test_h5_ensure_min_length():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 4.0]
+    min_length = 2.0
+    boxes = [box1, box2]
+    boxes = h5.ensure_min_length(boxes=boxes, min_length=min_length)
+    assert len(boxes) == 2
+    assert boxes[0][1]-boxes[0][0] >= min_length
+    assert boxes[1][1]-boxes[1][0] >= min_length
+
+@pytest.mark.test_h5_select_boxes
+def test_h5_select_boxes():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 4.0]
+    labels = [1, 2]
+    label = 1
+    boxes = h5.select_boxes(boxes=[box1, box2], labels=labels, label=label)
+    assert len(boxes) == 1
+    assert boxes[0] == [1.0, 2.0]
+
 @pytest.mark.test_h5_get
 def test_h5_get(sine_audio):
     # create spectrogram    
@@ -80,7 +101,7 @@ def test_h5_get(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
     f = tables.open_file(fpath, 'w')
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.shape)
+    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
     h5.write(table=tbl, x=spec, id='1', labels=(1), boxes=((1.0, 1.4, 50, 300)))  # Box: 1.0-1.4 s & 50-300 Hz
     # parse labels and boxes
