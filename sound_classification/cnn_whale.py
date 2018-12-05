@@ -18,7 +18,6 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from collections import namedtuple
-import sound_classification.data_handling as dh
 from sound_classification.neural_networks import DataHandler, DataUse, predictions, class_confidences
 from sound_classification.data_handling import from1hot, to1hot, get_image_size
 from sound_classification.training_data_provider import TrainingDataProvider
@@ -221,6 +220,8 @@ class CNNWhale(DataHandler):
                 'class_weights': class_weights,
                 }
 
+        self.set_tf_nodes(tf_nodes)
+
         return tf_nodes
 
     def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512]):
@@ -376,6 +377,8 @@ class CNNWhale(DataHandler):
                 'class_weights': y_,
                 }
 
+        self.set_tf_nodes(tf_nodes)
+
         return tf_nodes
         
     def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
@@ -488,6 +491,9 @@ class CNNWhale(DataHandler):
         x, y = self.get_training_data()
         x_val, y_val = self.get_validation_data()
 
+        y = self._ensure1hot(y)
+        y_val = self._ensure1hot(y_val)
+
         self.writer.add_graph(sess.graph)
 
         if self.verbosity >= 2:
@@ -537,7 +543,7 @@ class CNNWhale(DataHandler):
 
     def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
         """Train the neural network in an active manner using a data provider module.
-        
+
         Args:
             provider: TrainingDataProvider
                 Training data provider
@@ -578,6 +584,13 @@ class CNNWhale(DataHandler):
             conf = class_confidences(w)
             provider.update_prediction_confidence(pred=pred, conf=conf)
 
+    def _ensure1hot(self, y):
+        y1hot = y
+        if y is not None and y.shape[-1] is not self.num_labels:
+            depth = y.max() + 1 # number of classes
+            y1hot = to1hot(y, depth)
+        
+        return y1hot
 
     def save(self, destination):
         """ Save the model to destination
@@ -610,8 +623,9 @@ class CNNWhale(DataHandler):
         """
         if x is None:
             return 0
-        x = self.reshape_x(x)        
-        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        x = self.reshape_x(x) 
+        y1hot = self._ensure1hot(y)       
+        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_predictions(self, x):
@@ -682,7 +696,7 @@ class CNNWhale(DataHandler):
         results = self.get_predictions(x)
         return results
     
-    def _get_mislabelled(self, x, y, print_report=False):
+    def _get_mislabelled(self, x, y, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the model.
 
             Args:
@@ -701,9 +715,11 @@ class CNNWhale(DataHandler):
                 the incorrect examples indices with incorrect and correct labels. 
         
         """
+        y1hot = self._ensure1hot(y) 
+
         x_reshaped = self.reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
-        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y))), "pred": predicted})
+        pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y1hot))), "pred": predicted})
        
         n_predictions = len(pred_df)
         n_correct = sum(pred_df.label == pred_df.pred)
@@ -717,18 +733,19 @@ class CNNWhale(DataHandler):
                             "%correct":[perc_correct],"%incorrect":[perc_incorrect],
                             "total":[n_predictions]})
 
-        if print_report:
+        if print_report or print_detailed_report:
             print("=============================================")
             print("Correct classifications: {0} of {1} ({2}%)".format(n_correct, n_predictions, perc_correct))
             print("Incorrect classifications: {0} of {1} ({2})%".format(n_incorrect, n_predictions, perc_incorrect))
-            print("These were the incorrect classifications:")
-            print(incorrect)
+            if print_detailed_report:
+                print("These were the incorrect classifications:")
+                print(incorrect)
             print("=============================================") 
         
         results =(report,incorrect)    
         return results
 
-    def mislabelled_on_validation(self, print_report=False):
+    def mislabelled_on_validation(self, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the trained model on
             the validation set.
 
@@ -747,10 +764,10 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.VALIDATION]
         y = self.labels[DataUse.VALIDATION]
-        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
+        results = self._get_mislabelled(x=x, y=y, print_report=print_report, print_detailed_report=print_detailed_report)
         return results
 
-    def mislabelled_on_test(self, print_report=False):
+    def mislabelled_on_test(self, print_report=False, print_detailed_report=False):
         """ Report the number of examples mislabelled by the trained model on
             the test set.
 
@@ -769,7 +786,7 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.TEST]
         y = self.labels[DataUse.TEST]
-        results = self._get_mislabelled(x=x,y=y, print_report=print_report)
+        results = self._get_mislabelled(x=x,y=y, print_report=print_report, print_detailed_report=print_detailed_report)
         return results
 
     def accuracy_on_train(self):
