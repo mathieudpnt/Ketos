@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
+from sound_classification.annotation import AnnotationHandler
 
-
-class AudioSignal:
+class AudioSignal(AnnotationHandler):
     """ Audio signal
 
         Args:
@@ -26,8 +26,7 @@ class AudioSignal:
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
-        self.labels = []
-        self.boxes = []
+        super(AudioSignal, self).__init__() # initialize AnnotationHandler
 
     @classmethod
     def from_wav(cls, path, channel=0):
