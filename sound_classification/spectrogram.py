@@ -8,9 +8,10 @@ import datetime
 import math
 from sound_classification.pre_processing import make_frames
 from sound_classification.audio_signal import AudioSignal
+from sound_classification.annotation import AnnotationHandler
 
 
-class Spectrogram():
+class Spectrogram(AnnotationHandler):
     """ Spectrogram
 
         Parent class for spectogram subclasses.
@@ -46,8 +47,7 @@ class Spectrogram():
         self.timestamp = timestamp
         self.flabels = flabels
         self.tag = tag
-        self.labels = []
-        self.boxes = []
+        super(Spectrogram, self).__init__() # initialize AnnotationHandler
 
     def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
 
@@ -62,8 +62,12 @@ class Spectrogram():
             fmin = self.fmin + self.fres * fbin1
             fmin = max(fmin, self.fmin)
 
-        # labels and boxes
-        labels, boxes = self._cut_annotations(tbin1=tbin1, tbin2=tbin2, fbin1=fbin1, fbin2=fbin2)
+        # cut labels and boxes
+        t1 = self._tbin_low(tbin1)
+        t2 = self._tbin_low(tbin2)
+        f1 = self._fbin_low(fbin1)
+        f2 = self._fbin_low(fbin2)
+        labels, boxes = self._cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
 
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=0, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
         spec.annotate(labels=labels, boxes=boxes)
@@ -154,52 +158,6 @@ class Spectrogram():
 
     def get_data(self):
         return self.image
-
-    def annotate(self, labels, boxes):
-        if np.ndim(labels) == 0:
-            self.labels.append(labels)
-            self.boxes.append(boxes)
-        else:
-            assert len(labels) == len(boxes), 'number of boxes must be equal to number of labels'
-
-            for l,b in zip(labels, boxes):
-                self.labels.append(l)
-                self.boxes.append(b)
-
-    def delete_annotations(self, id=None):
-        if id is None:
-            self.labels = []
-            self.boxes = []
-        else:
-            # sort id's in ascending order 
-            id = sorted(id, reverse=True)
-            for i in id:
-                if i < len(self.labels):
-                    del self.labels[i]
-                    del self.boxes[i]
-
-    def _cut_annotations(self, tbin1=0, tbin2=math.inf, fbin1=0, fbin2=math.inf):
-        # convert from bin no. to time/frequency values
-        t1 = self._tbin_low(tbin1)
-        t2 = self._tbin_low(tbin2)
-        f1 = self._fbin_low(fbin1)
-        f2 = self._fbin_low(fbin2)
-
-        # loop over annotations
-        labels, boxes = [], []
-        for l, b in zip(self.labels, self.boxes):
-            # check if box overlaps with cut
-            if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
-                # update box boundaries
-                b[0] -= t1
-                b[1] -= t1
-                b[1] = min(b[1], t2-t1)
-                b[2] = max(b[2], f1)
-                b[3] = min(b[3], f2)
-                labels.append(l)
-                boxes.append(b)
-
-        return labels, boxes
 
     def _find_bin(self, x, bins, x_min, x_max, truncate=False):
         """ Find bin corresponding to given value.
