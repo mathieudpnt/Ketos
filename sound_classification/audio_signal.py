@@ -26,6 +26,8 @@ class AudioSignal:
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
+        self.labels = []
+        self.boxes = []
 
     @classmethod
     def from_wav(cls, path, channel=0):
