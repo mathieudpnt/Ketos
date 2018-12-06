@@ -174,6 +174,25 @@ def write(table, x, id=None, labels=None, boxes=None):
     seg_r["boxes"] = boxes_str
     seg_r.append()
 
+def select(table, label):
+    # selected rows
+    rows = list()
+
+    # loop over items in table
+    for i, it in enumerate(table):
+
+        # parse labels
+        labels = parse_labels(it)
+
+        # check if the specified label is present
+        if label not in labels:
+            continue
+
+        rows.append(i)
+
+    return rows
+
+
 def extract(table, label, min_length, center=False, fpad=True):
 
     # selected segments
