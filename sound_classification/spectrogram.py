@@ -363,8 +363,35 @@ class Spectrogram(AnnotationHandler):
         # strech to minimum length, if necessary
         boi = self._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = self._extract(boxes=boi, fpad=fpad)
+        res = self._clip(boxes=boi, fpad=fpad)
         return res
+
+    def segment(self, number=1, length=None, pad=False):
+        if pad:
+            f = np.ceil
+        else:
+            f = np.floor
+
+        if number > 1:
+            bins = int(f(self.tbins() / number))
+            dt = bins * self.tres
+        
+        elif length is not None:
+            bins = int(f(self.tbins() * length / self.duration()))
+            number = int(f(self.tbins() / bins))
+            dt = bins * self.tres
+
+        else:
+            return [self]
+
+        t1 = np.arange(number) * dt
+        t2 = (np.arange(number) + 1) * dt
+        boxes = np.array([t1,t2])
+        boxes = np.swapaxes(boxes, 0, 1)
+        segs = self._clip(boxes=boxes)
+        
+        return segs
+
 
     def _select_boxes(self, label):
         res = list()
@@ -397,7 +424,7 @@ class Spectrogram(AnnotationHandler):
 
         return boxes
 
-    def _extract(self, boxes, fpad=False):
+    def _clip(self, boxes, fpad=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -442,7 +469,7 @@ class Spectrogram(AnnotationHandler):
         t2max = 0
         for i in range(len(t1)):
             t2max = max(t2[i], t2max)
-            if t2max < t1[i]:
+            if t2max <= t1[i]:
                 if t2max == 0:
                     img_c = self.image[t2max:t1[i]]
                 else:

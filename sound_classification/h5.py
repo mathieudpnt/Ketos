@@ -192,7 +192,6 @@ def select(table, label):
 
     return rows
 
-
 def extract(table, label, min_length, center=False, fpad=True):
 
     # selected segments

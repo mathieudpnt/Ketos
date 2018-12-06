@@ -102,13 +102,13 @@ def test_find_bins():
     b = spec._find_fbin(f=[200])
     assert b[0] == img.shape[1]-1
 
-def test_extract_one_box():    
+def test_clip_one_box():    
     img = np.ones(shape=(20,30))
     img[6,0] = 1.2
     img[13,0] = 1.66
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box = [5.1, 10.5, 30., 64.3]
-    y = spec._extract(boxes=box)
+    y = spec._clip(boxes=box)
     assert len(y) == 1
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == 7
@@ -117,23 +117,23 @@ def test_extract_one_box():
     assert y[0].image[1,0] == 1.2
     assert spec.image[8,0] == 1.66
 
-def test_extract_2d_box():    
+def test_clip_2d_box():    
     img = np.ones(shape=(20,30))
     img[6,0] = 1.2
     img[13,0] = 1.66
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box = [5.1, 10.5]
-    y = spec._extract(boxes=box)
+    y = spec._clip(boxes=box)
     assert len(y) == 1
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == img.shape[1]
 
-def test_extract_two_boxes():    
+def test_clip_two_boxes():    
     img = np.ones(shape=(20,30))
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
     box1 = [5.1, 10.5, 30., 64.3]
     box2 = (6.1, 11.5, 64.1, 65.1)
-    y = spec._extract(boxes=[box1,box2])
+    y = spec._clip(boxes=[box1,box2])
     assert len(y) == 2
     assert y[0].image.shape[0] == 5
     assert y[0].image.shape[1] == 7
@@ -410,3 +410,21 @@ def test_select_boxes():
     boxes = spec._select_boxes(label=label)
     assert len(boxes) == 1
     assert boxes[0] == [1.0, 2.0]
+
+@pytest.mark.test_segment_using_number
+def test_segment_using_number():
+    img = np.zeros((101,31))
+    spec = Spectrogram(image=img)
+    segs = spec.segment(number=3)
+    assert len(segs) == 3
+    assert segs[0].image.shape[0] == 33
+    assert segs[0].image.shape[1] == 31
+
+@pytest.mark.test_segment_using_length
+def test_segment_using_length():
+    img = np.zeros((101,31))
+    spec = Spectrogram(image=img)
+    segs = spec.segment(length=80)
+    assert len(segs) == 1
+    assert segs[0].image.shape[0] == 80
+    assert segs[0].image.shape[1] == 31
