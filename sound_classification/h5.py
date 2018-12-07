@@ -216,7 +216,7 @@ def extract(table, label, min_length, center=False, fpad=True):
             x.annotate(labels=labels, boxes=boxes)
 
         # clip
-        segs = x.exctract(label=label, min_length=min_length, fpad=fpad)
+        segs = x.extract(label=label, min_length=min_length, fpad=fpad)
         for s in segs:
             selection.append(s)
 

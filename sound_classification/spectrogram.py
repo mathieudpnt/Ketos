@@ -357,7 +357,7 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[f1:f1+self.image.shape[1]]
 
-    def exctract(self, label, min_length=None, center=False, fpad=False):
+    def extract(self, label, min_length=None, center=False, fpad=False):
         # select boxes of interest (BOI)
         boi = self._select_boxes(label)
         # strech to minimum length, if necessary
