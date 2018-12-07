@@ -67,6 +67,11 @@ class AnnotationHandler():
 
     def _cut_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
 
+        if t1 is None: t1 = 0
+        if t2 is None: t2 = math.inf
+        if f1 is None: f1 = 0
+        if f2 is None: f2 = math.inf
+
         labels, boxes = [], []
 
         # loop over annotations
@@ -86,3 +91,7 @@ class AnnotationHandler():
 
         return labels, boxes
 
+    def _shift_annotations(self, delay=0):
+        for b in self.boxes:
+            b[0] += delay
+            b[1] += delay

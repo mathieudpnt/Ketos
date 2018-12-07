@@ -177,7 +177,7 @@ def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0)
+    spec.crop(tlow=1.0, keep_time=True)
     assert spec.image.shape == (37, 18)
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 18)
@@ -188,7 +188,7 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0)
+    spec.crop(tlow=1.0, keep_time=True)
     assert spec.image.shape == (37, 18)
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 18)
@@ -428,3 +428,14 @@ def test_segment_using_length():
     assert len(segs) == 1
     assert segs[0].image.shape[0] == 80
     assert segs[0].image.shape[1] == 31
+
+@pytest.mark.test_copy_spectrogram
+def test_copy_spectrogram():
+    img = np.zeros((101,31))
+    spec = Spectrogram(image=img, fmin=14, fres=0.1)
+    spec2 = spec.copy()
+    spec = None
+    assert spec2.image.shape[0] == 101
+    assert spec2.image.shape[1] == 31
+    assert spec2.fmin == 14
+    assert spec2.fres == 0.1

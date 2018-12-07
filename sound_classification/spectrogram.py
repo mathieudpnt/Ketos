@@ -47,7 +47,22 @@ class Spectrogram(AnnotationHandler):
         self.timestamp = timestamp
         self.flabels = flabels
         self.tag = tag
-        super(Spectrogram, self).__init__() # initialize AnnotationHandler
+        super().__init__() # initialize AnnotationHandler
+
+    def copy(self):
+        spec = self.__class__()
+        spec.image = np.copy(self.image)
+        spec.NFFT = self.NFFT
+        spec.tres = self.tres
+        spec.tmin = self.tmin
+        spec.fres = self.fres
+        spec.fmin = self.fmin
+        spec.timestamp = self.timestamp
+        spec.flabels = self.flabels
+        spec.tag = self.tag
+        spec.labels = np.copy(self.labels)
+        spec.boxes = np.copy(self.boxes)
+        return spec
 
     def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
 
@@ -329,7 +344,7 @@ class Spectrogram(AnnotationHandler):
         return img, t1, f1
 
 
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, keep_time=False):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
@@ -348,14 +363,22 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
+                keep_time: bool
+                    Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
+                    the first bin of the cropped spectrogram.
         """
-        self.image, t1, f1 = self._crop_image(tlow, thigh, flow, fhigh)
-        
-        self.tmin += self.tres * t1
-        self.fmin += self.fres * f1
+        # crop image
+        self.image, tbin1, fbin1 = self._crop_image(tlow, thigh, flow, fhigh)
+
+        # update t_min and f_min
+        if keep_time: self.tmin += self.tres * tbin1
+        self.fmin += self.fres * fbin1
+
+        # crop labels and boxes
+        self.labels, self.boxes = self._cut_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
         
         if self.flabels != None:
-            self.flabels = self.flabels[f1:f1+self.image.shape[1]]
+            self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
     def extract(self, label, min_length=None, center=False, fpad=False):
         # select boxes of interest (BOI)
@@ -596,7 +619,7 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1):
+    def add(self, spec, delay=0, scale=1, make_copy=False):
         """ Add another spectrogram to this spectrogram.
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
@@ -605,27 +628,40 @@ class Spectrogram(AnnotationHandler):
                 spec: Spectrogram
                     Spectrogram to be added
                 delay: float
-                    Shift the audio signal by this many seconds
+                    Shift the spectrograms by this many seconds
                 scale: float
-                    Scaling factor for signal to be added        
+                    Scaling factor for spectrogram to be added 
+                make_copy: bool
+                    Make a copy of the spectrogram that is being added, so that the instance provided as input argument 
+                    to the method is unchanged.       
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
 
+        # make copy
+        if make_copy:
+            sp = spec.copy()
+        else:
+            sp = spec
+
         # crop spectrogram
         if delay < 0:
-            tlow = spec.tmin - delay
+            tlow = sp.tmin - delay
         else:
-            tlow = spec.tmin
-        thigh = spec.tmin + self.duration() - delay  
-        spec.crop(tlow, thigh, self.fmin, self.fmax())
+            tlow = sp.tmin
+        thigh = sp.tmin + self.duration() - delay  
+        sp.crop(tlow, thigh, self.fmin, self.fmax())
 
         # add
-        nt = spec.tbins()
-        nf = spec.fbins()
+        nt = sp.tbins()
+        nf = sp.fbins()
         t1 = self._find_tbin(self.tmin + delay)
-        f1 = self._find_fbin(spec.fmin)
-        self.image[t1:t1+nt,f1:f1+nf] += scale * spec.image
+        f1 = self._find_fbin(sp.fmin)
+        self.image[t1:t1+nt,f1:f1+nf] += scale * sp.image
+
+        # add annotations
+        sp._shift_annotations(delay=delay)
+        self.annotate(labels=sp.labels, boxes=sp.boxes)
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.

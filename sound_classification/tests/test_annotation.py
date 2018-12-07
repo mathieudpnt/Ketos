@@ -38,3 +38,18 @@ def test_cut_annotations():
     assert b[0][1] == pytest.approx(3.0, abs=0.001)
     assert b[0][2] == pytest.approx(24.0, abs=0.001)
     assert b[0][3] == pytest.approx(27.0, abs=0.001)
+
+def test_shift_annotations():
+    labels = [1,2]
+    box1 = [14.,17.,0.,29.]
+    box2 = [2.1,13.0,1.1,28.5]
+    boxes = [box1, box2]
+    a = AnnotationHandler(labels=labels, boxes=boxes)
+    a._shift_annotations(delay=3.3)
+    l = a.labels
+    b = a.boxes
+    assert len(l) == 2
+    assert b[0][0] == pytest.approx(17.3, abs=0.001)
+    assert b[0][1] == pytest.approx(20.3, abs=0.001)
+    assert b[1][0] == pytest.approx(5.4, abs=0.001)
+    assert b[1][1] == pytest.approx(16.3, abs=0.001)
