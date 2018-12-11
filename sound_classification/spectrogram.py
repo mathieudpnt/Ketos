@@ -380,7 +380,7 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
-    def extract(self, label, min_length=None, center=False, fpad=False, subtract_background=False):
+    def extract(self, label, min_length=None, center=False, fpad=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, this instance contains the 
@@ -400,8 +400,6 @@ class Spectrogram(AnnotationHandler):
                     If necessary, pad with zeros along the frequency axis to ensure that 
                     the extracted spectrogram had the same frequency range as the source 
                     spectrogram.
-                subtract_background: bool
-                    Subtract the median value from each row.  
 
             Returns:
                 specs: list(Spectrogram)
@@ -412,7 +410,7 @@ class Spectrogram(AnnotationHandler):
         # strech to minimum length, if necessary
         boi = self._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = self._clip(boxes=boi, fpad=fpad, subtract_background=subtract_background)
+        res = self._clip(boxes=boi, fpad=fpad)
         return res
 
     def segment(self, number=1, length=None, pad=False):
@@ -440,7 +438,6 @@ class Spectrogram(AnnotationHandler):
         segs = self._clip(boxes=boxes)
         
         return segs
-
 
     def _select_boxes(self, label):
         res = list()
@@ -473,7 +470,7 @@ class Spectrogram(AnnotationHandler):
 
         return boxes
 
-    def _clip(self, boxes, fpad=False, subtract_background=False):
+    def _clip(self, boxes, fpad=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -485,8 +482,6 @@ class Spectrogram(AnnotationHandler):
                     If necessary, pad with zeros along the frequency axis to ensure that 
                     the extracted spectrogram had the same frequency range as the source 
                     spectrogram.
-                subtract_background: bool
-                    Subtract the median value from each row.  
 
             Returns:
                 specs: list(Spectrogram)
@@ -516,10 +511,6 @@ class Spectrogram(AnnotationHandler):
         # loop over boxes
         for i in range(N):            
             spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad)
-
-            if subtract_background:
-                spec.image = spec.image - np.median(spec.image, axis=0)
-
             specs.append(spec)
 
         # complement
@@ -538,6 +529,12 @@ class Spectrogram(AnnotationHandler):
         self.tmin = 0
 
         return specs
+
+    def subtract_background(self):
+        """ Subtract the median value from each row (frequency bin) 
+
+        """
+        self.image -= np.median(self.image, axis=0)
 
     def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
