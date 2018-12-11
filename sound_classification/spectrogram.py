@@ -380,13 +380,39 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
-    def extract(self, label, min_length=None, center=False, fpad=False):
+    def extract(self, label, min_length=None, center=False, fpad=False, subtract_background=False):
+        """ Extract those segments of the spectrogram where the specified label occurs. 
+
+            After the selected segments have been extracted, this instance contains the 
+            remaining part of the spectrogram.
+
+            Args:
+                label: int
+                    Annotation label of interest. 
+                min_length: float
+                    If necessary, extend the annotation boxes so that all extracted 
+                    segments have a duration of at least min_length (in seconds) or 
+                    longer.  
+                center: bool
+                    Place the annotation box at the center of the extracted segment 
+                    (instead of placing it randomly).                     
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
+                subtract_background: bool
+                    Subtract the median value from each row.  
+
+            Returns:
+                specs: list(Spectrogram)
+                    List of clipped spectrograms.                
+        """
         # select boxes of interest (BOI)
         boi = self._select_boxes(label)
         # strech to minimum length, if necessary
         boi = self._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = self._clip(boxes=boi, fpad=fpad)
+        res = self._clip(boxes=boi, fpad=fpad, subtract_background=subtract_background)
         return res
 
     def segment(self, number=1, length=None, pad=False):
@@ -447,14 +473,20 @@ class Spectrogram(AnnotationHandler):
 
         return boxes
 
-    def _clip(self, boxes, fpad=False):
+    def _clip(self, boxes, fpad=False, subtract_background=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
 
             Args:
                 boxes: numpy array
-                    2d numpy array with shape=(?,4)   
+                    2d numpy array with shape=(?,4) 
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
+                subtract_background: bool
+                    Subtract the median value from each row.  
 
             Returns:
                 specs: list(Spectrogram)
@@ -484,6 +516,10 @@ class Spectrogram(AnnotationHandler):
         # loop over boxes
         for i in range(N):            
             spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad)
+
+            if subtract_background:
+                spec.image = spec.image - np.median(spec.image, axis=0)
+
             specs.append(spec)
 
         # complement
