@@ -82,7 +82,7 @@ class Spectrogram(AnnotationHandler):
         t2 = self._tbin_low(tbin2)
         f1 = self._fbin_low(fbin1)
         f2 = self._fbin_low(fbin2)
-        labels, boxes = self._cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
+        labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
 
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=0, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
         spec.annotate(labels=labels, boxes=boxes)
@@ -375,7 +375,7 @@ class Spectrogram(AnnotationHandler):
         self.fmin += self.fres * fbin1
 
         # crop labels and boxes
-        self.labels, self.boxes = self._cut_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
+        self.labels, self.boxes = self.cut_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
         
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
@@ -655,7 +655,7 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1, make_copy=False):
+    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5):
         """ Add another spectrogram to this spectrogram.
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
@@ -670,6 +670,12 @@ class Spectrogram(AnnotationHandler):
                 make_copy: bool
                     Make a copy of the spectrogram that is being added, so that the instance provided as input argument 
                     to the method is unchanged.       
+                smooth: bool
+                    Smoothen the edges of the spectrogram that is being added.
+                smooth_par: int
+                    This parameter can be used to control the amount of smoothing.
+                    A value of 1 gives the largest effect. The larger the value, the smaller 
+                    the effect.
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
@@ -687,6 +693,21 @@ class Spectrogram(AnnotationHandler):
             tlow = sp.tmin
         thigh = sp.tmin + self.duration() - delay  
         sp.crop(tlow, thigh, self.fmin, self.fmax())
+
+        # fade-in/fade-out
+        if smooth:
+            sigmas = 3
+            p = 2 * np.ceil(smooth_par)
+            nt = sp.tbins()
+            if nt % 2 == 0:
+                mu = nt / 2.
+            else:
+                mu = (nt - 1) / 2
+            sigp = np.power(mu, p) / np.power(sigmas, 2)
+            t = np.arange(nt)
+            envf = np.exp(-np.power(t-mu, p) / (2 * sigp)) # envelop function = exp(-x^p/2*a^p)
+            for i in range(sp.fbins()):
+                sp.image[:,i] *= envf # multiply rows by envelope function
 
         # add
         nt = sp.tbins()

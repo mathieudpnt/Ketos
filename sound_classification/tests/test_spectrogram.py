@@ -171,6 +171,14 @@ def test_add_spectrograms_with_different_shapes(sine_audio):
     assert spec1.image[0,0] == v_00 # values outside addition region are unchanged
     assert spec1.image[t,f] == pytest.approx(2.3 * v_tf, rel=0.001) # values outside addition region have changed
 
+def test_add_spectrograms_with_smoothing():
+    spec1 = Spectrogram(image=np.ones((100,100)))
+    spec2 = spec1.copy()
+    spec1.add(spec2, smooth=True)
+    assert spec1.image[50,50] == pytest.approx(2.0, abs=0.0001)
+    assert spec1.image[0,50] == pytest.approx(1.01, abs=0.01)
+    assert spec1.image[9,50] == pytest.approx(1.50, abs=0.06)
+
 def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     spec.crop(fhigh=4000)

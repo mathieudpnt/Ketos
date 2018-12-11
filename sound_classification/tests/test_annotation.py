@@ -31,7 +31,7 @@ def test_cut_annotations():
     box2 = [2.1,13.0,1.1,28.5]
     boxes = [box1, box2]
     a = AnnotationHandler(labels=labels, boxes=boxes)
-    l, b = a._cut_annotations(t1=2, t2=5, f1=24, f2=27)
+    l, b = a.cut_annotations(t1=2, t2=5, f1=24, f2=27)
     assert len(l) == 1
     assert l[0] == 2
     assert b[0][0] == pytest.approx(0.1, abs=0.001)

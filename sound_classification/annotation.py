@@ -65,7 +65,7 @@ class AnnotationHandler():
                     del self.labels[i]
                     del self.boxes[i]
 
-    def _cut_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
+    def cut_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
 
         if t1 is None: t1 = 0
         if t2 is None: t2 = math.inf
