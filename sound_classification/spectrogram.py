@@ -53,7 +53,7 @@ def interbreed(specs1, specs2, num, delay=0, scale_min=1, scale_max=1, smooth=Fa
                 spec = spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par)
                 specs.append(spec)
 
-                if len(specs) >= nmax:
+                if len(specs) >= num:
                     return specs
 
     return specs

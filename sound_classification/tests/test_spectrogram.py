@@ -14,7 +14,7 @@
 
 import pytest
 import numpy as np
-from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram
+from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed
 from sound_classification.json_parsing import Interval
 from sound_classification.audio_signal import AudioSignal
 import datetime
@@ -447,3 +447,10 @@ def test_copy_spectrogram():
     assert spec2.image.shape[1] == 31
     assert spec2.fmin == 14
     assert spec2.fres == 0.1
+
+@pytest.mark.test_interbreed
+def test_interbreed_spectrograms_with_default_args():
+    s1 = Spectrogram(image=np.ones((100,100)))
+    s2 = s1.copy()
+    specs = interbreed(specs1=[s1], specs2=[s2], num=9)
+    assert len(specs) == 9
