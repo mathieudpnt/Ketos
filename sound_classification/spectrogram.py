@@ -11,6 +11,54 @@ from sound_classification.audio_signal import AudioSignal
 from sound_classification.annotation import AnnotationHandler
 
 
+def interbreed(specs1, specs2, num, delay=0, scale_min=1, scale_max=1, smooth=False, smooth_par=5):
+
+    M = len(specs1)
+    N = len(specs2)
+    x = np.arange(M)
+    y = np.arange(N)
+
+    specs = list()
+    while len(specs) < num:
+
+        np.random.shuffle(x)
+        np.random.shuffle(y)
+
+        for i in x:
+            for j in y:
+
+                # scaling factor
+                if scale_max > scale_min:
+                    rndm = np.random.random_sample()
+                    scale = scale_min + (scale_max - scale_min) * rndm
+                else:
+                    scale = scale_max
+
+                # placement
+                dt = specs1[i].duration() - specs2[j].duration()
+                if dt != 0:
+                    rndm = np.random.random_sample()
+                    delay = np.abs(dt) * rndm
+                else:
+                    delay = 0
+
+                if dt >= 0:
+                    spec_long = specs1[i]
+                    spec_short = specs2[j]
+                else:
+                    spec_short = specs1[i]
+                    spec_long = specs2[j]
+
+                spec = spec_long.copy()
+                spec = spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par)
+                specs.append(spec)
+
+                if len(specs) >= nmax:
+                    return specs
+
+    return specs
+        
+
 class Spectrogram(AnnotationHandler):
     """ Spectrogram
 
