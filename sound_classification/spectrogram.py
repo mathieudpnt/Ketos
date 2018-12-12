@@ -154,6 +154,8 @@ class Spectrogram(AnnotationHandler):
                     Spectrogram time stamp (default: None)
                 compute_phase: bool
                     Compute phase spectrogram in addition to magnitude spectrogram
+                decibel: bool
+                    Use logarithmic (decibel) scale.
 
             Returns:
                 image: numpy.array
@@ -842,18 +844,20 @@ class MagSpectrogram(Spectrogram):
                 List of labels for the frequency bins.     
             compute_phase: bool
                 Compute phase spectrogram in addition to magnitude spectrogram
+            decibel: bool
+                Use logarithmic (decibel) scale.
     """
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False):
 
         super(MagSpectrogram, self).__init__()
-        self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels
 
 
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
+    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -871,6 +875,8 @@ class MagSpectrogram(Spectrogram):
                     Spectrogram time stamp (default: None)
                 compute_phase: bool
                     Compute phase spectrogram in addition to magnitude spectrogram
+                decibel: bool
+                    Use logarithmic (decibel) scale.
 
             Returns:
                 (image, NFFT, fres):numpy.array,int, int
@@ -878,7 +884,7 @@ class MagSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
 
@@ -934,18 +940,20 @@ class PowerSpectrogram(Spectrogram):
                 List of labels for the frequency bins.
             compute_phase: bool
                 Compute phase spectrogram in addition to power spectrogram                        
+            decibel: bool
+                Use logarithmic (decibel) scale.
     """
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
-                 hamming=True, NFFT=None, timestamp=None, compute_phase=False):
+                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
 
         super(PowerSpectrogram, self).__init__()
-        self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels
 
 
-    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
+    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -963,6 +971,8 @@ class PowerSpectrogram(Spectrogram):
                     Spectrogram time stamp (default: None)
                 compute_phase: bool
                     Compute phase spectrogram in addition to power spectrogram
+                decibel: bool
+                    Use logarithmic (decibel) scale.
 
             Returns:
                 (power_spec, NFFT, fres, phase):numpy.array,int,int,numpy.array
@@ -970,7 +980,7 @@ class PowerSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase)
+        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         return power_spec, NFFT, fres, phase_change
@@ -1051,7 +1061,7 @@ class MelSpectrogram(Spectrogram):
            
         """
 
-        image, NFFT, fres, _ = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp)
+        image, NFFT, fres, _ = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
