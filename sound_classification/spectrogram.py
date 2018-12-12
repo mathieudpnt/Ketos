@@ -6,7 +6,7 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
 import math
-from sound_classification.pre_processing import make_frames
+from sound_classification.pre_processing import make_frames, to_decibel
 from sound_classification.audio_signal import AudioSignal
 from sound_classification.annotation import AnnotationHandler
 
@@ -136,7 +136,7 @@ class Spectrogram(AnnotationHandler):
         spec.annotate(labels=labels, boxes=boxes)
         return spec
 
-    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False):
+    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -215,6 +215,10 @@ class Spectrogram(AnnotationHandler):
         
         # Frequency resolution
         fres = audio_signal.rate / 2. / image.shape[1]
+
+        # use logarithmic axis
+        if decibel:
+            self.image = to_decibel(self.image)
 
         phase_change = diff
         return image, NFFT, fres, phase_change
