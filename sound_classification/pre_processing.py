@@ -8,6 +8,36 @@ from collections import namedtuple
 from numpy import seterr
 
 
+def prepare_for_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True):
+
+    x, y = None, None
+
+    for s in specs:
+        
+        xs = s.get_data()
+        ys = s.get_label_vector(label)
+
+        xs = make_frames(xs, winlen=image_width, winstep=step_size)
+        ys = make_frames(ys, winlen=image_width, winstep=step_size)
+
+        n = ys.shape[1]
+        ys = np.sum(ys, axis=1)
+        ys = (ys > thres*n)
+
+        if x is None:
+            x = xs
+            y = ys
+        else:
+            x = np.append(x, xs, axis=0)
+            y = np.append(y, ys, axis=0)
+
+    if normalize:
+        x = (x - np.mean(x)) / np.std(x)
+
+    return x, y
+
+
+
 def to_decibel(x):
     """ Convert to decibels
 
