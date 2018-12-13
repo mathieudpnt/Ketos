@@ -5,6 +5,7 @@ import scipy.io.wavfile as wave
 from scipy import interpolate
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
+import sound_classification.pre_processing as pp
 import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
@@ -146,6 +147,37 @@ class AudioSignal(AnnotationHandler):
 
     def get_data(self):
         return self.data
+
+    def make_frames(self, winlen, winstep, zero_padding=False):
+        """ Split the signal into frames of length 'winlen' with consecutive 
+            frames being shifted by an amount 'winstep'. 
+            
+            If 'winstep' < 'winlen', the frames overlap.
+
+        Args: 
+            signal: AudioSignal
+                The signal to be framed.
+            winlen: float
+                The window length in seconds.
+            winstep: float
+                The window step (or stride) in seconds.
+            zero_padding: bool
+                If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
+                This assures that sample are not truncated from the original signal.
+
+        Returns:
+            frames: numpy array
+                2-d array with padded frames.
+        """
+        rate = self.rate
+        sig = self.data
+
+        winlen = int(round(winlen * rate))
+        winstep = int(round(winstep * rate))
+
+        frames = pp.make_frames(sig, winlen, winstep, zero_padding)
+        return frames
+
 
     def to_wav(self, path):
         """ Save audio signal to wave file

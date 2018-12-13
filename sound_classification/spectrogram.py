@@ -194,7 +194,7 @@ class Spectrogram(AnnotationHandler):
         """
 
          # Make frames
-        frames = make_frames(audio_signal, winlen, winstep) 
+        frames = audio_signal.make_frames(winlen, winstep) 
 
         # Apply Hamming window    
         if hamming:

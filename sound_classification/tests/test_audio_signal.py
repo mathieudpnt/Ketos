@@ -201,3 +201,57 @@ def test_clip(sine_audio):
     assert segs[0].seconds() == pytest.approx(0.3, abs=2./audio.rate)
     assert segs[1].seconds() == pytest.approx(0.4, abs=2./audio.rate)
     assert audio.seconds() == pytest.approx(3.0-0.6, abs=2./audio.rate)
+
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_rate(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    assert new_signal.rate == 22000
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=2000)
+    assert new_signal.rate == 2000
+
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+
+    duration = signal.seconds()
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=2000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_shape(const_wave_file):
+    signal = aud.AudioSignal.from_wav(const_wave_file)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+
+    n = min(len(signal.data), len(new_signal.data))
+    for i in range(n):
+        assert signal.data[i] == new_signal.data[i]
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    rate = signal.rate
+    sig = signal.data
+    y = abs(np.fft.rfft(sig))
+    freq = np.argmax(y)
+    freqHz = freq * rate / len(sig)
+    signal = aud.AudioSignal(rate, sig)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    new_y = abs(np.fft.rfft(new_signal.data))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
+
+    assert freqHz == new_freqHz
+
