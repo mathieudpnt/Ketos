@@ -11,7 +11,28 @@ from sound_classification.audio_signal import AudioSignal
 from sound_classification.annotation import AnnotationHandler
 
 
-def interbreed(specs1, specs2, num, delay=0, scale_min=1, scale_max=1, smooth=False, smooth_par=5):
+def ensure_same_length(specs, pad=False):
+
+    nt = list()
+    for s in specs:
+        nt.append(s.tbins())
+
+    nt = np.array(nt)
+    if pad: 
+        n = np.max(nt)
+        for s in specs:
+            ns = s.tbins()
+            if n-ns > 0:
+                s.image = np.pad(s.image, pad_width=((0,n-ns),(0,0)), mode='constant')
+    else: 
+        n = np.min(nt)
+        for s in specs:
+            s.image = s.image[:n]
+
+    return specs
+
+
+def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=False, smooth_par=5, shuffle=False):
 
     M = len(specs1)
     N = len(specs2)
@@ -20,9 +41,10 @@ def interbreed(specs1, specs2, num, delay=0, scale_min=1, scale_max=1, smooth=Fa
 
     specs = list()
     while len(specs) < num:
-
-        np.random.shuffle(x)
-        np.random.shuffle(y)
+        
+        if shuffle:
+            np.random.shuffle(x)
+            np.random.shuffle(y)
 
         for i in x:
             for j in y:
@@ -50,7 +72,7 @@ def interbreed(specs1, specs2, num, delay=0, scale_min=1, scale_max=1, smooth=Fa
                     spec_long = specs2[j]
 
                 spec = spec_long.copy()
-                spec = spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par)
+                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par)
                 specs.append(spec)
 
                 if len(specs) >= num:
@@ -108,8 +130,10 @@ class Spectrogram(AnnotationHandler):
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
         spec.tag = self.tag
-        spec.labels = np.copy(self.labels)
-        spec.boxes = np.copy(self.boxes)
+        spec.labels = self.labels.copy()
+        spec.boxes = list()
+        for b in self.boxes:
+            spec.boxes.append(b.copy())
         return spec
 
     def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
@@ -130,6 +154,7 @@ class Spectrogram(AnnotationHandler):
         t2 = self._tbin_low(tbin2)
         f1 = self._fbin_low(fbin1)
         f2 = self._fbin_low(fbin2)
+
         labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
 
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=0, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
@@ -220,13 +245,19 @@ class Spectrogram(AnnotationHandler):
 
         # use logarithmic axis
         if decibel:
-            self.image = to_decibel(self.image)
+            image = to_decibel(image)
 
         phase_change = diff
         return image, NFFT, fres, phase_change
 
     def get_data(self):
         return self.image
+
+    def annotate(self, labels, boxes):
+        super().annotate(labels, boxes)
+        for b in self.boxes:
+            if b[3] == math.inf:
+                b[3] = self.fmax()
 
     def _find_bin(self, x, bins, x_min, x_max, truncate=False):
         """ Find bin corresponding to given value.
@@ -252,6 +283,7 @@ class Spectrogram(AnnotationHandler):
         dx = (x_max - x_min) / bins
         b = (x - x_min) / dx
         b = b.astype(dtype=int, copy=False)
+
 
         if truncate:
             b[b < 0] = 0
@@ -460,11 +492,14 @@ class Spectrogram(AnnotationHandler):
                     List of clipped spectrograms.                
         """
         # select boxes of interest (BOI)
-        boi = self._select_boxes(label)
+        boi, idx = self._select_boxes(label)
         # strech to minimum length, if necessary
         boi = self._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
         res = self._clip(boxes=boi, fpad=fpad)
+        # remove extracted labels
+        self.delete_annotations(idx)
+        
         return res
 
     def segment(self, number=1, length=None, pad=False):
@@ -489,23 +524,28 @@ class Spectrogram(AnnotationHandler):
         t2 = (np.arange(number) + 1) * dt
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
+        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
+        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=self.fmax()+self.fres)
         segs = self._clip(boxes=boxes)
         
         return segs
 
     def _select_boxes(self, label):
-        res = list()
+        res, idx = list(), list()
         if len(self.labels) == 0:
             return res
 
-        for b, l in zip(self.boxes, self.labels):
+        for i, (b, l) in enumerate(zip(self.boxes, self.labels)):
             if l == label:
                 res.append(b)
+                idx.append(i)
 
-        return res
+        return res, idx
 
     def _stretch(self, boxes, min_length, center=False):
+        res = list()
         for b in boxes:
+            b = b.copy()
             t1 = b[0]
             t2 = b[1]
             dt = min_length - (t2 - t1)
@@ -521,8 +561,9 @@ class Spectrogram(AnnotationHandler):
                     t1 = 0
             b[0] = t1
             b[1] = t2
+            res.append(b)
 
-        return boxes
+        return res
 
     def _clip(self, boxes, fpad=False):
         """ Extract boxed areas from spectrogram.
@@ -552,14 +593,10 @@ class Spectrogram(AnnotationHandler):
 
         # convert from time/frequency to bin numbers
         t1 = self._find_tbin(boxes[:,0]) # start time bin
-        t2 = self._find_tbin(boxes[:,1]) # end time bin
-        if boxes.shape[1] == 4:
-            f1 = self._find_fbin(boxes[:,2]) # lower frequency bin
-            f2 = self._find_fbin(boxes[:,3]) # upper frequency bin
-        else:
-            f1 = np.zeros(N, dtype=int)
-            f2 = np.ones(N, dtype=int) * self.fbins()
-        
+        t2 = self._find_tbin(boxes[:,1], truncate=False) # end time bin
+        f1 = self._find_fbin(boxes[:,2]) # lower frequency bin
+        f2 = self._find_fbin(boxes[:,3], truncate=False) # upper frequency bin
+
         specs = list()
 
         # loop over boxes
@@ -779,10 +816,10 @@ class Spectrogram(AnnotationHandler):
                 spec: Spectrogram
                     Spectrogram to be added
         """
-        assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
-        assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
+        assert self.tres == spec.tres, 'It is not possible to append spectrograms with different time resolutions'
+        assert self.fres == spec.fres, 'It is not possible to append spectrograms with different frequency resolutions'
 
-        assert np.all(self.image.shape == spec.image.shape), 'It is not possible to add spectrograms with different shapes'
+        assert np.all(self.image.shape[1] == spec.image.shape[1]), 'It is not possible to add spectrograms with different frequency range'
 
         self.image = np.append(self.image, spec.image, axis=0)
 

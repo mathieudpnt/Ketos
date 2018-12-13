@@ -42,13 +42,21 @@ class AnnotationHandler():
 
         if np.ndim(labels) == 0:
             self.labels.append(labels)
+            boxes = self._ensure4D(boxes)
             self.boxes.append(boxes)
         else:
             assert len(labels) == len(boxes), 'number of boxes must be equal to number of labels'
 
             for l,b in zip(labels, boxes):
                 self.labels.append(l)
+                b = self._ensure4D(b)
                 self.boxes.append(b)
+
+    def _ensure4D(self, b):
+        if len(b) == 2:
+            b = [b[0], b[1], 0, math.inf]
+        
+        return b
 
     def delete_annotations(self, id=None):
 

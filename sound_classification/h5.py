@@ -14,6 +14,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tables
 import os
 import ast
+import math
 import numpy as np
 import sound_classification.data_handling as dh
 from sound_classification.audio_signal import AudioSignal
@@ -112,13 +113,11 @@ def description(shape):
     
     return TableDescription
 
-def write(table, x, id=None, labels=None, boxes=None):
+def write(table, x, id=None):
     """ Write data into the HDF5 table.
 
-        Note: If the id and labels fields are left blank, an attempt 
-        will be made to extract these information from the tag 
-        attribute assuming the tag format id_*_[l]_*.
-        Example: spec.tag="id_78536_l_[1]"
+        Note: If the id field is left blank, it 
+        will be replaced with the spectrogram tag.
 
         Args:
             table: tables.Table
@@ -149,23 +148,20 @@ def write(table, x, id=None, labels=None, boxes=None):
         table.attrs.freq_res = x.fres
         table.attrs.freq_min = x.fmin
 
-    id_parsed, labels_parsed = dh.parse_seg_name(x.tag)
-
     if id is None:
-        id_str = id_parsed
+        id_str = x.tag
     else:
         id_str = id
 
-    if labels is None:
-        labels_str = labels_parsed
+    if x.labels is not None:
+        labels_str = dh.tup2str(x.labels)
     else:
-        labels_str = dh.tup2str(labels)
+        labels_str = ''
 
-    if boxes is not None:          
-        if np.ndim(boxes) == 1:
-            boxes = (boxes,)
-
-    boxes_str = dh.tup2str(boxes)
+    if x.boxes is not None:          
+        boxes_str = dh.tup2str(x.boxes)
+    else:
+        boxes_str = ''
 
     seg_r = table.row
     seg_r["data"] = x.get_data()
@@ -216,7 +212,7 @@ def extract(table, label, min_length, center=False, fpad=True):
             x.annotate(labels=labels, boxes=boxes)
 
         # clip
-        segs = x.extract(label=label, min_length=min_length, fpad=fpad)
+        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center)
         for s in segs:
             selection.append(s)
 
@@ -229,10 +225,13 @@ def extract(table, label, min_length, center=False, fpad=True):
 
 def parse_labels(table):
     labels_str = table['labels'].decode()
-    labels = np.fromstring(string=labels_str, dtype=int, sep=',')
+    labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
     return labels
 
 def parse_boxes(table):
-    boxes_str = ast.literal_eval(table['boxes'].decode())
+    boxes_str = table['boxes'].decode()
+    boxes_str = boxes_str.replace("inf", "-99")
+    boxes_str = ast.literal_eval(boxes_str)
     boxes = np.array(boxes_str)
+    boxes[boxes == -99] = math.inf
     return boxes

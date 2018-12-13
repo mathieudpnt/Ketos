@@ -14,11 +14,11 @@
 
 import pytest
 import numpy as np
-from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed
+from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
 from sound_classification.json_parsing import Interval
 from sound_classification.audio_signal import AudioSignal
 import datetime
-
+import math
 
 def test_init_mag_spectrogram_from_sine_wave(sine_audio):
     
@@ -122,7 +122,7 @@ def test_clip_2d_box():
     img[6,0] = 1.2
     img[13,0] = 1.66
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
-    box = [5.1, 10.5]
+    box = [5.1, 10.5, 0, 3000]
     y = spec._clip(boxes=box)
     assert len(y) == 1
     assert y[0].image.shape[0] == 5
@@ -415,9 +415,9 @@ def test_select_boxes():
     label = 1
     spec = Spectrogram()
     spec.annotate(labels=labels, boxes=[box1,box2])
-    boxes = spec._select_boxes(label=label)
+    boxes, _ = spec._select_boxes(label=label)
     assert len(boxes) == 1
-    assert boxes[0] == [1.0, 2.0]
+    assert boxes[0] == [1.0, 2.0, 0, 2]
 
 @pytest.mark.test_segment_using_number
 def test_segment_using_number():
@@ -454,3 +454,14 @@ def test_interbreed_spectrograms_with_default_args():
     s2 = s1.copy()
     specs = interbreed(specs1=[s1], specs2=[s2], num=9)
     assert len(specs) == 9
+    assert specs[0].duration() == 100
+
+@pytest.mark.test_ensure_same_length
+def test_ensure_same_length():
+    s1 = Spectrogram(image=np.ones((99,100)))
+    s2 = Spectrogram(image=np.ones((100,100)))
+    s3 = Spectrogram(image=np.ones((103,100)))
+    specs = ensure_same_length([s1, s2, s3], pad=True)
+    for s in specs:
+        assert s.tbins() == specs[2].tbins()
+        assert s.fbins() == 100
