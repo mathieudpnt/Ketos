@@ -465,3 +465,17 @@ def test_ensure_same_length():
     for s in specs:
         assert s.tbins() == specs[2].tbins()
         assert s.fbins() == 100
+
+@pytest.mark.test_get_label_vector
+def test_get_label_vector():
+    labels = [1, 1]
+    box1 = [1.1, 2.3]
+    box2 = [11.5, 17.3]
+    spec = Spectrogram(image=np.ones(shape=(100,100)))
+    spec.annotate(labels=labels, boxes=[box1,box2])
+    y = spec.get_label_vector(label=1)
+    assert y[0] == 0
+    assert y[1] == 1 
+    assert np.all(y[2:11] == 0)
+    assert np.all(y[11:17] == 1)
+    assert np.all(y[17:] == 0)

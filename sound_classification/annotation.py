@@ -103,3 +103,4 @@ class AnnotationHandler():
         for b in self.boxes:
             b[0] += delay
             b[1] += delay
+        

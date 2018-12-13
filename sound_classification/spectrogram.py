@@ -356,7 +356,17 @@ class Spectrogram(AnnotationHandler):
     def duration(self):
         return self.tbins() * self.tres
 
-        
+
+    def get_label_vector(self, label):
+        y = np.zeros(self.tbins())
+        boi, _ = self._select_boxes(label)
+        for b in boi:
+            t1 = self._find_tbin(b[0])
+            t2 = self._find_tbin(b[1]) 
+            y[t1:t2] = 1
+
+        return y
+
     #TODO: handle datetime=None
     def taxis(self):
         if self.timestamp is not None:
