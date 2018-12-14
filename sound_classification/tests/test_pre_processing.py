@@ -19,7 +19,7 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 from sound_classification.audio_signal import AudioSignal
-from sound_classification.spectrogram import MagSpectrogram
+from sound_classification.spectrogram import Spectrogram, MagSpectrogram
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -179,6 +179,29 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
+@pytest.mark.test_prepare_for_binary_cnn
+def test_prepare_for_binary_cnn():
+    n = 1
+    specs = list()
+    for i in range(n):
+        t1 = (i+1) * 2
+        t2 = t1 + 3
+        img = np.ones(shape=(20,30))
+        img[t1:t2,:] = 2.5
+        s = Spectrogram(image=img)       
+        s.annotate(labels=7,boxes=[t1, t2])
+        specs.append(s)
+
+    img_wid = 4
+    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, normalize=False)
+    m = 1 + 20 - 4
+    assert y.shape == (m*n,)
+    assert x.shape == (m*n, img_wid, specs[0].image.shape[1])
+    assert np.all(y[0:4] == 1)
+    assert y[4] == 0
+    assert np.all(x[0,2,:] == 2.5)
+    assert np.all(x[1,1,:] == 2.5)
+    
 @pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():
     img = np.array([[0,0,1,1,0,0],
@@ -204,5 +227,4 @@ def test_filter_isolated_spots_removes_single_pixels():
     filtered_img = pp.filter_isolated_spots(img,struct)
 
     assert np.array_equal(filtered_img, expected)
-
 

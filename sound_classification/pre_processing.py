@@ -8,7 +8,7 @@ from collections import namedtuple
 from numpy import seterr
 
 
-def prepare_for_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True):
+def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True):
 
     x, y = None, None
 
@@ -22,7 +22,7 @@ def prepare_for_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normali
 
         n = ys.shape[1]
         ys = np.sum(ys, axis=1)
-        ys = (ys > thres*n)
+        ys = (ys >= thres*n)
 
         if x is None:
             x = xs
@@ -32,6 +32,7 @@ def prepare_for_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normali
             y = np.append(y, ys, axis=0)
 
     if normalize:
+        print(np.mean(x), np.std(x))
         x = (x - np.mean(x)) / np.std(x)
 
     return x, y
@@ -90,7 +91,7 @@ def make_frames(sig, winlen, winstep, zero_padding=False):
             2-d array with padded frames.
     """
 
-    totlen = len(sig)
+    totlen = sig.shape[0]
 
     if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
@@ -98,14 +99,12 @@ def make_frames(sig, winlen, winstep, zero_padding=False):
         z = np.zeros(n_zeros)
         padded_signal = np.append(sig, z)
     else:
+        padded_signal = sig
         if winlen > totlen:
             n_frames = 1
             winlen = totlen
         else:
             n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
-
-        l = (n_frames - 1) * winstep + winlen
-        padded_signal = np.delete(sig, np.s_[l:])
 
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = padded_signal[indices.astype(np.int32, copy=False)]
