@@ -65,11 +65,11 @@ def test_h5_write_spec(sine_audio):
 
     assert tbl[0]['id'].decode() == 'dummytag'
     assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1,2,3,4],[1.5,2.5,3.5,4.5]]'
+    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
 
     assert tbl[1]['id'].decode() == '123%'
     assert tbl[1]['labels'].decode() == '[1,2]'
-    assert tbl[1]['boxes'].decode() == '[[1,2,3,4],[1.5,2.5,3.5,4.5]]'
+    assert tbl[1]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
 
     f.close()
     os.remove(fpath)
@@ -90,11 +90,11 @@ def test_h5_write_audio_signal(sine_audio):
 
     assert tbl[0]['id'].decode() == 'audio'
     assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1,2,0,inf],[1.5,2.5,0,inf]]'
+    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,0.0,inf],[1.5,2.5,0.0,inf]]'
 
     assert tbl[1]['id'].decode() == '123%'
     assert tbl[1]['labels'].decode() == '[1,2]'
-    assert tbl[1]['boxes'].decode() == '[[1,2,0,inf],[1.5,2.5,0,inf]]'
+    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,0.0,inf],[1.5,2.5,0.0,inf]]'
 
     f.close()
     os.remove(fpath)

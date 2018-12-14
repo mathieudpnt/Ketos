@@ -18,7 +18,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from enum import Enum
-from sound_classification.data_handling import check_data_sanity
+from sound_classification.data_handling import check_data_sanity, to1hot
 
 
 def class_confidences(class_weights):
@@ -104,6 +104,13 @@ class DataHandler():
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
         check_data_sanity(x, y)
+
+        if np.ndim(x) == 3:
+            x = x[:,:,:,np.newaxis]
+
+        if np.ndim(y) == 1:
+            y = to1hot(y, depth=np.max(y)+1) # use one-hot encoding
+
         self.images[use] = x
         self.labels[use] = y
 

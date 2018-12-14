@@ -221,6 +221,8 @@ class CNNWhale(DataHandler):
                 'class_weights': class_weights,
                 }
 
+        self.set_tf_nodes(tf_nodes)
+
         return tf_nodes
 
     def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512]):
@@ -375,6 +377,8 @@ class CNNWhale(DataHandler):
                 'learning_rate': learning_rate,
                 'class_weights': y_,
                 }
+
+        self.set_tf_nodes(tf_nodes)
 
         return tf_nodes
         
@@ -627,6 +631,25 @@ class CNNWhale(DataHandler):
         """
         x = self.reshape_x(x)
         results = self.sess.run(fetches=self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        return results
+
+    def get_features(self, x, layer_name):
+        """ Compute feature vector by running the model on x
+
+        Args:
+            x: tensor
+                Tensor containing the input data.
+            layer_name: str
+                Name of the feature layer.
+            
+        Returns:
+            results: vector
+                A vector containing the feature values.                
+        """
+        x = self.reshape_x(x)
+        graph = tf.get_default_graph()
+        f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
+        results = self.sess.run(fetches=f, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
     def get_class_weights(self, x):

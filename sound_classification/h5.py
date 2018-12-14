@@ -16,7 +16,7 @@ import os
 import ast
 import math
 import numpy as np
-import sound_classification.data_handling as dh
+from sound_classification.annotation import tostring
 from sound_classification.audio_signal import AudioSignal
 from sound_classification.spectrogram import Spectrogram
 
@@ -154,12 +154,12 @@ def write(table, x, id=None):
         id_str = id
 
     if x.labels is not None:
-        labels_str = dh.tup2str(x.labels)
+        labels_str = tostring(x.labels)
     else:
         labels_str = ''
 
     if x.boxes is not None:          
-        boxes_str = dh.tup2str(x.boxes)
+        boxes_str = tostring(x.boxes)
     else:
         boxes_str = ''
 
@@ -188,11 +188,9 @@ def select(table, label):
 
     return rows
 
-def extract(table, label, min_length, center=False, fpad=True):
+def get_objects(table):
 
-    # selected segments
-    selection = list()
-    complement = None
+    res = list()
 
     # loop over items in table
     for it in table:
@@ -209,13 +207,31 @@ def extract(table, label, min_length, center=False, fpad=True):
             x = AudioSignal(rate=table.attrs.sample_rate, data=data)
         elif np.ndim(data) == 2:
             x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min)
-            x.annotate(labels=labels, boxes=boxes)
 
-        # clip
+        # annotate
+        x.annotate(labels=labels, boxes=boxes)
+
+        res.append(x)
+
+    return res
+
+def extract(table, label, min_length, center=False, fpad=True):
+
+    # selected segments
+    selection = list()
+    complement = None
+
+    items = get_objects(table)
+
+    # loop over items in table
+    for x in items:
+
+        # extract segments of interest
         segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center)
         for s in segs:
             selection.append(s)
 
+        # collect
         if complement is None:
             complement = x
         else:

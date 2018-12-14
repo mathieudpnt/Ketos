@@ -182,10 +182,11 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
 @pytest.mark.test_prepare_for_binary_cnn
 def test_prepare_for_binary_cnn():
     n = 1
+    l = 2
     specs = list()
     for i in range(n):
         t1 = (i+1) * 2
-        t2 = t1 + 3
+        t2 = t1 + l + 1
         img = np.ones(shape=(20,30))
         img[t1:t2,:] = 2.5
         s = Spectrogram(image=img)       
@@ -195,13 +196,18 @@ def test_prepare_for_binary_cnn():
     img_wid = 4
     x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, normalize=False)
     m = 1 + 20 - 4
+    q = 4
     assert y.shape == (m*n,)
     assert x.shape == (m*n, img_wid, specs[0].image.shape[1])
-    assert np.all(y[0:4] == 1)
+    assert np.all(y[0:q] == 1)
     assert y[4] == 0
     assert np.all(x[0,2,:] == 2.5)
     assert np.all(x[1,1,:] == 2.5)
-    
+
+    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, normalize=False, equal_rep=True)
+    assert y.shape == (2*q,)
+    assert np.sum(y) == q
+
 @pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():
     img = np.array([[0,0,1,1,0,0],

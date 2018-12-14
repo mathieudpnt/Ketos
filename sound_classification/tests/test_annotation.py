@@ -13,7 +13,7 @@
 
 import pytest
 import numpy as np
-from sound_classification.annotation import AnnotationHandler
+from sound_classification.annotation import AnnotationHandler, tostring
 
 
 def test_annotate():
@@ -53,3 +53,18 @@ def test_shift_annotations():
     assert b[0][1] == pytest.approx(20.3, abs=0.001)
     assert b[1][0] == pytest.approx(5.4, abs=0.001)
     assert b[1][1] == pytest.approx(16.3, abs=0.001)
+
+@pytest.mark.test_tostring
+def test_tostring():
+    box = (1,2,3)
+    s = tostring(box)
+    assert s == '[1,2,3]'
+    box = [1,2,3]
+    s = tostring(box)
+    assert s == '[1,2,3]'
+    box = np.array([1,2,3])
+    s = tostring(box)
+    assert s == '[1,2,3]'
+    box = [[1,2,3],[1,2]]
+    s = tostring(box)
+    assert s == '[[1,2,3],[1,2]]'

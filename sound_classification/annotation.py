@@ -17,6 +17,21 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import numpy as np
 import math
 
+
+def tostring(box):
+    if box is None:
+        return ''
+
+    box = np.array(box).tolist()
+
+    s = str(box)
+    s = s.replace(' ', '')
+    s = s.replace('(', '[')
+    s = s.replace(')', ']')
+
+    return s
+
+
 class AnnotationHandler():
     """ Parent class for the AudioSignal and Spectrogram classes
 
@@ -51,6 +66,9 @@ class AnnotationHandler():
                 self.labels.append(l)
                 b = self._ensure4D(b)
                 self.boxes.append(b)
+
+        for b in self.boxes:
+            b = np.array(b).tolist()
 
     def _ensure4D(self, b):
         if len(b) == 2:

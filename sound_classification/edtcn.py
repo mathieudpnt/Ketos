@@ -165,10 +165,7 @@ class EDTCN(DataHandler):
         x, y = self.get_training_data()
         x_val, y_val = self.get_validation_data()
 
-        y = to1hot(y, self.num_labels)
-
         if x_val is not None and y_val is not None:
-            y_val = to1hot(y_val, self.num_labels)
             x_val = self._reshape(x_val)
             y_val = self._reshape(y_val)
             val_data = (x_val, y_val)
@@ -226,12 +223,17 @@ class EDTCN(DataHandler):
         """
         n = self.max_len
         orig_len = a.shape[0]
-        nsegs = int(np.ceil(orig_len / n))
+        nsegs = int(np.floor(orig_len / n))
         new_len = nsegs * n
-        pad_shape = np.array([new_len - orig_len], dtype=np.int32)
-        pad_shape = np.append(pad_shape, a.shape[1:])
-        a = np.append(a, np.zeros(shape=pad_shape), axis=0)
+
+        if nsegs == 0:
+            nsegs = 1
+            new_len = n
+            pad_shape = np.array([new_len - orig_len], dtype=np.int32)
+            pad_shape = np.append(pad_shape, a.shape[1:])
+            a = np.append(a, np.zeros(shape=pad_shape), axis=0)
+
         new_shape = np.array([nsegs, n], dtype=np.int32)
         new_shape = np.append(new_shape, a.shape[1:])
-        a = np.reshape(a=a, newshape=new_shape)
+        a = np.reshape(a=a[:new_len], newshape=new_shape)
         return a

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
@@ -6,9 +7,10 @@ from scipy.fftpack import dct
 from scipy import interpolate
 from collections import namedtuple
 from numpy import seterr
+from sklearn.utils import shuffle
 
 
-def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True):
+def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True, rndm=False, seed=1, equal_rep=False):
 
     x, y = None, None
 
@@ -32,8 +34,27 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
             y = np.append(y, ys, axis=0)
 
     if normalize:
-        print(np.mean(x), np.std(x))
         x = (x - np.mean(x)) / np.std(x)
+
+    if rndm:
+        x, y = shuffle(x, y, random_state=seed)
+
+    # ensure equal representation of 0s and 1s
+    if equal_rep:
+        idx0 = pd.Index(np.squeeze(np.where(y == 0)))
+        idx1 = pd.Index(np.squeeze(np.where(y == 1)))
+        n0 = len(idx0)
+        n1 = len(idx1)
+        if n0 > n1:
+            idx0 = np.random.choice(idx0, n1, replace=False)
+            idx0 = pd.Index(idx0)
+        else:
+            idx1 = np.random.choice(idx1, n0, replace=False) 
+            idx1 = pd.Index(idx1)
+
+        idx = idx0.union(idx1)
+        x = x[idx]
+        y = y[idx]
 
     return x, y
 
