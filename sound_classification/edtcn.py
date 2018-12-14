@@ -223,15 +223,12 @@ class EDTCN(DataHandler):
         """
         n = self.max_len
         orig_len = a.shape[0]
-        nsegs = int(np.floor(orig_len / n))
+        nsegs = int(np.ceil(orig_len / n))
         new_len = nsegs * n
 
-        if nsegs == 0:
-            nsegs = 1
-            new_len = n
-            pad_shape = np.array([new_len - orig_len], dtype=np.int32)
-            pad_shape = np.append(pad_shape, a.shape[1:])
-            a = np.append(a, np.zeros(shape=pad_shape), axis=0)
+        pad_shape = np.array([new_len - orig_len], dtype=np.int32)
+        pad_shape = np.append(pad_shape, a.shape[1:])
+        a = np.append(a, np.zeros(shape=pad_shape), axis=0)
 
         new_shape = np.array([nsegs, n], dtype=np.int32)
         new_shape = np.append(new_shape, a.shape[1:])
