@@ -25,7 +25,7 @@ def open(h5file, table_path):
         Returns None if the table does not exist.
 
         Args:
-            h5: tables.file.File object
+            h5file: tables.file.File object
                 HDF5 file handler.
             table_path: str
                 The table's full path.
@@ -117,7 +117,7 @@ def write(table, x, id=None):
     """ Write data into the HDF5 table.
 
         Note: If the id field is left blank, it 
-        will be replaced with the spectrogram tag.
+        will be replaced with the tag attribute.
 
         Args:
             table: tables.Table
@@ -128,15 +128,6 @@ def write(table, x, id=None):
             :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
             :class:`audio_signal.AudioSignal`.
                 Data
-
-            id: str
-                Identifier (overwrites the id parsed from the tag).
-
-            labels: tuple(int)
-                Labels (overwrites the labels parsed from the tag).
-
-            boxes: tuple(tuple(int))
-                Boxes confining the regions of interest in time-frequency space
 
         Returns:
             None.
@@ -171,6 +162,19 @@ def write(table, x, id=None):
     seg_r.append()
 
 def select(table, label):
+    """ Find all objects in the table with the specified label.
+
+        Args:
+            table: tables.Table
+                Table
+
+            label: int
+                Label
+
+        Returns:
+            rows: list(int)
+                List of row numbers of the objects that have the specified label.
+    """
     # selected rows
     rows = list()
 
@@ -189,7 +193,16 @@ def select(table, label):
     return rows
 
 def get_objects(table):
+    """ Get all objects (spectrogram or audio signal) that are stored in the table.
 
+        Args:
+            table: tables.Table
+                Table
+
+        Returns:
+            res: list
+                List of objects.
+    """
     res = list()
 
     # loop over items in table
@@ -216,6 +229,27 @@ def get_objects(table):
     return res
 
 def extract(table, label, min_length, center=False, fpad=True):
+    """ Extract segments that match the specified label.
+
+        Args:
+            table: tables.Table
+                Table
+            label: int
+                Label
+            min_length: float
+                Minimum individual duration of extracted segments
+            center: bool
+                Place labels in the center of the segments
+            fpad: bool
+                Ensure that all extracted spectrograms have the same 
+                frequency range by padding with zeros, if necessary
+
+        Returns:
+            selection: list
+                List of segments matching the specified label
+            complement: spectrogram or audio signal
+                Segments (joined) that did not match the specified label
+    """
 
     # selected segments
     selection = list()
@@ -239,13 +273,33 @@ def extract(table, label, min_length, center=False, fpad=True):
 
     return selection, complement
 
-def parse_labels(table):
-    labels_str = table['labels'].decode()
+def parse_labels(item):
+    """ Parse labels string.
+
+        Args:
+            item: 
+                Table item
+
+        Returns:
+            labels: list(int)
+                List of labels
+    """
+    labels_str = item['labels'].decode()
     labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
     return labels
 
-def parse_boxes(table):
-    boxes_str = table['boxes'].decode()
+def parse_boxes(item):
+    """ Parse boxes string.
+
+        Args:
+            item: 
+                Table item
+
+        Returns:
+            labels: list(tuple)
+                List of boxes
+    """
+    boxes_str = item['boxes'].decode()
     boxes_str = boxes_str.replace("inf", "-99")
     boxes_str = ast.literal_eval(boxes_str)
     boxes = np.array(boxes_str)

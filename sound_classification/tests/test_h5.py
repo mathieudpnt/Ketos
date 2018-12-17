@@ -116,8 +116,8 @@ def test_h5_extract(sine_audio):
     h5.write(table=tbl, x=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
     h5.write(table=tbl, x=spec2, id='2')  # Box: 1.1-1.5 s Hz
     # parse labels and boxes
-    labels = h5.parse_labels(table=tbl[0])
-    boxes = h5.parse_boxes(table=tbl[0])
+    labels = h5.parse_labels(item=tbl[0])
+    boxes = h5.parse_boxes(item=tbl[0])
     assert labels == [1]
     assert boxes[0][0] == 1.0001
     assert boxes[0][1] == 1.4001
