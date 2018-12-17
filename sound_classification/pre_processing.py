@@ -11,7 +11,43 @@ from sklearn.utils import shuffle
 
 
 def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True, rndm=False, seed=1, equal_rep=False):
+    """ Transform the data into format suitable for training a binary CNN.
 
+    Args:
+        specs : list
+            Spectograms
+        label : int
+            Label that we want the CNN to learn to detect
+        image_width: int
+            Frame width (pixels).
+        step_size: int
+            Step size (pixels) used for framing. 
+        thres: float
+            Fraction of a frame that must have the label for the entire 
+            frame to be assigned the label. For example, if thres=0.5 and 
+            the frame is 8 pixels wide and only 3 pixels have the label 1, 
+            the frame as a whole will be labelled as 0 since 3/8 < 0.5.
+        normalize: bool
+            Normalize the data as x = (x - mean(x))/std(x)
+        rndm: bool
+            Randomize the order of the frames
+        seed: int
+            Seed for random number generator
+        equal_rep: bool
+            Ensure equal representation of 0s and 1s by removing the 
+            more abundant class until there are equally many.
+
+    Returns:
+        x : 3D numpy array
+            Input data for the CNN.
+            x.shape[0] = number of frames
+            x.shape[1] = image_width
+            x.shape[2] = number of frequency bins (y axis)
+        
+        y : 1D numpy array
+            Labels for input data.
+            y.shape[0] = number of frames
+    """
     x, y = None, None
 
     for s in specs:
