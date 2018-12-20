@@ -19,6 +19,16 @@ import math
 
 
 def tostring(box):
+    """ Convert an array, tuple or list into a string.
+        
+        Args:
+            box: array, tuple or list
+                Array, tuple or list that will be converted into a string.
+
+        Returns:
+            s: str
+                String representation of array/tuple/list.
+    """
     if box is None:
         return ''
 
@@ -54,7 +64,19 @@ class AnnotationHandler():
             self.boxes = []
 
     def annotate(self, labels, boxes):
-
+        """ Add a set of annotations.
+            
+            Args:
+                labels: list(int)
+                    Annotation labels.
+                boxes: list(tuple)
+                    Annotation boxes, specifying the start and stop time of the annotation 
+                    and, optionally, the minimum and maximum frequency.
+                    For example, box=(10.0, 12.2) specifies the start and stop times as being
+                    10.0 and 12.2 seconds, respectively, while no constraints are placed on the 
+                    frequency; box=(10.0, 12.2, 400., 6000.) specifies the same start and stop 
+                    times, but now also specifies a frequency range of 400-6000 Hz.
+        """
         if np.ndim(labels) == 0:
             self.labels.append(labels)
             boxes = self._ensure4D(boxes)
@@ -71,13 +93,26 @@ class AnnotationHandler():
             b = np.array(b).tolist()
 
     def _ensure4D(self, b):
+        """ Ensure that the annotation box has four entries.
+            Set the minimum frequency to 0 and the maximum 
+            frequency to infinity, if these are missing.
+            
+            Args:
+                b: list
+                   Annotation box 
+        """
         if len(b) == 2:
             b = [b[0], b[1], 0, math.inf]
         
         return b
 
     def delete_annotations(self, id=None):
-
+        """ Delete the annotation with the specified id.
+            
+            Args:
+                id: int
+                    ID of the annotation to be deleted.
+        """
         if id is None:
             self.labels = []
             self.boxes = []
@@ -92,7 +127,18 @@ class AnnotationHandler():
                     del self.boxes[i]
 
     def cut_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
-
+        """ Crop all annotations in time and/or frequency.
+            
+            Args:
+                t1: float
+                    New start time in seconds
+                t2: float
+                    New stop time in seconds
+                f1: float
+                    New minimum frequency in Hz
+                f2: float
+                    New maximum frequency in Hz
+        """
         if t1 is None: t1 = 0
         if t2 is None: t2 = math.inf
         if f1 is None: f1 = 0
@@ -118,6 +164,12 @@ class AnnotationHandler():
         return labels, boxes
 
     def _shift_annotations(self, delay=0):
+        """ Shift all annotations by a fixed time interval.
+            
+            Args:
+                delay: float
+                    Size of time shift in seconds.
+        """
         for b in self.boxes:
             b[0] += delay
             b[1] += delay

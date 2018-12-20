@@ -146,6 +146,12 @@ class AudioSignal(AnnotationHandler):
         return cls(rate=rate, data=np.array(y), tag=tag)
 
     def get_data(self):
+        """ Get the underlying data contained in this object.
+            
+            Returns:
+                self.data: numpy array
+                    Data
+        """
         return self.data
 
     def make_frames(self, winlen, winstep, zero_padding=False):

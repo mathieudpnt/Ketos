@@ -22,20 +22,11 @@ import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
+from sound_classification.annotation import tostring
 import datetime
 import datetime_glob
 import re
 
-def tup2str(tup):
-    if tup is None:
-        return ''
-
-    s = str(tup)
-    s = re.sub('\ ', '', s)
-    s = re.sub('\(', '[', s)
-    s = re.sub('\)', ']', s)
-
-    return s
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
     """
@@ -582,9 +573,9 @@ def write_spec_to_table(table, spectrogram, id=None, labels=None, boxes=None):
     if labels is None:
         labels_str = labels_parsed
     else:
-        labels_str = tup2str(labels)
+        labels_str = tostring(labels)
 
-    boxes_str = tup2str(boxes)
+    boxes_str = tostring(boxes)
 
     # check that number of labels match number of boxes
     if labels is not None and boxes is not None:

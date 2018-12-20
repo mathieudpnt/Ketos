@@ -12,6 +12,21 @@ from sound_classification.annotation import AnnotationHandler
 
 
 def ensure_same_length(specs, pad=False):
+    """ Ensure that all spectrograms have the same length/duration.
+        
+        Args:
+            specs: list
+                Input spectrograms.
+            pad: bool
+                If True, the shorter spectrograms will be padded with zeros
+                to achieve the same duration as the longest spectrogram. 
+                if False, the longer spectrograms will be cropped to achieve 
+                the same duration as the shortest spectrogram.
+    
+        Returns:   
+            specs: list
+                List of uniform length spectrograms.
+    """
 
     nt = list()
     for s in specs:
@@ -32,8 +47,36 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=False, smooth_par=5, shuffle=False):
+def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False):
+    """ Create new spectrograms by superimposing spectrograms from two different groups.
 
+        If the spectrograms have different lengths, the shorter of the two will be placed 
+        randomly within the larger one.
+
+        Args:
+            specs1: list
+                First group of input spectrograms.
+            specs2: list
+                Second group of input spectrograms.
+            num: int
+                Number of spectrograms that will be created
+            scale_min, scale_max: float, float
+                Scale the spectrogram that is being added by a random 
+                number between scale_min and scale_max
+            smooth: bool
+                If True, a smoothing operation will be applied 
+                to avoid sharp edges in the result spetrogram
+            smooth_par: int
+                Smoothing parameter. The larger the value, the less 
+                smoothing.
+            shuffle: bool
+                Select spectrograms from the two groups in random 
+                order instead of the order in which they are provided.
+
+        Returns:   
+            specs: list
+                List of uniform length spectrograms.
+    """
     M = len(specs1)
     N = len(specs2)
     x = np.arange(M)
@@ -120,6 +163,12 @@ class Spectrogram(AnnotationHandler):
         super().__init__() # initialize AnnotationHandler
 
     def copy(self):
+        """ Make a deep copy of the spectrogram.
+
+            Returns:
+                spec: Spectrogram
+                    Spectrogram copy.
+        """
         spec = self.__class__()
         spec.image = np.copy(self.image)
         spec.NFFT = self.NFFT
@@ -137,7 +186,27 @@ class Spectrogram(AnnotationHandler):
         return spec
 
     def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
+        """ Create a new spectrogram from an existing spectrogram by 
+            cropping in time and/or frequency.
+        
+            Args:
+                tbin1: int
+                    Lower time bin
+                tbin2: int
+                    Upper time bin
+                fbin1: int
+                    Lower frequency bin
+                fbin2: int
+                    Upper frequency bin
+                fpad: bool
+                    If True, the new spectrogram will have the same 
+                    frequency range as the original, but bins outside 
+                    the cropping range will be set to zero.
 
+            Returns:
+                spec: Spectrogram
+                    Created spectrogram.
+        """
         # cut image
         if fpad:
             img = self.image[tbin1:tbin2]
@@ -194,7 +263,7 @@ class Spectrogram(AnnotationHandler):
         """
 
          # Make frames
-        frames = audio_signal.make_frames(winlen, winstep) 
+        frames = make_frames(audio_signal, winlen, winstep) 
 
         # Apply Hamming window    
         if hamming:
@@ -251,9 +320,24 @@ class Spectrogram(AnnotationHandler):
         return image, NFFT, fres, phase_change
 
     def get_data(self):
+        """ Get the underlying data numpy array
+
+            Returns:
+                self.image: numpy array
+                    Image
+        """
         return self.image
 
     def annotate(self, labels, boxes):
+        """ Add a set of annotations
+
+            Args:
+                labels: list(int)
+                    Annotation labels
+                boxes: list(tuple)
+                    Annotation boxes, specifying the start and stop time of the annotation 
+                    and, optionally, the minimum and maximum frequency.
+        """
         super().annotate(labels, boxes)
         for b in self.boxes:
             if b[3] == math.inf:
@@ -317,6 +401,12 @@ class Spectrogram(AnnotationHandler):
         return bin
 
     def _tbin_low(self, bin):
+        """ Get the lower time value of the specified time bin.
+
+            Args:
+                bin: int
+                    Bin number
+        """
         t = self.tmin + bin * self.tres
         return t
 
@@ -338,6 +428,12 @@ class Spectrogram(AnnotationHandler):
         return bin
 
     def _fbin_low(self, bin):
+        """ Get the lower frequency value of the specified frequency bin.
+
+            Args:
+                bin: int
+                    Bin number
+        """
         f = self.fmin + bin * self.fres
         return f
 
@@ -358,6 +454,19 @@ class Spectrogram(AnnotationHandler):
 
 
     def get_label_vector(self, label):
+        """ Get a vector indicating presence/absence (1/0) 
+            of the specified annotation label for each 
+            time bin.
+
+            Args:
+                label: int
+                    Label of interest.
+
+            Returns:
+                y: numpy array
+                    Vector of 0s and 1s with length equal to the number of 
+                    time bins.
+        """
         y = np.zeros(self.tbins())
         boi, _ = self._select_boxes(label)
         for b in boi:
@@ -513,6 +622,22 @@ class Spectrogram(AnnotationHandler):
         return res
 
     def segment(self, number=1, length=None, pad=False):
+        """ Split the spectrogram into a number of equally long segments, 
+            either by specifying number of segments or segment duration.
+
+            Args:
+                number: int
+                    Number of segments.
+                length: float
+                    Duration of each segment in seconds (only applicable if number=1)
+                pad: bool
+                    If True, pad spectrogram with zeros if necessary to ensure 
+                    that bins are used.
+
+            Returns:
+                segs: list
+                    List of segments
+        """        
         if pad:
             f = np.ceil
         else:
@@ -541,6 +666,18 @@ class Spectrogram(AnnotationHandler):
         return segs
 
     def _select_boxes(self, label):
+        """ Select boxes corresponding to a specified label.
+
+            Args:
+                label: int
+                    Label of interest
+
+            Returns:
+                res: list
+                    Selected boxes
+                idx: list
+                    Indices of selected boxes
+        """  
         res, idx = list(), list()
         if len(self.labels) == 0:
             return res
@@ -553,6 +690,22 @@ class Spectrogram(AnnotationHandler):
         return res, idx
 
     def _stretch(self, boxes, min_length, center=False):
+        """ Stretch boxes to ensure that all have a 
+            minimum time length.
+
+            Args:
+                boxes: list
+                    Input boxes
+                min_length: float
+                    Minimum time length of each box
+                center: bool
+                    If True, box is streched equally on both sides.
+                    If False, the distribution of strech is random.
+
+            Returns:
+                res: list
+                    Strechted boxes
+        """ 
         res = list()
         for b in boxes:
             b = b.copy()

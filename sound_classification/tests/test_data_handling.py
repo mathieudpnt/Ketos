@@ -417,7 +417,7 @@ def test_write_spec_to_table_with_optional_args(sine_audio):
     assert pytest.approx(table_1[0]['signal'],spec.image)
     assert table_1[0]['id'].decode() == 'id123?$'
     assert table_1[0]['labels'].decode() == '[0,1,3]'
-    assert table_1[0]['boxes'].decode() == '[[0.1,0.8,40,400.5],[1.2,2.8,0.77,200.0],[7.7,77,40.0,500.5]]'
+    assert table_1[0]['boxes'].decode() == '[[0.1,0.8,40.0,400.5],[1.2,2.8,0.77,200.0],[7.7,77.0,40.0,500.5]]'
 
     h5.close()
     os.remove(os.path.join(path_to_tmp, 'tmp2_db.h5'))
@@ -656,9 +656,3 @@ def test_create_spec_table_from_audio_table():
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
     shutil.rmtree(path_to_assets + "/2s_segs")
-    
-@pytest.mark.test_tup2str
-def test_tup2str():
-    tup = (1,2,3)
-    s = dh.tup2str(tup)
-    assert s == '[1,2,3]'
