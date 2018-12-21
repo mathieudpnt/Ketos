@@ -238,7 +238,6 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     reset_default_graph()
     return meta, path_to_saved_model, test_acc
 
-
 @pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave

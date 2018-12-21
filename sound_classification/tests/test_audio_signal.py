@@ -42,7 +42,7 @@ def test_crop_audio_signal(sine_audio):
     assert audio_cropped.begin() == crop_begin
 
 
-def test_clip_with_positive_sample_id(sine_audio):
+def test_split_with_positive_sample_id(sine_audio):
     audio = sine_audio 
     t0 = audio.time_stamp
     first = audio.data[0]
@@ -50,7 +50,7 @@ def test_clip_with_positive_sample_id(sine_audio):
     n = len(audio.data)
     m = int(0.1*n)
     dt = m / audio.rate
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == m
     assert len(audio.data) == n-m
     assert first == s.data[0]
@@ -58,15 +58,15 @@ def test_clip_with_positive_sample_id(sine_audio):
     assert audio.time_stamp == t0 + datetime.timedelta(microseconds=1e6*dt)
     assert s.time_stamp == t0
 
-def test_clip_with_sample_larger_than_length(sine_audio):
+def test_split_with_sample_larger_than_length(sine_audio):
     audio = sine_audio
     n = len(audio.data)
     m = int(1.5*n)
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == n
     assert audio.empty() == True
 
-def test_clip_with_negative_sample_id(sine_audio):
+def test_split_with_negative_sample_id(sine_audio):
     audio = sine_audio
     t0 = audio.begin()
     t1 = audio.end()
@@ -75,7 +75,7 @@ def test_clip_with_negative_sample_id(sine_audio):
     n = len(audio.data)
     m = -int(0.2*n)
     dt = -m / audio.rate
-    s = audio.clip(m)
+    s = audio.split(m)
     assert len(s.data) == -m
     assert len(audio.data) == n+m
     assert first == audio.data[0]
@@ -191,5 +191,67 @@ def test_morlet_with_default_params():
 def test_gaussian_noise():
     noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
     assert noise.std() == pytest.approx(2, rel=0.05) # check standard deviation
-    assert noise.average() == pytest.approx(0, abs=3*2/np.sqrt(40000)) # check mean
+    assert noise.average() == pytest.approx(0, abs=6*2/np.sqrt(40000)) # check mean
     assert noise.seconds() == 20 # check length
+
+def test_clip(sine_audio):
+    audio = sine_audio
+    segs = audio.clip(boxes=[[0.1, 0.4],[0.3, 0.7]])
+    assert len(segs) == 2
+    assert segs[0].seconds() == pytest.approx(0.3, abs=2./audio.rate)
+    assert segs[1].seconds() == pytest.approx(0.4, abs=2./audio.rate)
+    assert audio.seconds() == pytest.approx(3.0-0.6, abs=2./audio.rate)
+
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_rate(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    assert new_signal.rate == 22000
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=2000)
+    assert new_signal.rate == 2000
+
+@pytest.mark.test_resample
+def test_resampled_signal_has_correct_length(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+
+    duration = signal.seconds()
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=2000)
+    assert len(new_signal.data) == duration * new_signal.rate 
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_shape(const_wave_file):
+    signal = aud.AudioSignal.from_wav(const_wave_file)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+
+    n = min(len(signal.data), len(new_signal.data))
+    for i in range(n):
+        assert signal.data[i] == new_signal.data[i]
+
+@pytest.mark.test_resample
+def test_resampling_preserves_signal_frequency(sine_wave_file):
+    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    rate = signal.rate
+    sig = signal.data
+    y = abs(np.fft.rfft(sig))
+    freq = np.argmax(y)
+    freqHz = freq * rate / len(sig)
+    signal = aud.AudioSignal(rate, sig)
+    new_signal = signal.copy()
+    new_signal.resample(new_rate=22000)
+    new_y = abs(np.fft.rfft(new_signal.data))
+    new_freq = np.argmax(new_y)
+    new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
+
+    assert freqHz == new_freqHz
+

@@ -153,7 +153,7 @@ class BatchReader:
             else:
                 t_prev = None
 
-            self.batch = self.signal.clip(s=size) # create a new batch
+            self.batch = self.signal.split(s=size) # create a new batch
 
             if t_prev is not None and self.batch.begin() < t_prev: 
                 self.batch.time_stamp = t_prev # ensure that new batch starts after the end of the previous batch

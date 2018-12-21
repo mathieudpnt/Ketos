@@ -1,12 +1,99 @@
 import numpy as np
+import pandas as pd
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
 from scipy.fftpack import dct
 from scipy import interpolate
 from collections import namedtuple
-from sound_classification.audio_signal import AudioSignal, TimeStampedAudioSignal
 from numpy import seterr
+from sklearn.utils import shuffle
+
+
+def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True, rndm=False, seed=1, equal_rep=False):
+    """ Transform the data into format suitable for training a binary CNN.
+
+    Args:
+        specs : list
+            Spectograms
+        label : int
+            Label that we want the CNN to learn to detect
+        image_width: int
+            Frame width (pixels).
+        step_size: int
+            Step size (pixels) used for framing. 
+        thres: float
+            Fraction of a frame that must have the label for the entire 
+            frame to be assigned the label. For example, if thres=0.5 and 
+            the frame is 8 pixels wide and only 3 pixels have the label 1, 
+            the frame as a whole will be labelled as 0 since 3/8 < 0.5.
+        normalize: bool
+            Normalize the data as x = (x - mean(x))/std(x)
+        rndm: bool
+            Randomize the order of the frames
+        seed: int
+            Seed for random number generator
+        equal_rep: bool
+            Ensure equal representation of 0s and 1s by removing the 
+            more abundant class until there are equally many.
+
+    Returns:
+        x : 3D numpy array
+            Input data for the CNN.
+            x.shape[0] = number of frames
+            x.shape[1] = image_width
+            x.shape[2] = number of frequency bins (y axis)
+        
+        y : 1D numpy array
+            Labels for input data.
+            y.shape[0] = number of frames
+    """
+    x, y = None, None
+
+    for s in specs:
+        
+        xs = s.get_data()
+        ys = s.get_label_vector(label)
+
+        xs = make_frames(xs, winlen=image_width, winstep=step_size)
+        ys = make_frames(ys, winlen=image_width, winstep=step_size)
+
+        n = ys.shape[1]
+        ys = np.sum(ys, axis=1)
+        ys = (ys >= thres*n)
+
+        if x is None:
+            x = xs
+            y = ys
+        else:
+            x = np.append(x, xs, axis=0)
+            y = np.append(y, ys, axis=0)
+
+    if normalize:
+        x = (x - np.mean(x)) / np.std(x)
+
+    if rndm:
+        x, y = shuffle(x, y, random_state=seed)
+
+    # ensure equal representation of 0s and 1s
+    if equal_rep:
+        idx0 = pd.Index(np.squeeze(np.where(y == 0)))
+        idx1 = pd.Index(np.squeeze(np.where(y == 1)))
+        n0 = len(idx0)
+        n1 = len(idx1)
+        if n0 > n1:
+            idx0 = np.random.choice(idx0, n1, replace=False)
+            idx0 = pd.Index(idx0)
+        else:
+            idx1 = np.random.choice(idx1, n0, replace=False) 
+            idx1 = pd.Index(idx1)
+
+        idx = idx0.union(idx1)
+        x = x[idx]
+        y = y[idx]
+
+    return x, y
+
 
 
 def to_decibel(x):
@@ -39,59 +126,19 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
-def resample(signal, new_rate):
-    """ Resample the acoustic signal with an arbitrary sampling rate.
-    
-    TODO: THIS FUNCTION NOW ALSO EXISTS AS A METHOD OF THE AUDIO SIGNAL CLASS. CONSIDER REMOVING?
-
-    Note: Code adapted from Kahl et al. (2017)
-          Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
-          Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
-
-    Args:
-        signal : AudioSignal
-            The signal to be resampled.
-        new_rate: int
-            New sampling rate.
-    
-    Returns:
-        new_signal : AudioSignal
-            resampled signal.
-    """
-
-    orig_rate = signal.rate
-    sig = signal.data
-
-    duration = sig.shape[0] / orig_rate
-
-    time_old  = np.linspace(0, duration, sig.shape[0])
-    time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
-
-    interpolator = interpolate.interp1d(time_old, sig.T)
-    new_audio = interpolator(time_new).T
-
-    new_sig = np.round(new_audio).astype(sig.dtype)
-
-    if isinstance(signal, TimeStampedAudioSignal):
-        new_signal = TimeStampedAudioSignal(rate=new_rate, data=new_sig, time_stamp=signal.time_stamp, tag=signal.tag)    
-    else:
-        new_signal = AudioSignal(rate=new_rate, data=new_sig)    
-
-    return new_signal
-
-def make_frames(signal, winlen, winstep, zero_padding=False):
+def make_frames(sig, winlen, winstep, zero_padding=False):
     """ Split the signal into frames of length 'winlen' with consecutive 
         frames being shifted by an amount 'winstep'. 
         
         If 'winstep' < 'winlen', the frames overlap.
 
     Args: 
-        signal: AudioSignal
-            The signal to be framed.
+        sig: numpy array
+            The signal to be frame.
         winlen: float
-            The window length in seconds.
+            The window length in bins.
         winstep: float
-            The window step (or stride) in seconds.
+            The window step (or stride) in bins.
         zero_padding: bool
             If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
             This assures that sample are not truncated from the original signal.
@@ -101,12 +148,7 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
             2-d array with padded frames.
     """
 
-    rate = signal.rate
-    sig = signal.data
-
-    totlen = len(sig)
-    winlen = int(round(winlen * rate))
-    winstep = int(round(winstep * rate))
+    totlen = sig.shape[0]
 
     if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
@@ -114,20 +156,16 @@ def make_frames(signal, winlen, winstep, zero_padding=False):
         z = np.zeros(n_zeros)
         padded_signal = np.append(sig, z)
     else:
+        padded_signal = sig
         if winlen > totlen:
             n_frames = 1
             winlen = totlen
         else:
             n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
 
-        l = (n_frames - 1) * winstep + winlen
-        padded_signal = np.delete(sig, np.s_[l:])
-
     indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
     frames = padded_signal[indices.astype(np.int32, copy=False)]
 
-    duration = len(padded_signal) / signal.rate
-    
     return frames
 
 

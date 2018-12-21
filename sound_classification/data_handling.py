@@ -22,8 +22,11 @@ import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import sound_classification.external.wavfile as wave_bit
+from sound_classification.annotation import tostring
 import datetime
 import datetime_glob
+import re
+
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
     """
@@ -178,8 +181,6 @@ def slice_ffmpeg(file,start,end,out_name):
     """
     call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
-
-
 def to1hot(value,depth):
     """Converts the binary label to one hot format
 
@@ -204,7 +205,6 @@ def to1hot(value,depth):
     value = np.int64(value)
     one_hot = np.eye(depth)[value]
     return one_hot
-
 
 def from1hot(value):
     """Converts the one hot label to binary format
@@ -234,7 +234,6 @@ def from1hot(value):
         output = np.argmax(value)
 
     return output
-
 
 def encode_database(database, x_column, y_column):
     """ Encodes database in a format suitable for machine learning:
@@ -275,7 +274,6 @@ def encode_database(database, x_column, y_column):
     database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
 
     return database, image_shape
-
 
 def split_database(database, divisions):
     """ Split the database into 3 datasets: train, validation, test.
@@ -336,7 +334,6 @@ def stack_dataset(dataset, input_shape):
                        'y': y}
 
     return stacked_dataset
-
 
 def prepare_database(database, x_column, y_column, divisions):
     """ Encode data base, split it into training, validation and test sets
@@ -432,7 +429,6 @@ def get_image_size(images):
 
     return image_shape
 
-
 def audio_table_description(signal_rate, segment_length):
     """ Create the class that describes the raw signal table structure for the HDF5 database.
      
@@ -461,7 +457,6 @@ def audio_table_description(signal_rate, segment_length):
     
     return TableDescription
 
-
 def spec_table_description(dimensions):
     """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
              
@@ -475,8 +470,6 @@ def spec_table_description(dimensions):
                 The class describing the table structure to be used when creating tables that 
                 will store images in the HDF5 database.
     """
-
-
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(25)
             labels = tables.StringCol(100)
@@ -484,7 +477,6 @@ def spec_table_description(dimensions):
             boxes = tables.StringCol(100) 
     
     return TableDescription
-
 
 def parse_seg_name(seg_name):
     """ Retrieves the segment id and label from the segment name
@@ -500,14 +492,18 @@ def parse_seg_name(seg_name):
             A tuple with the id and label strings.
 
     """
+    id, labels = None, None
+    if seg_name != '':
 
-    id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
-    tmp = seg_name.split("_")[4]
-    labels = tmp.split(".")[0]
+        splits = seg_name.split("_")
+        if len(splits) >= 5:
+            id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
+            tmp = seg_name.split("_")[4]
+            labels = tmp.split(".")[0]
 
     return (id,labels)
 
-def write_audio_to_table(seg_file_name,table, pad=False, duration=None ):
+def write_audio_to_table(seg_file_name, table, pad=False, duration=None ):
     """ Write data form .wav files containing segments into the h5 database.
 
         Args:
@@ -539,58 +535,81 @@ def write_audio_to_table(seg_file_name,table, pad=False, duration=None ):
     seg_r["signal"] = seg_data
     seg_r.append()
 
-
-def write_spec_to_table(spectrogram, table):
+def write_spec_to_table(table, spectrogram, id=None, labels=None, boxes=None):
     """ Write data from spectrogram object into the h5 database.
 
         Note: the spectrogram object is expected to have the id and label information in it's 
-        .tag attribute, following the format id_*_l_*.
+        .tag attribute, following the format id_*_[l]_*.
         Example: spec.tag="id_78536_l_1"
 
         Args:
+            table: tables.Table
+                Table in which the spectrogram will be stored
+                (described by spec_table_description()).
+
             spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
             :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
                 Spectrogram object.
 
-            table: tables.Table
-                Table in which the spectrogram will be stored
-                (described by spec_table_description()).
+            id: str
+                Spectrogram id (overwrites the id parsed from the spectrogram tag).
+
+            labels: tuple(int)
+                Labels (overwrites the labels parsed from the spectrogram tag).
+
+            boxes: tuple(tuple(int))
+                Boxes confining the regions of interest in time-frequency space
+
         Returns:
             None.
     """
+    id_parsed, labels_parsed = parse_seg_name(spectrogram.tag)
 
-    id, labels = parse_seg_name(spectrogram.tag)
+    if id is None:
+        id_str = id_parsed
+    else:
+        id_str = id
+
+    if labels is None:
+        labels_str = labels_parsed
+    else:
+        labels_str = tostring(labels)
+
+    boxes_str = tostring(boxes)
+
+    # check that number of labels match number of boxes
+    if labels is not None and boxes is not None:
+        assert len(labels) == len(boxes), 'Number of labels and number of boxes do not match'
+
     seg_r = table.row
-    seg_r["id"] = id
-    seg_r["labels"] = labels
     seg_r["signal"] = spectrogram.image
+    seg_r["id"] = id_str
+    seg_r["labels"] = labels_str
+    seg_r["boxes"] = boxes_str
     seg_r.append()
 
-def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=None):
+def open_table(h5, where, table_name, table_description, sample_rate, chunkshape=None):
     """ Open the specified table or creates it if it does not exist.
 
         Args:
             h5: tables.file.File object
-            HDF5 file handler for the database where the table is/will be located
+                HDF5 file handler for the database where the table is/will be located
             where: str
-            The group in which the table is/will be located. Ex: '/features/spectrograms'
-            group_name: str
-            The path to the group from the root node. Ex: "/group_1/subgroup_1"
+                The group in which the table is/will be located. Ex: '/features/spectrograms'
             table_name: str
-            The name of the table. This name will be part of the table's path.
-            Ex: 'table_a' passed along with group="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
+                The name of the table. This name will be part of the table's path.
+                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
             table_description: tables.IsDescription object
-            The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
+                The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
             sample_rate: int
-            The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
+                The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
             chunkshape: tuple
-            The chinkshape to be used for compression
+                The chunk shape to be used for compression
 
         Returns:
             table: table.Table object
             The opened/created table.    
     """
-
     try:
        group = h5.get_node(where)
     
@@ -613,8 +632,6 @@ def open_table(h5, where, table_name,table_description, sample_rate, chunkshape=
 
     table.attrs.sample_rate = sample_rate
     return table
-
-
 
 def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
@@ -711,9 +728,7 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
     filtered_annotations = annotations[filtered_indices]
     return filtered_annotations
 
-
-
-def get_labels(file,start, end, annotations, not_in_annotations=0):
+def get_labels(file, start, end, annotations, not_in_annotations=0):
     """ Retrieves the labels that fall in the specified interval.
     
         Args:
@@ -782,7 +797,6 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
             None   
 
     """
-
     out_seg = os.path.join(save_to, name)
     sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
     librosa.output.write_wav(out_seg, sig, rate)
@@ -880,7 +894,7 @@ def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
     ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
 
-    spec_description = spec_table_description(dimensions=ex_spec.shape)
+    spec_description = spec_table_description(dimensions=ex_spec.image.shape)
     spec_table = open_table(h5, where, spec_table_name, spec_description, None)
 
 
@@ -889,7 +903,7 @@ def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name
         audio = AudioSignal(rate,signal)
         spec = spec_class(audio_signal=audio, **kwargs)
         spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spec_to_table(spec, spec_table )
+        write_spec_to_table(spec_table, spec)
 
     spec_table.flush()
 

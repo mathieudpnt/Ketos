@@ -19,7 +19,7 @@ import numpy as np
 import scipy.signal as sg
 import sound_classification.pre_processing as pp
 from sound_classification.audio_signal import AudioSignal
-from sound_classification.spectrogram import MagSpectrogram
+from sound_classification.spectrogram import Spectrogram, MagSpectrogram
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -43,71 +43,14 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = pp.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-@pytest.mark.test_resample
-def test_resampled_signal_has_correct_rate(sine_wave_file):
-    rate, sig = pp.wave.read(sine_wave_file)
-    signal = AudioSignal(rate, sig)
-
-    new_signal = pp.resample(signal=signal, new_rate=22000)
-    assert new_signal.rate == 22000
-
-    new_signal = pp.resample(signal=signal, new_rate=2000)
-    assert new_signal.rate == 2000
-
-    tmp_file = os.path.join(path_to_assets,"tmp_sig.wav")
-    r = int(new_signal.rate)
-    d = new_signal.data.astype(dtype=np.int16)
-    pp.wave.write(filename=tmp_file, rate=r, data=d)
-    read_rate, _ = pp.wave.read(tmp_file)
-
-    assert read_rate == new_signal.rate
-
-@pytest.mark.test_resample
-def test_resampled_signal_has_correct_length(sine_wave_file):
-    rate, sig = pp.wave.read(sine_wave_file)
-    signal = pp.AudioSignal(rate, sig)
-
-    duration = len(sig) / rate
-
-    new_signal = pp.resample(signal=signal, new_rate=22000)
-    assert len(new_signal.data) == duration * new_signal.rate 
-
-    new_signal = pp.resample(signal=signal, new_rate=2000)
-    assert len(new_signal.data) == duration * new_signal.rate 
-
-@pytest.mark.test_resample
-def test_resampling_preserves_signal_shape(const_wave_file):
-    rate, sig = pp.wave.read(const_wave_file)
-    signal = pp.AudioSignal(rate, sig)
-    new_signal = pp.resample(signal=signal, new_rate=22000)
-
-    n = min(len(signal.data), len(new_signal.data))
-    for i in range(n):
-        assert signal.data[i] == new_signal.data[i]
-
-@pytest.mark.test_resample
-def test_resampling_preserves_signal_frequency(sine_wave_file):
-    rate, sig = pp.wave.read(sine_wave_file)
-    y = abs(np.fft.rfft(sig))
-    freq = np.argmax(y)
-    freqHz = freq * rate / len(sig)
-
-    signal = pp.AudioSignal(rate, sig)
-    new_signal = pp.resample(signal=signal, new_rate=22000)
-    new_y = abs(np.fft.rfft(new_signal.data))
-    new_freq = np.argmax(new_y)
-    new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
-
-    assert freqHz == new_freqHz
-
 @pytest.mark.test_make_frames
 def test_signal_is_padded(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate
     winlen = 2*duration
     winstep = 2*duration
-    signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal=signal, winlen=winlen, winstep=winstep, zero_padding=True)
+    signal = AudioSignal(rate, sig)
+    frames = signal.make_frames(winlen=winlen, winstep=winstep, zero_padding=True)
     assert frames.shape[0] == 1
     assert frames.shape[1] == 2*len(sig)
     assert frames[0, len(sig)] == 0
@@ -119,8 +62,8 @@ def test_can_make_overlapping_frames(sine_wave):
     duration = len(sig) / rate
     winlen = duration/2
     winstep = duration/4
-    signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal, winlen, winstep)
+    signal = AudioSignal(rate, sig)
+    frames = signal.make_frames(winlen=winlen, winstep=winstep)
     assert frames.shape[0] == 3
     assert frames.shape[1] == len(sig)/2
 
@@ -130,8 +73,8 @@ def test_can_make_non_overlapping_frames(sine_wave):
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/2
-    signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal, winlen, winstep)
+    signal = AudioSignal(rate, sig)
+    frames = signal.make_frames(winlen, winstep)
     assert frames.shape[0] == 2
     assert frames.shape[1] == len(sig)/4
 
@@ -141,8 +84,8 @@ def test_first_frame_matches_original_signal(sine_wave):
     duration = len(sig) / rate
     winlen = duration/4
     winstep = duration/10
-    signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal, winlen, winstep)
+    signal = AudioSignal(rate, sig)
+    frames = signal.make_frames(winlen, winstep)
     assert frames.shape[0] == 8
     for i in range(int(winlen*rate)):
         assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
@@ -153,8 +96,8 @@ def test_window_length_can_exceed_duration(sine_wave):
     duration = len(sig) / rate
     winlen = 2 * duration
     winstep = duration
-    signal = pp.AudioSignal(rate, sig)
-    frames = pp.make_frames(signal, winlen, winstep)
+    signal = AudioSignal(rate, sig)
+    frames = signal.make_frames(winlen, winstep)
     assert frames.shape[0] == 1
 
 @pytest.mark.test_normalize_spec
@@ -236,6 +179,35 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
+@pytest.mark.test_prepare_for_binary_cnn
+def test_prepare_for_binary_cnn():
+    n = 1
+    l = 2
+    specs = list()
+    for i in range(n):
+        t1 = (i+1) * 2
+        t2 = t1 + l + 1
+        img = np.ones(shape=(20,30))
+        img[t1:t2,:] = 2.5
+        s = Spectrogram(image=img)       
+        s.annotate(labels=7,boxes=[t1, t2])
+        specs.append(s)
+
+    img_wid = 4
+    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, normalize=False)
+    m = 1 + 20 - 4
+    q = 4
+    assert y.shape == (m*n,)
+    assert x.shape == (m*n, img_wid, specs[0].image.shape[1])
+    assert np.all(y[0:q] == 1)
+    assert y[4] == 0
+    assert np.all(x[0,2,:] == 2.5)
+    assert np.all(x[1,1,:] == 2.5)
+
+    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, normalize=False, equal_rep=True)
+    assert y.shape == (2*q,)
+    assert np.sum(y) == q
+
 @pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():
     img = np.array([[0,0,1,1,0,0],
@@ -261,5 +233,4 @@ def test_filter_isolated_spots_removes_single_pixels():
     filtered_img = pp.filter_isolated_spots(img,struct)
 
     assert np.array_equal(filtered_img, expected)
-
 

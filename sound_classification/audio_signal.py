@@ -5,13 +5,14 @@ import scipy.io.wavfile as wave
 from scipy import interpolate
 from sound_classification.data_handling import read_wave
 from sound_classification.util import morlet_func
+import sound_classification.pre_processing as pp
 import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
+from sound_classification.annotation import AnnotationHandler
 
-
-class AudioSignal:
+class AudioSignal(AnnotationHandler):
     """ Audio signal
 
         Args:
@@ -22,10 +23,11 @@ class AudioSignal:
             tag: str
                 Optional meta data string
     """
-    def __init__(self, rate, data, tag=""):
+    def __init__(self, rate, data, tag=''):
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
+        super(AudioSignal, self).__init__() # initialize AnnotationHandler
 
     @classmethod
     def from_wav(cls, path, channel=0):
@@ -142,6 +144,46 @@ class AudioSignal:
         tag = "cosine_f{0:.0f}Hz".format(frequency) # this is just a string with some helpful info
 
         return cls(rate=rate, data=np.array(y), tag=tag)
+
+    def get_data(self):
+        """ Get the underlying data contained in this object.
+            
+            Returns:
+                self.data: numpy array
+                    Data
+        """
+        return self.data
+
+    def make_frames(self, winlen, winstep, zero_padding=False):
+        """ Split the signal into frames of length 'winlen' with consecutive 
+            frames being shifted by an amount 'winstep'. 
+            
+            If 'winstep' < 'winlen', the frames overlap.
+
+        Args: 
+            signal: AudioSignal
+                The signal to be framed.
+            winlen: float
+                The window length in seconds.
+            winstep: float
+                The window step (or stride) in seconds.
+            zero_padding: bool
+                If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
+                This assures that sample are not truncated from the original signal.
+
+        Returns:
+            frames: numpy array
+                2-d array with padded frames.
+        """
+        rate = self.rate
+        sig = self.data
+
+        winlen = int(round(winlen * rate))
+        winstep = int(round(winstep * rate))
+
+        frames = pp.make_frames(sig, winlen, winstep, zero_padding)
+        return frames
+
 
     def to_wav(self, path):
         """ Save audio signal to wave file
@@ -264,7 +306,6 @@ class AudioSignal:
                 i2: int
                     End sample no.
         """   
-
         i1 = 0
         i2 = len(self.data)
 
@@ -309,6 +350,63 @@ class AudioSignal:
         """   
         i1, i2 = self._selection(begin, end)
         self._crop(i1, i2)
+
+    def clip(self, boxes):
+        """ Extract boxed intervals from audio signal.
+
+            After clipping, this instance contains the remaining part of the audio signal.
+
+            Args:
+                boxes: numpy array
+                    2d numpy array with shape (?,2)   
+
+            Returns:
+                specs: list(AudioSignal)
+                    List of clipped audio signals.                
+        """
+        if np.ndim(boxes) == 1:
+            boxes = [boxes]
+
+        # sort boxes in chronological order
+        sorted(boxes, key=lambda box: box[0])
+
+        boxes = np.array(boxes)
+        N = boxes.shape[0]
+
+        # get cuts
+        segs = list()
+
+        # loop over boxes
+        t1, t2 = list(), list()
+        for i in range(N):
+            
+            begin = boxes[i][0]
+            end = boxes[i][1]
+            t1i, t2i = self._selection(begin, end)
+
+            data = self.data[t1i:t2i]
+            seg = AudioSignal(rate=self.rate, data=data)
+
+            segs.append(seg)
+            t1.append(t1i)
+            t2.append(t2i)
+
+        # complement
+        t2 = np.insert(t2, 0, 0)
+        t1 = np.append(t1, len(self.data))
+        t2max = 0
+        for i in range(len(t1)):
+            t2max = max(t2[i], t2max)
+            if t2max < t1[i]:
+                if t2max == 0:
+                    data_c = self.data[t2max:t1[i]]
+                else:
+                    data_c = np.append(data_c, self.data[t2max:t1[i]], axis=0)
+
+        self.data = data_c
+        self.tmin = 0
+
+        return segs
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):
         """ Append another audio signal to this signal.
@@ -370,10 +468,10 @@ class AudioSignal:
         if delay == 0 and n_smooth > 0:
 
             # signal 1
-            a = self.clip(-n_smooth)
+            a = self.split(-n_smooth)
 
             # signal 2
-            b = signal.clip(n_smooth)
+            b = signal.split(n_smooth)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
@@ -416,10 +514,10 @@ class AudioSignal:
         
         return append_time
 
-    def clip(self, s):
-        """ Clip audio signal.
+    def split(self, s):
+        """ Split audio signal.
 
-            After clipping, this instance contains the remaining part of the audio signal.        
+            After splitting, this instance contains the remaining part of the audio signal.        
 
             Args:
                 s: int
@@ -663,7 +761,6 @@ class TimeStampedAudioSignal(AudioSignal):
 
         super(TimeStampedAudioSignal, self)._crop(i1, i2)   # crop signal
         
-    
     def crop(self, begin=None, end=None):
         """ Crop time-stamped audio signal
 
@@ -684,10 +781,10 @@ class TimeStampedAudioSignal(AudioSignal):
         
         self._crop(i1, i2)
 
-    def clip(self, s):
-        """ Clip time-stamped audio signal.
+    def split(self, s):
+        """ Split time-stamped audio signal.
 
-            After clipping, this instance contains the remaining part of the audio signal.        
+            After splitting, this instance contains the remaining part of the audio signal.        
 
             Args:
                 s: int
@@ -706,7 +803,7 @@ class TimeStampedAudioSignal(AudioSignal):
             dt = -s / self.rate
             t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
             
-        a = super(TimeStampedAudioSignal, self).clip(s)
+        a = super(TimeStampedAudioSignal, self).split(s)
         return self.from_audio_signal(audio_signal=a, time_stamp=t)
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):

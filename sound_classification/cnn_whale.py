@@ -643,6 +643,25 @@ class CNNWhale(DataHandler):
         results = self.sess.run(fetches=self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
+    def get_features(self, x, layer_name):
+        """ Compute feature vector by running the model on x
+
+        Args:
+            x: tensor
+                Tensor containing the input data.
+            layer_name: str
+                Name of the feature layer.
+            
+        Returns:
+            results: vector
+                A vector containing the feature values.                
+        """
+        x = self.reshape_x(x)
+        graph = tf.get_default_graph()
+        f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
+        results = self.sess.run(fetches=f, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+        return results
+
     def get_class_weights(self, x):
         """ Compute classification weights by running the model on x.
 
