@@ -17,7 +17,6 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import numpy as np
 import math
 
-
 def tostring(box):
     """ Convert an array, tuple or list into a string.
         
