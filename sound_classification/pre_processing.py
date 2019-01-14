@@ -10,7 +10,7 @@ from numpy import seterr
 from sklearn.utils import shuffle
 
 
-def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True, rndm=False, seed=1, equal_rep=False):
+def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, rndm=False, seed=1, equal_rep=False):
     """ Transform the data into format suitable for training a binary CNN.
 
     Args:
@@ -27,8 +27,6 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
             frame to be assigned the label. For example, if thres=0.5 and 
             the frame is 8 pixels wide and only 3 pixels have the label 1, 
             the frame as a whole will be labelled as 0 since 3/8 < 0.5.
-        normalize: bool
-            Normalize the data as x = (x - mean(x))/std(x)
         rndm: bool
             Randomize the order of the frames
         seed: int
@@ -68,9 +66,6 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
         else:
             x = np.append(x, xs, axis=0)
             y = np.append(y, ys, axis=0)
-
-    if normalize:
-        x = (x - np.mean(x)) / np.std(x)
 
     if rndm:
         x, y = shuffle(x, y, random_state=seed)

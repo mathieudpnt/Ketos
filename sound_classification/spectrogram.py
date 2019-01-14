@@ -605,6 +605,9 @@ class Spectrogram(AnnotationHandler):
                     If necessary, pad with zeros along the frequency axis to ensure that 
                     the extracted spectrogram had the same frequency range as the source 
                     spectrogram.
+                make_copy: bool
+                    If true, the extracted portion of the spectrogram is copied rather 
+                    than cropped, so this instance is unaffected by the operation.
 
             Returns:
                 specs: list(Spectrogram)
@@ -685,7 +688,7 @@ class Spectrogram(AnnotationHandler):
         """  
         res, idx = list(), list()
         if len(self.labels) == 0:
-            return res
+            return res, idx
 
         for i, (b, l) in enumerate(zip(self.boxes, self.labels)):
             if l == label:
