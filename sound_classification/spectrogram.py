@@ -585,7 +585,7 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
-    def extract(self, label, min_length=None, center=False, fpad=False):
+    def extract(self, label, min_length=None, center=False, fpad=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, this instance contains the 
@@ -610,14 +610,19 @@ class Spectrogram(AnnotationHandler):
                 specs: list(Spectrogram)
                     List of clipped spectrograms.                
         """
+        if make_copy:
+            s = self.copy()
+        else:
+            s = self
+
         # select boxes of interest (BOI)
-        boi, idx = self._select_boxes(label)
+        boi, idx = s._select_boxes(label)
         # strech to minimum length, if necessary
-        boi = self._stretch(boxes=boi, min_length=min_length, center=center)
+        boi = s._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = self._clip(boxes=boi, fpad=fpad)
+        res = s._clip(boxes=boi, fpad=fpad)
         # remove extracted labels
-        self.delete_annotations(idx)
+        s.delete_annotations(idx)
         
         return res
 
