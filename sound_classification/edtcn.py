@@ -233,4 +233,5 @@ class EDTCN(DataHandler):
         new_shape = np.array([nsegs, n], dtype=np.int32)
         new_shape = np.append(new_shape, a.shape[1:])
         a = np.reshape(a=a[:new_len], newshape=new_shape)
+
         return a

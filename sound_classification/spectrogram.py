@@ -122,7 +122,6 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                     return specs
 
     return specs
-        
 
 class Spectrogram(AnnotationHandler):
     """ Spectrogram
@@ -992,8 +991,12 @@ class Spectrogram(AnnotationHandler):
 
         assert np.all(self.image.shape[1] == spec.image.shape[1]), 'It is not possible to add spectrograms with different frequency range'
 
-        self.image = np.append(self.image, spec.image, axis=0)
+        # add annotations
+        spec._shift_annotations(delay=self.duration())
+        self.annotate(labels=spec.labels, boxes=spec.boxes)
 
+        # append image
+        self.image = np.append(self.image, spec.image, axis=0)
 
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.

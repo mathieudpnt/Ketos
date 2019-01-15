@@ -194,7 +194,7 @@ def test_prepare_for_binary_cnn():
         specs.append(s)
 
     img_wid = 4
-    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5)
+    x, y, _ = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5)
     m = 1 + 20 - 4
     q = 4
     assert y.shape == (m*n,)
@@ -204,7 +204,7 @@ def test_prepare_for_binary_cnn():
     assert np.all(x[0,2,:] == 2.5)
     assert np.all(x[1,1,:] == 2.5)
 
-    x, y = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, equal_rep=True)
+    x, y, _ = pp.prepare_for_binary_cnn(specs=specs, label=7, image_width=img_wid, step_size=1, thres=0.5, equal_rep=True)
     assert y.shape == (2*q,)
     assert np.sum(y) == q
 

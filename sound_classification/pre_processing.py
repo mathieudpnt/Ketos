@@ -10,6 +10,24 @@ from numpy import seterr
 from sklearn.utils import shuffle
 
 
+def append_specs(specs):
+    """ Append spectrograms in order.
+        The spectrograms must have the same dimensions and resolutions.
+
+        Args:
+            specs: list(Spectrogram)
+                Spectrograms to be combined
+
+        Returns:
+            s: Spectrogram
+                Combined spectrograms
+    """
+    s = specs[0]
+    for i in range(1,len(specs)):
+        s.append(specs[i])
+
+    return s
+
 def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, rndm=False, seed=1, equal_rep=False):
     """ Transform the data into format suitable for training a binary CNN.
 
@@ -40,32 +58,30 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
             Input data for the CNN.
             x.shape[0] = number of frames
             x.shape[1] = image_width
-            x.shape[2] = number of frequency bins (y axis)
-        
+            x.shape[2] = number of frequency bins (y axis)        
         y : 1D numpy array
             Labels for input data.
             y.shape[0] = number of frames
+        spec: Spectrogram
+            Merged spectrogram
     """
     x, y = None, None
 
-    for s in specs:
-        
-        xs = s.get_data()
-        ys = s.get_label_vector(label)
+    spec = append_specs(specs)
 
-        xs = make_frames(xs, winlen=image_width, winstep=step_size)
-        ys = make_frames(ys, winlen=image_width, winstep=step_size)
+    x = spec.get_data()
+    y = spec.get_label_vector(label)
 
-        n = ys.shape[1]
-        ys = np.sum(ys, axis=1)
-        ys = (ys >= thres*n)
+    x = make_frames(x, winlen=image_width, winstep=step_size)
+    y = make_frames(y, winlen=image_width, winstep=step_size)
 
-        if x is None:
-            x = xs
-            y = ys
-        else:
-            x = np.append(x, xs, axis=0)
-            y = np.append(y, ys, axis=0)
+    Nx = (x.shape[0] - 1) * step_size + x.shape[1]
+    spec.image = spec.image[:Nx,:]
+
+    n = y.shape[1]
+    y = np.sum(y, axis=1)
+    y = (y >= thres*n)
+#    y = y.astype(int)
 
     if rndm:
         x, y = shuffle(x, y, random_state=seed)
@@ -87,9 +103,7 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
         x = x[idx]
         y = y[idx]
 
-    return x, y
-
-
+    return x, y, spec
 
 def to_decibel(x):
     """ Convert to decibels
