@@ -91,7 +91,7 @@ def create(h5file, path, name, shape, chunkshape=None, verbose=False):
 
     return table
 
-def description(shape):
+def description(shape, id_len=25, labels_len=100, boxes_len=100):
     """ Create the class that describes the table structure for the HDF5 database.
              
         Args:
@@ -100,16 +100,25 @@ def description(shape):
                 to be stored in the table. Optionally, a third integer can be added if the 
                 spectrogram has multiple channels (n_rows, n_cols, n_channels).
 
+            id_len : int
+                The number of character for the 'id' field
+            
+            labels_len : int
+                The number of character for the 'labels' field
+
+            boxes_len : int
+                The number of character for the 'boxes' field
+
         Results:
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure to be used when creating tables that 
                 will store images in the HDF5 database.
     """
     class TableDescription(tables.IsDescription):
-            id = tables.StringCol(25)
-            labels = tables.StringCol(100)
+            id = tables.StringCol(id_len)
+            labels = tables.StringCol(labels_len)
             data = tables.Float32Col(shape=shape)
-            boxes = tables.StringCol(100) 
+            boxes = tables.StringCol(boxes_len) 
     
     return TableDescription
 
