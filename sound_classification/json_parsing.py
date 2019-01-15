@@ -67,10 +67,10 @@ def parse_spectrogram_config(data):
             raise ValueError("Unknown window function. Select between: "+s)
     if data.get('low_frequency_cut') is not None:
         flow = Q(data['low_frequency_cut'])
-        flow = step.m_as("Hz")
+        flow = flow.m_as("Hz")
     if data.get('high_frequency_cut') is not None:
         fhigh = Q(data['high_frequency_cut'])
-        fhigh = step.m_as("Hz")
+        fhigh = fhigh.m_as("Hz")
 
     # return
     c = SpectrConfig(rate, wsiz, step, wfun, flow, fhigh)    
