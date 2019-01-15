@@ -145,12 +145,12 @@ def write(table, x, id=None):
         id_str = id
 
     if x.labels is not None:
-        labels_str = tostring(x.labels)
+        labels_str = tostring(x.labels, decimals=0)
     else:
         labels_str = ''
 
     if x.boxes is not None:          
-        boxes_str = tostring(x.boxes)
+        boxes_str = tostring(x.boxes, decimals=4)
     else:
         boxes_str = ''
 

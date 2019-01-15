@@ -17,7 +17,7 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import numpy as np
 import math
 
-def tostring(box):
+def tostring(box, decimals=None):
     """ Convert an array, tuple or list into a string.
         
         Args:
@@ -31,7 +31,12 @@ def tostring(box):
     if box is None:
         return ''
 
-    box = np.array(box).tolist()
+    box = np.array(box)
+
+    if decimals is not None:
+        box = np.around(box, decimals=int(decimals))
+
+    box = box.tolist()
 
     s = str(box)
     s = s.replace(' ', '')
