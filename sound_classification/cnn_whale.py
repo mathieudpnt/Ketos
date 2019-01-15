@@ -104,7 +104,7 @@ class CNNWhale(DataHandler):
         self.epoch_counter = 0
         self.sess.run(self.init_op)
 
-    def set_tf_nodes(self, tf_nodes):
+    def set_tf_nodes(self, tf_nodes, reset=True):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
 
             Args:
@@ -133,7 +133,8 @@ class CNNWhale(DataHandler):
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
-        self.reset()
+        if reset:
+            self.reset()
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -161,7 +162,7 @@ class CNNWhale(DataHandler):
         """
         self.verbosity = verbosity
 
-    def load(self, saved_meta, checkpoint):
+    def load(self, saved_meta, checkpoint, reset=False):
         """Load the Neural Network structure from a saved model.
 
         See the save() method. 
@@ -220,7 +221,7 @@ class CNNWhale(DataHandler):
                 'class_weights': class_weights,
                 }
 
-        self.set_tf_nodes(tf_nodes)
+        self.set_tf_nodes(tf_nodes=tf_nodes, reset=reset)
 
         return tf_nodes
 

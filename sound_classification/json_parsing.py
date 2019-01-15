@@ -19,14 +19,16 @@ low - Lower limit (float)
 high - Upper limit (float)''' 
 
 
-SpectrConfig = namedtuple('SpectrConfig', 'rate window_size step_size window_function')
+SpectrConfig = namedtuple('SpectrConfig', 'rate window_size step_size window_function low_frequency_cut high_frequency_cut')
 SpectrConfig.__doc__ = '''\
 Configuration parameters for generation of spectrograms
 
 rate - Sampling rate in Hz (int)
 window_size - Window size used for framing in seconds (float)
 step_size - Step size used for framing in seconds (float)
-window_function - Window function used for framing (e.g. Hamming window)''' 
+window_function - Window function used for framing (e.g. Hamming window)
+low_frequency_cut - Low-frequency cut-off in Hz (float)
+high_frequency_cut - High-frequency cut-off in Hz (float)''' 
 
 
 def parse_spectrogram_config(data):
@@ -44,7 +46,7 @@ def parse_spectrogram_config(data):
     Q = ureg.Quantity
 
     # default values
-    rate, wsiz, step, wfun = None, None, None, None
+    rate, wsiz, step, wfun, flow, fhigh = None, None, None, None, None, None
 
     # check that entry exists, before attempting to read
     if data.get('rate') is not None:
@@ -63,9 +65,15 @@ def parse_spectrogram_config(data):
         if wfun is None:
             s = ", ".join(name for name, _ in WinFun.__members__.items())
             raise ValueError("Unknown window function. Select between: "+s)
+    if data.get('low_frequency_cut') is not None:
+        flow = Q(data['low_frequency_cut'])
+        flow = flow.m_as("Hz")
+    if data.get('high_frequency_cut') is not None:
+        fhigh = Q(data['high_frequency_cut'])
+        fhigh = fhigh.m_as("Hz")
 
     # return
-    c = SpectrConfig(rate, wsiz, step, wfun)    
+    c = SpectrConfig(rate, wsiz, step, wfun, flow, fhigh)    
     return c
 
 

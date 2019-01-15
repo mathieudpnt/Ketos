@@ -122,7 +122,6 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                     return specs
 
     return specs
-        
 
 class Spectrogram(AnnotationHandler):
     """ Spectrogram
@@ -357,6 +356,8 @@ class Spectrogram(AnnotationHandler):
                 bin : int
                     Bin number
         """
+        epsilon = 1E-12
+
         if np.ndim(x) == 0:
             scalar = True
             x = [x]
@@ -366,8 +367,8 @@ class Spectrogram(AnnotationHandler):
         x = np.array(x)
         dx = (x_max - x_min) / bins
         b = (x - x_min) / dx
+        b[b % 1 == 0.0] += epsilon
         b = b.astype(dtype=int, copy=False)
-
 
         if truncate:
             b[b < 0] = 0
@@ -585,7 +586,7 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
-    def extract(self, label, min_length=None, center=False, fpad=False):
+    def extract(self, label, min_length=None, center=False, fpad=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, this instance contains the 
@@ -605,19 +606,27 @@ class Spectrogram(AnnotationHandler):
                     If necessary, pad with zeros along the frequency axis to ensure that 
                     the extracted spectrogram had the same frequency range as the source 
                     spectrogram.
+                make_copy: bool
+                    If true, the extracted portion of the spectrogram is copied rather 
+                    than cropped, so this instance is unaffected by the operation.
 
             Returns:
                 specs: list(Spectrogram)
                     List of clipped spectrograms.                
         """
+        if make_copy:
+            s = self.copy()
+        else:
+            s = self
+
         # select boxes of interest (BOI)
-        boi, idx = self._select_boxes(label)
+        boi, idx = s._select_boxes(label)
         # strech to minimum length, if necessary
-        boi = self._stretch(boxes=boi, min_length=min_length, center=center)
+        boi = s._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = self._clip(boxes=boi, fpad=fpad)
+        res = s._clip(boxes=boi, fpad=fpad)
         # remove extracted labels
-        self.delete_annotations(idx)
+        s.delete_annotations(idx)
         
         return res
 
@@ -680,7 +689,7 @@ class Spectrogram(AnnotationHandler):
         """  
         res, idx = list(), list()
         if len(self.labels) == 0:
-            return res
+            return res, idx
 
         for i, (b, l) in enumerate(zip(self.boxes, self.labels)):
             if l == label:
@@ -745,6 +754,9 @@ class Spectrogram(AnnotationHandler):
                 specs: list(Spectrogram)
                     List of clipped spectrograms.                
         """
+        if boxes is None or len(boxes) == 0:
+            return list()
+
         if np.ndim(boxes) == 1:
             boxes = [boxes]
 
@@ -984,8 +996,12 @@ class Spectrogram(AnnotationHandler):
 
         assert np.all(self.image.shape[1] == spec.image.shape[1]), 'It is not possible to add spectrograms with different frequency range'
 
-        self.image = np.append(self.image, spec.image, axis=0)
+        # add annotations
+        spec._shift_annotations(delay=self.duration())
+        self.annotate(labels=spec.labels, boxes=spec.boxes)
 
+        # append image
+        self.image = np.append(self.image, spec.image, axis=0)
 
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.

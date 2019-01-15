@@ -1,11 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_labeled_spec(spec, label, pred=None):
+def plot_labeled_spec(spec, label, pred=None, feat=None):
 
-    nrows = 2 + int(pred is not None)
+    nrows = 2
+    if (pred is not None): 
+        nrows += 1
+    if (feat is not None): 
+        nrows += 1
 
-    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 8))
+    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 2+2*nrows))
 
     # spectrogram
     x = spec.image
@@ -28,6 +32,18 @@ def plot_labeled_spec(spec, label, pred=None):
         fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
         row += 1
 
+    # feat
+    if feat is not None:
+        std = np.std(feat, axis=0)
+        idx = np.argwhere(std > 0)
+        idx = np.squeeze(idx)
+        x = feat[:,idx]
+        x = (x - np.mean(x, axis=0)) / np.std(x, axis=0)
+        img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), 0, 1))
+        ax[row].set_ylabel('feature #')
+        fig.colorbar(img_plot, ax=ax[row], format='%+2.0f')
+        row += 1
+
     # labels
     t_axis = np.zeros(len(label))
     for i in range(1,len(label)):
@@ -37,6 +53,7 @@ def plot_labeled_spec(spec, label, pred=None):
     ax[row].set_xlim(0, spec.duration())
     ax[row].set_ylim(-0.1, 1.1)
     fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
+    row += 1
 
     return fig
 
