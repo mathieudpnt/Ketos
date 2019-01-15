@@ -356,6 +356,8 @@ class Spectrogram(AnnotationHandler):
                 bin : int
                     Bin number
         """
+        epsilon = 1E-12
+
         if np.ndim(x) == 0:
             scalar = True
             x = [x]
@@ -365,8 +367,8 @@ class Spectrogram(AnnotationHandler):
         x = np.array(x)
         dx = (x_max - x_min) / bins
         b = (x - x_min) / dx
+        b[b % 1 == 0.0] += epsilon
         b = b.astype(dtype=int, copy=False)
-
 
         if truncate:
             b[b < 0] = 0
@@ -752,6 +754,9 @@ class Spectrogram(AnnotationHandler):
                 specs: list(Spectrogram)
                     List of clipped spectrograms.                
         """
+        if boxes is None or len(boxes) == 0:
+            return list()
+
         if np.ndim(boxes) == 1:
             boxes = [boxes]
 
