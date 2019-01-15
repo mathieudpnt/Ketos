@@ -23,6 +23,8 @@ def tostring(box, decimals=None):
         Args:
             box: array, tuple or list
                 Array, tuple or list that will be converted into a string.
+            decimals: int
+                Number of decimals that will be kept in the conversion to string.
 
         Returns:
             s: str
