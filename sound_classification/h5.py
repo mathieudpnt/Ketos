@@ -43,7 +43,7 @@ def open(h5file, table_path):
 
     return table
 
-def create(h5file, path, name, shape, chunkshape=None, verbose=False):
+def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
     """ Create a new table.
 
         Args:
@@ -57,6 +57,8 @@ def create(h5file, path, name, shape, chunkshape=None, verbose=False):
                 The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
                 to be stored in the table. Optionally, a third integer can be added if the 
                 spectrogram has multiple channels (n_rows, n_cols, n_channels).
+            max_annotations: int
+                Maximum number of annotations allowed for any of the items in this table.
             chunkshape: tuple
                 The chunk shape to be used for compression
 
@@ -86,7 +88,9 @@ def create(h5file, path, name, shape, chunkshape=None, verbose=False):
     
     except tables.NoSuchNodeError:    
         filters = tables.Filters(complevel=1, fletcher32=True)
-        descrip = description(shape=shape)
+        labels_len = 2 + max_annotations * 3 - 1 # assumes that labels have at most 2 digits (i.e. 0-99)
+        boxes_len = 2 + max_annotations * (6 + 4*9) - 1 # assumes that box values have format xxxxx.xxx  
+        descrip = description(shape=shape, labels_len=labels_len, boxes_len=boxes_len)
         table = h5file.create_table(group, "{0}".format(name), descrip, filters=filters, chunkshape=chunkshape)
 
     return table
@@ -159,7 +163,7 @@ def write(table, x, id=None):
         labels_str = ''
 
     if x.boxes is not None:          
-        boxes_str = tostring(x.boxes, decimals=4)
+        boxes_str = tostring(x.boxes, decimals=3)
     else:
         boxes_str = ''
 
