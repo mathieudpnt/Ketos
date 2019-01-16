@@ -432,10 +432,14 @@ def test_segment_using_number():
 def test_segment_using_length():
     img = np.zeros((101,31))
     spec = Spectrogram(image=img)
-    segs = spec.segment(length=80)
-    assert len(segs) == 1
-    assert segs[0].image.shape[0] == 80
+    spec.tres = 0.1
+    assert spec.duration() == pytest.approx(10.1, abs=1E-6)
+    segs = spec.segment(length=4.0)
+    assert len(segs) == 2
+    assert segs[0].image.shape[0] == 40
     assert segs[0].image.shape[1] == 31
+    assert segs[1].image.shape[0] == 40
+    assert segs[1].image.shape[1] == 31
 
 @pytest.mark.test_copy_spectrogram
 def test_copy_spectrogram():

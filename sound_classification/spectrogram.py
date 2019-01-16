@@ -647,6 +647,8 @@ class Spectrogram(AnnotationHandler):
                 segs: list
                     List of segments
         """        
+        epsilon = 1E-12
+
         if pad:
             f = np.ceil
         else:
@@ -657,19 +659,19 @@ class Spectrogram(AnnotationHandler):
             dt = bins * self.tres
         
         elif length is not None:
-            bins = int(f(self.tbins() * length / self.duration()))
+            bins = int(np.ceil(self.tbins() * length / self.duration()))
             number = int(f(self.tbins() / bins))
             dt = bins * self.tres
 
         else:
             return [self]
 
-        t1 = np.arange(number) * dt
-        t2 = (np.arange(number) + 1) * dt
+        t1 = np.arange(number) * dt + epsilon
+        t2 = (np.arange(number) + 1) * dt + epsilon
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
-        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=self.fmax()+self.fres)
+        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=self.fmax()+0.5*self.fres)
         segs = self._clip(boxes=boxes)
         
         return segs
