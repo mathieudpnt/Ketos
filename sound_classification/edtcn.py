@@ -54,7 +54,6 @@ class EDTCN(DataHandler):
                  test_x=None, test_y=None, num_labels=2, batch_size=4, 
                  num_epochs=100, keep_prob=0.7, verbosity=0):
 
-        self.num_labels = num_labels
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.keep_prob = keep_prob
@@ -66,7 +65,7 @@ class EDTCN(DataHandler):
 
         super(EDTCN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
-                test_x=test_x, test_y=test_y)
+                test_x=test_x, test_y=test_y, num_labels=num_labels)
 
     def set_verbosity(self, verbosity):
         """Set verbosity level.

@@ -66,6 +66,8 @@ def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbo
             table: table.Table object
                 The created table.    
     """
+    max_annotations = max(1, int(max_annotations))
+
     try:
        group = h5file.get_node(path)
     
@@ -275,8 +277,7 @@ def extract(table, label, min_length, center=False, fpad=True):
 
         # extract segments of interest
         segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center)
-        for s in segs:
-            selection.append(s)
+        selection += segs
 
         # collect
         if complement is None:
@@ -314,7 +315,11 @@ def parse_boxes(item):
     """
     boxes_str = item['boxes'].decode()
     boxes_str = boxes_str.replace("inf", "-99")
-    boxes_str = ast.literal_eval(boxes_str)
+    try:
+        boxes_str = ast.literal_eval(boxes_str)
+    except:
+        boxes = []
+
     boxes = np.array(boxes_str)
     boxes[boxes == -99] = math.inf
     return boxes

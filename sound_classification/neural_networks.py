@@ -82,14 +82,16 @@ class DataHandler():
                 Data Frame in which each row contains the one hot encoded label
     """
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
-                 test_x=None, test_y=None):
+                 test_x=None, test_y=None, num_labels=None):
+
+        self.num_labels = num_labels    
 
         self.images = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
         self.labels = {DataUse.TRAINING: None, DataUse.VALIDATION: None, DataUse.TEST: None}
 
         self._set_data(train_x, train_y, use=DataUse.TRAINING)        
         self._set_data(validation_x, validation_y, use=DataUse.VALIDATION)        
-        self._set_data(test_x, test_y, use=DataUse.TEST)        
+        self._set_data(test_x, test_y, use=DataUse.TEST)    
 
     def _set_data(self, x, y, use):
         """ Set data for specified use (training, validation, or test). 
@@ -109,7 +111,12 @@ class DataHandler():
             x = x[:,:,:,np.newaxis]
 
         if np.ndim(y) == 1:
-            y = to1hot(y, depth=np.max(y)+1) # use one-hot encoding
+            if self.num_labels is None:
+                depth = np.max(y) + 1 # figure it out from the data
+            else:
+                depth = self.num_labels
+
+            y = to1hot(y, depth=depth) # use one-hot encoding
 
         self.images[use] = x
         self.labels[use] = y

@@ -34,14 +34,14 @@ def plot_labeled_spec(spec, label, pred=None, feat=None):
 
     # feat
     if feat is not None:
-        std = np.std(feat, axis=0)
-        idx = np.argwhere(std > 0)
+        m = np.max(feat, axis=0)
+        idx = np.argwhere(m > 0)
         idx = np.squeeze(idx)
         x = feat[:,idx]
-        x = (x - np.mean(x, axis=0)) / np.std(x, axis=0)
+        x = x / np.max(x, axis=0)
         img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), 0, 1))
         ax[row].set_ylabel('feature #')
-        fig.colorbar(img_plot, ax=ax[row], format='%+2.0f')
+        fig.colorbar(img_plot, ax=ax[row])
         row += 1
 
     # labels
@@ -56,7 +56,6 @@ def plot_labeled_spec(spec, label, pred=None, feat=None):
     row += 1
 
     return fig
-
 
 def octave_bands(band_min=-1, band_max=9):
     p = np.arange(band_min-5., band_max-4.)

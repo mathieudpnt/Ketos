@@ -68,7 +68,6 @@ class CNNWhale(DataHandler):
                  test_x=None, test_y=None, num_labels=2, batch_size=128, 
                  num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
 
-        self.num_labels = num_labels
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.learning_rate_value = learning_rate
@@ -80,7 +79,7 @@ class CNNWhale(DataHandler):
 
         super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
-                test_x=test_x, test_y=test_y)
+                test_x=test_x, test_y=test_y, num_labels=num_labels)
         
     @classmethod
     def from_prepared_data(cls, prepared_data, num_labels=2, batch_size=128,
