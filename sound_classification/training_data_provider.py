@@ -32,8 +32,10 @@ class TrainingDataProvider():
                 Maximum fraction of samples from previous iteration that will be kept for next iteration
             conf_cut: float
                 Correct predictions with confidence below conf_cut will be kept for next iteration
+            seed: int
+                Seed for random number generator
     """
-    def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0):
+    def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0, seed=None):
 
         N = x.shape[0]
         self.x = x
@@ -43,6 +45,8 @@ class TrainingDataProvider():
         self.max_keep = max_keep
         self.conf_cut = conf_cut
         self.it = 0
+        if seed is not None:
+            np.random.seed(seed) 
 
     def get_samples(self, num_samples=None, max_keep=None, conf_cut=None):
 
@@ -57,7 +61,8 @@ class TrainingDataProvider():
         x, y = None, None
 
         # get all poorly performing samples from previous iteration
-        idx_poor = self._get_poor(num=int(np.ceil(num_samples * max_keep)), conf_cut=conf_cut)
+        num_poor_max = int(np.ceil(num_samples * max_keep))
+        idx_poor = self._get_poor(num=num_poor_max, conf_cut=conf_cut)
         num_poor = len(idx_poor)
 
         # get new samples
