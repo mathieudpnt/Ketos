@@ -46,7 +46,6 @@ def test_get_samples(data_classified_by_nn):
     assert np.all(x1 == [x[0],x[5]])    
     sampler.update_prediction_confidence(pred=[p[0],y1[1]], conf=[c[0],1.])  # pretend network has learned #5
 
-    # start from beginning 
-    x1, y1, _ = sampler.get_samples(num_samples=2) #0,1
-    assert np.all(x1 == [x[0],x[1]])    
-    sampler.update_prediction_confidence(pred=p[0:2], conf=c[0:2])
+    x1, y1, _ = sampler.get_samples(num_samples=2) #1,2
+    assert np.all(x1 == [x[1],x[2]])    
+    sampler.update_prediction_confidence(pred=p[1:3], conf=c[1:3])

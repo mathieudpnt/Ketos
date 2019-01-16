@@ -45,6 +45,7 @@ class TrainingDataProvider():
         self.max_keep = max_keep
         self.conf_cut = conf_cut
         self.it = 0
+        self.prev_idx = 0
         if seed is not None:
             np.random.seed(seed) 
 
@@ -108,13 +109,16 @@ class TrainingDataProvider():
             idx = np.random.choice(df_new.index, num_samples, replace=False)
             idx = pd.Index(idx)
         else:
-            df_prev = self.df[self.df.prev == True]
-            if len(df_prev) == 0:
-                start = 0
-            else:
-                start = df_prev.index[-1] + 1
-            if start >= self.df.shape[0]:
-                start = 0
+            start = self.prev_idx
             stop = min(start + num_samples, self.df.shape[0])
             idx = self.df.index[start:stop]
+            dn = num_samples - len(idx)
+            while dn > 0:
+                stop = min(dn, self.df.shape[0])
+                idx1 = self.df.index[0:stop]
+                idx = idx.union(idx1)
+                dn = num_samples - len(idx)
+
+            self.prev_idx = stop
+
         return idx
