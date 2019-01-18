@@ -234,3 +234,27 @@ class EDTCN(DataHandler):
         a = np.reshape(a=a[:new_len], newshape=new_shape)
 
         return a
+
+    def save(self, destination):
+        """ Save the model to destination
+
+            Args:
+                destination: str
+                    Path to the file in which the model will be saved. 
+
+            Returns:
+                None.
+        
+        """
+        tf.keras.models.save_model(self.model, path=destination)
+
+    def load(self, path):
+        """Load the Neural Network structure and weights from a saved model.
+
+            See the save() method. 
+
+            Args:
+                path: str
+                    Path to the saved model.
+        """
+        self.model = tf.keras.models.load_model(filepath=path)

@@ -162,26 +162,28 @@ class CNNWhale(DataHandler):
         self.verbosity = verbosity
 
     def load(self, saved_meta, checkpoint, reset=False):
-        """Load the Neural Network structure from a saved model.
+        """Load the Neural Network structure and weights from a saved model.
 
-        See the save() method. 
+            See the save() method. 
 
-        Args:
-            saved_meta: str
-                Path to the saved .meta file.
+            Args:
+                saved_meta: str
+                    Path to the saved .meta file.
 
-            checkpoint: str
-                Path to the checkpoint to be used when loading the saved model
+                checkpoint: str
+                    Path to the checkpoint to be used when loading the saved model
 
-        Returns:
-            tf_nodes: dict
-                A dictionary with the tensorflow objects necessary
-                to train and run the model.
-                sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                accuracy,init_op, merged, writer, saver
-                These objects are stored as
-                instance attributes when the class is instantiated.
+                reset: bool
+                    Reset weights or use weights from the saved model.
 
+            Returns:
+                tf_nodes: dict
+                    A dictionary with the tensorflow objects necessary
+                    to train and run the model.
+                    sess, x, y, cost_function, optimizer, predict, correct_prediction,
+                    accuracy,init_op, merged, writer, saver
+                    These objects are stored as
+                    instance attributes when the class is instantiated.
         """
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
