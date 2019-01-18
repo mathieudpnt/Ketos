@@ -13,12 +13,6 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 2+2*nrows))
 
-    # time axis
-    t_axis = np.zeros(len(label))
-    for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres
-    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
-
     # spectrogram
     x = spec.image
     img_plot = ax[-1].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), spec.fmin, spec.fmax()))
@@ -27,6 +21,12 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
     fig.colorbar(img_plot, ax=ax[-1], format='%+2.0f dB')
 
     row = 0
+
+    # time axis
+    t_axis = np.zeros(len(label))
+    for i in range(1,len(label)):
+        t_axis[i] = t_axis[i-1] + spec.tres
+    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
 
     # confidence
     if conf is not None:
