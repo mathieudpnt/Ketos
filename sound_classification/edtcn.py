@@ -45,23 +45,28 @@ class EDTCN(DataHandler):
                 Data Frame in which each row contains the one hot encoded label
             num_labels: int
                 Number of labels
+            max_len: int
+                The input data will be split into chuncks of size max_len. 
+                Thus, max_len effectively limits the extent of the memory of the network. 
             batch_size: int
                 The number of examples in each batch
             num_epochs: int
                 The number of epochs
     """
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
-                 test_x=None, test_y=None, num_labels=2, batch_size=4, 
+                 test_x=None, test_y=None, num_labels=2, max_len=500, batch_size=4, 
                  num_epochs=100, keep_prob=0.7, verbosity=0):
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.keep_prob = keep_prob
         self.verbosity = verbosity
-        self.max_len = 500
+        self.max_len = max_len
 
         self.model = None
         self.class_weights_func = None
+
+        self.max_len = max_len
 
         super(EDTCN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
@@ -79,7 +84,7 @@ class EDTCN(DataHandler):
         """
         self.verbosity = verbosity
 
-    def create(self, n_nodes=[16, 32], conv_len=16, max_len=500):
+    def create(self, n_nodes=[16, 32], conv_len=16):
         """Create the Neural Network structure.
 
             Args:
@@ -88,13 +93,8 @@ class EDTCN(DataHandler):
                     (The number of convolutional layers is given by the length of n_nodes)
                 conv_len: int
                     Length of the 1D convolution window.
-                max_len: int
-                    The input data will be split into chuncks of size max_len. 
-                    Thus, max_len effectively limits the extent of the memory of the network. 
         """
         dropout_rate = 1.0 - self.keep_prob
-
-        self.max_len = max_len
 
         # ensure that max_len is divisible by four (as this seems to be required by keras.layers.Input)
         if self.max_len % 4 > 0:
@@ -246,7 +246,12 @@ class EDTCN(DataHandler):
                 None.
         
         """
-        tf.keras.models.save_model(self.model, path=destination)
+        tf.keras.models.save_model(model=self.model, filepath=destination)
+
+    # TODO: The current implementation of the load() method does not work.
+    #       It gives the error message "in channel_normalization max_values 
+    #       = tf.keras.backend.max(tf.keras.backend.abs(x), 2, keepdims=True) 
+    #       + 1e-5 NameError: name 'tf' is not defined"
 
     def load(self, path):
         """Load the Neural Network structure and weights from a saved model.
@@ -258,3 +263,27 @@ class EDTCN(DataHandler):
                     Path to the saved model.
         """
         self.model = tf.keras.models.load_model(filepath=path)
+
+    def save_weights(self, path):
+        """ Save the model weights to destination
+
+            Args:
+                destination: str
+                    Path to the file in which the weights will be saved. 
+
+            Returns:
+                None.
+        """
+        self.model.save_weights(filepath=path)        
+
+    def load_weights(self, path):
+        """ Load the model weights
+
+            Args:
+                destination: str
+                    Path to the file in which the weights are stored.
+
+            Returns:
+                None.
+        """
+        self.model.load_weights(filepath=path)        
