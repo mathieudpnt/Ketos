@@ -802,7 +802,7 @@ class Spectrogram(AnnotationHandler):
         """ Subtract the median value from each row (frequency bin) 
 
         """
-        self.image -= np.median(self.image, axis=0)
+        self.image = self.image - np.median(self.image, axis=0)
 
     def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
