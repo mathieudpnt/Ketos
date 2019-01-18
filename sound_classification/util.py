@@ -30,7 +30,7 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     # confidence
     if conf is not None:
-        ax[row].plot(t_axis, conf, color='C1')
+        ax[row].plot(t_axis, conf, color='C3')
         ax[row].set_xlim(0, spec.duration())
         ax[row].set_ylim(-0.1, 1.1)
         ax[row].set_ylabel('confidence')
@@ -39,7 +39,7 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     # predictions
     if pred is not None:
-        ax[row].plot(t_axis, pred, color='C1')
+        ax[row].plot(t_axis, pred, color='C2')
         ax[row].set_xlim(0, spec.duration())
         ax[row].set_ylim(-0.1, 1.1)
         ax[row].set_ylabel('prediction')
@@ -59,7 +59,7 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
         row += 1
 
     # labels
-    ax[row].plot(t_axis, label, color='C2')
+    ax[row].plot(t_axis, label, color='C1')
     ax[row].set_xlim(0, spec.duration())
     ax[row].set_ylim(-0.1, 1.1)
     ax[row].set_ylabel('label')
