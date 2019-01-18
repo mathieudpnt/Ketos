@@ -1,15 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_labeled_spec(spec, label, pred=None, feat=None):
+def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     nrows = 2
     if (pred is not None): 
         nrows += 1
     if (feat is not None): 
         nrows += 1
+    if (conf is not None): 
+        nrows += 1
 
     fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 2+2*nrows))
+
+    # time axis
+    t_axis = np.zeros(len(label))
+    for i in range(1,len(label)):
+        t_axis[i] = t_axis[i-1] + spec.tres
+    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
 
     # spectrogram
     x = spec.image
@@ -20,15 +28,21 @@ def plot_labeled_spec(spec, label, pred=None, feat=None):
 
     row = 0
 
+    # confidence
+    if conf is not None:
+        ax[row].plot(t_axis, conf, color='C1')
+        ax[row].set_xlim(0, spec.duration())
+        ax[row].set_ylim(-0.1, 1.1)
+        ax[row].set_ylabel('confidence')
+        fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
+        row += 1
+
     # predictions
     if pred is not None:
-        t_axis = np.zeros(len(pred))
-        for i in range(1,len(pred)):
-            t_axis[i] = t_axis[i-1] + spec.tres
-        t_axis += 0.5 * (x.shape[0] - len(pred)) * spec.tres
         ax[row].plot(t_axis, pred, color='C1')
         ax[row].set_xlim(0, spec.duration())
         ax[row].set_ylim(-0.1, 1.1)
+        ax[row].set_ylabel('prediction')
         fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
         row += 1
 
@@ -45,13 +59,10 @@ def plot_labeled_spec(spec, label, pred=None, feat=None):
         row += 1
 
     # labels
-    t_axis = np.zeros(len(label))
-    for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres
-    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
     ax[row].plot(t_axis, label, color='C2')
     ax[row].set_xlim(0, spec.duration())
     ax[row].set_ylim(-0.1, 1.1)
+    ax[row].set_ylabel('label')
     fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
     row += 1
 
