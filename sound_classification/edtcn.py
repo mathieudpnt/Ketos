@@ -207,10 +207,12 @@ class EDTCN(DataHandler):
                 A vector containing the classification weights. 
         """
         orig_len = x.shape[0]
-        x = self._reshape(x)
-        
+        x = self._reshape(x)        
         w = np.array(self.class_weights_func([x, False]))
         w = np.squeeze(w)
+        if np.ndim(w) == 2:
+            w = w[np.newaxis,:,:]
+        w = np.reshape(w, newshape=(w.shape[0]*w.shape[1], w.shape[2]))
         return w[:orig_len]
 
     def _reshape(self, a):
