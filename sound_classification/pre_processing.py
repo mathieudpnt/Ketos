@@ -28,7 +28,7 @@ def append_specs(specs):
 
     return s
 
-def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, rndm=False, seed=1, equal_rep=False):
+def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False):
     """ Transform the data into format suitable for training a binary CNN.
 
     Args:
@@ -78,10 +78,8 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, 
     Nx = (x.shape[0] - 1) * step_size + x.shape[1]
     spec.image = spec.image[:Nx,:]
 
-    n = y.shape[1]
     y = np.sum(y, axis=1)
-    y = (y >= thres*n)
-#    y = y.astype(int)
+    y = (y >= signal_width)
 
     if rndm:
         x, y = shuffle(x, y, random_state=seed)
