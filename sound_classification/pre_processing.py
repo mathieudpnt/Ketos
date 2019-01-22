@@ -40,11 +40,9 @@ def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, signal_widt
             Frame width (pixels).
         step_size: int
             Step size (pixels) used for framing. 
-        thres: float
-            Fraction of a frame that must have the label for the entire 
-            frame to be assigned the label. For example, if thres=0.5 and 
-            the frame is 8 pixels wide and only 3 pixels have the label 1, 
-            the frame as a whole will be labelled as 0 since 3/8 < 0.5.
+        signal_width: int
+            Part of frame that must have the label for the entire 
+            frame to be assigned the label.
         rndm: bool
             Randomize the order of the frames
         seed: int

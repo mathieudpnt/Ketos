@@ -11,7 +11,7 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
     if (conf is not None): 
         nrows += 1
 
-    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 2+2*nrows))
+    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 1+1.5*nrows))
 
     # spectrogram
     x = spec.image
