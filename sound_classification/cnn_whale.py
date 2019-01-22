@@ -77,7 +77,12 @@ class CNNWhale(DataHandler):
         self.verbosity = verbosity
         self.sess = tf.Session()
         self.epoch_counter = 0
-        self.max_size = max_size
+
+        prod = 1
+        for i in range(1, np.ndim(train_x)):
+            prod *= train_x.shape[i]
+
+        self.max_frames = int(max_size / prod)
 
         super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
@@ -614,6 +619,11 @@ class CNNWhale(DataHandler):
             return None
 
         x = self.reshape_x(x)
+
+        N = min(x.shape[0], self.max_frames)
+        x = x[:N]
+        y = y[:N]
+
         summary = self.sess.run(fetches=self.merged, feed_dict={self.x: x, self.y: y, self.learning_rate: self.learning_rate_value, self.keep_prob: 1.0})
 
         return summary
@@ -639,7 +649,6 @@ class CNNWhale(DataHandler):
 
         x = self.reshape_x(x) 
         y1hot = self._ensure1hot(y)       
-
         results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
 
@@ -656,7 +665,7 @@ class CNNWhale(DataHandler):
         """
         x = self.reshape_x(x)
 
-        x = self._split(x)
+        x, _ = self._split(x)
         results = list()
         for xi in x:
             r = self.sess.run(fetches=self.predict, feed_dict={self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
@@ -683,7 +692,7 @@ class CNNWhale(DataHandler):
         graph = tf.get_default_graph()
         f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
 
-        x = self._split(x)
+        x, _ = self._split(x)
         results = list()
         for xi in x:
             r = self.sess.run(fetches=f, feed_dict={self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
@@ -707,7 +716,7 @@ class CNNWhale(DataHandler):
 
         fetch = self.class_weights
 
-        x = self._split(x)
+        x, _ = self._split(x)
         results = list()
         for xi in x:
             feed = {self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0}
@@ -871,7 +880,7 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.VALIDATION]
         y = self.labels[DataUse.VALIDATION]
-        results = self._check_accuracy(x,y)
+        results = self._check_accuracy(x, y)
         return results
 
     def accuracy_on_test(self):
@@ -888,24 +897,28 @@ class CNNWhale(DataHandler):
         results = self._check_accuracy(x,y)
         return results
 
-    def _split(self, x):
+    def _split(self, x, y=None):
+
+        x_split, y_split = list(), list()
 
         if x.shape[0] == 0:
-            return list()
+            return x_split, y_split
 
         prod = 1
         for i in range(1,np.ndim(x)):
             prod *= x.shape[i]
 
-        N = int(self.max_size / prod)
+        N = self.max_frames
 
-        res = list()
         imax = int(np.ceil(x.shape[0] / N))
         for i in range(imax):
             i1 = int(N * i)
             i2 = int(min(i1 + N, x.shape[0]))
             xi = x[i1:i2]
-            res.append(xi)
+            x_split.append(xi)
+            if y is not None:
+                yi = y[i1:i2]
+                y_split.append(yi)
 
-        return res
+        return x_split, y_split
 

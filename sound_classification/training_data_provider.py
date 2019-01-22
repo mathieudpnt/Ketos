@@ -48,11 +48,16 @@ class TrainingDataProvider():
         self.max_keep = max_keep
         self.conf_cut = conf_cut
         self.it = 0
-        self.prev_idx = 0
+        self.current_pos = 0
         self.equal_rep = equal_rep
         self.seed = seed
         if seed is not None:
             np.random.seed(seed) 
+
+        print('positives: ',  len(self.df[self.df.y == 1]))
+        print('negatives: ',  len(self.df[self.df.y == 0]))
+
+        self.posfrac = float(len(self.df[self.df.y == 1])) / float(len(self.df))
 
     def get_samples(self, num_samples=None, max_keep=None, conf_cut=None):
 
@@ -66,7 +71,7 @@ class TrainingDataProvider():
 
         x, y = None, None
 
-        # get all poorly performing samples from previous iteration
+        # get poorly performing samples from previous iteration
         num_poor_max = int(np.ceil(num_samples * max_keep))
         idx_poor = self._get_poor(num=num_poor_max, conf_cut=conf_cut)
         num_poor = len(idx_poor)
@@ -128,21 +133,52 @@ class TrainingDataProvider():
             idx = pd.Index(idx)
 
         else:
-            start = self.prev_idx
+            start = self.current_pos
             stop = min(start + num_samples, self.df.shape[0])
             idx = self.df.index[start:stop]
             dn = num_samples - len(idx)
             dn_0 = 0
             dn_1 = 0
+            if self.equal_rep:
+                dfi = self.df.loc[idx]
+                n_0 = len(dfi[dfi.y == 0])
+                n_1 = len(dfi[dfi.y == 1])
+                dn_0 = num_0 - n_0
+                dn_1 = num_1 - n_1
+
             while (dn > 0) or (dn_0 > 0) or (dn_1 > 0):
-                stop = min(dn, self.df.shape[0])
-                idx_add = self.df.index[0:stop]
-                idx = idx.union(idx_add)
+
+                start = stop % self.df.shape[0]
+
+                if self.equal_rep:
+                    if self.posfrac < 1.:
+                        dn_0_norm = int(float(dn_0) / (1. - self.posfrac))
+                    else:
+                        dn_0_norm = 0
+
+                    if self.posfrac > 0.:
+                        dn_1_norm = int(float(dn_1) / self.posfrac)
+                    else:
+                        dn_1_norm = 0
+
+                    stop = max(dn, max(dn_0_norm, dn_1_norm))
+                else:
+                    stop = dn
+
+                stop += start
+                stop = min(stop, self.df.shape[0])
+
+                idx_add = self.df.index[start:stop].values
+                idx = np.concatenate((idx.values, idx_add), axis=0)
+                idx = pd.Index(idx)
                 dn = num_samples - len(idx)
+
                 if self.equal_rep:
                     dfi = self.df.loc[idx]
-                    dn_0 = num_0 - dfi[dfi.y == 0]
-                    dn_1 = num_1 = dfi[dfi.y == 1]
+                    n_0 = len(dfi[dfi.y == 0])
+                    n_1 = len(dfi[dfi.y == 1])
+                    dn_0 = num_0 - n_0
+                    dn_1 = num_1 - n_1
 
             if self.equal_rep:
                 dfi = self.df.loc[idx]
@@ -152,9 +188,10 @@ class TrainingDataProvider():
                 idx_1 = np.random.choice(idx_1, num_1, replace=False)
                 idx = np.concatenate((idx_0, idx_1), axis=0)
                 idx = shuffle(idx, random_state=self.seed)
+                idx = pd.Index(idx)
 
-            idx = pd.Index(idx)
+            idx = idx.drop_duplicates()
 
-            self.prev_idx = stop
+            self.current_pos = stop
 
         return idx
