@@ -212,6 +212,7 @@ class EDTCN(DataHandler):
         w = np.squeeze(w)
         if np.ndim(w) == 2:
             w = w[np.newaxis,:,:]
+            
         w = np.reshape(w, newshape=(w.shape[0]*w.shape[1], w.shape[2]))
         return w[:orig_len]
 
