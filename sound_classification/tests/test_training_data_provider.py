@@ -24,7 +24,7 @@ def test_get_samples(data_classified_by_nn):
     p = predictions(w)
     c = class_confidences(w)
 
-    sampler = TrainingDataProvider(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1)
+    sampler = TrainingDataProvider(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
 
     x1, y1, _ = sampler.get_samples(num_samples=2) #0,1
     assert np.all(x1 == x[0:2])    
