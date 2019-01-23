@@ -184,7 +184,7 @@ class Spectrogram(AnnotationHandler):
             spec.boxes.append(b.copy())
         return spec
 
-    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
+    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False, preserve_time=False):
         """ Create a new spectrogram from an existing spectrogram by 
             cropping in time and/or frequency.
         
@@ -223,9 +223,15 @@ class Spectrogram(AnnotationHandler):
         f1 = self._fbin_low(fbin1)
         f2 = self._fbin_low(fbin2)
 
-        labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
+        if preserve_time:
+            tmin = t1
+        else:
+            tmin = 0
 
-        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=0, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
+        labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
+        self._shift_annotations(delay=tmin)
+
+        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag=self.tag)
         spec.annotate(labels=labels, boxes=boxes)
         return spec
 
@@ -586,7 +592,7 @@ class Spectrogram(AnnotationHandler):
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
 
-    def extract(self, label, min_length=None, center=False, fpad=False, make_copy=False):
+    def extract(self, label, min_length=None, center=False, fpad=False, make_copy=False, preserve_time=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, this instance contains the 
@@ -624,13 +630,13 @@ class Spectrogram(AnnotationHandler):
         # strech to minimum length, if necessary
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
-        res = s._clip(boxes=boi, fpad=fpad)
+        res = s._clip(boxes=boi, fpad=fpad, preserve_time=preserve_time)
         # remove extracted labels
         s.delete_annotations(idx)
         
         return res
 
-    def segment(self, number=1, length=None, pad=False):
+    def segment(self, number=1, length=None, pad=False, preserve_time=False):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -672,7 +678,7 @@ class Spectrogram(AnnotationHandler):
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=self.fmax()+0.5*self.fres)
-        segs = self._clip(boxes=boxes)
+        segs = self._clip(boxes=boxes, preserve_time=preserve_time)
         
         return segs
 
@@ -739,7 +745,7 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def _clip(self, boxes, fpad=False):
+    def _clip(self, boxes, fpad=False, preserve_time=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -778,7 +784,7 @@ class Spectrogram(AnnotationHandler):
 
         # loop over boxes
         for i in range(N):            
-            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad)
+            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad, preserve_time=preserve_time)
             specs.append(spec)
 
         # complement
@@ -1066,13 +1072,14 @@ class MagSpectrogram(Spectrogram):
                 Use logarithmic (decibel) scale.
     """
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
         super(MagSpectrogram, self).__init__()
         self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
         self.timestamp = timestamp
         self.flabels = flabels
+        self.tag = tag
 
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):

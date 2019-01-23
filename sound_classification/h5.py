@@ -125,6 +125,7 @@ def description(shape, id_len=25, labels_len=100, boxes_len=100):
             labels = tables.StringCol(labels_len)
             data = tables.Float32Col(shape=shape)
             boxes = tables.StringCol(boxes_len) 
+            time = tables.Float32Col()
     
     return TableDescription
 
@@ -174,6 +175,7 @@ def write(table, x, id=None):
     seg_r["id"] = id_str
     seg_r["labels"] = labels_str
     seg_r["boxes"] = boxes_str
+    seg_r["time"] = x.tmin
     seg_r.append()
 
 def select(table, label):
@@ -226,15 +228,16 @@ def get_objects(table):
         # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
+        tmin = it['time']
 
         # get the data (audio signal or spectrogram)
         data = it['data']
 
         # create audio signal or spectrogram object
         if np.ndim(data) == 1:
-            x = AudioSignal(rate=table.attrs.sample_rate, data=data)
+            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tmin=tmin)
         elif np.ndim(data) == 2:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min)
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tmin=tmin)
 
         # annotate
         x.annotate(labels=labels, boxes=boxes)
@@ -243,7 +246,7 @@ def get_objects(table):
 
     return res
 
-def extract(table, label, min_length, center=False, fpad=True):
+def extract(table, label, min_length, center=False, fpad=True, preserve_time=False):
     """ Extract segments that match the specified label.
 
         Args:
@@ -276,7 +279,7 @@ def extract(table, label, min_length, center=False, fpad=True):
     for x in items:
 
         # extract segments of interest
-        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center)
+        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
         selection += segs
 
         # collect

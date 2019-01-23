@@ -23,10 +23,11 @@ class AudioSignal(AnnotationHandler):
             tag: str
                 Optional meta data string
     """
-    def __init__(self, rate, data, tag=''):
+    def __init__(self, rate, data, tag='', tmin=0):
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
+        self.tmin = tmin
         super(AudioSignal, self).__init__() # initialize AnnotationHandler
 
     @classmethod
