@@ -158,18 +158,18 @@ class Spectrogram(AnnotationHandler):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
+        self.tag = tag
+
         super().__init__() # initialize AnnotationHandler
 
-        self.fname = tag
-        self.tag = ''
-        self._add_tag(bin=0, fname=tag, tmin=tmin)
+        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
 
-    def _add_tag(self, bin, fname, tmin):
-        if len(self.tag) > 0:
-            self.tag += ','
-
-        self.tag += '{0:.0f}:'.format(bin) + self.fname + ':{0:.0f}'.format(1E3*self.tmin)        
-        # bin:fname:time
+    def _make_file_and_time_vectors(self):
+        n = self.image.shape[0]
+        time_vector = self.tres * np.arange(n) + self.tmin
+        file_vector = np.zeros(n)
+        file_dict = {0: self.tag}
+        return file_dict, file_vector, time_vector
 
     def copy(self):
         """ Make a deep copy of the spectrogram.
@@ -188,10 +188,14 @@ class Spectrogram(AnnotationHandler):
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
         spec.tag = self.tag
+        spec.time_vector = self.time_vector.copy()
+        spec.file_vector = self.file_vector.copy()
+        spec.file_dict = self.file_dict.copy()
         spec.labels = self.labels.copy()
         spec.boxes = list()
         for b in self.boxes:
             spec.boxes.append(b.copy())
+
         return spec
 
     def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False, preserve_time=False):
@@ -238,12 +242,46 @@ class Spectrogram(AnnotationHandler):
         else:
             tmin = 0
 
+        # handle annotations
         labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
         self._shift_annotations(delay=tmin)
 
-        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag=self.tag)
+        # create cropped spectrogram
+        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
+
+        # add annotations
         spec.annotate(labels=labels, boxes=boxes)
+
+        # handle file vector and file dict
+        spec.file_vector, spec.file_dict = self._cut_file_vector(tbin1, tbin2)
+
         return spec
+
+    def _cut_file_vector(self, tbin1, tbin2):
+        if tbin1 is None:
+            tbin1 = 0
+        if tbin2 is None:
+            tbin2 = len(self.time_vector)
+        
+        file_vector = self.file_vector.copy()
+        file_vector = file_vector[tbin1:tbin2]
+        file_dict = {}
+        for it in self.file_dict.items():
+            key = it[0]
+            val = it[1]
+            if np.any(file_vector == key):
+                file_dict[key] = val
+        
+        return file_vector, file_dict
+
+    def get_time_vector(self):
+        return self.time_vector
+
+    def get_file_vector(self):
+        return self.file_vector
+
+    def get_file_dict(self):
+        return self.file_dict
 
     def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
@@ -1085,8 +1123,9 @@ class MagSpectrogram(Spectrogram):
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
         super(MagSpectrogram, self).__init__(timestamp=timestamp, flabels=flabels, tag=tag)
-        self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+        self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
+        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal

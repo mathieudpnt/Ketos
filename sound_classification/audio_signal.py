@@ -30,6 +30,11 @@ class AudioSignal(AnnotationHandler):
         self.tmin = tmin
         super(AudioSignal, self).__init__() # initialize AnnotationHandler
 
+        n = self.data.shape[0]
+        self.time_vector = (1. / self.rate) * np.arange(n) + self.tmin
+        self.file_vector = np.zeros(n)
+        self.file_dict = {0: tag}
+
     @classmethod
     def from_wav(cls, path, channel=0):
         """ Generate audio signal from wave file
@@ -154,6 +159,15 @@ class AudioSignal(AnnotationHandler):
                     Data
         """
         return self.data
+
+    def get_time_vector(self):
+        return self.time_vector
+
+    def get_file_vector(self):
+        return self.file_vector
+
+    def get_file_dict(self):
+        return self.file_dict
 
     def make_frames(self, winlen, winstep, zero_padding=False):
         """ Split the signal into frames of length 'winlen' with consecutive 
