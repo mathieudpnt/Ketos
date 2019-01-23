@@ -39,10 +39,14 @@ def ensure_same_length(specs, pad=False):
             ns = s.tbins()
             if n-ns > 0:
                 s.image = np.pad(s.image, pad_width=((0,n-ns),(0,0)), mode='constant')
+                s.time_vector = np.append(s.time_vector, np.zeros(n-ns))
+                s.file_vector = np.append(s.file_vector, np.zeros(n-ns))
     else: 
         n = np.min(nt)
         for s in specs:
             s.image = s.image[:n]
+            s.time_vector = s.time_vector[:n]
+            s.file_vector = s.file_vector[:n]
 
     return specs
 
@@ -844,10 +848,16 @@ class Spectrogram(AnnotationHandler):
             if t2max <= t1[i]:
                 if t2max == 0:
                     img_c = self.image[t2max:t1[i]]
+                    time_vector = self.time_vector[t2max:t1[i]]
+                    file_vector = self.file_vector[t2max:t1[i]]
                 else:
                     img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
+                    time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
+                    file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
 
         self.image = img_c
+        self.time_vector = time_vector
+        self.file_vector = file_vector
         self.tmin = 0
 
         return specs
@@ -1056,8 +1066,42 @@ class Spectrogram(AnnotationHandler):
         spec._shift_annotations(delay=self.duration())
         self.annotate(labels=spec.labels, boxes=spec.boxes)
 
+        # add time and file info
+        self.time_vector = np.append(self.time_vector, spec.time_vector)
+
+        # join dictionaries
+        new_keys = {}
+        for it in spec.file_dict.items():
+            key = it[0]
+            value = it[1]
+            if value not in self.file_dict:
+                n = len(self.file_dict)
+                self.file_dict[n] = value
+                new_keys[key] = n
+            else:
+                existing_key = self._get_key(file=value)
+                new_keys[key] = existing_key
+
+        # update keys
+        file_vec = []
+        for f in spec.file_vector:
+            file_vec.append(new_keys[f])
+
+        # join file vectors
+        self.file_vector = np.append(self.file_vector, file_vec)
+
         # append image
         self.image = np.append(self.image, spec.image, axis=0)
+
+    def _get_key(self, file):
+        res = None
+        for it in self.file_dict.items():
+            key = it[0]
+            value = it[1]
+            if file == value:
+                res = key
+
+        return res
 
     def plot(self, decibel=False):
         """ Plot the spectrogram with proper axes ranges and labels.

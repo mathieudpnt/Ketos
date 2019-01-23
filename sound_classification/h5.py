@@ -257,7 +257,7 @@ def get_objects(table):
         # handle file and time info
         x.time_vector = it['time_vector']
         x.file_vector = it['file_vector']
-        files = it['files'][1:-1]
+        files = it['files'].decode()[1:-1]
         if len(files) == 0:
             x.file_dict = {0: ''}
         else:
