@@ -235,9 +235,9 @@ def get_objects(table):
 
         # create audio signal or spectrogram object
         if np.ndim(data) == 1:
-            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tmin=tmin)
+            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tmin=tmin, tag=it['id'])
         elif np.ndim(data) == 2:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tmin=tmin)
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tmin=tmin, tag=it['id'])
 
         # annotate
         x.annotate(labels=labels, boxes=boxes)
