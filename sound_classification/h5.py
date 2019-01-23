@@ -280,7 +280,7 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
 
         # extract segments of interest
         segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
-        selection += segs
+        selection = selection + segs
 
         # collect
         if complement is None:
