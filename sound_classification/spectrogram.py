@@ -274,13 +274,17 @@ class Spectrogram(AnnotationHandler):
         file_vector = file_vector[tbin1:tbin2]
 
         file_dict = {}
+        new_file_vector = file_vector.copy()
+        new_key = 0
         for it in self.file_dict.items():
             key = it[0]
             val = it[1]
             if np.any(file_vector == key):
-                file_dict[key] = val
-        
-        return time_vector, file_vector, file_dict
+                file_dict[new_key] = val
+                new_file_vector[file_vector == key] = new_key
+                new_key += 1
+
+        return time_vector, new_file_vector, file_dict
 
     def get_time_vector(self):
         return self.time_vector
