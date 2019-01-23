@@ -51,7 +51,7 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False):
+def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False, preserve_time=False):
     """ Create new spectrograms by superimposing spectrograms from two different groups.
 
         If the spectrograms have different lengths, the shorter of the two will be placed 
@@ -119,7 +119,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                     spec_long = specs2[j]
 
                 spec = spec_long.copy()
-                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par)
+                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time)
                 specs.append(spec)
 
                 if len(specs) >= num:
@@ -612,7 +612,7 @@ class Spectrogram(AnnotationHandler):
         return img, t1, f1
 
 
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, keep_time=False):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, preserve_time=False):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
@@ -631,7 +631,7 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
-                keep_time: bool
+                preserve_time: bool
                     Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
                     the first bin of the cropped spectrogram.
         """
@@ -639,7 +639,9 @@ class Spectrogram(AnnotationHandler):
         self.image, tbin1, fbin1 = self._crop_image(tlow, thigh, flow, fhigh)
 
         # update t_min and f_min
-        if keep_time: self.tmin += self.tres * tbin1
+        if preserve_time: 
+            self.tmin += self.tres * tbin1
+        
         self.fmin += self.fres * fbin1
 
         # crop labels and boxes
@@ -989,7 +991,7 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5):
+    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5, preserve_time=False):
         """ Add another spectrogram to this spectrogram.
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
@@ -1026,7 +1028,8 @@ class Spectrogram(AnnotationHandler):
         else:
             tlow = sp.tmin
         thigh = sp.tmin + self.duration() - delay  
-        sp.crop(tlow, thigh, self.fmin, self.fmax())
+
+        sp.crop(tlow, thigh, self.fmin, self.fmax(), preserve_time=preserve_time)
 
         # fade-in/fade-out
         if smooth:
@@ -1054,6 +1057,11 @@ class Spectrogram(AnnotationHandler):
         sp._shift_annotations(delay=delay)
         self.annotate(labels=sp.labels, boxes=sp.boxes)
 
+        n = self.image.shape[0]
+        self.time_vector = self.tmin + self.tres * np.arange(n)
+        self.file_vector = np.zeros(n)
+        self.file_dict = {0: 'fake'}
+
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.
             The spectrograms must have the same dimensions and resolutions.
@@ -1079,7 +1087,7 @@ class Spectrogram(AnnotationHandler):
         for it in spec.file_dict.items():
             key = it[0]
             value = it[1]
-            if value not in self.file_dict:
+            if value not in self.file_dict.values():
                 n = len(self.file_dict)
                 self.file_dict[n] = value
                 new_keys[key] = n
@@ -1088,7 +1096,7 @@ class Spectrogram(AnnotationHandler):
                 new_keys[key] = existing_key
 
         # update keys
-        file_vec = []
+        file_vec = list()
         for f in spec.file_vector:
             file_vec.append(new_keys[f])
 
