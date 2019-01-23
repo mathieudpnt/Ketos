@@ -125,7 +125,6 @@ def description(shape, id_len=25, labels_len=100, boxes_len=100):
             labels = tables.StringCol(labels_len)
             data = tables.Float32Col(shape=shape)
             boxes = tables.StringCol(boxes_len) 
-            time = tables.Float32Col()
     
     return TableDescription
 
@@ -175,7 +174,6 @@ def write(table, x, id=None):
     seg_r["id"] = id_str
     seg_r["labels"] = labels_str
     seg_r["boxes"] = boxes_str
-    seg_r["time"] = x.tmin
     seg_r.append()
 
 def select(table, label):
@@ -228,16 +226,15 @@ def get_objects(table):
         # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
-        tmin = it['time']
-
+        
         # get the data (audio signal or spectrogram)
         data = it['data']
 
         # create audio signal or spectrogram object
         if np.ndim(data) == 1:
-            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tmin=tmin, tag=it['id'])
+            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tag=it['id'])
         elif np.ndim(data) == 2:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tmin=tmin, tag=it['id'])
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag=it['id'])
 
         # annotate
         x.annotate(labels=labels, boxes=boxes)

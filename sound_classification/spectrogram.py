@@ -158,8 +158,18 @@ class Spectrogram(AnnotationHandler):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
-        self.tag = tag
         super().__init__() # initialize AnnotationHandler
+
+        self.fname = tag
+        self.tag = ''
+        self._add_tag(bin=0, fname=tag, tmin=tmin)
+
+    def _add_tag(self, bin, fname, tmin):
+        if len(self.tag) > 0:
+            self.tag += ','
+
+        self.tag += '{0:.0f}:'.format(bin) + self.fname + ':{0:.0f}'.format(1E3*self.tmin)        
+        # bin:fname:time
 
     def copy(self):
         """ Make a deep copy of the spectrogram.
@@ -1074,13 +1084,9 @@ class MagSpectrogram(Spectrogram):
     def __init__(self, audio_signal, winlen, winstep, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
-        super(MagSpectrogram, self).__init__()
+        super(MagSpectrogram, self).__init__(timestamp=timestamp, flabels=flabels, tag=tag)
         self.image, self. NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
-        self.timestamp = timestamp
-        self.flabels = flabels
-        self.tag = tag
-
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
