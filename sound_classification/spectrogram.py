@@ -256,19 +256,23 @@ class Spectrogram(AnnotationHandler):
         # add annotations
         spec.annotate(labels=labels, boxes=boxes)
 
-        # handle file vector and file dict
-        spec.file_vector, spec.file_dict = self._cut_file_vector(tbin1, tbin2)
+        # handle time vector, file vector and file dict
+        spec.time_vector, spec.file_vector, spec.file_dict = self._cut_time_and_file_vectors(tbin1, tbin2)
 
         return spec
 
-    def _cut_file_vector(self, tbin1, tbin2):
+    def _cut_time_and_file_vectors(self, tbin1, tbin2):
         if tbin1 is None:
             tbin1 = 0
         if tbin2 is None:
             tbin2 = len(self.time_vector)
         
+        time_vector = self.time_vector.copy()
         file_vector = self.file_vector.copy()
+
+        time_vector = time_vector[tbin1:tbin2]
         file_vector = file_vector[tbin1:tbin2]
+
         file_dict = {}
         for it in self.file_dict.items():
             key = it[0]
@@ -276,7 +280,7 @@ class Spectrogram(AnnotationHandler):
             if np.any(file_vector == key):
                 file_dict[key] = val
         
-        return file_vector, file_dict
+        return time_vector, file_vector, file_dict
 
     def get_time_vector(self):
         return self.time_vector
@@ -845,6 +849,7 @@ class Spectrogram(AnnotationHandler):
         t2max = 0
         for i in range(len(t1)):
             t2max = max(t2[i], t2max)
+
             if t2max <= t1[i]:
                 if t2max == 0:
                     img_c = self.image[t2max:t1[i]]
