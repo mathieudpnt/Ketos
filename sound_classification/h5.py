@@ -97,7 +97,7 @@ def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbo
 
     return table
 
-def description(shape, id_len=25, labels_len=100, boxes_len=100):
+def description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
     """ Create the class that describes the table structure for the HDF5 database.
              
         Args:
@@ -123,8 +123,11 @@ def description(shape, id_len=25, labels_len=100, boxes_len=100):
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(id_len)
             labels = tables.StringCol(labels_len)
-            data = tables.Float32Col(shape=shape)
+            data = tables.Float32Col(shape)
             boxes = tables.StringCol(boxes_len) 
+            files = tables.StringCol(files_len)
+            file_vector = tables.UInt8Col(shape[0])
+            time_vector = tables.Float32Col(shape[0])
     
     return TableDescription
 
@@ -169,11 +172,23 @@ def write(table, x, id=None):
     else:
         boxes_str = ''
 
+    files_str = '['
+    for it in x.get_file_dict().items():
+        val = it[1]
+        files_str += val + ','
+    if files_str[-1] == ',':
+        files_str = files_str[:-1] 
+    files_str += ']'    
+
     seg_r = table.row
     seg_r["data"] = x.get_data()
     seg_r["id"] = id_str
     seg_r["labels"] = labels_str
     seg_r["boxes"] = boxes_str
+    seg_r["files"] = files_str
+    seg_r["file_vector"] = x.get_file_vector()
+    seg_r["time_vector"] = x.get_time_vector()
+
     seg_r.append()
 
 def select(table, label):
@@ -226,24 +241,37 @@ def get_objects(table):
         # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
-
+        
         # get the data (audio signal or spectrogram)
         data = it['data']
 
         # create audio signal or spectrogram object
         if np.ndim(data) == 1:
-            x = AudioSignal(rate=table.attrs.sample_rate, data=data)
+            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tag=it['id'])
         elif np.ndim(data) == 2:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min)
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
 
         # annotate
         x.annotate(labels=labels, boxes=boxes)
+
+        # handle file and time info
+        x.time_vector = it['time_vector']
+        x.file_vector = it['file_vector']
+        files = it['files'].decode()[1:-1]
+        if len(files) == 0:
+            x.file_dict = {0: ''}
+        else:
+            files = files.split(',')
+            file_dict = {}
+            for i, f in enumerate(files):
+                file_dict[i] = f
+            x.file_dict = file_dict
 
         res.append(x)
 
     return res
 
-def extract(table, label, min_length, center=False, fpad=True):
+def extract(table, label, min_length, center=False, fpad=True, preserve_time=False):
     """ Extract segments that match the specified label.
 
         Args:
@@ -276,8 +304,8 @@ def extract(table, label, min_length, center=False, fpad=True):
     for x in items:
 
         # extract segments of interest
-        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center)
-        selection += segs
+        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
+        selection = selection + segs
 
         # collect
         if complement is None:
