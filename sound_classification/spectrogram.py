@@ -704,7 +704,7 @@ class Spectrogram(AnnotationHandler):
 
         # select boxes of interest (BOI)
         boi, idx = s._select_boxes(label)
-        # strech to minimum length, if necessary
+        # stretch to minimum length, if necessary
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
         res = s._clip(boxes=boi, fpad=fpad, preserve_time=preserve_time)
@@ -793,12 +793,12 @@ class Spectrogram(AnnotationHandler):
                 min_length: float
                     Minimum time length of each box
                 center: bool
-                    If True, box is streched equally on both sides.
-                    If False, the distribution of strech is random.
+                    If True, box is stretched equally on both sides.
+                    If False, the distribution of stretch is random.
 
             Returns:
                 res: list
-                    Strechted boxes
+                    stretchted boxes
         """ 
         res = list()
         for b in boxes:
@@ -1097,17 +1097,32 @@ class Spectrogram(AnnotationHandler):
             # update annotations
 
     def scale_freq_axis(self, scale):
+
+        pad_with_gaussian_noise = False
+
         if scale == 1:
             return
         else:
             n = self.image.shape[1]
-            self.image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
-            if n > 1:
-                self.image = self.image[:n]
-            else:
-                x=1
-                # expand image height-wise
-                # insert gaussian noise with mean and variance computed for each column
+            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
+            dn = n - scaled_image.shape[1]
+            if dn < 0:
+                self.image = scaled_image[:,:n]
+            
+            elif dn > 0:
+                pad = self.image[:,n-dn:]
+
+                if pad_with_gaussian_noise:
+                    mean = np.mean(self.image, axis=1)
+                    std = np.std(self.image, axis=1)
+                    pad = np.zeros(shape=(self.image.shape[0],dn))
+                    for i, (m,s) in enumerate(zip(mean, std)):
+                        pad[i,:] = np.random.normal(loc=m, scale=s, size=(1,dn))
+
+                # pad image
+                self.image = np.concatenate((scaled_image, pad), axis=1)
+
+        assert self.image.shape[1] == n, 'Ups. Something went wrong while attempting to rescale the frequency axis.'                
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.
