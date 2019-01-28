@@ -10,6 +10,7 @@ from sound_classification.pre_processing import make_frames, to_decibel
 from sound_classification.audio_signal import AudioSignal
 from sound_classification.annotation import AnnotationHandler
 from skimage.transform import rescale
+import time
 
 
 def ensure_same_length(specs, pad=False):
@@ -102,7 +103,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                     rndm = np.random.random_sample()
                     t_scale = t_scale_min + (t_scale_max - t_scale_min) * rndm
                 else:
-                    t_scale = scale_max
+                    t_scale = t_scale_max
 
                 # scaling factor for y axis
                 if f_scale_max > f_scale_min:
@@ -263,7 +264,8 @@ class Spectrogram(AnnotationHandler):
 
         # handle annotations
         labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-        self._shift_annotations(delay=tmin)
+        ann = AnnotationHandler(labels, boxes)
+        ann._shift_annotations(delay=tmin)
 
         # create cropped spectrogram
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
@@ -654,6 +656,9 @@ class Spectrogram(AnnotationHandler):
                     Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
                     the first bin of the cropped spectrogram.
         """
+        if (tlow is None or tlow<=self.tmin) and (thigh is None or thigh>=self.tmin+self.duration()) and (flow is None or flow<=self.fmin) and (fhigh is None or fhigh>=self.fmax()):
+            return
+
         # crop image
         self.image, tbin1, fbin1 = self._crop_image(tlow, thigh, flow, fhigh)
 
@@ -860,7 +865,7 @@ class Spectrogram(AnnotationHandler):
         specs = list()
 
         # loop over boxes
-        for i in range(N):            
+        for i in range(N):     
             spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad, preserve_time=preserve_time)
             specs.append(spec)
 

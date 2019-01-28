@@ -159,13 +159,22 @@ class AnnotationHandler():
             if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
 
                 # update box boundaries
-                b[0] -= t1
-                b[1] -= t1
-                b[1] = min(b[1], t2-t1)
-                b[2] = max(b[2], f1)
-                b[3] = min(b[3], f2)
+#                b[0] -= t1
+#                b[1] -= t1
+#                b[1] = min(b[1], t2-t1)
+#                b[2] = max(b[2], f1)
+#                b[3] = min(b[3], f2)
+
+                # update box boundaries
+                b0 = b[0] - t1
+                b1 = b[1] - t1
+                b1 = min(b1, t2-t1)
+                b2 = max(b[2], f1)
+                b3 = min(b[3], f2)
+                box = [b0, b1, b2, b3]
+
                 labels.append(l)
-                boxes.append(b)
+                boxes.append(box)
 
         return labels, boxes
 
