@@ -1047,8 +1047,8 @@ class Spectrogram(AnnotationHandler):
             sp = spec
 
         # stretch/squeeze
-        sp.scale_time_axis(scale=t_scale)
-        sp.scale_freq_axis(scale=f_scale)
+        sp.scale_time_axis(scale=t_scale, preserve_shape=False)
+        sp.scale_freq_axis(scale=f_scale, preserve_shape=True)
 
         # crop spectrogram
         if delay < 0:
@@ -1090,44 +1090,73 @@ class Spectrogram(AnnotationHandler):
         self.file_vector = np.zeros(n)
         self.file_dict = {0: 'fake'}
 
-    def scale_time_axis(self, scale):
+    def scale_time_axis(self, scale, preserve_shape=True):
+
+        flip_pad = False
+
         if scale == 1:
             return
+        
         else:
             n = self.image.shape[0]
-            self.image = rescale(self.image, (scale, 1), anti_aliasing=True, multichannel=False)
+            scaled_image = rescale(self.image, (scale, 1), anti_aliasing=True, multichannel=False)
+            dn = n - scaled_image.shape[0]
 
-            # update time axis information
+            if not preserve_shape:
+                self.image = scaled_image
 
-            # update annotations
+            else:
+                if dn < 0:
+                    self.image = scaled_image[:n,:]
+                
+                elif dn > 0:
+                    pad = self.image[n-dn:,:]
+                    if flip_pad: 
+                        pad = np.flip(pad, axis=0)
+                    
+                    self.image = np.concatenate((scaled_image, pad), axis=0)
 
-    def scale_freq_axis(self, scale):
+                assert self.image.shape[0] == n, 'Ups. Something went wrong while attempting to rescale the time axis.'                
+
+        # update annotations
+        self._scale_annotations(scale)
+
+    def scale_freq_axis(self, scale, preserve_shape=True):
 
         pad_with_gaussian_noise = False
+        flip_pad = False
 
         if scale == 1:
             return
+        
         else:
             n = self.image.shape[1]
             scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
             dn = n - scaled_image.shape[1]
-            if dn < 0:
-                self.image = scaled_image[:,:n]
-            
-            elif dn > 0:
-                pad = self.image[:,n-dn:]
 
-                if pad_with_gaussian_noise:
-                    mean = np.mean(self.image, axis=1)
-                    std = np.std(self.image, axis=1)
-                    pad = np.zeros(shape=(self.image.shape[0],dn))
-                    for i, (m,s) in enumerate(zip(mean, std)):
-                        pad[i,:] = np.random.normal(loc=m, scale=s, size=(1,dn))
+            if not preserve_shape:
+                self.image = scaled_image
 
-                # pad image
-                self.image = np.concatenate((scaled_image, pad), axis=1)
+            else:
+                if dn < 0:
+                    self.image = scaled_image[:,:n]
+                
+                elif dn > 0:
+                    pad = self.image[:,n-dn:]
+                    if flip_pad: 
+                        pad = np.flip(pad, axis=1)
 
-        assert self.image.shape[1] == n, 'Ups. Something went wrong while attempting to rescale the frequency axis.'                
+                    if pad_with_gaussian_noise:
+                        mean = np.mean(self.image, axis=1)
+                        std = np.std(self.image, axis=1)
+                        pad = np.zeros(shape=(self.image.shape[0],dn))
+                        for i, (m,s) in enumerate(zip(mean, std)):
+                            pad[i,:] = np.random.normal(loc=m, scale=s, size=(1,dn))
+
+                    # pad image
+                    self.image = np.concatenate((scaled_image, pad), axis=1)
+
+                assert self.image.shape[1] == n, 'Ups. Something went wrong while attempting to rescale the frequency axis.'                
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.

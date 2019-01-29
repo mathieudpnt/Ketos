@@ -189,3 +189,13 @@ class AnnotationHandler():
             b[0] += delay
             b[1] += delay
         
+    def _scale_annotations(self, scale=0):
+        """ Scale the time axis by a constant factor.
+            
+            Args:
+                scale: float
+                    Scaling factor.
+        """
+        for b in self.boxes:
+            b[0] *= scale
+            b[1] *= scale
