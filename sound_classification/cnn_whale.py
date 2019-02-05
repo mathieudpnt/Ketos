@@ -66,9 +66,9 @@ class CNNWhale(DataHandler):
 
     def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=2, batch_size=128, 
-                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
+                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2,
+                 max_size=1E6):
 
-        self.num_labels = num_labels
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.learning_rate_value = learning_rate
@@ -78,9 +78,15 @@ class CNNWhale(DataHandler):
         self.sess = tf.Session()
         self.epoch_counter = 0
 
+        prod = 1
+        for i in range(1, np.ndim(train_x)):
+            prod *= train_x.shape[i]
+
+        self.max_frames = int(max_size / prod)
+
         super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
-                test_x=test_x, test_y=test_y)
+                test_x=test_x, test_y=test_y, num_labels=num_labels)
         
     @classmethod
     def from_prepared_data(cls, prepared_data, num_labels=2, batch_size=128,
@@ -104,7 +110,7 @@ class CNNWhale(DataHandler):
         self.epoch_counter = 0
         self.sess.run(self.init_op)
 
-    def set_tf_nodes(self, tf_nodes):
+    def set_tf_nodes(self, tf_nodes, reset=True):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
 
             Args:
@@ -133,7 +139,8 @@ class CNNWhale(DataHandler):
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
-        self.reset()
+        if reset:
+            self.reset()
 
     def set_seed(self,seed):
         """Set the random seed.
@@ -161,27 +168,29 @@ class CNNWhale(DataHandler):
         """
         self.verbosity = verbosity
 
-    def load(self, saved_meta, checkpoint):
-        """Load the Neural Network structure from a saved model.
+    def load(self, saved_meta, checkpoint, reset=False):
+        """Load the Neural Network structure and weights from a saved model.
 
-        See the save() method. 
+            See the save() method. 
 
-        Args:
-            saved_meta: str
-                Path to the saved .meta file.
+            Args:
+                saved_meta: str
+                    Path to the saved .meta file.
 
-            checkpoint: str
-                Path to the checkpoint to be used when loading the saved model
+                checkpoint: str
+                    Path to the checkpoint to be used when loading the saved model
 
-        Returns:
-            tf_nodes: dict
-                A dictionary with the tensorflow objects necessary
-                to train and run the model.
-                sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                accuracy,init_op, merged, writer, saver
-                These objects are stored as
-                instance attributes when the class is instantiated.
+                reset: bool
+                    Reset weights or use weights from the saved model.
 
+            Returns:
+                tf_nodes: dict
+                    A dictionary with the tensorflow objects necessary
+                    to train and run the model.
+                    sess, x, y, cost_function, optimizer, predict, correct_prediction,
+                    accuracy,init_op, merged, writer, saver
+                    These objects are stored as
+                    instance attributes when the class is instantiated.
         """
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
@@ -220,7 +229,7 @@ class CNNWhale(DataHandler):
                 'class_weights': class_weights,
                 }
 
-        self.set_tf_nodes(tf_nodes)
+        self.set_tf_nodes(tf_nodes=tf_nodes, reset=reset)
 
         return tf_nodes
 
@@ -529,9 +538,8 @@ class CNNWhale(DataHandler):
                 s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
                 print(s)
 
-            if x_val is not None:
-                x_val = self.reshape_x(x_val)
-                summary = sess.run(fetches=self.merged, feed_dict={self.x: x_val, self.y: y_val, self.learning_rate: learning_rate, self.keep_prob: 1.0})
+            summary = self._get_summary(x=x_val, y=y_val)
+            if summary is not None:
                 self.writer.add_summary(summary, self.epoch_counter)
 
             self.epoch_counter += 1
@@ -605,6 +613,21 @@ class CNNWhale(DataHandler):
         """
         self.saver.save(self.sess, destination)
 
+    def _get_summary(self, x, y):
+
+        if x is None:
+            return None
+
+        x = self.reshape_x(x)
+
+        N = min(x.shape[0], self.max_frames)
+        x = x[:N]
+        y = y[:N]
+
+        summary = self.sess.run(fetches=self.merged, feed_dict={self.x: x, self.y: y, self.learning_rate: self.learning_rate_value, self.keep_prob: 1.0})
+
+        return summary
+
     def _check_accuracy(self, x, y):
         """ Check accuracy of the model by checking how close
          to y the models predictions are when fed x
@@ -623,6 +646,7 @@ class CNNWhale(DataHandler):
         """
         if x is None:
             return 0
+
         x = self.reshape_x(x) 
         y1hot = self._ensure1hot(y)       
         results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
@@ -640,7 +664,14 @@ class CNNWhale(DataHandler):
                 A vector containing the predicted labels.                
         """
         x = self.reshape_x(x)
-        results = self.sess.run(fetches=self.predict, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+
+        x, _ = self._split(x)
+        results = list()
+        for xi in x:
+            r = self.sess.run(fetches=self.predict, feed_dict={self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+            results = results + r.tolist()
+
+        results = np.array(results)
         return results
 
     def get_features(self, x, layer_name):
@@ -657,9 +688,17 @@ class CNNWhale(DataHandler):
                 A vector containing the feature values.                
         """
         x = self.reshape_x(x)
+
         graph = tf.get_default_graph()
         f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
-        results = self.sess.run(fetches=f, feed_dict={self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+
+        x, _ = self._split(x)
+        results = list()
+        for xi in x:
+            r = self.sess.run(fetches=f, feed_dict={self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+            results = results + r.tolist()
+
+        results = np.array(results)
         return results
 
     def get_class_weights(self, x):
@@ -674,9 +713,17 @@ class CNNWhale(DataHandler):
                 A vector containing the classification weights. 
         """
         x = self.reshape_x(x)
+
         fetch = self.class_weights
-        feed = {self.x:x, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0}
-        results = self.sess.run(fetches=fetch, feed_dict=feed)
+
+        x, _ = self._split(x)
+        results = list()
+        for xi in x:
+            feed = {self.x:xi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0}
+            r = self.sess.run(fetches=fetch, feed_dict=feed)
+            results = results + r.tolist()
+
+        results = np.array(results)
         return results
 
     def reshape_x(self, x):
@@ -833,7 +880,7 @@ class CNNWhale(DataHandler):
         """
         x = self.images[DataUse.VALIDATION]
         y = self.labels[DataUse.VALIDATION]
-        results = self._check_accuracy(x,y)
+        results = self._check_accuracy(x, y)
         return results
 
     def accuracy_on_test(self):
@@ -850,4 +897,28 @@ class CNNWhale(DataHandler):
         results = self._check_accuracy(x,y)
         return results
 
+    def _split(self, x, y=None):
+
+        x_split, y_split = list(), list()
+
+        if x.shape[0] == 0:
+            return x_split, y_split
+
+        prod = 1
+        for i in range(1,np.ndim(x)):
+            prod *= x.shape[i]
+
+        N = self.max_frames
+
+        imax = int(np.ceil(x.shape[0] / N))
+        for i in range(imax):
+            i1 = int(N * i)
+            i2 = int(min(i1 + N, x.shape[0]))
+            xi = x[i1:i2]
+            x_split.append(xi)
+            if y is not None:
+                yi = y[i1:i2]
+                y_split.append(yi)
+
+        return x_split, y_split
 

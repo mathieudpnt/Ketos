@@ -263,8 +263,8 @@ def data_classified_by_nn():
 
 @pytest.fixture
 def data_for_TCN():
-    fv0 = np.zeros((64))
-    fv1 = np.ones((64))
+    fv0 = np.zeros(64)
+    fv1 = np.ones(64)
     x_train = np.array([fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1, fv0, fv1])
     y_train = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
     x_val = np.array([fv0, fv1, fv0, fv1])
