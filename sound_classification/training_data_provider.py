@@ -18,54 +18,6 @@ from sklearn.utils import shuffle
 
 
 
-class BatchGenerator():
-    def __init__(self, hdf5_table, batch_size, instance_function,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False):
-        self.data = hdf5_table
-        self.batch_size = batch_size
-        self.n_instances = self.data.nrows
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_indices))
-        self.shuffle = shuffle
-        self.entry_indices = self.__update_indices__()
-        self.batch_indices = self.__get_batch_indices__()
-        self.batch_count = 0
-
-    
-    def __update_indices__(self):
-        indexes = np.arange(self.n_instances)
-        if self.shuffle:
-            np.random.shuffle(indexes)
-        return indices
-
-    def __get_batch_indices__(self):
-        """Selects the indices for each batch"""
-        ids = self.indices
-        n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
-        last_batch_size = self.n_instances % n_complete_batches
-    
-        list_of_indices = [tuple(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_batches)]
-        if last_batch_size > 0:
-            last_batch_ids = tuple(ids[-last_batch_size:])
-            list_of_indices.append(last_batch_ids)
-
-        return list_of_indices
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        batch_ids = self.batch_indices[self.batch_count]
-        X = self.data[batch_ids]['data']
-        Y = self.data[batch_ids]['boxes']
-
-        self.batch_count += 1
-        if self.batch_count > (self.n_batches - 1):
-            self.batch_count = 0
-
-        return (X,Y)
-
-
-
-
 
 class TrainingDataProvider():
     """ Training data provider.
