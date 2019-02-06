@@ -616,13 +616,13 @@ class Spectrogram(AnnotationHandler):
         f1 = 0
         f2 = Nf
 
-        if tlow != None:
+        if tlow != None and tlow > self.tmin:
             t1 = self._find_tbin(tlow, truncate=True)
-        if thigh != None:
+        if thigh != None and thigh < self.tmin + self.duration():
             t2 = self._find_tbin(thigh, truncate=True)
-        if flow != None:
+        if flow != None and flow > self.fmin:
             f1 = self._find_fbin(flow, truncate=True)
-        if fhigh != None:
+        if fhigh != None and fhigh < self.fmax():
             f2 = self._find_fbin(fhigh, truncate=True)
             
         if t2 <= t1 or f2 <= f1:
@@ -656,9 +656,6 @@ class Spectrogram(AnnotationHandler):
                     Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
                     the first bin of the cropped spectrogram.
         """
-        if (tlow is None or tlow<=self.tmin) and (thigh is None or thigh>=self.tmin+self.duration()) and (flow is None or flow<=self.fmin) and (fhigh is None or fhigh>=self.fmax()):
-            return
-
         # crop image
         self.image, tbin1, fbin1 = self._crop_image(tlow, thigh, flow, fhigh)
 
