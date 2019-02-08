@@ -1,5 +1,13 @@
-import numpy as np
+import os
+import matplotlib
+viz = os.environ.get('DISABLE_VIZ')
+if viz is not None:
+    if int(viz) == 1:
+        matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+import numpy as np
+
 
 def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
