@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
+def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
 
     nrows = 2
     if (pred is not None): 
@@ -33,8 +33,9 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
     # time axis
     t_axis = np.zeros(len(label))
     for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres
-    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
+        t_axis[i] = t_axis[i-1] + spec.tres * step_size
+
+    t_axis += 0.5 * spec.tres * step_size 
 
     # confidence
     if conf is not None:
@@ -56,8 +57,8 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     # feat
     if feat is not None:
-        m = np.max(feat, axis=0)
-        idx = np.argwhere(m > 0)
+        m = np.mean(feat, axis=0)
+        idx = np.argwhere(m != 0)
         idx = np.squeeze(idx)
         x = feat[:,idx]
         x = x / np.max(x, axis=0)
