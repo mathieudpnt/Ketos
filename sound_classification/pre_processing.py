@@ -94,7 +94,7 @@ class BinaryClassFramer():
         spec = self.specs[self.idx]
         while num_frames < max_frames and self.idx < len(self.specs) - 1:
             self.idx += 1
-            spec.append(specs[self.idx])
+            spec.append(self.specs[self.idx])
 
         x = spec.get_data()
         y = spec.get_label_vector(self.label)
