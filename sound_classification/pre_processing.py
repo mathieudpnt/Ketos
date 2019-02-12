@@ -65,7 +65,7 @@ class BinaryClassFramer():
         self.discard_mixed = discard_mixed
 
     def eof(self):
-        res >= (self.idx == len(self.specs))
+        res = (self.idx >= len(self.specs))
         return res
 
     def get_frames(self, max_frames=10000):
