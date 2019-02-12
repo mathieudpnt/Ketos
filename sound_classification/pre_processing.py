@@ -91,10 +91,16 @@ class BinaryClassFramer():
 
         # append specs until limit is reached
         num_frames = 0
-        spec = self.specs[self.idx]
-        while num_frames < max_frames and self.idx < len(self.specs) - 1:
+        spec = None
+        while num_frames < max_frames and self.idx < len(self.specs):
+            s = self.specs[self.idx]
             self.idx += 1
-            spec.append(self.specs[self.idx])
+            if spec is None:
+                spec = s
+            else:
+                spec.append(s)
+
+            num_frames += int(s.image.shape[0] / self.step_size)  # this is only approximate
 
         x = spec.get_data()
         y = spec.get_label_vector(self.label)
