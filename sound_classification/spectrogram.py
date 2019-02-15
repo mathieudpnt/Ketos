@@ -9,6 +9,8 @@ import math
 from sound_classification.pre_processing import make_frames, to_decibel
 from sound_classification.audio_signal import AudioSignal
 from sound_classification.annotation import AnnotationHandler
+from skimage.transform import rescale
+import time
 
 
 def ensure_same_length(specs, pad=False):
@@ -51,7 +53,7 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False, preserve_time=False):
+def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1, t_scale_max=1, f_scale_min=1, f_scale_max=1):
     """ Create new spectrograms by superimposing spectrograms from two different groups.
 
         If the spectrograms have different lengths, the shorter of the two will be placed 
@@ -96,7 +98,21 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
         for i in x:
             for j in y:
 
-                # scaling factor
+                # scaling factor for x axis
+                if t_scale_max > t_scale_min:
+                    rndm = np.random.random_sample()
+                    t_scale = t_scale_min + (t_scale_max - t_scale_min) * rndm
+                else:
+                    t_scale = t_scale_max
+
+                # scaling factor for y axis
+                if f_scale_max > f_scale_min:
+                    rndm = np.random.random_sample()
+                    f_scale = f_scale_min + (f_scale_max - f_scale_min) * rndm
+                else:
+                    f_scale = f_scale_max
+
+                # scaling factor for z axis
                 if scale_max > scale_min:
                     rndm = np.random.random_sample()
                     scale = scale_min + (scale_max - scale_min) * rndm
@@ -119,7 +135,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                     spec_long = specs2[j]
 
                 spec = spec_long.copy()
-                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time)
+                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time, t_scale=t_scale, f_scale=f_scale)
                 specs.append(spec)
 
                 if len(specs) >= num:
@@ -248,7 +264,8 @@ class Spectrogram(AnnotationHandler):
 
         # handle annotations
         labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-        self._shift_annotations(delay=tmin)
+        ann = AnnotationHandler(labels, boxes)
+        ann._shift_annotations(delay=tmin)
 
         # create cropped spectrogram
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
@@ -599,13 +616,13 @@ class Spectrogram(AnnotationHandler):
         f1 = 0
         f2 = Nf
 
-        if tlow != None:
+        if tlow != None and tlow > self.tmin:
             t1 = self._find_tbin(tlow, truncate=True)
-        if thigh != None:
+        if thigh != None and thigh < self.tmin + self.duration():
             t2 = self._find_tbin(thigh, truncate=True)
-        if flow != None:
+        if flow != None and flow > self.fmin:
             f1 = self._find_fbin(flow, truncate=True)
-        if fhigh != None:
+        if fhigh != None and fhigh < self.fmax():
             f2 = self._find_fbin(fhigh, truncate=True)
             
         if t2 <= t1 or f2 <= f1:
@@ -689,7 +706,7 @@ class Spectrogram(AnnotationHandler):
 
         # select boxes of interest (BOI)
         boi, idx = s._select_boxes(label)
-        # strech to minimum length, if necessary
+        # stretch to minimum length, if necessary
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
         # extract
         res = s._clip(boxes=boi, fpad=fpad, preserve_time=preserve_time)
@@ -778,12 +795,12 @@ class Spectrogram(AnnotationHandler):
                 min_length: float
                     Minimum time length of each box
                 center: bool
-                    If True, box is streched equally on both sides.
-                    If False, the distribution of strech is random.
+                    If True, box is stretched equally on both sides.
+                    If False, the distribution of stretch is random.
 
             Returns:
                 res: list
-                    Strechted boxes
+                    stretchted boxes
         """ 
         res = list()
         for b in boxes:
@@ -845,7 +862,7 @@ class Spectrogram(AnnotationHandler):
         specs = list()
 
         # loop over boxes
-        for i in range(N):            
+        for i in range(N):     
             spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad, preserve_time=preserve_time)
             specs.append(spec)
 
@@ -995,7 +1012,7 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5, preserve_time=False):
+    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5, preserve_time=False, t_scale=1, f_scale=1):
         """ Add another spectrogram to this spectrogram.
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
@@ -1025,6 +1042,10 @@ class Spectrogram(AnnotationHandler):
             sp = spec.copy()
         else:
             sp = spec
+
+        # stretch/squeeze
+        sp.scale_time_axis(scale=t_scale, preserve_shape=False)
+        sp.scale_freq_axis(scale=f_scale, preserve_shape=True)
 
         # crop spectrogram
         if delay < 0:
@@ -1065,6 +1086,74 @@ class Spectrogram(AnnotationHandler):
         self.time_vector = self.tmin + self.tres * np.arange(n)
         self.file_vector = np.zeros(n)
         self.file_dict = {0: 'fake'}
+
+    def scale_time_axis(self, scale, preserve_shape=True):
+
+        flip_pad = False
+
+        if scale == 1:
+            return
+        
+        else:
+            n = self.image.shape[0]
+            scaled_image = rescale(self.image, (scale, 1), anti_aliasing=True, multichannel=False)
+            dn = n - scaled_image.shape[0]
+
+            if not preserve_shape:
+                self.image = scaled_image
+
+            else:
+                if dn < 0:
+                    self.image = scaled_image[:n,:]
+                
+                elif dn > 0:
+                    pad = self.image[n-dn:,:]
+                    if flip_pad: 
+                        pad = np.flip(pad, axis=0)
+                    
+                    self.image = np.concatenate((scaled_image, pad), axis=0)
+
+                assert self.image.shape[0] == n, 'Ups. Something went wrong while attempting to rescale the time axis.'                
+
+        # update annotations
+        self._scale_annotations(scale)
+
+    def scale_freq_axis(self, scale, preserve_shape=True):
+
+        pad_with_gaussian_noise = False
+        flip_pad = False
+
+        if scale == 1:
+            return
+        
+        else:
+            n = self.image.shape[1]
+            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
+            dn = n - scaled_image.shape[1]
+
+            if not preserve_shape:
+                self.image = scaled_image
+
+            else:
+                if dn < 0:
+                    self.image = scaled_image[:,:n]
+                
+                elif dn > 0:
+                    pad = self.image[:,n-dn:]
+                    if flip_pad: 
+                        pad = np.flip(pad, axis=1)
+
+                    if pad_with_gaussian_noise:
+                        mean = np.mean(self.image, axis=1)
+                        std = np.std(self.image, axis=1)
+                        pad = np.zeros(shape=(self.image.shape[0],dn))
+                        for i, (m,s) in enumerate(zip(mean, std)):
+                            pad[i,:] = np.random.normal(loc=m, scale=s, size=(1,dn))
+
+                    # pad image
+                    self.image = np.concatenate((scaled_image, pad), axis=1)
+
+                assert self.image.shape[1] == n, 'Ups. Something went wrong while attempting to rescale the frequency axis.'                
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.

@@ -483,3 +483,21 @@ def test_get_label_vector():
     assert np.all(y[2:11] == 0)
     assert np.all(y[11:17] == 1)
     assert np.all(y[17:] == 0)
+
+@pytest.mark.test_scale_freq_axis
+def test_stretch_freq_axis():
+    spec = Spectrogram(image=np.ones(shape=(10,20)))
+    spec.image[:,5] = 0.5
+    spec.scale_freq_axis(scale=2)
+    assert spec.image.shape[1] == 20
+    assert spec.image[0,5] == pytest.approx(1)
+    assert spec.image[0,10] == pytest.approx(0.625, abs=0.001)
+
+@pytest.mark.test_scale_freq_axis
+def test_compress_freq_axis():
+    spec = Spectrogram(image=np.ones(shape=(10,20)))
+    spec.image[:,5] = 0.5
+    spec.scale_freq_axis(scale=0.5)
+    assert spec.image.shape[1] == 20
+    assert spec.image[0,5] == pytest.approx(1)
+    assert spec.image[0,2] == pytest.approx(0.78, abs=0.1)
