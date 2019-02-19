@@ -18,9 +18,9 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from collections import namedtuple
-from sound_classification.neural_networks import DataHandler, DataUse, predictions, class_confidences
-from sound_classification.data_handling import from1hot, to1hot, get_image_size
-from sound_classification.training_data_provider import TrainingDataProvider
+from ketos.neural_networks.neural_networks import DataHandler, DataUse, predictions, class_confidences
+from ketos.data_handling.data_handling import from1hot, to1hot, get_image_size
+from ketos.data_handling.data_feeding import TrainingDataProvider
 
 
 ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
