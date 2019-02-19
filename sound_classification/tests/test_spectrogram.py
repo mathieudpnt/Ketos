@@ -185,7 +185,7 @@ def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0, keep_time=True)
+    spec.crop(tlow=1.0, preserve_time=True)
     assert spec.image.shape == (37, 18)
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 18)
@@ -196,7 +196,7 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0, keep_time=True)
+    spec.crop(tlow=1.0, preserve_time=True)
     assert spec.image.shape == (37, 18)
     spec.crop(thigh=2.5)
     assert spec.image.shape == (30, 18)
@@ -432,10 +432,14 @@ def test_segment_using_number():
 def test_segment_using_length():
     img = np.zeros((101,31))
     spec = Spectrogram(image=img)
-    segs = spec.segment(length=80)
-    assert len(segs) == 1
-    assert segs[0].image.shape[0] == 80
+    spec.tres = 0.1
+    assert spec.duration() == pytest.approx(10.1, abs=1E-6)
+    segs = spec.segment(length=4.0)
+    assert len(segs) == 2
+    assert segs[0].image.shape[0] == 40
     assert segs[0].image.shape[1] == 31
+    assert segs[1].image.shape[0] == 40
+    assert segs[1].image.shape[1] == 31
 
 @pytest.mark.test_copy_spectrogram
 def test_copy_spectrogram():
@@ -479,3 +483,21 @@ def test_get_label_vector():
     assert np.all(y[2:11] == 0)
     assert np.all(y[11:17] == 1)
     assert np.all(y[17:] == 0)
+
+@pytest.mark.test_scale_freq_axis
+def test_stretch_freq_axis():
+    spec = Spectrogram(image=np.ones(shape=(10,20)))
+    spec.image[:,5] = 0.5
+    spec.scale_freq_axis(scale=2)
+    assert spec.image.shape[1] == 20
+    assert spec.image[0,5] == pytest.approx(1)
+    assert spec.image[0,10] == pytest.approx(0.625, abs=0.001)
+
+@pytest.mark.test_scale_freq_axis
+def test_compress_freq_axis():
+    spec = Spectrogram(image=np.ones(shape=(10,20)))
+    spec.image[:,5] = 0.5
+    spec.scale_freq_axis(scale=0.5)
+    assert spec.image.shape[1] == 20
+    assert spec.image[0,5] == pytest.approx(1)
+    assert spec.image[0,2] == pytest.approx(0.78, abs=0.1)

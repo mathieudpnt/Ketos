@@ -10,90 +10,138 @@ from numpy import seterr
 from sklearn.utils import shuffle
 
 
-def prepare_for_binary_cnn(specs, label, image_width=8, step_size=1, thres=0.5, normalize=True, rndm=False, seed=1, equal_rep=False):
+def append_specs(specs):
+    """ Append spectrograms in order.
+        The spectrograms must have the same dimensions and resolutions.
+
+        Args:
+            specs: list(Spectrogram)
+                Spectrograms to be combined
+
+        Returns:
+            s: Spectrogram
+                Combined spectrograms
+    """
+    s = specs[0]
+    for i in range(1,len(specs)):
+        s.append(specs[i])
+
+    return s
+
+class BinaryClassFramer():
     """ Transform the data into format suitable for training a binary CNN.
 
-    Args:
-        specs : list
-            Spectograms
-        label : int
-            Label that we want the CNN to learn to detect
-        image_width: int
-            Frame width (pixels).
-        step_size: int
-            Step size (pixels) used for framing. 
-        thres: float
-            Fraction of a frame that must have the label for the entire 
-            frame to be assigned the label. For example, if thres=0.5 and 
-            the frame is 8 pixels wide and only 3 pixels have the label 1, 
-            the frame as a whole will be labelled as 0 since 3/8 < 0.5.
-        normalize: bool
-            Normalize the data as x = (x - mean(x))/std(x)
-        rndm: bool
-            Randomize the order of the frames
-        seed: int
-            Seed for random number generator
-        equal_rep: bool
-            Ensure equal representation of 0s and 1s by removing the 
-            more abundant class until there are equally many.
-
-    Returns:
-        x : 3D numpy array
-            Input data for the CNN.
-            x.shape[0] = number of frames
-            x.shape[1] = image_width
-            x.shape[2] = number of frequency bins (y axis)
-        
-        y : 1D numpy array
-            Labels for input data.
-            y.shape[0] = number of frames
+        Attributes:
+            specs : list
+                Spectograms
+            label : int
+                Label that we want the CNN to learn to detect
+            image_width: int
+                Frame width (pixels).
+            step_size: int
+                Step size (pixels) used for framing. 
+            signal_width: int
+                Part of frame that must have the label for the entire 
+                frame to be assigned the label.
+            rndm: bool
+                Randomize the order of the frames
+            seed: int
+                Seed for random number generator
+            equal_rep: bool
+                Ensure equal representation of 0s and 1s by removing the 
+                more abundant class until there are equally many.
     """
-    x, y = None, None
+    def __init__(self, specs, label, image_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
 
-    for s in specs:
-        
-        xs = s.get_data()
-        ys = s.get_label_vector(label)
+        self.idx = 0
+        self.specs = specs
+        self.label = label
+        self.image_width = image_width
+        self.step_size = step_size
+        self.signal_width = signal_width
+        self.rndm = rndm
+        self.seed = seed
+        self.equal_rep = equal_rep
+        self.discard_mixed = discard_mixed
 
-        xs = make_frames(xs, winlen=image_width, winstep=step_size)
-        ys = make_frames(ys, winlen=image_width, winstep=step_size)
+    def eof(self):
+        res = (self.idx >= len(self.specs))
+        return res
 
-        n = ys.shape[1]
-        ys = np.sum(ys, axis=1)
-        ys = (ys >= thres*n)
+    def get_frames(self, max_frames=10000):
+        """ Frame data for training a binary CNN.
 
-        if x is None:
-            x = xs
-            y = ys
+            Args:
+                max_frames : int
+                    Return at most this many frames
+
+            Returns:
+                x : 3D numpy array
+                    Input data for the CNN.
+                    x.shape[0] = number of frames
+                    x.shape[1] = image_width
+                    x.shape[2] = number of frequency bins (y axis)        
+                y : 1D numpy array
+                    Labels for input data.
+                    y.shape[0] = number of frames
+                spec: Spectrogram
+                    Merged spectrogram
+        """
+        x, y = None, None
+
+        # append specs until limit is reached
+        num_frames = 0
+        spec = None
+        while num_frames < max_frames and self.idx < len(self.specs):
+            s = self.specs[self.idx]
+            self.idx += 1
+            if spec is None:
+                spec = s
+            else:
+                spec.append(s)
+
+            num_frames += int(s.image.shape[0] / self.step_size)  # this is only approximate
+
+        x = spec.get_data()
+        y = spec.get_label_vector(self.label)
+
+        x = make_frames(x, winlen=self.image_width, winstep=self.step_size)
+        y = make_frames(y, winlen=self.image_width, winstep=self.step_size)
+
+        Nx = (x.shape[0] - 1) * self.step_size + x.shape[1]
+        spec.image = spec.image[:Nx,:]
+
+        y = np.sum(y, axis=1)
+
+        # discard mixed
+        if self.discard_mixed:
+            x = x[np.logical_or(y==0, y==self.image_width)]
+            y = y[np.logical_or(y==0, y==self.image_width)]
+            y = (y > 0)
         else:
-            x = np.append(x, xs, axis=0)
-            y = np.append(y, ys, axis=0)
+            y = (y >= self.signal_width)
 
-    if normalize:
-        x = (x - np.mean(x)) / np.std(x)
+        if self.rndm:
+            x, y = shuffle(x, y, random_state=self.seed)
 
-    if rndm:
-        x, y = shuffle(x, y, random_state=seed)
+        # ensure equal representation of 0s and 1s
+        if self.equal_rep:
+            idx0 = pd.Index(np.squeeze(np.where(y == 0)))
+            idx1 = pd.Index(np.squeeze(np.where(y == 1)))
+            n0 = len(idx0)
+            n1 = len(idx1)
+            if n0 > n1:
+                idx0 = np.random.choice(idx0, n1, replace=False)
+                idx0 = pd.Index(idx0)
+            else:
+                idx1 = np.random.choice(idx1, n0, replace=False) 
+                idx1 = pd.Index(idx1)
 
-    # ensure equal representation of 0s and 1s
-    if equal_rep:
-        idx0 = pd.Index(np.squeeze(np.where(y == 0)))
-        idx1 = pd.Index(np.squeeze(np.where(y == 1)))
-        n0 = len(idx0)
-        n1 = len(idx1)
-        if n0 > n1:
-            idx0 = np.random.choice(idx0, n1, replace=False)
-            idx0 = pd.Index(idx0)
-        else:
-            idx1 = np.random.choice(idx1, n0, replace=False) 
-            idx1 = pd.Index(idx1)
+            idx = idx0.union(idx1)
+            x = x[idx]
+            y = y[idx]
 
-        idx = idx0.union(idx1)
-        x = x[idx]
-        y = y[idx]
-
-    return x, y
-
+        return x, y, spec
 
 
 def to_decibel(x):

@@ -70,7 +70,7 @@ trigger-humpback:
   before_script: []
   type: trig
   script:
-    - "curl -X POST -F token=d1205bf47de18df6e2be7eef55bc8e -F ref=master https://data.meridian.cs.dal.ca/gitlab/api/v4/projects/10/trigger/pipeline"
+    - "curl -X POST -F token=d1205bf47de18df6e2be7eef55bc8e -F ref=master https://gitlab.meridian.cs.dal.ca/api/v4/projects/10/trigger/pipeline"
   only:
   - master
   
@@ -79,6 +79,6 @@ trigger-cod:
   before_script: []
   type: trig
   script:
-    - "curl -X POST -F token=d2b2ee118fff4bef2cb9341eae715f -F ref=master https://data.meridian.cs.dal.ca/gitlab/api/v4/projects/4/trigger/pipeline"
+    - "curl -X POST -F token=d2b2ee118fff4bef2cb9341eae715f -F ref=master https://gitlab.meridian.cs.dal.ca/api/v4/projects/4/trigger/pipeline"
   only:
   - master

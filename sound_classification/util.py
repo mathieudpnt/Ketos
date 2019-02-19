@@ -1,11 +1,25 @@
-import numpy as np
+import os
+import matplotlib
+viz = os.environ.get('DISABLE_VIZ')
+if viz is not None:
+    if int(viz) == 1:
+        matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-def plot_labeled_spec(spec, label, pred=None):
+import numpy as np
 
-    nrows = 2 + int(pred is not None)
 
-    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 8))
+def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
+
+    nrows = 2
+    if (pred is not None): 
+        nrows += 1
+    if (feat is not None): 
+        nrows += 1
+    if (conf is not None): 
+        nrows += 1
+
+    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 1+1.5*nrows), sharex=True)
 
     # spectrogram
     x = spec.image
@@ -16,30 +30,52 @@ def plot_labeled_spec(spec, label, pred=None):
 
     row = 0
 
-    # predictions
-    if pred is not None:
-        t_axis = np.zeros(len(pred))
-        for i in range(1,len(pred)):
-            t_axis[i] = t_axis[i-1] + spec.tres
-        t_axis += 0.5 * (x.shape[0] - len(pred)) * spec.tres
-        ax[row].plot(t_axis, pred, color='C1')
+    # time axis
+    t_axis = np.zeros(len(label))
+    for i in range(1,len(label)):
+        t_axis[i] = t_axis[i-1] + spec.tres * step_size
+
+    t_axis += 0.5 * spec.tres * step_size 
+
+    # confidence
+    if conf is not None:
+        ax[row].plot(t_axis, conf, color='C3')
         ax[row].set_xlim(0, spec.duration())
         ax[row].set_ylim(-0.1, 1.1)
+        ax[row].set_ylabel('confidence')
         fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
         row += 1
 
+    # predictions
+    if pred is not None:
+        ax[row].plot(t_axis, pred, color='C2')
+        ax[row].set_xlim(0, spec.duration())
+        ax[row].set_ylim(-0.1, 1.1)
+        ax[row].set_ylabel('prediction')
+        fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
+        row += 1
+
+    # feat
+    if feat is not None:
+        m = np.mean(feat, axis=0)
+        idx = np.argwhere(m != 0)
+        idx = np.squeeze(idx)
+        x = feat[:,idx]
+        x = x / np.max(x, axis=0)
+        img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), 0, 1))
+        ax[row].set_ylabel('feature #')
+        fig.colorbar(img_plot, ax=ax[row])
+        row += 1
+
     # labels
-    t_axis = np.zeros(len(label))
-    for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres
-    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
-    ax[row].plot(t_axis, label, color='C2')
+    ax[row].plot(t_axis, label, color='C1')
     ax[row].set_xlim(0, spec.duration())
     ax[row].set_ylim(-0.1, 1.1)
+    ax[row].set_ylabel('label')
     fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
+    row += 1
 
     return fig
-
 
 def octave_bands(band_min=-1, band_max=9):
     p = np.arange(band_min-5., band_max-4.)

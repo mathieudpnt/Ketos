@@ -17,12 +17,14 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import numpy as np
 import math
 
-def tostring(box):
+def tostring(box, decimals=None):
     """ Convert an array, tuple or list into a string.
         
         Args:
             box: array, tuple or list
                 Array, tuple or list that will be converted into a string.
+            decimals: int
+                Number of decimals that will be kept in the conversion to string.
 
         Returns:
             s: str
@@ -31,7 +33,12 @@ def tostring(box):
     if box is None:
         return ''
 
-    box = np.array(box).tolist()
+    box = np.array(box)
+
+    if decimals is not None:
+        box = np.around(box, decimals=int(decimals))
+
+    box = box.tolist()
 
     s = str(box)
     s = s.replace(' ', '')
@@ -152,13 +159,22 @@ class AnnotationHandler():
             if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
 
                 # update box boundaries
-                b[0] -= t1
-                b[1] -= t1
-                b[1] = min(b[1], t2-t1)
-                b[2] = max(b[2], f1)
-                b[3] = min(b[3], f2)
+#                b[0] -= t1
+#                b[1] -= t1
+#                b[1] = min(b[1], t2-t1)
+#                b[2] = max(b[2], f1)
+#                b[3] = min(b[3], f2)
+
+                # update box boundaries
+                b0 = b[0] - t1
+                b1 = b[1] - t1
+                b1 = min(b1, t2-t1)
+                b2 = max(b[2], f1)
+                b3 = min(b[3], f2)
+                box = [b0, b1, b2, b3]
+
                 labels.append(l)
-                boxes.append(b)
+                boxes.append(box)
 
         return labels, boxes
 
@@ -173,3 +189,13 @@ class AnnotationHandler():
             b[0] += delay
             b[1] += delay
         
+    def _scale_annotations(self, scale=0):
+        """ Scale the time axis by a constant factor.
+            
+            Args:
+                scale: float
+                    Scaling factor.
+        """
+        for b in self.boxes:
+            b[0] *= scale
+            b[1] *= scale

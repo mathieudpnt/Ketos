@@ -74,3 +74,6 @@ def test_parse_two_frequency_bands(two_frequency_bands_json):
     assert band_name[1] == 'test'
     assert freq_interval[1].low == 9000.0
     assert freq_interval[1].high == 10000.0
+
+def dummy_test():
+    assert 1 == 1
