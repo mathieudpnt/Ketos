@@ -1,0 +1,2 @@
+model_checkpoint_path: "/media/fsfrazao/7ff5b670-16e9-4ec9-979e-6e9d603f48d4/MERIDIAN/Software/packages/sound_classification/sound_classification/tests/assets/saved_models"
+all_model_checkpoint_paths: "/media/fsfrazao/7ff5b670-16e9-4ec9-979e-6e9d603f48d4/MERIDIAN/Software/packages/sound_classification/sound_classification/tests/assets/saved_models"

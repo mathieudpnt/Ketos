@@ -1,0 +1,915 @@
+{
+    "files": {
+        "sound_classification/__init__.py": {
+            "block_positions": [],
+            "comments": 0,
+            "language": "Python",
+            "mccabe": 0,
+            "ratio_comment_to_code": 0.0,
+            "sloc": 4,
+            "test_coverage": 100.0
+        },
+        "sound_classification/audio_signal.py": {
+            "block_positions": [
+                {
+                    "end": 293,
+                    "methods": [
+                        {
+                            "end": 27,
+                            "name": "from_wav",
+                            "start": 22,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 35,
+                            "name": "gaussian_noise",
+                            "start": 28,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 54,
+                            "name": "morlet",
+                            "start": 36,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 58,
+                            "name": "to_wav",
+                            "start": 55,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 67,
+                            "name": "empty",
+                            "start": 59,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 72,
+                            "name": "seconds",
+                            "start": 68,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 77,
+                            "name": "max",
+                            "start": 73,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 82,
+                            "name": "min",
+                            "start": 78,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 87,
+                            "name": "std",
+                            "start": 83,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 92,
+                            "name": "average",
+                            "start": 88,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 97,
+                            "name": "median",
+                            "start": 93,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 107,
+                            "name": "plot",
+                            "start": 98,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 125,
+                            "name": "_selection",
+                            "start": 108,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 132,
+                            "name": "_crop",
+                            "start": 126,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 137,
+                            "name": "crop",
+                            "start": 133,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 207,
+                            "name": "append",
+                            "start": 138,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 221,
+                            "name": "clip",
+                            "start": 208,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 245,
+                            "name": "merged_length",
+                            "start": 222,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 250,
+                            "name": "add_gaussian_noise",
+                            "start": 246,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 269,
+                            "name": "add",
+                            "start": 251,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 288,
+                            "name": "resample",
+                            "start": 270,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 293,
+                            "name": "copy",
+                            "start": 289,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "AudioSignal",
+                    "start": 14,
+                    "type": "Class"
+                },
+                {
+                    "end": 298,
+                    "name": "smoothclamp",
+                    "start": 294,
+                    "type": "Function"
+                },
+                {
+                    "end": 386,
+                    "methods": [
+                        {
+                            "end": 311,
+                            "name": "from_audio_signal",
+                            "start": 307,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 316,
+                            "name": "from_wav",
+                            "start": 312,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 321,
+                            "name": "copy",
+                            "start": 317,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 326,
+                            "name": "begin",
+                            "start": 322,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 333,
+                            "name": "end",
+                            "start": 327,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 342,
+                            "name": "_crop",
+                            "start": 334,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 355,
+                            "name": "crop",
+                            "start": 343,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 369,
+                            "name": "clip",
+                            "start": 356,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 378,
+                            "name": "append",
+                            "start": 370,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 386,
+                            "name": "delay",
+                            "start": 379,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "TimeStampedAudioSignal",
+                    "start": 299,
+                    "type": "Class"
+                }
+            ],
+            "comments": 376,
+            "language": "Python",
+            "mccabe": 40,
+            "ratio_comment_to_code": 1.53,
+            "sloc": 246,
+            "test_coverage": 9.7,
+            "test_missing": "10-27, 30-42, 45-63, 66-103, 107, 116-123, 125-206, 208-239, 242-312, 315-321, 326-376, 390-401, 411-413, 416-427, 430-709"
+        },
+        "sound_classification/batch_reader.py": {
+            "block_positions": [
+                {
+                    "end": 150,
+                    "methods": [
+                        {
+                            "end": 62,
+                            "name": "load",
+                            "start": 23,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 74,
+                            "name": "read_file",
+                            "start": 63,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 85,
+                            "name": "_read_next_file",
+                            "start": 75,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 114,
+                            "name": "_add_to_batch",
+                            "start": 86,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 130,
+                            "name": "next",
+                            "start": 115,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 134,
+                            "name": "finished",
+                            "start": 131,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 145,
+                            "name": "reset",
+                            "start": 135,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 150,
+                            "name": "log",
+                            "start": 146,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "BatchReader",
+                    "start": 9,
+                    "type": "Class"
+                }
+            ],
+            "comments": 94,
+            "language": "Python",
+            "mccabe": 25,
+            "ratio_comment_to_code": 0.95,
+            "sloc": 99,
+            "test_coverage": 0.0,
+            "test_missing": "2-215"
+        },
+        "sound_classification/data_handling.py": {
+            "block_positions": [
+                {
+                    "end": 30,
+                    "name": "parse_datetime",
+                    "start": 13,
+                    "type": "Function"
+                },
+                {
+                    "end": 47,
+                    "name": "get_files",
+                    "start": 31,
+                    "type": "Function"
+                },
+                {
+                    "end": 53,
+                    "name": "get_wave_files",
+                    "start": 48,
+                    "type": "Function"
+                },
+                {
+                    "end": 66,
+                    "name": "read_wave",
+                    "start": 54,
+                    "type": "Function"
+                },
+                {
+                    "end": 74,
+                    "name": "create_dir",
+                    "start": 67,
+                    "type": "Function"
+                },
+                {
+                    "end": 80,
+                    "name": "slice_ffmpeg",
+                    "start": 75,
+                    "type": "Function"
+                },
+                {
+                    "end": 87,
+                    "name": "to1hot",
+                    "start": 81,
+                    "type": "Function"
+                },
+                {
+                    "end": 99,
+                    "name": "from1hot",
+                    "start": 88,
+                    "type": "Function"
+                },
+                {
+                    "end": 119,
+                    "name": "encode_database",
+                    "start": 100,
+                    "type": "Function"
+                },
+                {
+                    "end": 136,
+                    "name": "split_database",
+                    "start": 120,
+                    "type": "Function"
+                },
+                {
+                    "end": 151,
+                    "name": "stack_dataset",
+                    "start": 137,
+                    "type": "Function"
+                },
+                {
+                    "end": 170,
+                    "name": "prepare_database",
+                    "start": 152,
+                    "type": "Function"
+                },
+                {
+                    "end": 184,
+                    "name": "check_data_sanity",
+                    "start": 171,
+                    "type": "Function"
+                },
+                {
+                    "end": 193,
+                    "name": "get_image_size",
+                    "start": 185,
+                    "type": "Function"
+                },
+                {
+                    "end": 209,
+                    "name": "create_raw_signal_table_description",
+                    "start": 194,
+                    "type": "Function"
+                },
+                {
+                    "end": 222,
+                    "name": "create_image_table_description",
+                    "start": 210,
+                    "type": "Function"
+                },
+                {
+                    "end": 231,
+                    "name": "get_data_from_seg_name",
+                    "start": 223,
+                    "type": "Function"
+                },
+                {
+                    "end": 250,
+                    "name": "write_sig_to_h5_database",
+                    "start": 232,
+                    "type": "Function"
+                },
+                {
+                    "end": 260,
+                    "name": "write_spectrogram_to_h5_database",
+                    "start": 251,
+                    "type": "Function"
+                },
+                {
+                    "end": 288,
+                    "name": "open_or_create_table",
+                    "start": 261,
+                    "type": "Function"
+                },
+                {
+                    "end": 308,
+                    "name": "divide_audio_into_segs",
+                    "start": 289,
+                    "type": "Function"
+                },
+                {
+                    "end": 316,
+                    "name": "_filter_annotations_by_orig_file",
+                    "start": 309,
+                    "type": "Function"
+                },
+                {
+                    "end": 335,
+                    "name": "get_label_from_annotations",
+                    "start": 317,
+                    "type": "Function"
+                },
+                {
+                    "end": 343,
+                    "name": "seg_from_time_tag",
+                    "start": 336,
+                    "type": "Function"
+                },
+                {
+                    "end": 354,
+                    "name": "segs_from_annotations",
+                    "start": 344,
+                    "type": "Function"
+                },
+                {
+                    "end": 375,
+                    "name": "pad_signal",
+                    "start": 355,
+                    "type": "Function"
+                },
+                {
+                    "end": 394,
+                    "name": "sig_h5_to_spectrogram",
+                    "start": 376,
+                    "type": "Function"
+                }
+            ],
+            "comments": 508,
+            "language": "Python",
+            "mccabe": 37,
+            "ratio_comment_to_code": 2.09,
+            "sloc": 243,
+            "test_coverage": 6.09,
+            "test_missing": "24-25, 28-89, 91-121, 123-254, 256-286, 292-314, 319-359, 368-858"
+        },
+        "sound_classification/json_parsing.py": {
+            "block_positions": [
+                {
+                    "end": 21,
+                    "name": "WinFun",
+                    "start": 7,
+                    "type": "Class"
+                },
+                {
+                    "end": 52,
+                    "name": "parse_spectrogram_config",
+                    "start": 22,
+                    "type": "Function"
+                },
+                {
+                    "end": 70,
+                    "name": "parse_frequency_bands",
+                    "start": 53,
+                    "type": "Function"
+                }
+            ],
+            "comments": 28,
+            "language": "Python",
+            "mccabe": 9,
+            "ratio_comment_to_code": 0.64,
+            "sloc": 44,
+            "test_coverage": 29.55,
+            "test_missing": "44-69, 86-98"
+        },
+        "sound_classification/neural_networks.py": {
+            "block_positions": [
+                {
+                    "end": 352,
+                    "methods": [
+                        {
+                            "end": 73,
+                            "name": "set_tf_nodes",
+                            "start": 57,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 89,
+                            "name": "from_prepared_data",
+                            "start": 74,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 95,
+                            "name": "set_seed",
+                            "start": 90,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 133,
+                            "name": "load_net_structure",
+                            "start": 96,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 197,
+                            "name": "create_net_structure",
+                            "start": 134,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 217,
+                            "name": "train",
+                            "start": 198,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 261,
+                            "name": "create_new_conv_layer",
+                            "start": 230,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 265,
+                            "name": "save_model",
+                            "start": 262,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 270,
+                            "name": "_check_accuracy",
+                            "start": 266,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 275,
+                            "name": "get_predictions",
+                            "start": 271,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 280,
+                            "name": "reshape_x",
+                            "start": 276,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 286,
+                            "name": "predict_on_validation",
+                            "start": 281,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 292,
+                            "name": "predict_on_test",
+                            "start": 287,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 322,
+                            "name": "_get_mislabelled",
+                            "start": 293,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 328,
+                            "name": "mislabelled_on_validation",
+                            "start": 323,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 333,
+                            "name": "mislabelled_on_test",
+                            "start": 329,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 340,
+                            "name": "accuracy_on_train",
+                            "start": 334,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 347,
+                            "name": "accuracy_on_validation",
+                            "start": 341,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 352,
+                            "name": "accuracy_on_test",
+                            "start": 348,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "CNNWhale",
+                    "start": 9,
+                    "type": "Class"
+                }
+            ],
+            "comments": 335,
+            "language": "Python",
+            "mccabe": 4,
+            "ratio_comment_to_code": 1.52,
+            "sloc": 221,
+            "test_coverage": 13.68,
+            "test_missing": "85-111, 143-153, 161-168, 184-185, 212-244, 263-323, 336-364, 391-418, 431, 449-450, 463-464, 476-477, 486-488, 497-499, 521-546, 566-567, 586-587, 598-601, 613-615, 626-628"
+        },
+        "sound_classification/pre_processing.py": {
+            "block_positions": [
+                {
+                    "end": 18,
+                    "name": "to_decibel",
+                    "start": 13,
+                    "type": "Function"
+                },
+                {
+                    "end": 24,
+                    "name": "from_decibel",
+                    "start": 19,
+                    "type": "Function"
+                },
+                {
+                    "end": 47,
+                    "name": "resample",
+                    "start": 25,
+                    "type": "Function"
+                },
+                {
+                    "end": 80,
+                    "name": "make_frames",
+                    "start": 48,
+                    "type": "Function"
+                },
+                {
+                    "end": 88,
+                    "name": "normalize_spec",
+                    "start": 81,
+                    "type": "Function"
+                },
+                {
+                    "end": 100,
+                    "name": "crop_high_freq",
+                    "start": 89,
+                    "type": "Function"
+                },
+                {
+                    "end": 110,
+                    "name": "filter_isolated_spots",
+                    "start": 101,
+                    "type": "Function"
+                },
+                {
+                    "end": 130,
+                    "name": "blur_image",
+                    "start": 111,
+                    "type": "Function"
+                },
+                {
+                    "end": 143,
+                    "name": "apply_median_filter",
+                    "start": 131,
+                    "type": "Function"
+                },
+                {
+                    "end": 150,
+                    "name": "apply_preemphasis",
+                    "start": 144,
+                    "type": "Function"
+                },
+                {
+                    "end": 191,
+                    "name": "extract_mfcc_features",
+                    "start": 151,
+                    "type": "Function"
+                },
+                {
+                    "end": 207,
+                    "name": "apply_narrowband_filter",
+                    "start": 192,
+                    "type": "Function"
+                },
+                {
+                    "end": 217,
+                    "name": "apply_broadband_filter",
+                    "start": 208,
+                    "type": "Function"
+                }
+            ],
+            "comments": 215,
+            "language": "Python",
+            "mccabe": 20,
+            "ratio_comment_to_code": 1.5,
+            "sloc": 143,
+            "test_coverage": 16.55,
+            "test_missing": "24-26, 40-41, 63-81, 105-132, 147-150, 168-176, 191-197, 216-231, 255-263, 278-280, 307-343, 365-377, 393-400"
+        },
+        "sound_classification/spectrogram.py": {
+            "block_positions": [
+                {
+                    "end": 199,
+                    "methods": [
+                        {
+                            "end": 47,
+                            "name": "make_spec",
+                            "start": 25,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 59,
+                            "name": "_find_tbin",
+                            "start": 48,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 71,
+                            "name": "_find_fbin",
+                            "start": 60,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 75,
+                            "name": "tbins",
+                            "start": 72,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 79,
+                            "name": "fbins",
+                            "start": 76,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 83,
+                            "name": "fmax",
+                            "start": 80,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 88,
+                            "name": "duration",
+                            "start": 84,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 100,
+                            "name": "taxis",
+                            "start": 89,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 107,
+                            "name": "faxis",
+                            "start": 101,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 134,
+                            "name": "_crop_image",
+                            "start": 108,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 145,
+                            "name": "crop",
+                            "start": 135,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 157,
+                            "name": "average",
+                            "start": 146,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 168,
+                            "name": "median",
+                            "start": 158,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 180,
+                            "name": "blur_gaussian",
+                            "start": 169,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 199,
+                            "name": "plot",
+                            "start": 181,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "Spectrogram",
+                    "start": 11,
+                    "type": "Class"
+                },
+                {
+                    "end": 223,
+                    "methods": [
+                        {
+                            "end": 223,
+                            "name": "make_mag_spec",
+                            "start": 216,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "MagSpectrogram",
+                    "start": 200,
+                    "type": "Class"
+                },
+                {
+                    "end": 249,
+                    "methods": [
+                        {
+                            "end": 249,
+                            "name": "make_power_spec",
+                            "start": 240,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "PowerSpectrogram",
+                    "start": 224,
+                    "type": "Class"
+                },
+                {
+                    "end": 327,
+                    "methods": [
+                        {
+                            "end": 306,
+                            "name": "make_mel_spec",
+                            "start": 266,
+                            "type": "Function"
+                        },
+                        {
+                            "end": 327,
+                            "name": "plot",
+                            "start": 307,
+                            "type": "Function"
+                        }
+                    ],
+                    "name": "MelSpectrogram",
+                    "start": 250,
+                    "type": "Class"
+                }
+            ],
+            "comments": 389,
+            "language": "Python",
+            "mccabe": 32,
+            "ratio_comment_to_code": 1.89,
+            "sloc": 206,
+            "test_coverage": 0.0,
+            "test_missing": "1-684"
+        },
+        "sound_classification/util.py": {
+            "block_positions": [
+                {
+                    "end": 10,
+                    "name": "octave_bands",
+                    "start": 3,
+                    "type": "Function"
+                },
+                {
+                    "end": 24,
+                    "name": "print_octave_bands_json",
+                    "start": 11,
+                    "type": "Function"
+                },
+                {
+                    "end": 41,
+                    "name": "morlet_func",
+                    "start": 25,
+                    "type": "Function"
+                }
+            ],
+            "comments": 22,
+            "language": "Python",
+            "mccabe": 5,
+            "ratio_comment_to_code": 0.67,
+            "sloc": 33,
+            "test_coverage": 12.12,
+            "test_missing": "4-9, 12-23, 48-62"
+        }
+    }
+}
