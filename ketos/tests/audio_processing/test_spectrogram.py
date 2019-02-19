@@ -14,9 +14,9 @@
 
 import pytest
 import numpy as np
-from sound_classification.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
-from sound_classification.json_parsing import Interval
-from sound_classification.audio_signal import AudioSignal
+from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
+from ketos.data_handling.parsing import Interval
+from ketos.audio_processing.audio import AudioSignal
 import datetime
 import math
 
