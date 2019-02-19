@@ -1,7 +1,15 @@
-import numpy as np
+import os
+import matplotlib
+viz = os.environ.get('DISABLE_VIZ')
+if viz is not None:
+    if int(viz) == 1:
+        matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
+import numpy as np
+
+
+def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
 
     nrows = 2
     if (pred is not None): 
@@ -11,7 +19,7 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
     if (conf is not None): 
         nrows += 1
 
-    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 1+1.5*nrows))
+    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 1+1.5*nrows), sharex=True)
 
     # spectrogram
     x = spec.image
@@ -25,8 +33,9 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
     # time axis
     t_axis = np.zeros(len(label))
     for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres
-    t_axis += 0.5 * (x.shape[0] - len(label)) * spec.tres
+        t_axis[i] = t_axis[i-1] + spec.tres * step_size
+
+    t_axis += 0.5 * spec.tres * step_size 
 
     # confidence
     if conf is not None:
@@ -48,8 +57,8 @@ def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None):
 
     # feat
     if feat is not None:
-        m = np.max(feat, axis=0)
-        idx = np.argwhere(m > 0)
+        m = np.mean(feat, axis=0)
+        idx = np.argwhere(m != 0)
         idx = np.squeeze(idx)
         x = feat[:,idx]
         x = x / np.max(x, axis=0)

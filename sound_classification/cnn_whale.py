@@ -521,6 +521,7 @@ class CNNWhale(DataHandler):
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
+            val_acc = 0
             for i in range(batches):
                 offset = i * batch_size
                 x_i = x[offset:(offset + batch_size), :, :, :]
@@ -532,9 +533,10 @@ class CNNWhale(DataHandler):
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
-            
-            if self.verbosity >= 2:
+
                 val_acc = self.accuracy_on_validation()
+
+            if self.verbosity >= 2:
                 s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
                 print(s)
 
@@ -547,9 +549,9 @@ class CNNWhale(DataHandler):
         if self.verbosity >= 2:
             print(line)
 
-        return avg_cost
+        return avg_cost, val_acc
 
-    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
+    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=None):
         """Train the neural network in an active manner using a data provider module.
 
         Args:
@@ -584,13 +586,17 @@ class CNNWhale(DataHandler):
             self.set_training_data(x=x_train, y=to1hot(y_train,2))
 
             # train
-            self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob)
+            _, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob)
 
             # update predictions and confidences
             w = self.get_class_weights(x_train)
             pred = predictions(w)
             conf = class_confidences(w)
             provider.update_prediction_confidence(pred=pred, conf=conf)
+
+            if val_acc_goal is not None:
+                if val_acc >= val_acc_goal:
+                    break
 
     def _ensure1hot(self, y):
         y1hot = y
