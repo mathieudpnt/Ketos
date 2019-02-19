@@ -4,10 +4,10 @@ import os
 import numpy as np
 import scipy.signal as sg
 import pandas as pd
-import sound_classification.pre_processing as pp
-import sound_classification.data_handling as dh
-from sound_classification.cnn_whale import CNNWhale
-import sound_classification.audio_signal as aud
+import ketos.audio_processing as ap
+import ketos.data_handling as dh
+from ketos.neural_networks.cnn import CNNWhale
+import ketos.audio_processing.audio as aud
 from tensorflow import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -72,7 +72,7 @@ def sine_wave_file(sine_wave):
     """
     wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
+    ap.wave.write(wav_file, rate=rate, data=sig)
     
     yield wav_file
     os.remove(wav_file)
@@ -93,7 +93,7 @@ def square_wave_file(square_wave):
     """
     wav_file =  os.path.join(path_to_assets, "square_wave.wav")
     rate, sig = square_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
+    ap.wave.write(wav_file, rate=rate, data=sig)
 
     yield wav_file
     os.remove(wav_file)
@@ -114,7 +114,7 @@ def sawtooth_wave_file(sawtooth_wave):
     """
     wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
     rate, sig = sawtooth_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
+    ap.wave.write(wav_file, rate=rate, data=sig)
 
     yield wav_file
     os.remove(wav_file)
@@ -135,7 +135,7 @@ def const_wave_file(const_wave):
     """
     wav_file =  os.path.join(path_to_assets, "const_wave.wav")
     rate, sig = const_wave
-    pp.wave.write(wav_file, rate=rate, data=sig)
+    ap.wave.write(wav_file, rate=rate, data=sig)
 
     yield wav_file
     os.remove(wav_file)
