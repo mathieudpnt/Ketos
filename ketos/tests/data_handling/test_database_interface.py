@@ -14,9 +14,9 @@
 import pytest
 import tables
 import os
-import sound_classification.h5 as h5
-import sound_classification.data_handling as dh
-from sound_classification.spectrogram import MagSpectrogram
+import ketos.data_handling.database_interface as h5
+import ketos.data_handling.data_handling as dh
+from ketos.audio_processing.spectrogram import MagSpectrogram
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
