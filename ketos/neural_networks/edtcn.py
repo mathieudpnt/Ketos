@@ -15,8 +15,8 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from sound_classification.data_handling import to1hot, from1hot
-from sound_classification.neural_networks import DataHandler
+from ketos.data_handling.data_handling import to1hot, from1hot
+from ketos.neural_networks.neural_networks import DataHandler
 
 
 def channel_normalization(x):
