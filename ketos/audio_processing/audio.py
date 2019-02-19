@@ -3,14 +3,14 @@ import datetime
 import math
 import scipy.io.wavfile as wave
 from scipy import interpolate
-from sound_classification.data_handling import read_wave
-from sound_classification.util import morlet_func
-import sound_classification.pre_processing as pp
+from ketos.data_handling.data_handling import read_wave
+from ketos.util import morlet_func
+import ketos.audio_processing.audio_processing as ap
 import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
-from sound_classification.annotation import AnnotationHandler
+from ketos.data_handling.annotation import AnnotationHandler
 
 class AudioSignal(AnnotationHandler):
     """ Audio signal
@@ -196,7 +196,7 @@ class AudioSignal(AnnotationHandler):
         winlen = int(round(winlen * rate))
         winstep = int(round(winstep * rate))
 
-        frames = pp.make_frames(sig, winlen, winstep, zero_padding)
+        frames = ap.make_frames(sig, winlen, winstep, zero_padding)
         return frames
 
 
