@@ -15,8 +15,8 @@
 import pytest
 import numpy as np
 import pandas as pd
-import sound_classification.data_handling as dh
-from sound_classification.neural_networks import DataHandler, DataUse, class_confidences
+import ketos.data_handling.data_handling as dh
+from ketos.neural_networks.neural_networks import DataHandler, DataUse, class_confidences
 from tensorflow import reset_default_graph
 
 
