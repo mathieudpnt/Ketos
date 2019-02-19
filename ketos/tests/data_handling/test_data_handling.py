@@ -15,11 +15,11 @@
 import pytest
 import numpy as np
 import pandas as pd
-import sound_classification.data_handling as dh
-import sound_classification.pre_processing as pp
-from sound_classification.spectrogram import MagSpectrogram
-from sound_classification.batch_reader import BatchReader
-from sound_classification.audio_signal import AudioSignal
+import ketos.data_handling.data_handling as dh
+import ketos.audio_processing.audio_processing as ap
+from ketos.audio_processing.spectrogram import MagSpectrogram
+from ketos.data_handling.data_handling import BatchReader
+from ketos.audio_processing..audio import AudioSignal
 import datetime
 import shutil
 import os
@@ -86,8 +86,8 @@ def test_sliced_audio_file_has_correct_properties(sine_wave_file):
     prefix="halifax123456789"
     out_name = path_to_assets + "/" + prefix + ".wav"
     dh.slice_ffmpeg(sine_wave_file, 0.0, 1.7, out_name)
-    rate_orig, sig_orig = pp.wave.read(sine_wave_file)
-    rate, sig = pp.wave.read(out_name)
+    rate_orig, sig_orig = ap.wave.read(sine_wave_file)
+    rate, sig = ap.wave.read(out_name)
     duration = len(sig) / rate
     assert rate == rate_orig
     assert duration == 1.7
@@ -175,8 +175,8 @@ def test_get_wave_files():
     # create two wave files
     f1 = os.path.join(dir, "f1.wav")
     f2 = os.path.join(dir, "f2.wav")
-    pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
+    ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
     files = dh.get_wave_files(dir, fullpath=False)
     assert len(files) == 2
@@ -205,8 +205,8 @@ def test_get_wave_files_from_multiple_folders():
         os.remove(f)  #clean
     f1 = sub1 + "/f1.wav"
     f2 = sub2 + "/f2.wav"
-    pp.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    pp.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
+    ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
     files = dh.get_wave_files(folder, fullpath=False, subdirs=True)
     assert len(files) == 2
@@ -269,7 +269,7 @@ def test_read_wave_file(sine_wave_file):
 def test_parse_datetime_with_urban_sharks_format():
     fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    pp.wave.write(full_path, rate=1000, data=np.array([0.]))
+    ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(fname=fname, fmt=fmt)
     os.remove(full_path)
@@ -285,7 +285,7 @@ def test_parse_datetime_with_urban_sharks_format():
 def test_parse_datetime_with_non_matching_format():
     fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    pp.wave.write(full_path, rate=1000, data=np.array([0.]))
+    ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(fname=fname, fmt=fmt)
     os.remove(full_path)
@@ -365,7 +365,7 @@ def test_open_tables():
 def test_write_audio_to_table(sine_wave):
     
     rate, sig = sine_wave
-    pp.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
+    ap.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
     
     h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
 
@@ -532,7 +532,7 @@ def test_seg_from_time_tag():
     dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp, "from_tags") )
 
     
-    rate, sig  = pp.wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
+    rate, sig  = ap.wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
     duration = len(sig)/rate
     assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
@@ -771,9 +771,9 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
 
 def test_next_batch_with_two_very_short_files():
     short_file_1 = os.path.join(path_to_assets, "super_short_1.wav")
-    pp.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))
+    ap.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))
     short_file_2 = os.path.join(path_to_assets, "super_short_2.wav")
-    pp.wave.write(short_file_2, rate=4000, data=np.array([1.,2.,3.]))
+    ap.wave.write(short_file_2, rate=4000, data=np.array([1.,2.,3.]))
     s1 = AudioSignal.from_wav(short_file_1)
     s2 = AudioSignal.from_wav(short_file_2)
     n1 = len(s1.data)
@@ -785,7 +785,7 @@ def test_next_batch_with_two_very_short_files():
 
 def test_next_batch_with_empty_file_and_resampling():
     empty = os.path.join(path_to_assets, "empty.wav")
-    pp.wave.write(empty, rate=4000, data=np.empty(0))
+    ap.wave.write(empty, rate=4000, data=np.empty(0))
     s = AudioSignal.from_wav(empty)
     n = len(s.data)
     reader = BatchReader(source=[empty], rate=2000)
