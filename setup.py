@@ -1,15 +1,15 @@
 from setuptools import setup
 
-setup(name='sound_classification',
-      version='0.0.1',
-      description="MERIDIAN's internal package for sound cladssification projects",
+setup(name='ketos',
+      version='1.0.0',
+      description="Python package for developing  deep-learning-based models for the detection and classification of underwater sounds",
       # TODO: define a function readme() that reads the contents of a readme file
       # long_description=readme(),
-      url='http://github.com/fsfrazao/Trees',
+      url='https://gitlab.meridian.cs.dal.ca/data_analytics_dal/packages/ketos',
       author='Oliver Kirsebom, Fabio Frazao',
       author_email='oliver.kirsebom@dal.ca, fsfrazao@dal.ca',
       license='GNU General Public License v3.0',
-      packages=['sound_classification', 'sound_classification/external'],
+      packages=['ketos', 'ketos/external'],
       install_requires=[
           'numpy',
           'tables',
