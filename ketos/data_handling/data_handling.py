@@ -24,9 +24,8 @@ import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import ketos.external.wavfile as wave_bit
-from ketos.data_handling.annotation import tostring
+from ketos.audio_processing.annotation import tostring
 #from sound_classification.data_handling import get_wave_files, parse_datetime
-from ketos.audio_processing.audio import TimeStampedAudioSignal
 import datetime
 import datetime_glob
 import re
@@ -1008,6 +1007,7 @@ class BatchReader:
         self.reset()
 
     def read_file(self, i):
+        from ketos.audio_processing.audio import TimeStampedAudioSignal
     
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
 
