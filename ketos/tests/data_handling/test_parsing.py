@@ -15,7 +15,7 @@
 
 import pytest
 import json
-import sound_classification.json_parsing as jp
+import ketos.data_handling..parsing as jp
 
 
 @pytest.fixture
