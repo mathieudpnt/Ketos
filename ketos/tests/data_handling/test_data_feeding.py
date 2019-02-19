@@ -14,8 +14,8 @@
 import pytest
 import numpy as np
 import pandas as pd
-from sound_classification.training_data_provider import TrainingDataProvider
-from sound_classification.neural_networks import class_confidences, predictions
+from ketos.data_handling.data_feeding import TrainingDataProvider
+from ketos.neural_networks.neural_networks import class_confidences, predictions
 
 
 @pytest.mark.test_TrainingDataSampler
