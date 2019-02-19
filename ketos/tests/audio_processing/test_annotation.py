@@ -13,7 +13,7 @@
 
 import pytest
 import numpy as np
-from sound_classification.annotation import AnnotationHandler, tostring
+from ketos.audio_processing.annotation import AnnotationHandler, tostring
 
 
 def test_annotate():
