@@ -18,7 +18,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from enum import Enum
-from sound_classification.data_handling import check_data_sanity, to1hot
+from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
 def class_confidences(class_weights):
