@@ -17,9 +17,9 @@ import pytest
 import os
 import numpy as np
 import scipy.signal as sg
-import sound_classification.pre_processing as pp
-from sound_classification.audio_signal import AudioSignal
-from sound_classification.spectrogram import Spectrogram, MagSpectrogram
+import ketos.audio_processing.audio_processing as ap
+from ketos.audio_processing.audio import AudioSignal
+from ketos.audio_proccessing.spectrogram import Spectrogram, MagSpectrogram
 import cv2
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -28,19 +28,19 @@ path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 @pytest.mark.test_to_decibel
 def test_to_decibel_returns_decibels():
     x = 7
-    y = pp.to_decibel(x)
+    y = ap.to_decibel(x)
     assert y == 20 * np.log10(x) 
 
 @pytest.mark.test_to_decibel
 def test_to_decibel_can_handle_arrays():
     x = np.array([7,8])
-    y = pp.to_decibel(x)
+    y = ap.to_decibel(x)
     assert np.all(y == 20 * np.log10(x))
 
 @pytest.mark.test_to_decibel
 def test_to_decibel_returns_inf_if_input_is_negative():
     x = -7
-    y = pp.to_decibel(x)
+    y = ap.to_decibel(x)
     assert np.ma.getmask(y) == True
 
 @pytest.mark.test_make_frames
@@ -103,7 +103,7 @@ def test_window_length_can_exceed_duration(sine_wave):
 @pytest.mark.test_normalize_spec
 def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    mag_norm = pp.normalize_spec(spec.image)
+    mag_norm = ap.normalize_spec(spec.image)
     for i in range(mag_norm.shape[0]):
         val = mag_norm[0,i]
         assert 0 <= val <= 1
@@ -113,29 +113,29 @@ def test_cropped_spectrogram_has_correct_size_and_content(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     mag = spec.image
     cut = int(0.7 * mag.shape[1])
-    mag_cropped = pp.crop_high_freq(mag, cut)
+    mag_cropped = ap.crop_high_freq(mag, cut)
     assert mag_cropped.shape[1] == cut
     assert mag_cropped[0,0] == mag[0,0]
 
 @pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = pp.blur_image(img,5,Gaussian=False)
+    img_median = ap.blur_image(img,5,Gaussian=False)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
-    img_gaussian = pp.blur_image(img,9,Gaussian=True)
+    img_gaussian = ap.blur_image(img,9,Gaussian=True)
     np.testing.assert_array_equal(img, img_gaussian)
             
 @pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    pp.blur_image(img,13,Gaussian=False)
+    ap.blur_image(img,13,Gaussian=False)
 
 @pytest.mark.test_apply_broadband_filter
 def test_broadband_filter_works_as_expected_for_uniform_columns():
     img = np.array([[1,1],[2,2],[3,3]], dtype=np.float32)
-    img_fil = pp.apply_broadband_filter(img)
+    img_fil = ap.apply_broadband_filter(img)
     for i in range(img_fil.shape[0]):
         for j in range(img_fil.shape[1]):
             assert img_fil[i,j] == 0
@@ -143,7 +143,7 @@ def test_broadband_filter_works_as_expected_for_uniform_columns():
 @pytest.mark.test_apply_broadband_filter
 def test_broadband_filter_works_as_expected_for_non_uniform_columns():
     img = np.array([[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = pp.apply_broadband_filter(img)
+    img_fil = ap.apply_broadband_filter(img)
     assert img_fil[0,0] == 0
     assert img_fil[0,1] == 0
     assert img_fil[0,2] == 0
@@ -154,7 +154,7 @@ def test_broadband_filter_works_as_expected_for_non_uniform_columns():
 @pytest.mark.test_apply_narrowband_filter
 def test_narrowband_filter_works_as_expected_for_uniform_rows():
     img = np.array([[1,3],[1,3],[1,3],[1,3]], dtype=np.float32)
-    img_fil = pp.apply_narrowband_filter(img,time_res=1,time_const=1)
+    img_fil = ap.apply_narrowband_filter(img,time_res=1,time_const=1)
     for i in range(img_fil.shape[0]):
         for j in range(img_fil.shape[1]):
             assert img_fil[i,j] == 0
@@ -162,20 +162,20 @@ def test_narrowband_filter_works_as_expected_for_uniform_rows():
 @pytest.mark.test_apply_median_filter
 def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = pp.apply_median_filter(img,row_factor=1,col_factor=1)
+    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=1)
     img_res = np.array([[0,0,0],[0,0,0],[0,0,1]], dtype=np.float32)
     np.testing.assert_array_equal(img_fil,img_res)
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = pp.apply_median_filter(img,row_factor=15,col_factor=1)
+    img_fil = ap.apply_median_filter(img,row_factor=15,col_factor=1)
     assert img_fil[2,2] == 0
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = pp.apply_median_filter(img,row_factor=1,col_factor=15)
+    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=15)
     assert img_fil[2,2] == 0
     
 @pytest.mark.test_apply_preemphasis
 def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     sig = np.array([1,2,3,4,5], np.float32)
-    sig_new = pp.apply_preemphasis(sig,coeff=0)
+    sig_new = ap.apply_preemphasis(sig,coeff=0)
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
@@ -194,7 +194,7 @@ def test_prepare_for_binary_cnn():
         specs.append(s)
 
     img_wid = 4
-    framer = pp.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
+    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
     x, y, _ = framer.get_frames()
     m = 1 + 20 - 4
     q = 4
@@ -205,7 +205,7 @@ def test_prepare_for_binary_cnn():
     assert np.all(x[0,2,:] == 2.5)
     assert np.all(x[1,1,:] == 2.5)
 
-    framer = pp.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
+    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
     x, y, _ = framer.get_frames()
     assert y.shape == (2*q,)
     assert np.sum(y) == q
@@ -232,7 +232,7 @@ def test_filter_isolated_spots_removes_single_pixels():
                     [1,1,1],
                     [1,1,1]])
 
-    filtered_img = pp.filter_isolated_spots(img,struct)
+    filtered_img = ap.filter_isolated_spots(img,struct)
 
     assert np.array_equal(filtered_img, expected)
 
