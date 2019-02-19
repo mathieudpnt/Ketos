@@ -15,7 +15,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from sound_classification.edtcn import EDTCN
+from ketos.neural_networks.edtcn import EDTCN
 
 
 @pytest.mark.test_EDTCN
