@@ -23,10 +23,10 @@ import errno
 import tables
 from subprocess import call
 import scipy.io.wavfile as wave
-import sound_classification.external.wavfile as wave_bit
-from sound_classification.annotation import tostring
+import ketos.external.wavfile as wave_bit
+from ketos.data_handling.annotation import tostring
 #from sound_classification.data_handling import get_wave_files, parse_datetime
-from sound_classification.audio_signal import TimeStampedAudioSignal
+from ketos.audio_processing.audio import TimeStampedAudioSignal
 import datetime
 import datetime_glob
 import re
