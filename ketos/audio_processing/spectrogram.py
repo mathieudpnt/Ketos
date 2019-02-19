@@ -6,9 +6,9 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import datetime
 import math
-from sound_classification.pre_processing import make_frames, to_decibel
-from sound_classification.audio_signal import AudioSignal
-from sound_classification.annotation import AnnotationHandler
+from ketos.audio_processing.audio_processing import make_frames, to_decibel
+from ketos.audio_processing.audio import AudioSignal
+from ketos.audio_processing.annotation import AnnotationHandler
 from skimage.transform import rescale
 import time
 
