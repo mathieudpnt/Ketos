@@ -16,9 +16,9 @@ import os
 import ast
 import math
 import numpy as np
-from sound_classification.annotation import tostring
-from sound_classification.audio_signal import AudioSignal
-from sound_classification.spectrogram import Spectrogram
+from ketos.audio_processing.annotation import tostring
+from ketos.audio_processing.audio import AudioSignal
+from ketos.audio_processing.spectrogram import Spectrogram
 
 def open(h5file, table_path):
     """ Open a table from an HDF5 file.
