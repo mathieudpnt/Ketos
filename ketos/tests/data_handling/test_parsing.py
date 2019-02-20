@@ -15,7 +15,7 @@
 
 import pytest
 import json
-import ketos.data_handling..parsing as jp
+import ketos.data_handling.parsing as jp
 
 
 @pytest.fixture
