@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='ketos',
       version='1.0.0',
@@ -9,7 +9,7 @@ setup(name='ketos',
       author='Oliver Kirsebom, Fabio Frazao',
       author_email='oliver.kirsebom@dal.ca, fsfrazao@dal.ca',
       license='GNU General Public License v3.0',
-      packages=['ketos', 'ketos/external'],
+      packages=find_packages(),
       install_requires=[
           'numpy',
           'tables',

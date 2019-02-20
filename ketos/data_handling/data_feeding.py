@@ -18,8 +18,6 @@ from sklearn.utils import shuffle
 
 
 
-<<<<<<< HEAD
-=======
 class BatchGenerator():
     def __init__(self, hdf5_table, batch_size, instance_function,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False):
         self.data = hdf5_table
@@ -71,7 +69,6 @@ class BatchGenerator():
 
 
 
->>>>>>> 13d7c4eb3b38e57f09a8285804597f8ec6e7199e
 
 class TrainingDataProvider():
     """ Training data provider.

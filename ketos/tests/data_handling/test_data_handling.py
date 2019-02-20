@@ -19,13 +19,13 @@ import ketos.data_handling.data_handling as dh
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.spectrogram import MagSpectrogram
 from ketos.data_handling.data_handling import BatchReader
-from ketos.audio_processing..audio import AudioSignal
+from ketos.audio_processing.audio import AudioSignal
 import datetime
 import shutil
 import os
 from glob import glob
 
-path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+path_to_assets = os.path.join(os.path.dirname(__file__),"../assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 today = datetime.datetime.today()

@@ -3,14 +3,15 @@ import datetime
 import math
 import scipy.io.wavfile as wave
 from scipy import interpolate
-from ketos.data_handling.data_handling import read_wave
+
 from ketos.util import morlet_func
 import ketos.audio_processing.audio_processing as ap
 import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
-from ketos.data_handling.annotation import AnnotationHandler
+from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.data_handling.data_handling import read_wave
 
 class AudioSignal(AnnotationHandler):
     """ Audio signal
