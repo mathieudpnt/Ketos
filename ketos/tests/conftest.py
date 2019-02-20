@@ -4,7 +4,7 @@ import os
 import numpy as np
 import scipy.signal as sg
 import pandas as pd
-import ketos.audio_processing as ap
+import ketos.audio_processing.audio_processing as ap
 import ketos.data_handling as dh
 from ketos.neural_networks.cnn import CNNWhale
 import ketos.audio_processing.audio as aud
