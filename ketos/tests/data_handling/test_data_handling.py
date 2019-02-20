@@ -25,7 +25,8 @@ import shutil
 import os
 from glob import glob
 
-path_to_assets = os.path.join(os.path.dirname(__file__),"../assets")
+current_dir = os.path.dirname(__file__)
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 today = datetime.datetime.today()
@@ -681,7 +682,7 @@ def five_time_stamped_wave_files():
     files = list()
     N = 5
 
-    folder = path_to_assets+'/tmp/'
+    folder = path_to_tmp
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -704,6 +705,7 @@ def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
 
 def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
+    print(folder)
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     reader = BatchReader(source=folder, datetime_fmt=fmt)
     b = reader.next(700)
