@@ -19,9 +19,10 @@ import ketos.data_handling.data_handling as dh
 from ketos.audio_processing.spectrogram import MagSpectrogram
 
 
-current_dir = os.getcwd()
-path_to_assets = os.path.join(current_dir,"assets")
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
+
 
 @pytest.mark.test_h5_open
 def test_h5_open_non_existing_table():

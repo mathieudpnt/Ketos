@@ -22,7 +22,10 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram
 import cv2
 
-path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
+
 
 
 @pytest.mark.test_to_decibel
