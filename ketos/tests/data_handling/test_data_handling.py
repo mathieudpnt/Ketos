@@ -25,8 +25,8 @@ import shutil
 import os
 from glob import glob
 
-current_dir = os.path.dirname(__file__)
-path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+current_dir = os.getcwd()
+path_to_assets = os.path.join(current_dir,"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 today = datetime.datetime.today()

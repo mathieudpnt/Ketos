@@ -18,7 +18,9 @@ import ketos.data_handling.database_interface as h5
 import ketos.data_handling.data_handling as dh
 from ketos.audio_processing.spectrogram import MagSpectrogram
 
-path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
+
+current_dir = os.getcwd()
+path_to_assets = os.path.join(current_dir,"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.mark.test_h5_open
