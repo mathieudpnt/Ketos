@@ -24,3 +24,6 @@ docs/build
 .pytest_cache
 summaries
 ketos/tests/assets
+
+# Docker
+docker/create/ketos
