@@ -82,23 +82,6 @@ def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col
     divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
     dh.prepare_database(raw, "image", "label", divisions) 
 
-
-@pytest.mark.test_def_slice_ffmpeg
-def test_sliced_audio_file_has_correct_properties(sine_wave_file):
-    prefix="halifax123456789"
-    out_name = path_to_assets + "/" + prefix + ".wav"
-    dh.slice_ffmpeg(sine_wave_file, 0.0, 1.7, out_name)
-    rate_orig, sig_orig = ap.wave.read(sine_wave_file)
-    rate, sig = ap.wave.read(out_name)
-    duration = len(sig) / rate
-    assert rate == rate_orig
-    assert duration == 1.7
-#    for i in range(len(sig)):
-#        assert sig[i] == sig_orig[i]
-    # clean
-    for f in glob(path_to_assets + "/*" + prefix + "*"):
-        os.remove(f)
-
 @pytest.mark.parametrize("input,depth,expected",[
     (1,2,np.array([0,1])),
     (0,2,np.array([1,0])),
