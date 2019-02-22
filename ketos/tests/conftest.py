@@ -166,33 +166,29 @@ def image_zeros_and_ones_10x10():
     return image
 
 @pytest.fixture
-def datebase_with_one_image_col_and_one_label_col():
-    img = image_2x2()
-    d = {'image': [img], 'label': [1]}
+def datebase_with_one_image_col_and_one_label_col(image_2x2):
+    d = {'image': [image_2x2], 'label': [1]}
     df = pd.DataFrame(data=d)
     return df
 
 
 @pytest.fixture
-def datebase_with_one_image_col_and_no_label_col():
-    img = image_2x2()
-    d = {'image': [img]}
+def datebase_with_one_image_col_and_no_label_col(image_2x2):
+    d = {'image': [image_2x2]}
     df = pd.DataFrame(data=d)
     return df
 
 
 @pytest.fixture
-def datebase_with_two_image_cols_and_one_label_col():
-    img = image_2x2()
-    d = {'image1': [img], 'image2': [img], 'label': [1]}
+def datebase_with_two_image_cols_and_one_label_col(image_2x2):
+    d = {'image1': [image_2x2], 'image2': [image_2x2], 'label': [1]}
     df = pd.DataFrame(data=d)
     return df
 
 
 @pytest.fixture
-def database_prepared_for_NN():
-    img = image_2x2()
-    d = {'image': [img,img,img,img,img,img], 'label': [0,0,0,0,0,0]}
+def database_prepared_for_NN(image_2x2):
+    d = {'image': [image_2x2, image_2x2, image_2x2, image_2x2, image_2x2, image_2x2], 'label': [0,0,0,0,0,0]}
     df = pd.DataFrame(data=d)
     divisions = {"train":(0,3),"validation":(3,4),"test":(4,6)}
     prepared = dh.prepare_database(df, "image", "label", divisions)     
