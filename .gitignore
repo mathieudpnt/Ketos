@@ -23,4 +23,4 @@ docs/build
 # cache
 .pytest_cache
 summaries
-sound_classification/tests/assets
+ketos/tests/assets
