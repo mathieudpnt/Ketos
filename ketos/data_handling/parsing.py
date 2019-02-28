@@ -108,6 +108,18 @@ def parse_frequency_bands(data):
             Band names
         freq_intv: list(Interval)
             Band frequency ranges in Hz 
+
+    Example:
+    
+        >>> import json
+        >>> import ketos.data_handling.parsing.parse_frequency_bands as parse
+        >>> 
+        >>> input = '{"frequency_bands": [{"name": "A", "range": ["11.0Hz", "22.1Hz"]},{"name": "B", "range": ["9kHz", "10kHz"]}]}'
+        >>> data = json.loads(input)
+        >>> names, bands = parse(data['frequency_bands'])
+        >>> print(names)  # print names of frequency bands
+        >>> for b in bands:
+        >>>     print(b.low, b.high) # print frequency range
     """
     Q = ureg.Quantity
     
