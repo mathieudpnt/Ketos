@@ -44,6 +44,16 @@ def parse_spectrogram_configuration(data):
     Returns:
         c : SpectrogramConfiguration
             Spectrogram configuration settings
+
+    Example:
+    
+        >>> import json
+        >>> import ketos.data_handling.parsing.parse_spectrogram_configuration as parse
+        >>> 
+        >>> input = '{"spectrogram": {"rate": "20 kHz", "window_size": "0.1 s", "step_size": "0.025 s", "window_function": "HAMMING", "low_frequency_cut": "30Hz", "high_frequency_cut": "3000Hz"}}'
+        >>> data = json.loads(input)
+        >>> settings = parse(data['spectrogram'])
+        >>> print(settings.rate)  # print sampling rate in Hz
     """
     Q = ureg.Quantity
 
