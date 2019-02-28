@@ -1,5 +1,5 @@
-Data handling module
-======================
+Data handling
+=============
 
-.. automodule:: data_handling
+.. automodule:: ketos.data_handling.data_handling
    :members:

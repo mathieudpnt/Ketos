@@ -2,10 +2,8 @@
    :maxdepth: 2
    :caption: Modules:
 
-   data_handling
-   pre_processing
-   audio_signal
-   spectrogram
-   json_parsing
+   data_handling_module
+   audio_processing_module
+   neural_networks_module
+   external
    util
-   neural_networks

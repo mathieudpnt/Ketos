@@ -1,5 +1,5 @@
-Spectrogram module
-======================
+Spectrogram
+===========
 
-.. automodule:: spectrogram
+.. automodule:: ketos.audio_processing.spectrogram
    :members:
