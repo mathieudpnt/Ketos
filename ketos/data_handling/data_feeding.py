@@ -39,15 +39,15 @@ class BatchGenerator():
             np.random.shuffle(indices)
         return indices
 
-    def __get_batch_indices__(self):
+   def __get_batch_indices__(self):
         """Selects the indices for each batch"""
-        ids = self.indices
+        ids = self.entry_indices
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
         last_batch_size = self.n_instances % n_complete_batches
     
-        list_of_indices = [tuple(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_batches)]
+        list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(self.n_batches)]
         if last_batch_size > 0:
-            last_batch_ids = tuple(ids[-last_batch_size:])
+            last_batch_ids = list(ids[-last_batch_size:])
             list_of_indices.append(last_batch_ids)
 
         return list_of_indices
