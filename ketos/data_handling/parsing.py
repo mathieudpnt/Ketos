@@ -48,12 +48,13 @@ def parse_spectrogram_configuration(data):
     Example:
     
         >>> import json
-        >>> import ketos.data_handling.parsing.parse_spectrogram_configuration as parse
+        >>> import ketos.data_handling.parsing as par
         >>> 
         >>> input = '{"spectrogram": {"rate": "20 kHz", "window_size": "0.1 s", "step_size": "0.025 s", "window_function": "HAMMING", "low_frequency_cut": "30Hz", "high_frequency_cut": "3000Hz"}}'
         >>> data = json.loads(input)
-        >>> settings = parse(data['spectrogram'])
+        >>> settings = par.parse_spectrogram_configuration(data['spectrogram'])
         >>> print(settings.rate)  # print sampling rate in Hz
+        20000.0
     """
     Q = ureg.Quantity
 
@@ -112,14 +113,17 @@ def parse_frequency_bands(data):
     Example:
     
         >>> import json
-        >>> import ketos.data_handling.parsing.parse_frequency_bands as parse
+        >>> import ketos.data_handling.parsing as par
         >>> 
         >>> input = '{"frequency_bands": [{"name": "A", "range": ["11.0Hz", "22.1Hz"]},{"name": "B", "range": ["9kHz", "10kHz"]}]}'
         >>> data = json.loads(input)
-        >>> names, bands = parse(data['frequency_bands'])
+        >>> names, bands = par.parse_frequency_bands(data['frequency_bands'])
         >>> print(names)  # print names of frequency bands
-        >>> for b in bands:
-        >>>     print(b.low, b.high) # print frequency range
+        ['A', 'B']
+        >>> for b in bands: 
+        ...     print(b.low, b.high) # print frequency range
+        11.0 22.1
+        9000.0 10000.0
     """
     Q = ureg.Quantity
     
