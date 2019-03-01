@@ -4,7 +4,7 @@
 
     Contents:
         BatchGenerator class: 
-        TrainiDataprovider class
+        TrainiDataProvider class
 
     Authors: Fabio Frazao and Oliver Kirsebom
     Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
@@ -62,6 +62,36 @@ class BatchGenerator():
                 Has no effect if shuffle is False.
             return_batch_ids: bool
                 If False, each batch will consist of X and Y. If True, the instance ids (as they are in the hdf5_table) will be included ((ids, X, Y)).
+
+
+            Examples:
+
+                >>> import tables
+                >>> import os
+                >>> import numpy as np
+                >>> import ketos.data_handling.database_interface as h5
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> from ketos.data_handling.data_handling import read_wave
+           
+                >>> rate, sig = read_wave(file='../tests/assets/2min_wav )  
+                >>> audio = AudioSignal(rate=rate, data=sig)
+                >>> spec = MagSpectrogram(audio, 0.2, 0.05)
+                >>> spec.boxes = [[10, 15, 200, 400]
+                >>> spec.labels = [[1]]
+
+                >>> f = tables.open_file(tmp_db.h5, 'w')
+                    # create table
+                >>> tbl = h5.create(h5file=f, path='/train/', name='species1', shape=spec.image.shape)
+                    # write 15 instances to table
+                >>> for i in range(15):
+                ...     h5.write(table=tbl, x=spec)
+             
+
+
+                    
+                
+
     """
 
     def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
