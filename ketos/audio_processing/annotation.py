@@ -76,12 +76,12 @@ class AnnotationHandler():
         if ndim(labels) == 0:
             labels = [labels]
 
-        if ndim(boxes) == 1:
+        if ndim(boxes) == 1 and len(boxes) > 0:
             boxes = [boxes]
 
         assert len(labels) == len(boxes), 'number of labels must equal number of boxes'
         assert ndim(labels) == 1, 'labels list has invalid dimension'
-        assert ndim(boxes) == 2, 'boxes list has invalid dimension'
+        assert ndim(boxes) == 2 or (ndim(boxes) == 1 and len(boxes) == 0), 'boxes list has invalid dimension'
 
         for l,b in zip(labels, boxes):
             b = self._ensure4D(b)

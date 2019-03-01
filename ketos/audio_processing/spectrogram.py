@@ -263,7 +263,7 @@ class Spectrogram(AnnotationHandler):
             tmin = 0
 
         # handle annotations
-        labels, boxes = self.cut_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
+        labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
         ann = AnnotationHandler(labels, boxes)
         ann._shift_annotations(delay=tmin)
 
@@ -666,7 +666,7 @@ class Spectrogram(AnnotationHandler):
         self.fmin += self.fres * fbin1
 
         # crop labels and boxes
-        self.labels, self.boxes = self.cut_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
+        self.labels, self.boxes = self.get_cropped_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
         
         if self.flabels != None:
             self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]

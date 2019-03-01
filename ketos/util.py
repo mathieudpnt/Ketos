@@ -12,6 +12,9 @@ def ndim(a):
     if not (type(a) == list or type(a) == tuple or type(a) == np.ndarray):
         return 0
 
+    if len(a) == 0:
+        return 1
+
     return 1 + ndim(a[0])
 
     
