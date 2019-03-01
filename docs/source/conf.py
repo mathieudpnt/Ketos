@@ -14,19 +14,19 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../sound_classification'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'sound_classification'
+project = 'ketos'
 copyright = '2018, Fabio Frazao, Oliver Kirsebom'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
-version = '0.0'
+version = '1.0'
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -39,6 +39,8 @@ release = '0.0.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.autosummary',
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
@@ -89,7 +91,9 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    "collapse_navigation" : False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -112,7 +116,7 @@ html_logo = '_static/logo.png'
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'sound_classificationdoc'
+htmlhelp_basename = 'ketosdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -139,7 +143,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'sound_classification.tex', 'sound\\_classification Documentation',
+    (master_doc, 'ketos.tex', 'ketos Documentation',
      'Fabio Frazao, Oliver Kirsebom', 'manual'),
 ]
 
@@ -149,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'sound_classification', 'sound_classification Documentation',
+    (master_doc, 'ketos', 'ketos Documentation',
      [author], 1)
 ]
 
@@ -160,8 +164,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'sound_classification', 'sound_classification Documentation',
-     author, 'sound_classification', 'One line description of project.',
+    (master_doc, 'ketos', 'ketos Documentation',
+     author, 'ketos', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -177,3 +181,7 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+auto_doc_member_order = "groupwise"
+autoclass_content = "class"
+autosummary_generate = []

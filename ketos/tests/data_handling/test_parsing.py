@@ -1,26 +1,24 @@
-""" Unit tests for the the 'json_parsing' module in the 'sound_classification' package
+""" Unit tests for the the 'parsing' module in the 'ketos' package
 
 
     Authors: Fabio Frazao and Oliver Kirsebom
     contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
     Organization: MERIDIAN-Intitute for Big Data Analytics
     Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
+    Project: packages/ketos
              Project goal: Package code internally used in projects applying Deep Learning to sound classification
      
     License:
 
 """
 
-
 import pytest
 import json
 import ketos.data_handling.parsing as jp
 
-
 @pytest.fixture
 def spectr_config_json_complete():
-    j = '{"spectrogram": {"rate": "20 kHz", "window_size": "0.1 s", "step_size": "0.025 s", "window_function": "HAMMING"}}'
+    j = '{"spectrogram": {"rate": "20 kHz", "window_size": "0.1 s", "step_size": "0.025 s", "window_function": "HAMMING", "low_frequency_cut": "30Hz", "high_frequency_cut": "3000Hz"}}'
     return j
 
 @pytest.fixture
@@ -38,20 +36,26 @@ def two_frequency_bands_json():
     j = '{"frequency_bands": [{"name": "15.6Hz", "range": ["11.0Hz", "22.1Hz"]},{"name": "test", "range": ["9kHz", "10kHz"]}]}'
     return j
 
+@pytest.fixture
+def frequency_band_without_name_json():
+    j = '{"frequency_bands": [{"range": ["11.0Hz", "22.1Hz"]}]}'
+    return j
 
-@pytest.mark.test_parse_spectrogram_config
+@pytest.mark.test_parse_spectrogram_configuration
 def test_parse_complete_spectrogram_config(spectr_config_json_complete):
     data = json.loads(spectr_config_json_complete)
-    cfg = jp.parse_spectrogram_config(data['spectrogram'])
+    cfg = jp.parse_spectrogram_configuration(data['spectrogram'])
     assert cfg.rate == 20000
     assert cfg.window_size == 0.1
     assert cfg.step_size == 0.025
     assert cfg.window_function == jp.WinFun.HAMMING
+    assert cfg.low_frequency_cut == 30
+    assert cfg.high_frequency_cut == 3000
 
-@pytest.mark.test_parse_spectrogram_config
+@pytest.mark.test_parse_spectrogram_configuration
 def test_parse_partial_spectrogram_config(spectr_config_json_partial):
     data = json.loads(spectr_config_json_partial)
-    cfg = jp.parse_spectrogram_config(data['spectrogram'])
+    cfg = jp.parse_spectrogram_configuration(data['spectrogram'])
     assert cfg.rate == 20000
     assert cfg.window_size == 0.1
     assert cfg.step_size == None
@@ -75,5 +79,8 @@ def test_parse_two_frequency_bands(two_frequency_bands_json):
     assert freq_interval[1].low == 9000.0
     assert freq_interval[1].high == 10000.0
 
-def dummy_test():
-    assert 1 == 1
+@pytest.mark.test_parse_frequency_bands
+def test_parse_frequency_band_without_name(frequency_band_without_name_json):
+    data = json.loads(frequency_band_without_name_json)
+    with pytest.raises(AssertionError):
+        _, _ = jp.parse_frequency_bands(data['frequency_bands'])
