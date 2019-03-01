@@ -98,6 +98,24 @@ def test_get_cropped_annotations():
     assert b[1][2] == pytest.approx(24.0, abs=0.001)
     assert b[1][3] == pytest.approx(27.0, abs=0.001)
 
+def test_get_cropped_annotations_2():
+    labels = [0, 1]
+    boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
+    handler = AnnotationHandler(labels, boxes)
+    l, b = handler.get_cropped_annotations(t1=10.3, f2=555.)
+    assert len(l) == 2
+    assert l[0] == 0
+    assert l[1] == 1
+    assert len(b) == 2
+    assert b[0][0] == 0
+    assert b[0][1] == 1.9
+    assert b[0][2] == 110.0
+    assert b[0][3] == 555.0
+    assert b[1][0] == 19.7
+    assert b[1][1] == 23.7
+    assert b[1][2] == 0
+    assert b[1][3] == 555.0
+
 def test_shift_annotations():
     labels = [1,2]
     box1 = [14.,17.,0.,29.]
