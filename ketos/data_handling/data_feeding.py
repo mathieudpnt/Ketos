@@ -38,6 +38,31 @@ from sklearn.utils import shuffle
 
 
 class BatchGenerator():
+    """ Creates batches to be fed to a model
+
+        Instances of this class are python generators. They will load one batch at a time from a HDF5 database, which is particularly useful when working with larger than memory datasets.
+
+
+        Args:
+            hdf5_table: pytables table (instance of table.Table()) 
+                The HDF5 table  containing the data
+            batch_size: int
+                The number of instances in each batch. The last batch of an epoch might have fewer examples, depending on the number of instances in the hdf5_table.
+            instance_function: function
+                A function to be applied to the batch. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple. X and Y are arrays of shape [batch_size, n, m] whe [n,mm] is the shape of one instance of X and Y (can be different). 
+            x_field:str
+                The name of the column containing the X data in the hdf5_table
+            y_field: str
+                The name of the column containing the Y labels in the hdf5_table
+            shuffle: bool
+                If True, the batches will contain batch_size randomly picked instances. If false batches maintain the order of instances in the database
+            refresh_on_epoch: bool
+                If True and shuffle is also True, will resample the instance at the end of each epoch, resulting in different batches for each epoch. If false will reuse the same batches for each epoch (i.e: each batch will have the same random selection of samples across batch)
+                Has no effect if shuffle is False.
+            return_batch_ids: bool
+                If False, each batch will consist of X and Y. If True, the instance ids (as they are in the hdf5_table) will be included ((ids, X, Y)).
+    """
+
     def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
