@@ -14,29 +14,39 @@ Authors: Fabio Frazao and Oliver Kirsebom
     License:
 
 """
+from ketos.util import ndim
 import numpy as np
 import math
 
-class AnnotationHandler():
-    """ Parent class for the AudioSignal and Spectrogram classes
 
-        Args:
-            labels: tuple(int)
+class AnnotationHandler():
+    """ Parent class for the AudioSignal and Spectrogram classes.
+
+        An annotation consists of an integer label (0,1,2,...) and 
+        a bounding box that delimits the audio segment of interest 
+        in time and optionally frequency. 
+        
+        The bounding box can be a list of two or four floats. A list 
+        of two floats is interpreted as the start and end time of the 
+        segment (in seconds); a list of four floats is interpreted as 
+        start time, end time, minimum frequency, and maximum frequency 
+        (with frequency expressed in Hz).
+
+        Attributes:
+            labels: list(int)
                 List of annotation labels
-            boxes: 2D tuple(int)
-                List of 2D or 4D tuples, specifying a time interval (in seconds),
-                and optionally also a frequency interval (in Hz), for each annotation. 
-                The format is (t_min, t_max, f_min, f_max)
+            boxes: list(tuple)
+                List of bounding boxes, each specifying a time interval (in seconds)
+                and optionally also a frequency interval (in Hz).
+                The format is [t_min, t_max, f_min, f_max]
     """
     def __init__(self, labels=None, boxes=None):
 
-        self.labels = labels
-        self.boxes = boxes
+        self.labels = []
+        self.boxes = []
 
-        if self.labels is None:
-            self.labels = []
-        if self.boxes is None:
-            self.boxes = []
+        if labels is not None:
+            self.annotate(labels, boxes)
 
     def annotate(self, labels, boxes):
         """ Add a set of annotations.
@@ -47,22 +57,33 @@ class AnnotationHandler():
                 boxes: list(tuple)
                     Annotation boxes, specifying the start and stop time of the annotation 
                     and, optionally, the minimum and maximum frequency.
-                    For example, box=(10.0, 12.2) specifies the start and stop times as being
-                    10.0 and 12.2 seconds, respectively, while no constraints are placed on the 
-                    frequency; box=(10.0, 12.2, 400., 6000.) specifies the same start and stop 
-                    times, but now also specifies a frequency range of 400-6000 Hz.
-        """
-        if np.ndim(labels) == 0:
-            self.labels.append(labels)
-            boxes = self._ensure4D(boxes)
-            self.boxes.append(boxes)
-        else:
-            assert len(labels) == len(boxes), 'number of boxes must be equal to number of labels'
 
-            for l,b in zip(labels, boxes):
-                self.labels.append(l)
-                b = self._ensure4D(b)
-                self.boxes.append(b)
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> 
+                >>> handler = AnnotationHandler()
+                >>> labels = [0, 1]
+                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
+                >>> handler.annotate(labels, boxes)
+                >>> print(handler.labels)
+                [0, 1]
+                >>> print(handler.boxes)
+                [[10.0, 12.2, 110.0, 700.0], [30.0, 34.0, 0, inf]]
+        """
+        if ndim(labels) == 0:
+            labels = [labels]
+
+        if ndim(boxes) == 1:
+            boxes = [boxes]
+
+        assert len(labels) == len(boxes), 'number of labels must equal number of boxes'
+        assert ndim(labels) == 1, 'labels list has invalid dimension'
+        assert ndim(boxes) == 2, 'boxes list has invalid dimension'
+
+        for l,b in zip(labels, boxes):
+            b = self._ensure4D(b)
+            self.labels.append(l)
+            self.boxes.append(b)
 
         for b in self.boxes:
             b = np.array(b).tolist()
@@ -78,6 +99,8 @@ class AnnotationHandler():
         """
         if len(b) == 2:
             b = [b[0], b[1], 0, math.inf]
+        
+        assert len(b) == 4, 'Found box with {0} entries; all boxes must have either 2 or 4 entries'.format(len(b))
         
         return b
 
@@ -126,13 +149,6 @@ class AnnotationHandler():
 
             # check if box overlaps with cut
             if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
-
-                # update box boundaries
-#                b[0] -= t1
-#                b[1] -= t1
-#                b[1] = min(b[1], t2-t1)
-#                b[2] = max(b[2], f1)
-#                b[3] = min(b[3], f2)
 
                 # update box boundaries
                 b0 = b[0] - t1

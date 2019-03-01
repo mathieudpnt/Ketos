@@ -8,6 +8,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def ndim(a):
+    if not (type(a) == list or type(a) == tuple or type(a) == np.ndarray):
+        return 0
+
+    return 1 + ndim(a[0])
+
+    
 def tostring(box, decimals=None):
     """ Convert an array, tuple or list into a string.
         

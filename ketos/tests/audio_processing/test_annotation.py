@@ -16,7 +16,43 @@ import numpy as np
 from ketos.audio_processing.annotation import AnnotationHandler
 
 
-def test_annotate():
+def test_can_initialize_empty_annotation_handler():
+    _ = AnnotationHandler()
+
+def test_can_initialize_annotation_handler():
+    # one label, one 4d box
+    _ = AnnotationHandler(labels=[1], boxes=[[0.1, 0.3, 100., 400.]])
+    # one label, one 2d box
+    _ = AnnotationHandler(labels=[1], boxes=[[0.1, 0.3]])
+    # one label, two boxes
+    with pytest.raises(AssertionError):
+        _ = AnnotationHandler(labels=[1], boxes=[[0.1, 0.3],[0.1, 0.3]])
+    # two labels, one box
+    with pytest.raises(AssertionError):
+        _ = AnnotationHandler(labels=[1,2], boxes=[[0.1, 0.3]])
+    # one label, one box
+    _ = AnnotationHandler(labels=1, boxes=[0.1, 0.3, 100., 400.])
+    # box with wrong dimensions
+    with pytest.raises(AssertionError):
+        _ = AnnotationHandler(labels=1, boxes=[0.1, 0.3, 100])
+        _ = AnnotationHandler(labels=1, boxes=[0.1, 0.3, 100, 333, 1])
+    # labels provided as tuples
+    _ = AnnotationHandler(labels=(1,2), boxes=[[0.1, 0.3],[0.4,0.7]])
+    # labels provided as numpy arrays
+    _ = AnnotationHandler(labels=np.array([1,2]), boxes=[[0.1, 0.3],[0.4,0.7]])
+
+def test_add_annotations():
+    a = AnnotationHandler()
+    a.annotate(labels=1, boxes=[1,2,3,4])
+    a.annotate(labels=[2,3], boxes=[[1,2,3,4],[5,6,7,8]])
+    assert len(a.labels) == 3
+    # two labels, and two boxes
+    a = AnnotationHandler()
+    labels = [0, 1]
+    boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
+    a.annotate(labels, boxes)
+
+def test_delete_annotations():
     a = AnnotationHandler()
     a.annotate(labels=1, boxes=[1,2,3,4])
     a.annotate(labels=[2,3], boxes=[[1,2,3,4],[5,6,7,8]])
