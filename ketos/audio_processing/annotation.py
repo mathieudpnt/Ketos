@@ -49,6 +49,14 @@ class AnnotationHandler():
         start time, end time, minimum frequency, and maximum frequency 
         (with frequency expressed in Hz).
 
+        Args:
+            labels: list(int)
+                List of annotation labels
+            boxes: list(tuple)
+                List of bounding boxes, each specifying a time interval (in seconds)
+                and optionally also a frequency interval (in Hz).
+                The format is [t_min, t_max, f_min, f_max]
+
         Attributes:
             labels: list(int)
                 List of annotation labels
