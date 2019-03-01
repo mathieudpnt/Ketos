@@ -212,7 +212,17 @@ class AnnotationHandler():
             
             Args:
                 delay: float
-                    Size of time shift in seconds.
+                    Time shift in seconds.
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> 
+                >>> labels = 1
+                >>> boxes = [10.0, 12.2]
+                >>> handler = AnnotationHandler(labels, boxes)
+                >>> handler._shift_annotations(2.0)
+                >>> print(handler.boxes)
+                [[12.0, 14.2, 0, inf]]
         """
         for b in self.boxes:
             b[0] += delay
@@ -224,6 +234,16 @@ class AnnotationHandler():
             Args:
                 scale: float
                     Scaling factor.
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> 
+                >>> labels = 1
+                >>> boxes = [10.0, 12.2]
+                >>> handler = AnnotationHandler(labels, boxes)
+                >>> handler._scale_annotations(2.0)
+                >>> print(handler.boxes)
+                [[20.0, 24.4, 0, inf]]
         """
         for b in self.boxes:
             b[0] *= scale
