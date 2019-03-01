@@ -1,14 +1,18 @@
 """ Data feeding module within the ketos library
 
-    This module 
+    This module provides utilities to load data and feed it to models.
+
+    Contents:
+        BatchGenerator class: 
+        TrainiDataprovider class
 
 Authors: Fabio Frazao and Oliver Kirsebom
     contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
     Organization: MERIDIAN (https://meridian.cs.dal.ca/)
     Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
     Project: ketos
-             Project goal: To package code useful for handling data, deriving features and
-             creating deep neural networks for sound classification projects.
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
     License: GNU GPLv3
 
