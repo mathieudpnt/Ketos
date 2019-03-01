@@ -41,6 +41,7 @@ class BatchGenerator():
     """ Creates batches to be fed to a model
 
         Instances of this class are python generators. They will load one batch at a time from a HDF5 database, which is particularly useful when working with larger than memory datasets.
+        Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' is True. X is a batch of data as a np.array of shape batch_size,mx,nx where mx,nx are the shape of on instance of X in the database. Similarly, Y is batch_size,my,ny with the corresponding labels.
 
 
         Args:
@@ -49,7 +50,7 @@ class BatchGenerator():
             batch_size: int
                 The number of instances in each batch. The last batch of an epoch might have fewer examples, depending on the number of instances in the hdf5_table.
             instance_function: function
-                A function to be applied to the batch. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple. X and Y are arrays of shape [batch_size, n, m] whe [n,mm] is the shape of one instance of X and Y (can be different). 
+                A function to be applied to the batch. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             x_field:str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
