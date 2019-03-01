@@ -55,7 +55,7 @@ class BatchGenerator():
     def __iter__(self):
         return self
 
-    def __next__(self):
+   def __next__(self):
         batch_ids = self.batch_indices[self.batch_count]
         X = self.data[batch_ids]['data']
         Y = self.data[batch_ids]['boxes']
@@ -63,8 +63,17 @@ class BatchGenerator():
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.batch_count = 0
+            if self.refresh_on_epoch_end:
+                self.entry_indices = self.__update_indices__()
+                self.batch_indices = self.__get_batch_indices__()
 
-        return (X,Y)
+        if self.instance_function is not None:
+            X,Y = self.instance_function(X,Y)
+
+        if self.return_batch_ids:
+            return (batch_ids,X,Y)
+        else:
+            return (X, Y)
 
 
 
