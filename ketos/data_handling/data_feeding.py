@@ -79,6 +79,16 @@ class BatchGenerator():
 
     
     def __update_indices__(self):
+        """Updates the indices used to divide the instances into batches.
+
+            A list of indices is kept in the self.entry_indices attribute.
+            The order of the indices determines which instances will be placed in each batch.
+            If the self.shuffle is True, the indices are randomly reorganized, resulting in batches with randomly picked instances.
+
+            Returns
+                indices: list of ints
+                    The list of instance indices
+        """
         indices = np.arange(self.n_instances)
         if self.shuffle:
             np.random.shuffle(indices)
