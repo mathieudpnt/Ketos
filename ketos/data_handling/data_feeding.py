@@ -34,9 +34,9 @@ class BatchGenerator():
 
     
     def __update_indices__(self):
-        indexes = np.arange(self.n_instances)
+        indices = np.arange(self.n_instances)
         if self.shuffle:
-            np.random.shuffle(indexes)
+            np.random.shuffle(indices)
         return indices
 
     def __get_batch_indices__(self):
