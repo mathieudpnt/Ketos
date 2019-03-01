@@ -16,7 +16,7 @@ import os
 import ast
 import math
 import numpy as np
-from ketos.audio_processing.annotation import tostring
+from ketos.util import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram
 

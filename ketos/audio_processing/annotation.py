@@ -17,37 +17,6 @@ Authors: Fabio Frazao and Oliver Kirsebom
 import numpy as np
 import math
 
-def tostring(box, decimals=None):
-    """ Convert an array, tuple or list into a string.
-        
-        Args:
-            box: array, tuple or list
-                Array, tuple or list that will be converted into a string.
-            decimals: int
-                Number of decimals that will be kept in the conversion to string.
-
-        Returns:
-            s: str
-                String representation of array/tuple/list.
-    """
-    if box is None:
-        return ''
-
-    box = np.array(box)
-
-    if decimals is not None:
-        box = np.around(box, decimals=int(decimals))
-
-    box = box.tolist()
-
-    s = str(box)
-    s = s.replace(' ', '')
-    s = s.replace('(', '[')
-    s = s.replace(')', ']')
-
-    return s
-
-
 class AnnotationHandler():
     """ Parent class for the AudioSignal and Spectrogram classes
 

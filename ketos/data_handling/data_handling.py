@@ -24,7 +24,7 @@ import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import ketos.external.wavfile as wave_bit
-from ketos.audio_processing.annotation import tostring
+from ketos.util import tostring
 #from sound_classification.data_handling import get_wave_files, parse_datetime
 import datetime
 import datetime_glob

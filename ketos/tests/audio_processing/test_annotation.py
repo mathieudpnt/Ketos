@@ -1,10 +1,10 @@
-""" Unit tests for the the 'annotation' module in the 'sound_classification' package
+""" Unit tests for the the 'annotation' module in the 'ketos' package
 
     Authors: Fabio Frazao and Oliver Kirsebom
     contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
     Organization: MERIDIAN-Intitute for Big Data Analytics
     Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
+    Project: packages/ketos
              Project goal: Package code internally used in projects applying Deep Learning to sound classification
      
     License:
@@ -13,7 +13,7 @@
 
 import pytest
 import numpy as np
-from ketos.audio_processing.annotation import AnnotationHandler, tostring
+from ketos.audio_processing.annotation import AnnotationHandler
 
 
 def test_annotate():
@@ -53,18 +53,3 @@ def test_shift_annotations():
     assert b[0][1] == pytest.approx(20.3, abs=0.001)
     assert b[1][0] == pytest.approx(5.4, abs=0.001)
     assert b[1][1] == pytest.approx(16.3, abs=0.001)
-
-@pytest.mark.test_tostring
-def test_tostring():
-    box = (1,2,3)
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = [1,2,3]
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = np.array([1,2,3])
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = [[1,2,3],[1,2]]
-    s = tostring(box)
-    assert s == '[[1,2,3],[1,2]]'

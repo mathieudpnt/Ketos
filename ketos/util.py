@@ -5,8 +5,38 @@ if viz is not None:
     if int(viz) == 1:
         matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
 import numpy as np
+
+
+def tostring(box, decimals=None):
+    """ Convert an array, tuple or list into a string.
+        
+        Args:
+            box: array, tuple or list
+                Array, tuple or list that will be converted into a string.
+            decimals: int
+                Number of decimals that will be kept in the conversion to string.
+
+        Returns:
+            s: str
+                String representation of array/tuple/list.
+    """
+    if box is None:
+        return ''
+
+    box = np.array(box)
+
+    if decimals is not None:
+        box = np.around(box, decimals=int(decimals))
+
+    box = box.tolist()
+
+    s = str(box)
+    s = s.replace(' ', '')
+    s = s.replace('(', '[')
+    s = s.replace(')', ']')
+
+    return s
 
 
 def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
