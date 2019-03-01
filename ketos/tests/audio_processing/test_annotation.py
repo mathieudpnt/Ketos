@@ -79,19 +79,24 @@ def test_delete_annotations():
     a.delete_annotations()
     assert len(a.labels) == 0
 
-def test_cut_annotations():
+def test_get_cropped_annotations():
     labels = [1,2]
     box1 = [14.,17.,0.,29.]
     box2 = [2.1,13.0,1.1,28.5]
     boxes = [box1, box2]
     a = AnnotationHandler(labels=labels, boxes=boxes)
-    l, b = a.cut_annotations(t1=2, t2=5, f1=24, f2=27)
-    assert len(l) == 1
-    assert l[0] == 2
-    assert b[0][0] == pytest.approx(0.1, abs=0.001)
-    assert b[0][1] == pytest.approx(3.0, abs=0.001)
+    l, b = a.get_cropped_annotations(t1=2, t2=15, f1=24, f2=27)
+    assert len(l) == 2
+    assert l[0] == 1
+    assert b[0][0] == pytest.approx(12.0, abs=0.001)
+    assert b[0][1] == pytest.approx(13.0, abs=0.001)
     assert b[0][2] == pytest.approx(24.0, abs=0.001)
     assert b[0][3] == pytest.approx(27.0, abs=0.001)
+    assert l[1] == 2
+    assert b[1][0] == pytest.approx(0.1, abs=0.001)
+    assert b[1][1] == pytest.approx(11.0, abs=0.001)
+    assert b[1][2] == pytest.approx(24.0, abs=0.001)
+    assert b[1][3] == pytest.approx(27.0, abs=0.001)
 
 def test_shift_annotations():
     labels = [1,2]

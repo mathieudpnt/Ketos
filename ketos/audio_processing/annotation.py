@@ -39,11 +39,14 @@ class AnnotationHandler():
                 List of bounding boxes, each specifying a time interval (in seconds)
                 and optionally also a frequency interval (in Hz).
                 The format is [t_min, t_max, f_min, f_max]
+            precision: int
+                Number of decimals used for bounding box values
     """
     def __init__(self, labels=None, boxes=None):
 
         self.labels = []
         self.boxes = []
+        self.precision = 3
 
         if labels is not None:
             self.annotate(labels, boxes)
@@ -98,6 +101,9 @@ class AnnotationHandler():
                 b: list or tuple
                    Bounding box with two or four entries 
         """
+        for v in b:
+            v = round(v, self.precision)
+
         if len(b) == 2:
             b = [b[0], b[1], 0, math.inf]
         
@@ -111,7 +117,7 @@ class AnnotationHandler():
             If no ID is spefied, all annotations are deleted.
             
             Args:
-                id: list(int)
+                id: int or list(int)
                     ID of the annotation to be deleted.
 
             Example:
@@ -141,18 +147,30 @@ class AnnotationHandler():
                     del self.labels[i]
                     del self.boxes[i]
 
-    def cut_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
-        """ Crop all annotations in time and/or frequency.
+    def get_cropped_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
+        """ Update boundary boxes in response to cropping operation in time and/or frequency.
             
             Args:
                 t1: float
-                    New start time in seconds
+                    Lower time cut in seconds
                 t2: float
-                    New stop time in seconds
+                    Upper time cut in seconds
                 f1: float
-                    New minimum frequency in Hz
+                    Lower frequency cut in Hz
                 f2: float
-                    New maximum frequency in Hz
+                    Upper frequency in in Hz
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> 
+                >>> labels = [0, 1]
+                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
+                >>> handler = AnnotationHandler(labels, boxes)
+                >>> cropped_labels, cropped_boxes = handler.get_cropped_annotations(t1=10.3, f2=555.)
+                >>> print(cropped_labels)
+                [0, 1]
+                >>> print(cropped_boxes)
+                [[0, 1.9, 110.0, 555.0], [19.7, 23.7, 0, 555.0]]
         """
         if t1 is None: t1 = 0
         if t2 is None: t2 = math.inf
@@ -165,14 +183,23 @@ class AnnotationHandler():
         for l, b in zip(self.labels, self.boxes):
 
             # check if box overlaps with cut
-            if b[0] >= t1 and b[0] < t2 and not (b[3] < f1 or b[2] > f2):
+            if b[0] < t2 and b[1] > t1 and b[2] < f2 and b[3] > f1:
 
                 # update box boundaries
                 b0 = b[0] - t1
+                b0 = max(b0, 0)
                 b1 = b[1] - t1
                 b1 = min(b1, t2-t1)
                 b2 = max(b[2], f1)
                 b3 = min(b[3], f2)
+
+                # truncate to desired precision
+                b0 = round(b0, self.precision)
+                b1 = round(b1, self.precision)
+                b2 = round(b2, self.precision)
+                b3 = round(b3, self.precision)
+
+                # new bounding box
                 box = [b0, b1, b2, b3]
 
                 labels.append(l)
