@@ -53,13 +53,31 @@ def test_add_annotations():
     a.annotate(labels, boxes)
 
 def test_delete_annotations():
-    a = AnnotationHandler()
-    a.annotate(labels=1, boxes=[1,2,3,4])
-    a.annotate(labels=[2,3], boxes=[[1,2,3,4],[5,6,7,8]])
+    labels = [1,2,3]
+    boxes = [[1,2,3,4],[5,6,7,8],[9,10,11,12]]
+    # delete one annotation
+    a = AnnotationHandler(labels, boxes)
+    assert len(a.labels) == 3
+    a.delete_annotations(id=0)
+    assert len(a.labels) == 2
+    assert a.labels[0] == 2
+    # delete two annotations
+    a = AnnotationHandler(labels, boxes)
     assert len(a.labels) == 3
     a.delete_annotations(id=[0,1])
     assert len(a.labels) == 1
     assert a.labels[0] == 3
+    # delete a non-existing annotation
+    a = AnnotationHandler(labels, boxes)
+    assert len(a.labels) == 3
+    a.delete_annotations(id=77)
+    assert len(a.labels) == 3
+    assert a.labels[0] == 1
+    # delete all annotation
+    a = AnnotationHandler(labels, boxes)
+    assert len(a.labels) == 3
+    a.delete_annotations()
+    assert len(a.labels) == 0
 
 def test_cut_annotations():
     labels = [1,2]

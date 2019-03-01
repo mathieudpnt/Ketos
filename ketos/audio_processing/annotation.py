@@ -90,12 +90,13 @@ class AnnotationHandler():
 
     def _ensure4D(self, b):
         """ Ensure that the annotation box has four entries.
+
             Set the minimum frequency to 0 and the maximum 
             frequency to infinity, if these are missing.
             
             Args:
-                b: list
-                   Annotation box 
+                b: list or tuple
+                   Bounding box with two or four entries 
         """
         if len(b) == 2:
             b = [b[0], b[1], 0, math.inf]
@@ -105,16 +106,32 @@ class AnnotationHandler():
         return b
 
     def delete_annotations(self, id=None):
-        """ Delete the annotation with the specified id.
+        """ Delete the annotation with the specified ID(s).
+
+            If no ID is spefied, all annotations are deleted.
             
             Args:
-                id: int
+                id: list(int)
                     ID of the annotation to be deleted.
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> 
+                >>> labels = [0, 1]
+                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
+                >>> handler = AnnotationHandler(labels, boxes)
+                >>> handler.delete_annotations(0)
+                >>> print(handler.labels)
+                [1]
+                >>> print(handler.boxes)
+                [[30.0, 34.0, 0, inf]]
         """
         if id is None:
             self.labels = []
             self.boxes = []
         else:
+            if ndim(id) == 0:
+                id = [id]
             # sort id's in ascending order 
             id = sorted(id, reverse=True)
             # loop over id's
