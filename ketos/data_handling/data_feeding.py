@@ -19,15 +19,18 @@ from sklearn.utils import shuffle
 
 
 class BatchGenerator():
-    def __init__(self, hdf5_table, batch_size, instance_function,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False):
+   def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
         self.n_instances = self.data.nrows
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_indices))
+        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
         self.shuffle = shuffle
+        self.instance_function = instance_function
         self.entry_indices = self.__update_indices__()
         self.batch_indices = self.__get_batch_indices__()
         self.batch_count = 0
+        self.refresh_on_epoch_end = refresh_on_epoch_end
+        self.return_batch_ids = return_batch_ids
 
     
     def __update_indices__(self):
