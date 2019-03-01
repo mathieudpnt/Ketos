@@ -1,14 +1,29 @@
-""" Training data provider module within the sound_classification package
+""" Data feeding module within the ketos library
+
+    This module 
 
 Authors: Fabio Frazao and Oliver Kirsebom
     contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: To package code useful for handling data, deriving features and
+             creating deep neural networks for sound classification projects.
      
-    License:
+    License: GNU GPLv3
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
@@ -19,7 +34,7 @@ from sklearn.utils import shuffle
 
 
 class BatchGenerator():
-   def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+    def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
         self.n_instances = self.data.nrows
@@ -39,7 +54,7 @@ class BatchGenerator():
             np.random.shuffle(indices)
         return indices
 
-   def __get_batch_indices__(self):
+    def __get_batch_indices__(self):
         """Selects the indices for each batch"""
         ids = self.entry_indices
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
@@ -55,7 +70,7 @@ class BatchGenerator():
     def __iter__(self):
         return self
 
-   def __next__(self):
+    def __next__(self):
         batch_ids = self.batch_indices[self.batch_count]
         X = self.data[batch_ids]['data']
         Y = self.data[batch_ids]['boxes']
@@ -74,9 +89,6 @@ class BatchGenerator():
             return (batch_ids,X,Y)
         else:
             return (X, Y)
-
-
-
 
 
 
