@@ -174,6 +174,37 @@ def test_multiple_epochs():
     assert ids == [0,1,2,3,4,5]
     assert X.shape == (6, 2413, 201)
 
+@pytest.mark.test_BatchGenerator
+def test_shuffle():
+    """Test shuffle argument.
+        Instances should be shuffled before divided into batches, but the order should be consistent across epochs if
+        'refresh_on_epoch_end' is False.
+    """
+    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    train_data = open_table(h5, "/train/species1")
+
+
+    ids_in_db = train_data[:]['id']
+    np.random.seed(100)
+    
+    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True) #create a batch generator 
+    
+
+    for epoch in range(5):
+        #batch 0
+        ids, X, _ = next(train_generator)
+        assert ids == [9, 1, 12, 13, 6, 10]
+        assert X.shape == (6, 2413, 201)
+        #batch 1
+        ids, X, _ = next(train_generator)
+        assert ids == [5, 2, 4, 0, 11, 7]
+        assert X.shape == (6, 2413, 201)
+        #batch 2
+        ids, X, _ = next(train_generator)
+        assert ids ==  [3, 14, 8]
+        assert X.shape == (3, 2413, 201)
+        
+        
     
 
 
