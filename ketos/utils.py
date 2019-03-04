@@ -38,18 +38,36 @@ import numpy as np
 
 
 def ndim(a):
+    """ Returns the number of dimensions of a list/tuple/array.
+        
+        Args:
+            a: list, tuple or numpy array
+                Object that we wish to obtain the dimension of 
+
+        Returns:
+            n: int
+                Number of dimensions
+
+        Example:
+            >>> from ketos.utils import ndim
+            >>> 
+            >>> x = [[0, 1, 2, 3],(4, 5)]
+            >>> print(ndim(x))
+            2
+    """
     if not (type(a) == list or type(a) == tuple or type(a) == np.ndarray):
         return 0
 
     if len(a) == 0:
         return 1
 
-    return 1 + ndim(a[0])
+    n = 1 + ndim(a[0])
+    return n
 
     
 def tostring(box, decimals=None):
     """ Convert an array, tuple or list into a string.
-        
+
         Args:
             box: array, tuple or list
                 Array, tuple or list that will be converted into a string.
@@ -59,6 +77,13 @@ def tostring(box, decimals=None):
         Returns:
             s: str
                 String representation of array/tuple/list.
+
+        Example:
+            >>> from ketos.utils import tostring
+            >>> 
+            >>> y = [[0, 1, 2, 3],(4, 5)]
+            >>> print(tostring(y))
+            [[0,1,2,3],[4,5]]
     """
     if box is None:
         return ''
