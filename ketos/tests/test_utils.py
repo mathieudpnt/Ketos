@@ -1,13 +1,27 @@
-""" Unit tests for the the 'annotation' module in the 'sound_classification' package
+""" Unit tests for the 'utils' module within the ketos library
 
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Intitute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
