@@ -204,11 +204,38 @@ def test_shuffle():
         assert ids ==  [3, 14, 8]
         assert X.shape == (3, 2413, 201)
         
-        
     
+    h5.close()
 
 
+@pytest.mark.test_BatchGenerator
+def test_refresh_on_epoch_end():
+    """ Test if batches are generated with randomly selected instances for each epoch
+    """
+    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    train_data = open_table(h5, "/train/species1")
+
+
+    ids_in_db = train_data[:]['id']
+    np.random.seed(100)
     
+    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
+
+    expected_ids = {'epoch_1':([9, 1, 12, 13, 6, 10],[5, 2, 4, 0, 11, 7],[3, 14, 8]),
+                     'epoch_2': ( [9, 7, 1, 13, 5, 12],[3, 2, 6, 14, 10, 11],[4, 8, 0]),    
+                     'epoch_3': ([11, 6, 2, 0, 10, 14],[8, 9, 1, 7, 13, 12],[4, 3, 5])}
+                     
+
+    for epoch in expected_ids.keys():
+        #batch 0
+        ids, X, _ = next(train_generator)
+        assert ids == expected_ids[epoch][0]
+        #batch 1
+        ids, X, _ = next(train_generator)
+        assert ids == expected_ids[epoch][1]
+        #batch 2
+        ids, X, _ = next(train_generator)
+        assert ids == expected_ids[epoch][2]
     
     h5.close()
 
