@@ -91,6 +91,8 @@ class BatchGenerator():
     def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
+        self.x_field = x_field
+        self.y_field = y_field
         self.n_instances = self.data.nrows
         self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
         self.shuffle = shuffle
@@ -149,8 +151,8 @@ class BatchGenerator():
         """
 
         batch_ids = self.batch_indices[self.batch_count]
-        X = self.data[batch_ids]['data']
-        Y = self.data[batch_ids]['boxes']
+        X = self.data[batch_ids][self.x_field]
+        Y = self.data[batch_ids][self.y_field]
 
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
@@ -166,10 +168,6 @@ class BatchGenerator():
             return (batch_ids,X,Y)
         else:
             return (X, Y)
-
-
-
-
 
 class TrainingDataProvider():
     """ Training data provider.
