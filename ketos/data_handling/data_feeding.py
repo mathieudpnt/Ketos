@@ -63,7 +63,7 @@ class BatchGenerator():
             return_batch_ids: bool
                 If False, each batch will consist of X and Y. If True, the instance ids (as they are in the hdf5_table) will be included ((ids, X, Y)).
 
-
+        
             Examples:
                 >>> from tables import open_file
                 >>> from ketos.data_handling.database_interface import open
@@ -143,6 +143,11 @@ class BatchGenerator():
         return self
 
     def __next__(self):
+        """         
+            Return: tuple
+            A batch of instances (X,Y)  or instances accompanied by their ids(ids, X, Y) if 'returns_batch_ids" is True
+        """
+
         batch_ids = self.batch_indices[self.batch_count]
         X = self.data[batch_ids]['data']
         Y = self.data[batch_ids]['boxes']
