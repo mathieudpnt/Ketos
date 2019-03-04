@@ -65,35 +65,29 @@ class BatchGenerator():
 
 
             Examples:
+                >>> from tables import open_file
+                >>> from ketos.data_handling.database_interface import open
+                  
+                >>> h5 = open_file("../tests/assets/15x_same_spec.h5", 'r') # create the database handle  
+                >>> train_data = open(h5, "/train/species1")
 
-                >>> import tables
-                >>> import os
-                >>> import numpy as np
-                >>> import ketos.data_handling.database_interface as h5
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> from ketos.data_handling.data_handling import read_wave
-           
-                >>> rate, sig = read_wave(file='../tests/assets/2min_wav )  
-                >>> audio = AudioSignal(rate=rate, data=sig)
-                >>> spec = MagSpectrogram(audio, 0.2, 0.05)
-                >>> spec.boxes = [[10, 15, 200, 400]
-                >>> spec.labels = [[1]]
-
-                >>> f = tables.open_file(tmp_db.h5, 'w')
-                    # create table
-                >>> tbl = h5.create(h5file=f, path='/train/', name='species1', shape=spec.image.shape)
-                    # write 15 instances to table
-                >>> for i in range(15):
-                ...     h5.write(table=tbl, x=spec)
-             
-
-
-                    
                 
+                >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
+                >>> n_epochs = 7    
+                >>> for e in range(n_epochs):
+                ...    ids, batch_X, batch_Y = next(train_generator)
+                ...    print("epoch:{0} | instance ids:{1}, X batch shape: {2}, Y batch shape: {3}".format(e, ids, batch_X.shape, batch_Y.shape))
+                epoch:0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:5 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:6 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+
+                >>> h5.close()
 
     """
-
     def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
