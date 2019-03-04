@@ -146,6 +146,34 @@ def test_last_batch():
     assert ids == [12,13,14]
     assert X.shape == (3, 2413, 201)
 
+@pytest.mark.test_BatchGenerator
+def test_multiple_epochs():
+    """ Test if batches are as expected after the first epoch
+    """
+    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    train_data = open_table(h5, "/train/species1")
+
+
+    ids_in_db = train_data[:]['id']
+    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True) #create a batch generator 
+    #Epoch 0, batch 0
+    ids, X, _ = next(train_generator)
+    assert ids == [0,1,2,3,4,5]
+    assert X.shape == (6, 2413, 201)
+    #Epoch 0, batch 1
+    ids, X, _ = next(train_generator)
+    assert ids == [6,7,8,9,10,11]
+    assert X.shape == (6, 2413, 201)
+    #Epoch 0 batch2
+    ids, X, _ = next(train_generator)
+    assert ids == [12,13,14]
+    assert X.shape == (3, 2413, 201)
+
+    #Epoch 1, batch 0
+    ids, X, _ = next(train_generator)
+    assert ids == [0,1,2,3,4,5]
+    assert X.shape == (6, 2413, 201)
+
     
 
 
