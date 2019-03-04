@@ -13,7 +13,7 @@
 
 import pytest
 import numpy as np
-from ketos.util import tostring
+from ketos.utils import tostring
 
 
 @pytest.mark.test_tostring

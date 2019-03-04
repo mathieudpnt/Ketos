@@ -31,7 +31,7 @@
 
 """
 
-from ketos.util import ndim
+from ketos.utils import ndim
 import numpy as np
 import math
 

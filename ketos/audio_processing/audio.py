@@ -4,7 +4,7 @@ import math
 import scipy.io.wavfile as wave
 from scipy import interpolate
 
-from ketos.util import morlet_func
+from ketos.utils import morlet_func
 import ketos.audio_processing.audio_processing as ap
 import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
