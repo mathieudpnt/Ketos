@@ -104,7 +104,33 @@ def tostring(box, decimals=None):
 
 
 def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
+    """ Plot a spectrum with labels. 
 
+        Optionally, also display predictions, features and confidence levels.
+
+        Note: The resulting figure can be shown (fig.show())
+        or saved (fig.savefig(file_name))
+            
+        Args:
+            spec: Spectrogram
+                spectrogram to be plotted
+            label: 1d array
+                Label for each time bin in the spectrogram
+            pred: 1d array
+                Prediction for each time bin in the spectrogram
+            feat: 2d array
+                Feature vector for each time bin in the spectrogram
+            conf: 1d array
+                Confidence level of prediction for each time bin in the spectrogram
+            step_size: int
+                Used for computing the time axis
+
+        Returns:
+            fig: matplotlib.figure.Figure
+                Figure object.
+
+        Example:
+    """
     nrows = 2
     if (pred is not None): 
         nrows += 1
