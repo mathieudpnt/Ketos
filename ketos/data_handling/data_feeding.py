@@ -63,6 +63,15 @@ class BatchGenerator():
             return_batch_ids: bool
                 If False, each batch will consist of X and Y. If True, the instance ids (as they are in the hdf5_table) will be included ((ids, X, Y)).
 
+            Attr:
+                n_instances: int
+                    The number of intances (rows) in the hdf5_table
+                n_batches: int
+                    The number of batches of size 'batch_size' for each epoch
+                entry_indices:list of ints
+                    A list of all intance indices, in the order it will be used to generate batches for this epoch
+                batch_indices: list of tuples (int,int)
+                    A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
         
             Examples:
                 >>> from tables import open_file
