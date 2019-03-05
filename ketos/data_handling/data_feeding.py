@@ -186,7 +186,7 @@ class ActiveLearningBatchGenerator():
 
         Instances of this class are used in conjuntion with a neural network, keeping track of the models confidence when precessing each training input.
 
-        Note: This class will be deprecate in future releases. It's book keeping functionalities will either be incorporated in the the BatchGenerator class or a simpler class that delegates the batch creation process to BatchGenerator will be available.
+        Warnings: This class will be deprecate in future releases. It's book keeping functionalities will either be incorporated in the the BatchGenerator class or a simpler class that delegates the batch creation process to BatchGenerator will be available.
 
 
         Args:
@@ -252,6 +252,23 @@ class ActiveLearningBatchGenerator():
         self.posfrac = float(len(self.df[self.df.y == 1])) / float(len(self.df))
 
     def get_samples(self, num_samples=None, max_keep=None, conf_cut=None):
+        """ Creates a batch of data with a mix of new instances and previously used instances which resulted in low confidence outputs.
+
+        Args:
+            num_samples:int
+                The number of samples to be drawn 
+            max_keep:int
+                The maximum number of inputs with low confidence to keep
+            conf_cut:float
+                The confidence threshold. Inputs with that had confidence values higher than this will not be kept included. 
+        Returns:tuple (x, y,keep_frac)
+            x: numpy.array 
+                The batch of inputs
+            y: numpy.array
+                The batch of labels
+            keep_frac: float
+                The fraction of the inputs coming from low confidence samples
+        """
 
         # use default value if none provided
         if num_samples is None:
