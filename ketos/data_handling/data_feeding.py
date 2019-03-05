@@ -186,6 +186,8 @@ class ActiveLearningBatchGenerator():
 
         Instances of this class are used in conjuntion with a neural network, keeping track of the models confidence when precessing each training input.
 
+        Note: Expected to be used with binary classification models
+
         Warnings: This class will be deprecate in future releases. It's book keeping functionalities will either be incorporated in the the BatchGenerator class or a simpler class that delegates the batch creation process to BatchGenerator will be available.
 
 
@@ -252,7 +254,7 @@ class ActiveLearningBatchGenerator():
         self.posfrac = float(len(self.df[self.df.y == 1])) / float(len(self.df))
 
     def get_samples(self, num_samples=None, max_keep=None, conf_cut=None):
-        """ Creates a batch of data with a mix of new instances and previously used instances which resulted in low confidence outputs.
+        """ Creates a batch of data with a mix of new instances and previously used instances which resulted in low confidence or wrong outputs.
 
         Args:
             num_samples:int
@@ -303,6 +305,16 @@ class ActiveLearningBatchGenerator():
         return x, y, keep_frac
 
     def update_prediction_confidence(self, pred, conf):
+        """Updates the internal dataframe with the predictions and confidences from the last batch.
+
+            Args:
+                pred: numpy.array
+                    Array containing the predictions on the last batch.
+                    Created with ketos.neural_networks.neural_networks.predictions.
+                conf: numpy.array
+                    Array containing the confidences for the predictions on the last batch.
+                    Created with ketos.neural_networks.neural_networks.class_confidences.    
+        """
         assert len(pred) == len(conf),'length of prediction and confidence arrays do not match'
         idx = self.df[self.df.prev == True].index
         assert len(pred) == len(idx),'length of prediction and confidence arrays do not match the number of samples drawn in the last iteration'
@@ -310,6 +322,20 @@ class ActiveLearningBatchGenerator():
         self.df.loc[idx,'conf'] = conf
 
     def _get_poor(self, num, conf_cut):
+        """ Retrieves the instances from the previous batch for which predictions had low confidence.
+
+            Args:
+                num:int
+                    The number of instances to retrieve
+                conf_cut:float
+                    The confidence threshold. Only instances with confidence values below this might be included.
+
+            Returns:
+                idx: pandas.Index or empty list
+                    The index of the selected low confidence instances. Returns an empty list if none of the instances
+                    in the previous batch had low confidences or if none of the instances have been used in the previous batch.
+        """
+
         df_prev = self.df[self.df.prev == True]
         N = df_prev.shape[0]
         if N == 0:
@@ -323,6 +349,22 @@ class ActiveLearningBatchGenerator():
         return idx
 
     def _get_new(self, num_samples, randomize, equal_rep):
+        """ Retrieves a batch of instances.
+
+            Prioritizes instances that had not been used in  the previous batch.
+
+            Args:
+                num_samples: int
+                    The number of samples to be drawn
+                randomize: bool
+                    If True, retrives samples in a random order. Otherwise, retrieves intances sequentially
+                equal_rep:bool
+                    If True, creates a batch of approximately the same number of positive and negative examples.
+
+            Returns:
+                idx: pandas.Index
+                    The index of the selected new instances.
+        """
 
         num_0 = int(num_samples / 2)
         num_1 = num_samples - num_0
