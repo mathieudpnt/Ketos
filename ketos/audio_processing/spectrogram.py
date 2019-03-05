@@ -1209,34 +1209,128 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def plot(self, decibel=False):
+    def plot(self, label=None, pred=None, feat=None, conf=None):
         """ Plot the spectrogram with proper axes ranges and labels.
+
+            Optionally, also display selected label, binary predictions, features, and confidence levels.
+
+            All plotted quantities share the same time axis, and are assumed to span the 
+            same period of time as the spectrogram.
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
             Args:
-                decibel: bool
-                Use linear (if False) or logarithmic scale (if True)
+                spec: Spectrogram
+                    spectrogram to be plotted
+                label: int
+                    Label of interest
+                pred: 1d array
+                    Binary prediction for each time bin in the spectrogram
+                feat: 2d array
+                    Feature vector for each time bin in the spectrogram
+                conf: 1d array
+                    Confidence level of prediction for each time bin in the spectrogram
             
             Returns:
             fig: matplotlib.figure.Figure
             A figure object.
 
+            Example:
+                >>> # extract saved spectrogram from database file
+                >>> import tables
+                >>> import ketos.data_handling.database_interface as di
+                >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
+                >>> table = di.open(db, "/sig") 
+                >>> spectrogram = di.get_objects(table)[0]
+                >>> db.close()
+                >>> 
+                >>> # plot the spectrogram and label '1'
+                >>> import matplotlib.pyplot as plt
+                >>> fig = spectrogram.plot(label=1)
+                >>> plt.show()
         """
-        img = self.image
-        if decibel:
-            from sound_classification.pre_processing import to_decibel
-            img = to_decibel(img)
+        nrows = 1
+        if (label is not None): 
+            nrows += 1
+        if (pred is not None): 
+            nrows += 1
+        if (feat is not None): 
+            nrows += 1
+        if (conf is not None): 
+            nrows += 1
 
-        fig, ax = plt.subplots()
-        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Frequency (Hz)')
-        if decibel:
-            fig.colorbar(img_plot, format='%+2.0f dB')
-        else:
-            fig.colorbar(img_plot,format='%+2.0f')  
+        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(8, 1+1.5*nrows), sharex=True)
+
+        # spectrogram
+        x = self.image
+        img_plot = ax[-1].imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
+        ax[-1].set_xlabel('Time (s)')
+        ax[-1].set_ylabel('Frequency (Hz)')
+        fig.colorbar(img_plot, ax=ax[-1], format='%+2.0f dB')
+
+        row = -2
+
+        # labels
+        if label is not None:
+            labels = self.get_label_vector(label)
+            n = len(labels)
+            t_axis = np.arange(n, dtype=float)
+            dt = self.duration() / n
+            t_axis *= dt 
+            t_axis += 0.5 * dt
+            ax[row].plot(t_axis, labels, color='C1')
+            ax[row].set_xlim(0, self.duration())
+            ax[row].set_ylim(-0.1, 1.1)
+            ax[row].set_ylabel('label')
+            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
+            row -= 1
+
+        # predictions
+        if pred is not None:
+            n = len(pred)
+            t_axis = np.arange(n, dtype=float)
+            dt = self.duration() / n
+            t_axis *= dt 
+            t_axis += 0.5 * dt
+            ax[row].plot(t_axis, pred, color='C2')
+            ax[row].set_xlim(0, self.duration())
+            ax[row].set_ylim(-0.1, 1.1)
+            ax[row].set_ylabel('prediction')
+            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
+            row -= 1
+
+        # feat
+        if feat is not None:
+            n = len(feat)
+            t_axis = np.arange(n, dtype=float)
+            dt = self.duration() / n
+            t_axis *= dt 
+            t_axis += 0.5 * dt
+            m = np.mean(feat, axis=0)
+            idx = np.argwhere(m != 0)
+            idx = np.squeeze(idx)
+            x = feat[:,idx]
+            x = x / np.max(x, axis=0)
+            img_plot = ax[row].imshow(x.T, aselft='auto', origin='lower', extent=(0, self.duration(), 0, 1))
+            ax[row].set_ylabel('feature #')
+            fig.colorbar(img_plot, ax=ax[row])
+            row -= 1
+
+        # confidence
+        if conf is not None:
+            n = len(conf)
+            t_axis = np.arange(n, dtype=float)
+            dt = self.duration() / n
+            t_axis *= dt 
+            t_axis += 0.5 * dt
+            ax[row].plot(t_axis, conf, color='C3')
+            ax[row].set_xlim(0, self.duration())
+            ax[row].set_ylim(-0.1, 1.1)
+            ax[row].set_ylabel('confidence')
+            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
+            row -= 1
+
         return fig
 
 

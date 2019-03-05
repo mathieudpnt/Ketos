@@ -28,12 +28,6 @@
 """
 
 import os
-import matplotlib
-viz = os.environ.get('DISABLE_VIZ')
-if viz is not None:
-    if int(viz) == 1:
-        matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -101,101 +95,6 @@ def tostring(box, decimals=None):
     s = s.replace(')', ']')
 
     return s
-
-
-def plot_labeled_spec(spec, label, pred=None, feat=None, conf=None, step_size=1):
-    """ Plot a spectrum with labels. 
-
-        Optionally, also display predictions, features and confidence levels.
-
-        Note: The resulting figure can be shown (fig.show())
-        or saved (fig.savefig(file_name))
-            
-        Args:
-            spec: Spectrogram
-                spectrogram to be plotted
-            label: 1d array
-                Label for each time bin in the spectrogram
-            pred: 1d array
-                Prediction for each time bin in the spectrogram
-            feat: 2d array
-                Feature vector for each time bin in the spectrogram
-            conf: 1d array
-                Confidence level of prediction for each time bin in the spectrogram
-            step_size: int
-                Used for computing the time axis
-
-        Returns:
-            fig: matplotlib.figure.Figure
-                Figure object.
-
-        Example:
-    """
-    nrows = 2
-    if (pred is not None): 
-        nrows += 1
-    if (feat is not None): 
-        nrows += 1
-    if (conf is not None): 
-        nrows += 1
-
-    fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(9, 1+1.5*nrows), sharex=True)
-
-    # spectrogram
-    x = spec.image
-    img_plot = ax[-1].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), spec.fmin, spec.fmax()))
-    ax[-1].set_xlabel('Time (s)')
-    ax[-1].set_ylabel('Frequency (Hz)')
-    fig.colorbar(img_plot, ax=ax[-1], format='%+2.0f dB')
-
-    row = 0
-
-    # time axis
-    t_axis = np.zeros(len(label))
-    for i in range(1,len(label)):
-        t_axis[i] = t_axis[i-1] + spec.tres * step_size
-
-    t_axis += 0.5 * spec.tres * step_size 
-
-    # confidence
-    if conf is not None:
-        ax[row].plot(t_axis, conf, color='C3')
-        ax[row].set_xlim(0, spec.duration())
-        ax[row].set_ylim(-0.1, 1.1)
-        ax[row].set_ylabel('confidence')
-        fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
-        row += 1
-
-    # predictions
-    if pred is not None:
-        ax[row].plot(t_axis, pred, color='C2')
-        ax[row].set_xlim(0, spec.duration())
-        ax[row].set_ylim(-0.1, 1.1)
-        ax[row].set_ylabel('prediction')
-        fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  # add one more colorbar, but make them invisible
-        row += 1
-
-    # feat
-    if feat is not None:
-        m = np.mean(feat, axis=0)
-        idx = np.argwhere(m != 0)
-        idx = np.squeeze(idx)
-        x = feat[:,idx]
-        x = x / np.max(x, axis=0)
-        img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(0, spec.duration(), 0, 1))
-        ax[row].set_ylabel('feature #')
-        fig.colorbar(img_plot, ax=ax[row])
-        row += 1
-
-    # labels
-    ax[row].plot(t_axis, label, color='C1')
-    ax[row].set_xlim(0, spec.duration())
-    ax[row].set_ylim(-0.1, 1.1)
-    ax[row].set_ylabel('label')
-    fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
-    row += 1
-
-    return fig
 
 def octave_bands(band_min=-1, band_max=9):
     p = np.arange(band_min-5., band_max-4.)
