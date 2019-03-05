@@ -72,6 +72,8 @@ class BatchGenerator():
                     A list of all intance indices, in the order it will be used to generate batches for this epoch
                 batch_indices: list of tuples (int,int)
                     A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
+                batch_count: int
+                    The current batch within the epoch
         
             Examples:
                 >>> from tables import open_file
@@ -178,8 +180,14 @@ class BatchGenerator():
         else:
             return (X, Y)
 
-class TrainingDataProvider():
-    """ Training data provider.
+class ActiveLearningBatchGenerator():
+    """Creates batches of data to be used in active learning.
+
+
+        Instances of this class are used in conjuntion with a neural network, keeping track of the models confidence when precessing each training input.
+
+        Note: This class will be deprecate in future releases. It's book keeping functionalities will either be incorporated in the the BatchGenerator class or a simpler class that delegates the batch creation process to BatchGenerator will be available.
+
 
         Args:
             x: pandas DataFrame
@@ -198,6 +206,29 @@ class TrainingDataProvider():
                 Seed for random number generator
             equal_rep: bool
                 Ensure that new samples drawn at each iteration have equal representation of 0s and 1s
+
+        Example:
+            >>> import numpy as np
+            >>> from ketos.neural_networks.neural_networks import class_confidences, predictions
+            >>> x = np.array([1, 2, 3, 4, 5, 6]) # input data
+            >>> y = np.array([0, 1, 0, 1, 0, 1]) # labels
+            >>> w = np.array([[0.8, 0.2], [0.1, 0.9], [0.96, 0.04], [0.49, 0.51], [0.45, 0.55], [0.60, 0.40]]) # class weights computed by NN
+                        
+            >>> p = predictions(w)
+            >>> c = class_confidences(w)
+
+            >>> sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
+            positives:  3
+            negatives:  3
+
+            >>> x1, y1, _ = sampler.get_samples(num_samples=2) #0,1
+            >>> np.all(x1 == x[0:2])    
+            True
+            
+            >>> sampler.update_prediction_confidence(pred=p[:2], conf=c[:2])
+            >>> x1, y1, _ = sampler.get_samples(num_samples=2) #2,3
+            >>> np.all(x1 == x[2:4])    
+            True
     """
     def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0, seed=None, equal_rep=True):
 
