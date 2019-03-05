@@ -95,6 +95,22 @@ def test_get_samples_randomize(data_classified_by_nn):
     sampler.update_prediction_confidence(pred=[y1[0],p[5]], conf=[1.,c[5]])  # pretend network has learned #4
 
     
+@pytest.mark.test_ActiveLearningBatchGenerator
+def test_get_samples_equal_rep(data_classified_by_nn):
+    x, y, w = data_classified_by_nn
+    p = predictions(w)
+    c = class_confidences(w)
+
+
+    #Without equal representation: 1 positive, 3 negatives
+    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=True, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
+    _, y1, _ = sampler.get_samples(num_samples=4) #3,2
+    assert np.all(y1 == np.array([0,1,0,0]))
+
+    #With equal representation: 2 positives, 2 negatives
+    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=True, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=True)
+    _, y1, _ = sampler.get_samples(num_samples=4) #3,2
+    assert np.all(y1 == np.array([1,1,0,0]))
 
 
 @pytest.mark.test_BatchGenerator
