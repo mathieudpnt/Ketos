@@ -27,7 +27,7 @@
 
 import pytest
 import numpy as np
-from ketos.utils import tostring, morlet_func
+from ketos.utils import tostring, morlet_func, octave_bands
 
 
 @pytest.mark.test_tostring
@@ -44,6 +44,13 @@ def test_tostring():
     box = [[1,2,3],[1,2]]
     s = tostring(box)
     assert s == '[[1,2,3],[1,2]]'
+
+@pytest.mark.test_octave_bands
+def test_octave_bands():
+    fc, fmin, fmax = octave_bands(1, 3)
+    assert fc[0] == 62.5
+    assert fc[1] == 125.
+    assert fc[2] == 250.
 
 @pytest.mark.test_morlet_func
 def test_morlet_func_single_time():
