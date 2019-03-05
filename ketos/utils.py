@@ -97,26 +97,79 @@ def tostring(box, decimals=None):
     return s
 
 def octave_bands(band_min=-1, band_max=9):
+    """ Compute the min, central, and max frequency value 
+        of the specified octave bands, using the following 
+        formulas,
+
+            f_centre = 10^3 * 2^p ,
+            f_min = f_centre / sqrt(2) ,
+            f_max = f_centre * sqrt(2) ,
+
+        where p = band_number - 5
+
+        Args:
+            band_min: int
+                Lower octave band
+            band_max: int
+                Upper octave band
+
+        Returns:
+            fcentre: numpy array
+                Central frequency of each band (in Hz)
+            flow: numpy array
+                Minimum frequency of each band (in Hz)
+            fhigh: numpy array
+                Maximum frequency of each band (in Hz)
+
+        Example:
+            >>> from ketos.utils import octave_bands
+            >>> 
+            >>> fc, fmin, fmax = octave_bands(1, 3)
+            >>> print(fc)
+            [ 62.5 125.  250. ]
+    """
     p = np.arange(band_min-5., band_max-4.)
     fcentre = np.power(10.,3) * np.power(2.,p)
     fd = np.sqrt(2.)
     flow = fcentre / fd
     fhigh = fcentre * fd
-    return fcentre,flow,fhigh
+    return fcentre, flow, fhigh
 
-def print_octave_bands_json(band_min, band_max):
-    fcentre,flow,fhigh = octave_bands(min_band_no, max_band_no)
-    print("\"frequency_bands\": [")
+def octave_bands_json(band_min, band_max):
+    """ Produce a string of the specified octave bands
+        in json format
+
+        Args:
+            band_min: int
+                Lower octave band
+            band_max: int
+                Upper octave band
+
+        Returns:
+            s: str
+                json format string
+
+        Example:
+            >>> from ketos.utils import octave_bands_json
+            >>> 
+            >>> s = octave_bands_json(1, 2)
+    """
+    fcentre, flow, fhigh = octave_bands(band_min, band_max)
+
+    s = "\"frequency_bands\": [\n"
     n = len(flow)
     for i in range(n):
-        print("{")
-        print("\t\"name\": \"{0:.0f}Hz\",".format(fcentre[i]))
-        print("\t\"range\": [\"{1:.1f}Hz\", \"{2:.1f}Hz\"]".format(flow[i],fhigh[i]))
-        endpar = "}"
+        s += "\t{\n"
+        s += "\t\t\"name\": \"{0:.0f}Hz\",\n".format(fcentre[i])
+        s += "\t\t\"range\": [\"{0:.1f}Hz\", \"{1:.1f}Hz\"]".format(flow[i],fhigh[i])
+        endpar = "\n\t}"
         if i < n-1:
             endpar += ","
-        print(endpar)
-    print("]")
+
+        s += endpar + "\n"
+
+    s += "]"
+    return s
 
 def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
     """ Morlet wavelet function
