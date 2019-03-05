@@ -50,7 +50,7 @@ class BatchGenerator():
             batch_size: int
                 The number of instances in each batch. The last batch of an epoch might have fewer examples, depending on the number of instances in the hdf5_table.
             instance_function: function
-                A function to be applied to the batch. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
+                A function to be applied to the batch, transforming the instances. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             x_field:str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
@@ -84,17 +84,44 @@ class BatchGenerator():
 
                 
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
-                >>> n_epochs = 7    
+                
+                #Run 2 epochs. 
+                >>> n_epochs = 2    
                 >>> for e in range(n_epochs):
-                ...    ids, batch_X, batch_Y = next(train_generator)
-                ...    print("epoch:{0} | instance ids:{1}, X batch shape: {2}, Y batch shape: {3}".format(e, ids, batch_X.shape, batch_Y.shape))
-                epoch:0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:5 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-                epoch:6 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                ...    for batch_num in range(train_generator.n_batches):
+                ...        ids, batch_X, batch_Y = next(train_generator)   
+                ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
+                epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:0, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:0, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:0, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+                epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+
+
+                #Applying a custom function to the batch
+                #Takes the mean of each instance in X; leaves Y untouched
+                >>> def apply_to_batch(X,Y):
+                ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
+                ...    return (X,Y)
+
+                >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
+                >>> X,Y = next(train_generator)
+                #Now each X instance is one single number, instead of a (2413,201) matrix
+                #A batch of size 3 is an array of the 3 means
+                >>> X.shape
+                (3,)
+                #Here is how one X instance looks like
+                >>> X[0]
+                7694.1147
+                #Y is the same as before 
+                >>> Y.shape
+                (3,)
+
 
                 >>> h5.close()
 
