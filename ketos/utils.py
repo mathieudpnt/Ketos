@@ -172,14 +172,14 @@ def octave_bands_json(band_min, band_max):
     return s
 
 def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
-    """ Morlet wavelet function
+    """ Compute Morlet wavelet function
 
         The function is implemented as in Eq. (15) in John Ashmead, "Morlet Wavelets in Quantum Mechanics",
         Quanta 2012; 1: 58-70, with the replacement f -> 2*pi*f*s, to allow f to be identified with the 
         physical frequency.
 
         Args:
-            time: float
+            time: float or numpy array
                Time in seconds at which the function is to be evaluated
             frequency: float
                 Wavelet frequency in Hz
@@ -196,8 +196,16 @@ def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
                     f = frequency + (time - displacement) * dfdt 
 
         Returns:
-            y: float
+            y: float or numpy array
                 Value of Morlet wavelet function at time t
+
+        Example:
+            >>> from ketos.utils import morlet_func
+            >>> 
+            >>> time = np.array([-1., 0., 0.5])
+            >>> f = morlet_func(time=time, frequency=10, width=3, displacement=0)
+            >>> print(f)
+            [0.41022718 0.43366254 0.42768108]
     """
     if dfdt != 0:
         frequency += (time - displacement) * dfdt
