@@ -26,6 +26,7 @@
 
 """
 
+import os
 import pytest
 import numpy as np
 import pandas as pd
@@ -33,6 +34,10 @@ from tables import open_file
 from ketos.data_handling.database_interface import open as open_table
 from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator
 from ketos.neural_networks.neural_networks import class_confidences, predictions
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 @pytest.mark.test_ActiveLearningBatchGenerator
@@ -117,7 +122,7 @@ def test_get_samples_equal_rep(data_classified_by_nn):
 def test_one_batch():
     """ Test if one batch has the expected shape and contents
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/species1")
 
     five_specs = train_data[:5]['data']
@@ -138,7 +143,7 @@ def test_one_batch():
 def test_labels_as_Y():
     """ Test if batch generator returns labels instead of boxes
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/species1")
     
     five_labels = train_data[:5]['labels']
@@ -153,7 +158,7 @@ def test_labels_as_Y():
 def test_batch_sequence_same_as_db():
     """ Test if batches are generated with instances in the same order as they appear in the database
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
 
@@ -172,7 +177,7 @@ def test_batch_sequence_same_as_db():
 def test_last_batch():
     """ Test if last batch has the expected number of instances
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
 
@@ -195,7 +200,7 @@ def test_last_batch():
 def test_multiple_epochs():
     """ Test if batches are as expected after the first epoch
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
 
@@ -225,7 +230,7 @@ def test_shuffle():
         Instances should be shuffled before divided into batches, but the order should be consistent across epochs if
         'refresh_on_epoch_end' is False.
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
 
@@ -257,7 +262,7 @@ def test_shuffle():
 def test_refresh_on_epoch_end():
     """ Test if batches are generated with randomly selected instances for each epoch
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') #create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
 
@@ -288,7 +293,7 @@ def test_refresh_on_epoch_end():
 def test_instance_function():
     """ Test if the function passed as 'instance_function' is applied to the batch
     """
-    h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/species1")
 
     def apply_to_batch(X,Y):
