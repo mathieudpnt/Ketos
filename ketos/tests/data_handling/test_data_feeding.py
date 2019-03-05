@@ -135,7 +135,7 @@ def test_one_batch():
 
 
 @pytest.mark.test_BatchGenerator
-def test_test_labels_as_Y():
+def test_labels_as_Y():
     """ Test if batch generator returns labels instead of boxes
     """
     h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
@@ -282,4 +282,23 @@ def test_refresh_on_epoch_end():
         ids, X, _ = next(train_generator)
         assert ids == expected_ids[epoch][2]
     
+    h5.close()
+
+@pytest.mark.test_BatchGenerator
+def test_instance_function():
+    """ Test if one batch has the expected shape and contents
+    """
+    h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
+    train_data = open_table(h5, "/train/species1")
+
+    def apply_to_batch(X,Y):
+        X = np.mean(X, axis=0)
+
+    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=5, return_batch_ids=True) #create a batch generator 
+    ids, X, Y = next(train_generator)
+    assert X.shape == (5, 2413, 201)
+    np.testing.assert_array_equal(X[0], five_specs)
+    assert Y.shape == (5,)
+    np.testing.assert_array_equal(Y, five_boxes)
+
     h5.close()
