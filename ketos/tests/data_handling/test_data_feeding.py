@@ -286,19 +286,20 @@ def test_refresh_on_epoch_end():
 
 @pytest.mark.test_BatchGenerator
 def test_instance_function():
-    """ Test if one batch has the expected shape and contents
+    """ Test if the function passed as 'instance_function' is applied to the batch
     """
     h5 = open_file("../assets/15x_same_spec.h5", 'r') # create the database handle  
     train_data = open_table(h5, "/train/species1")
 
     def apply_to_batch(X,Y):
-        X = np.mean(X, axis=0)
+        X = np.mean(X, axis=(1,2))
+        return (X, Y)
 
-    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=5, return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(hdf5_table=train_data, batch_size=5, return_batch_ids=True, instance_function=apply_to_batch) #create a batch generator 
     ids, X, Y = next(train_generator)
-    assert X.shape == (5, 2413, 201)
-    np.testing.assert_array_equal(X[0], five_specs)
+    assert X.shape == (5,)
+    assert X[0] == pytest.approx(7694.1147, 0.1)
     assert Y.shape == (5,)
-    np.testing.assert_array_equal(Y, five_boxes)
+    
 
     h5.close()
