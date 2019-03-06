@@ -152,26 +152,50 @@ def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbo
 
 def description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
     """ Create the class that describes the table structure for the HDF5 database.
+
+        The columns in the table are described as the class Attributes (see Attr section below)
              
         Args:
             shape : tuple (ints)
                 The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
                 to be stored in the table. Optionally, a third integer can be added if the 
                 spectrogram has multiple channels (n_rows, n_cols, n_channels).
-
             id_len : int
-                The number of character for the 'id' field
-            
+                The number of characters for the 'id' field
             labels_len : int
-                The number of character for the 'labels' field
-
+                The number of characters for the 'labels' field
             boxes_len : int
-                The number of character for the 'boxes' field
+                The number of characters for the 'boxes' field
+            files_len: int
+                The number of charecter for the 'files' field.
+
+
+        Attr:
+            id: A string column to store a unique identifier for each entry
+            labels: A string column to store the labels associated with each entry
+                    Conventional format: '[1], [2], [1]'
+            data: A Float32  columns to store arrays with shape defined by the 'shape' argument
+            boxes: A string column to store the coordinates (as start time, end time, start frequency, end frequency)\
+                    of the acoustic events labelled in the 'labels' field.
+                    Conventional format: '[[2, 5, 200, 400],[8, 14, 220, 450],[21, 25, 200, 400]]'
+                    Where the first box correspond to the first label ([1]), the second box to the second label ([2]) and so forth. 
+            files: A string column to store file names. In case the spectrogram is created from multiple files, this field stores all of them.
+            file_vector: An Int8 column to store an array with length equal to the number of bins in the spectrogram.
+                         Each value indicates the file that originated that bin, with 0 representing the first file listed in the 'files' field, 1 the second and so on. 
+            time_vector: A Float32 column to store an array with length equal to the number of bins in the spectrogram. The array maps each bin to the time (seconds from start) in the original audio file (as stored in the file_vector_field)
+
 
         Results:
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure to be used when creating tables that 
                 will store images in the HDF5 database.
+
+        Examples:
+            >>> from ketos.data_handling.database_interface import description
+            >>> table_description =  description(shape=(64,20))
+            >>> table_description
+            
+
     """
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(id_len)
