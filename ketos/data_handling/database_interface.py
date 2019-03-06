@@ -193,8 +193,9 @@ def description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
         Examples:
             >>> from ketos.data_handling.database_interface import description
             >>> table_description =  description(shape=(64,20))
-            >>> table_description
-            
+            >>> table_description.columns
+            {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
+
 
     """
     class TableDescription(tables.IsDescription):
