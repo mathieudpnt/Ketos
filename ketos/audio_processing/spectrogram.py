@@ -978,23 +978,27 @@ class Spectrogram(AnnotationHandler):
 
             Examples:
             
-            >>> from sound_classification.spectrogram import Spectrogram
-            >>> from sound_classification.audio_signal import AudioSignal
+            >>> from ketos.audio_processing.spectrogram import Spectrogram
+            >>> from ketos.audio_processing.audio import AudioSignal
             >>> import matplotlib.pyplot as plt
             >>> # create audio signal
             >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
             >>> # create spectrogram
-            >>> spec = Spectrogram.from_signal(s, winlen=0.2, winstep=0.05)
+            >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
+            <Figure size 640x480 with 2 Axes>
+            
             >>> plt.show()
             >>> # apply very small amount (0.01 sec) of horizontal blur
             >>> # and significant amount of vertical blur (30 Hz)  
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
             >>> # show blurred image
             >>> spec.plot()
-            >>> plt.show()
+            <Figure size 640x480 with 2 Axes>
 
+            >>> plt.show()
+            
             .. image:: _static/morlet_spectrogram.png
                 :width: 300px
                 :align: left
@@ -1260,14 +1264,24 @@ class Spectrogram(AnnotationHandler):
         if (conf is not None): 
             nrows += 1
 
-        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(8, 1+1.5*nrows), sharex=True)
+        if nrows == 1:
+            figsize=(6.4, 4.8)
+        else:
+            figsize=(8, 1+1.5*nrows)            
+        
+        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True)
+
+        if nrows == 1:
+            ax0 = ax
+        else:
+            ax0 = ax[-1]
 
         # spectrogram
         x = self.image
-        img_plot = ax[-1].imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
-        ax[-1].set_xlabel('Time (s)')
-        ax[-1].set_ylabel('Frequency (Hz)')
-        fig.colorbar(img_plot, ax=ax[-1], format='%+2.0f dB')
+        img_plot = ax0.imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
+        ax0.set_xlabel('Time (s)')
+        ax0.set_ylabel('Frequency (Hz)')
+        fig.colorbar(img_plot, ax=ax0, format='%+2.0f dB')
 
         row = -2
 
@@ -1632,7 +1646,7 @@ class MelSpectrogram(Spectrogram):
             img = self.image
 
         if decibel:
-            from sound_classification.pre_processing import to_decibel
+            from ketos.pre_processing import to_decibel
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
