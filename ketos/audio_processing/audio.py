@@ -289,7 +289,7 @@ class AudioSignal(AnnotationHandler):
             
             Examples:
             
-            >>> from sound_classification.audio_signal import AudioSignal
+            >>> from ketos.audio_processing.audio import AudioSignal
             >>> import matplotlib.pyplot as plt
             >>> s = AudioSignal.morlet(rate=100, frequency=5, width=1)
             >>> s.plot()
