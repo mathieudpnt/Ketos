@@ -209,7 +209,7 @@ def description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
     
     return TableDescription
 
-def write(table, x, id=None):
+def write(table, spec, id=None):
     """ Write data into the HDF5 table.
 
         Note: If the id field is left blank, it 
@@ -220,38 +220,39 @@ def write(table, x, id=None):
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
 
-            x: instance of :class:`spectrogram.MagSpectrogram', \
+            spec: instance of :class:`spectrogram.MagSpectrogram', \
             :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
-            :class:`audio_signal.AudioSignal`.
-                Data
+                the spectrogram object to be stored in the table.
 
         Returns:
             None.
     """
-    if isinstance(x, AudioSignal):
-        table.attrs.sample_rate = x.rate
-    elif isinstance(x, Spectrogram):
-        table.attrs.time_res = x.tres
-        table.attrs.freq_res = x.fres
-        table.attrs.freq_min = x.fmin
+
+    try:
+        assert(isinstance(spec, Spectrogram))
+        table.attrs.time_res = spec.tres
+        table.attrs.freq_res = spec.fres
+        table.attrs.freq_min = spec.fmin
+    except: AssertionError
+        raise TypeError("data must be and instance of Spectrogram")      
 
     if id is None:
-        id_str = x.tag
+        id_str = spec.tag
     else:
         id_str = id
 
     if x.labels is not None:
-        labels_str = tostring(x.labels, decimals=0)
+        labels_str = tostring(spec.labels, decimals=0)
     else:
         labels_str = ''
 
     if x.boxes is not None:          
-        boxes_str = tostring(x.boxes, decimals=3)
+        boxes_str = tostring(spec.boxes, decimals=3)
     else:
         boxes_str = ''
 
     files_str = '['
-    for it in x.get_file_dict().items():
+    for it in spec.get_file_dict().items():
         val = it[1]
         files_str += val + ','
     if files_str[-1] == ',':
@@ -259,13 +260,13 @@ def write(table, x, id=None):
     files_str += ']'    
 
     seg_r = table.row
-    seg_r["data"] = x.get_data()
+    seg_r["data"] = spec.get_data()
     seg_r["id"] = id_str
     seg_r["labels"] = labels_str
     seg_r["boxes"] = boxes_str
     seg_r["files"] = files_str
-    seg_r["file_vector"] = x.get_file_vector()
-    seg_r["time_vector"] = x.get_time_vector()
+    seg_r["file_vector"] = spec.get_file_vector()
+    seg_r["time_vector"] = spec.get_time_vector()
 
     seg_r.append()
 
