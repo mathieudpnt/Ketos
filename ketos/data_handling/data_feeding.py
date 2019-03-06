@@ -41,8 +41,7 @@ class BatchGenerator():
     """ Creates batches to be fed to a model
 
         Instances of this class are python generators. They will load one batch at a time from a HDF5 database, which is particularly useful when working with larger than memory datasets.
-        Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' is True. X is a batch of data as a np.array of shape batch_size,mx,nx where mx,nx are the shape of on instance of X in the database. Similarly, Y is batch_size,my,ny with the corresponding labels.
-
+        Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where mx,nx are the shape of on instance of X in the database. Similarly, Y is an np.array of shape[0]=batch_size with the corresponding labels.
 
         Args:
             hdf5_table: pytables table (instance of table.Table()) 
@@ -56,7 +55,7 @@ class BatchGenerator():
             y_field: str
                 The name of the column containing the Y labels in the hdf5_table
             shuffle: bool
-                If True, instances are selected randomly. If False, instances are selected in the order the appear in the database
+                If True, instances are selected randomly (without replacement). If False, instances are selected in the order the appear in the database
             refresh_on_epoch: bool
                 If True, and shuffle is also True, resampling is performed at the end of each epoch resulting in different batches for every epoch. If False, the same batches are used in all epochs.
                 Has no effect if shuffle is False.
@@ -82,7 +81,6 @@ class BatchGenerator():
                 >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
                 >>> train_data = open(h5, "/train/species1")
 
-                
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
                 
                 #Run 2 epochs. 
@@ -127,7 +125,7 @@ class BatchGenerator():
                 >>> h5.close()
 
     """
-    def __init__(self, hdf5_table, batch_size, instance_function=None,x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+    def __init__(self, hdf5_table, batch_size, instance_function=None, x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
         self.x_field = x_field
@@ -148,7 +146,7 @@ class BatchGenerator():
 
             A list of indices is kept in the self.entry_indices attribute.
             The order of the indices determines which instances will be placed in each batch.
-            If the self.shuffle is True, the indices are randomly reorganized, resulting in batches with randomly picked instances.
+            If the self.shuffle is True, the indices are randomly reorganized, resulting in batches with randomly selected instances.
 
             Returns
                 indices: list of ints
@@ -186,7 +184,7 @@ class BatchGenerator():
     def __next__(self):
         """         
             Return: tuple
-            A batch of instances (X,Y)  or instances accompanied by their ids(ids, X, Y) if 'returns_batch_ids" is True
+            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indeces (ids, X, Y) 
         """
 
         batch_ids = self.batch_indices[self.batch_count]
@@ -214,7 +212,7 @@ class ActiveLearningBatchGenerator():
 
         Instances of this class are used in conjuntion with a neural network, keeping track of the models confidence when precessing each training input.
 
-        Note: Expected to be used with binary classification models
+        Note: Expected to be used only with binary classification models
 
         Warnings: This class will be deprecate in future releases. It's book keeping functionalities will either be incorporated in the the BatchGenerator class or a simpler class that delegates the batch creation process to BatchGenerator will be available.
 
@@ -227,11 +225,11 @@ class ActiveLearningBatchGenerator():
             randomize: bool
                 Randomize order of training data
             num_samples: int
-                Number of new samples that will be drawn for each iteration
+                Number of samples that will be returned by the generator at each iteration
             max_keep: float
-                Maximum fraction of samples from previous iteration that will be kept for next iteration
+                Maximum number of samples that are kept from the previous iteration, expressed as a fraction of num_samples
             conf_cut: float
-                Correct predictions with confidence below conf_cut will be kept for next iteration
+                Correct predictions with confidence below conf_cut will be kept for next iteration (all wrong predictions are also kept)
             seed: int
                 Seed for random number generator
             equal_rep: bool
@@ -282,7 +280,7 @@ class ActiveLearningBatchGenerator():
         self.posfrac = float(len(self.df[self.df.y == 1])) / float(len(self.df))
 
     def get_samples(self, num_samples=None, max_keep=None, conf_cut=None):
-        """ Creates a batch of data with a mix of new instances and previously used instances which resulted in low confidence or wrong outputs.
+        """ Creates a batch of data with a mix of new instances and previously used instances which resulted in low confidence or wrong predictions.
 
         Args:
             num_samples:int
@@ -297,7 +295,7 @@ class ActiveLearningBatchGenerator():
             y: numpy.array
                 The batch of labels
             keep_frac: float
-                The fraction of the inputs coming from low confidence samples
+                The fraction coming from low confidence samples
         """
 
         # use default value if none provided
@@ -350,18 +348,18 @@ class ActiveLearningBatchGenerator():
         self.df.loc[idx,'conf'] = conf
 
     def _get_poor(self, num, conf_cut):
-        """ Retrieves the instances from the previous batch for which predictions had low confidence.
+        """ Retrieves the instances from the previous batch for which predictions had low confidence or were wrong.
 
             Args:
                 num:int
                     The number of instances to retrieve
                 conf_cut:float
-                    The confidence threshold. Only instances with confidence values below this might be included.
+                    The confidence threshold. Only instances with confidence values below this or wrong predictions are included.
 
             Returns:
                 idx: pandas.Index or empty list
-                    The index of the selected low confidence instances. Returns an empty list if none of the instances
-                    in the previous batch had low confidences or if none of the instances have been used in the previous batch.
+                    The index of the selected low confidence or wrong prediction instances. Returns an empty list if none of the instances
+                    in the previous batch had low confidences or wrong predictions, or if none of the instances have been used in the previous batch.
         """
 
         df_prev = self.df[self.df.prev == True]
@@ -377,9 +375,7 @@ class ActiveLearningBatchGenerator():
         return idx
 
     def _get_new(self, num_samples, randomize, equal_rep):
-        """ Retrieves a batch of instances.
-
-            Prioritizes instances that had not been used in  the previous batch.
+        """ Retrieves a batch of new instances not used in the previous iteration.
 
             Args:
                 num_samples: int
