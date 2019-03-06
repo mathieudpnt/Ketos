@@ -20,7 +20,7 @@ import pandas as pd
 from collections import namedtuple
 from ketos.neural_networks.neural_networks import DataHandler, DataUse, predictions, class_confidences
 from ketos.data_handling.data_handling import from1hot, to1hot, get_image_size
-from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator
+from ketos.data_handling.data_feeding import TrainingDataProvider
 
 
 ConvParams = namedtuple('ConvParams', 'name n_filters filter_shape')
@@ -555,8 +555,8 @@ class CNNWhale(DataHandler):
         """Train the neural network in an active manner using a data provider module.
 
         Args:
-            provider: ActiveLearningBatchGenerator
-                ActiveLearningBatchGenerator
+            provider: TrainingDataProvider
+                Training data provider
             iterations: int
                 Number of training iterations.
             batch_size: int
