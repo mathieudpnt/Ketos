@@ -233,8 +233,8 @@ def write(table, spec, id=None):
         table.attrs.time_res = spec.tres
         table.attrs.freq_res = spec.fres
         table.attrs.freq_min = spec.fmin
-    except: AssertionError
-        raise TypeError("data must be and instance of Spectrogram")      
+    except AssertionError:
+        raise TypeError("spec must be an instance of Spectrogram")      
 
     if id is None:
         id_str = spec.tag
