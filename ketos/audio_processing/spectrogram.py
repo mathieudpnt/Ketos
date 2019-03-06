@@ -978,8 +978,8 @@ class Spectrogram(AnnotationHandler):
 
             Examples:
             
-            >>> from sound_classification.spectrogram import Spectrogram
-            >>> from sound_classification.audio_signal import AudioSignal
+            >>> from ketos.audio_processing.spectrogram import Spectrogram
+            >>> from ketos.audio_processing.audio import AudioSignal
             >>> import matplotlib.pyplot as plt
             >>> # create audio signal
             >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
@@ -1230,7 +1230,7 @@ class Spectrogram(AnnotationHandler):
         """
         img = self.image
         if decibel:
-            from sound_classification.pre_processing import to_decibel
+            from ketos.pre_processing import to_decibel
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
@@ -1542,7 +1542,7 @@ class MelSpectrogram(Spectrogram):
             img = self.image
 
         if decibel:
-            from sound_classification.pre_processing import to_decibel
+            from ketos.pre_processing import to_decibel
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
