@@ -1,37 +1,101 @@
-from abc import ABC
+""" Spectrogram module within the ketos library
+
+    This module provides utilities to work with spectrograms.
+
+    Spectrograms are two-dimensional visual representations of 
+    sound waves, in which time is shown along the horizontal 
+    axis, frequency along the vertical axis, and color is used 
+    to indicate the sound amplitude. Read more on Wikipedia:
+
+    https://en.wikipedia.org/wiki/Spectrogram
+
+    Contents:
+        Spectrogram class
+        MagSpectrogram class
+        PowerSpectrogram class
+        MelSpectrogram class
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
+     
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+
 import numpy as np
 from scipy.fftpack import dct
 from scipy import ndimage
-from collections import namedtuple
+from skimage.transform import rescale
 import matplotlib.pyplot as plt
+import time
 import datetime
 import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from skimage.transform import rescale
-import time
 
 
 def ensure_same_length(specs, pad=False):
-    """ Ensure that all spectrograms have the same length/duration.
+    """ Ensure that all spectrograms have the same length
+
+        All spectrograms must have the same time resolution
         
         Args:
             specs: list
-                Input spectrograms.
+                Input spectrograms
             pad: bool
-                If True, the shorter spectrograms will be padded with zeros
-                to achieve the same duration as the longest spectrogram. 
-                if False, the longer spectrograms will be cropped to achieve 
-                the same duration as the shortest spectrogram.
+                If True, the shorter spectrograms will be padded with zeros. If False, the longer spectrograms will be cropped (removing late times)
     
         Returns:   
             specs: list
-                List of uniform length spectrograms.
+                List of same-length spectrograms
+
+        Example:
+        >>> from ketos.audio_processing.audio import AudioSignal
+        >>> 
+        >>> # Create two audio signals with different lengths
+        >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
+        >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
+        >>>
+        >>> # Compute spectrograms
+        >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
+        >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
+        >>> 
+        >>> # Print the durations
+        >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
+        5.85, 8.85
+
+        >>> # Ensure all spectrograms have same duration as the shortest spectrogram
+        >>> specs = ensure_same_length([spec1, spec2])
+        >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
+        5.85, 5.85
     """
+    if len(specs) == 0:
+        return specs
+
+    tres = specs[0].tres # time resolution of 1st spectrogram
 
     nt = list()
     for s in specs:
+        assert s.tres == tres, 'Spectrograms must have the same time resolution' 
         nt.append(s.tbins())
 
     nt = np.array(nt)
