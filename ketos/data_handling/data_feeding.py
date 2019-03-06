@@ -46,22 +46,22 @@ class BatchGenerator():
 
         Args:
             hdf5_table: pytables table (instance of table.Table()) 
-                The HDF5 table  containing the data
+                The HDF5 table containing the data
             batch_size: int
                 The number of instances in each batch. The last batch of an epoch might have fewer examples, depending on the number of instances in the hdf5_table.
             instance_function: function
                 A function to be applied to the batch, transforming the instances. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
-            x_field:str
+            x_field: str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
                 The name of the column containing the Y labels in the hdf5_table
             shuffle: bool
-                If True, the batches will contain batch_size randomly picked instances. If false batches maintain the order of instances in the database
+                If True, instances are selected randomly. If False, instances are selected in the order the appear in the database
             refresh_on_epoch: bool
-                If True and shuffle is also True, will resample the instance at the end of each epoch, resulting in different batches for each epoch. If false will reuse the same batches for each epoch (i.e: each batch will have the same random selection of samples across batch)
+                If True, and shuffle is also True, resampling is performed at the end of each epoch resulting in different batches for every epoch. If False, the same batches are used in all epochs.
                 Has no effect if shuffle is False.
             return_batch_ids: bool
-                If False, each batch will consist of X and Y. If True, the instance ids (as they are in the hdf5_table) will be included ((ids, X, Y)).
+                If False, each batch will consist of X and Y. If True, the instance indeces (as they are in the hdf5_table) will be included ((ids, X, Y)).
 
             Attr:
                 n_instances: int
@@ -69,7 +69,7 @@ class BatchGenerator():
                 n_batches: int
                     The number of batches of size 'batch_size' for each epoch
                 entry_indices:list of ints
-                    A list of all intance indices, in the order it will be used to generate batches for this epoch
+                    A list of all intance indices, in the order used to generate batches for this epoch
                 batch_indices: list of tuples (int,int)
                     A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
                 batch_count: int
@@ -79,7 +79,7 @@ class BatchGenerator():
                 >>> from tables import open_file
                 >>> from ketos.data_handling.database_interface import open
                   
-                >>> h5 = open_file("../tests/assets/15x_same_spec.h5", 'r') # create the database handle  
+                >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
                 >>> train_data = open(h5, "/train/species1")
 
                 
@@ -102,7 +102,6 @@ class BatchGenerator():
                 epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
                 epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
 
-
                 #Applying a custom function to the batch
                 #Takes the mean of each instance in X; leaves Y untouched
                 >>> def apply_to_batch(X,Y):
@@ -111,17 +110,19 @@ class BatchGenerator():
 
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
                 >>> X,Y = next(train_generator)
+                
                 #Now each X instance is one single number, instead of a (2413,201) matrix
                 #A batch of size 3 is an array of the 3 means
                 >>> X.shape
                 (3,)
+
                 #Here is how one X instance looks like
                 >>> X[0]
                 7694.1147
+
                 #Y is the same as before 
                 >>> Y.shape
                 (3,)
-
 
                 >>> h5.close()
 

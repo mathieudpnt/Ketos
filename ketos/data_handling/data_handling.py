@@ -204,7 +204,7 @@ def to1hot(value,depth):
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=2)
                 array([[1., 0.],
-                      [0., 1.]])
+                       [0., 1.]])
      """
     value = np.int64(value)
     one_hot = np.eye(depth)[value]
@@ -226,7 +226,7 @@ def from1hot(value):
                 >>> from1hot(np.array([0,0,0,1,0]))
                 3
                 >>> from1hot(np.array([[0,0,0,1,0],
-                   [0,1,0,0,0]]))
+                ...   [0,1,0,0,0]]))
                 array([3, 1])
 
      """
