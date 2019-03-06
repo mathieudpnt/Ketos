@@ -1264,14 +1264,24 @@ class Spectrogram(AnnotationHandler):
         if (conf is not None): 
             nrows += 1
 
-        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=(8, 1+1.5*nrows), sharex=True)
+        if nrows == 1:
+            figsize=(6.4, 4.8)
+        else:
+            figsize=(8, 1+1.5*nrows)            
+        
+        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True)
+
+        if nrows == 1:
+            ax0 = ax
+        else:
+            ax0 = ax[-1]
 
         # spectrogram
         x = self.image
-        img_plot = ax[-1].imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
-        ax[-1].set_xlabel('Time (s)')
-        ax[-1].set_ylabel('Frequency (Hz)')
-        fig.colorbar(img_plot, ax=ax[-1], format='%+2.0f dB')
+        img_plot = ax0.imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
+        ax0.set_xlabel('Time (s)')
+        ax0.set_ylabel('Frequency (Hz)')
+        fig.colorbar(img_plot, ax=ax0, format='%+2.0f dB')
 
         row = -2
 
