@@ -204,7 +204,7 @@ def to1hot(value,depth):
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=2)
                 array([[1., 0.],
-                      [0., 1.]])
+                       [0., 1.]])
      """
     value = np.int64(value)
     one_hot = np.eye(depth)[value]
@@ -226,7 +226,7 @@ def from1hot(value):
                 >>> from1hot(np.array([0,0,0,1,0]))
                 3
                 >>> from1hot(np.array([[0,0,0,1,0],
-                   [0,1,0,0,0]]))
+                ...   [0,1,0,0,0]]))
                 array([3, 1])
 
      """
@@ -867,7 +867,12 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
+
+
 def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
+    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
+    #TODO: Reorganize modules to prevent circular dependency
+    from ketos.audio_processing.audio import AudioSignal
     """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
              
         Args:
