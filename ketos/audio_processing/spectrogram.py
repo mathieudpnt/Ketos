@@ -978,27 +978,23 @@ class Spectrogram(AnnotationHandler):
 
             Examples:
             
-            >>> from ketos.audio_processing.spectrogram import Spectrogram
-            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> from sound_classification.spectrogram import Spectrogram
+            >>> from sound_classification.audio_signal import AudioSignal
             >>> import matplotlib.pyplot as plt
             >>> # create audio signal
             >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
             >>> # create spectrogram
-            >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
+            >>> spec = Spectrogram.from_signal(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
-            
             >>> plt.show()
             >>> # apply very small amount (0.01 sec) of horizontal blur
             >>> # and significant amount of vertical blur (30 Hz)  
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
             >>> # show blurred image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
-
             >>> plt.show()
-            
+
             .. image:: _static/morlet_spectrogram.png
                 :width: 300px
                 :align: left
@@ -1230,7 +1226,7 @@ class Spectrogram(AnnotationHandler):
         """
         img = self.image
         if decibel:
-            from ketos.pre_processing import to_decibel
+            from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
@@ -1542,7 +1538,7 @@ class MelSpectrogram(Spectrogram):
             img = self.image
 
         if decibel:
-            from ketos.pre_processing import to_decibel
+            from sound_classification.pre_processing import to_decibel
             img = to_decibel(img)
 
         fig, ax = plt.subplots()
