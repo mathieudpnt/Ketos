@@ -31,7 +31,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from tables import open_file
-from ketos.data_handling.database_interface import open as open_table
+from ketos.data_handling.database_interface import open_table
 from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator
 from ketos.neural_networks.neural_networks import class_confidences, predictions
 
