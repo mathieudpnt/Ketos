@@ -51,6 +51,7 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.utils import random_floats
 
 
 def ensure_same_length(specs, pad=False):
@@ -120,7 +121,7 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
             smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1,\
-            t_scale_max=1, f_scale_min=1, f_scale_max=1):
+            t_scale_max=1, f_scale_min=1, f_scale_max=1, seed=1):
     """ ``Interbreed`` spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -152,6 +153,8 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
             shuffle: bool
                 Select spectrograms from the two groups in random 
                 order instead of the order in which they are provided.
+            seed: int
+                Seed for numpy's random number generator
 
         Returns:   
             specs: list
@@ -161,6 +164,11 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
     N = len(specs2)
     x = np.arange(M)
     y = np.arange(N)
+
+    # randomly sampled scaling factors
+    t_scale = random_floats(size=num, low=t_scale_min, high=t_scale_max, seed=seed)
+    f_scale = random_floats(size=num, low=f_scale_min, high=f_scale_max, seed=seed)
+    scale = random_floats(size=num, low=scale_min, high=scale_max, seed=seed)
 
     specs = list()
     while len(specs) < num:
@@ -172,28 +180,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
         for i in x:
             for j in y:
 
-                # scaling factor for x axis
-                if t_scale_max > t_scale_min:
-                    rndm = np.random.random_sample()
-                    t_scale = t_scale_min + (t_scale_max - t_scale_min) * rndm
-                else:
-                    t_scale = t_scale_max
-
-                # scaling factor for y axis
-                if f_scale_max > f_scale_min:
-                    rndm = np.random.random_sample()
-                    f_scale = f_scale_min + (f_scale_max - f_scale_min) * rndm
-                else:
-                    f_scale = f_scale_max
-
-                # scaling factor for z axis
-                if scale_max > scale_min:
-                    rndm = np.random.random_sample()
-                    scale = scale_min + (scale_max - scale_min) * rndm
-                else:
-                    scale = scale_max
-
-                # placement
+                # time offset
                 dt = specs1[i].duration() - specs2[j].duration()
                 if dt != 0:
                     rndm = np.random.random_sample()
@@ -208,8 +195,15 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
                     spec_short = specs1[i]
                     spec_long = specs2[j]
 
-                spec = spec_long.copy()
-                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time, t_scale=t_scale, f_scale=f_scale)
+                spec = spec_long.copy() # make a copy
+
+                k = len(specs)
+
+                # add the two spectrograms
+                spec.add(spec=spec_short, delay=delay, scale=scale[k], make_copy=True,\
+                        smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time,\
+                        t_scale=t_scale[k], f_scale=f_scale[k])
+                
                 specs.append(spec)
 
                 if len(specs) >= num:
