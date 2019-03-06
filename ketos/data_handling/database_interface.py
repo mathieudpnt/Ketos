@@ -35,19 +35,34 @@ from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram
 
-def open(h5file, table_path):
+def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
-        Returns None if the table does not exist.
-
+        
         Args:
             h5file: tables.file.File object
                 HDF5 file handler.
             table_path: str
                 The table's full path.
 
+        Raises: 
+            NoSuchNodeError if table does not exist.
+
         Returns:
-            table: table.Table object
-                The table.    
+            table: table.Table object or None
+                The table, if it exists. Otherwise, raises an exeption and returns None.
+
+        Examples:
+        >>> import tables
+        >>> from ketos.data_handling.database_interface import open_table
+
+        >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+        >>> data = open_table(h5file, "/train/species1")
+        >>> type(data)
+        <class 'tables.table.Table'>
+
+        >>> data.nrows
+        15
+        
     """
     try:
        table = h5file.get_node(table_path)
