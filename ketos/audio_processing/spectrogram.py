@@ -56,7 +56,8 @@ from ketos.audio_processing.annotation import AnnotationHandler
 def ensure_same_length(specs, pad=False):
     """ Ensure that all spectrograms have the same length
 
-        All spectrograms must have the same time resolution
+        Note that all spectrograms must have the same time resolution.
+        If this is not the case, an assertion error will be thrown.
         
         Args:
             specs: list
@@ -117,11 +118,20 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1, t_scale_max=1, f_scale_min=1, f_scale_max=1):
-    """ Create new spectrograms by superimposing spectrograms from two different groups.
+def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
+            smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1,\
+            t_scale_max=1, f_scale_min=1, f_scale_max=1):
+    """ ``Interbreed`` spectrograms to create new ones.
+
+        Interbreeding consists in adding/superimposing two spectrograms on top of each other.
 
         If the spectrograms have different lengths, the shorter of the two will be placed 
-        randomly within the larger one.
+        within the larger one with a randomly generated time offset.
+
+        The shorter spectrogram may also be subject to re-scaling along any of its dimensions, as 
+        specified via the arguments t_scale_min, t_scale_max, f_scale_min, f_scale_max, scale_min, scale_max.
+
+        Note that the two spectrogram groups must have the same time and frequency resolution. Otherwise an assertion error will be thrown.
 
         Args:
             specs1: list
@@ -135,7 +145,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                 number between scale_min and scale_max
             smooth: bool
                 If True, a smoothing operation will be applied 
-                to avoid sharp edges in the result spetrogram
+                to avoid sharp discontinuities in the resulting spetrogram
             smooth_par: int
                 Smoothing parameter. The larger the value, the less 
                 smoothing.
@@ -145,7 +155,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
 
         Returns:   
             specs: list
-                List of uniform length spectrograms.
+                List of child spectrograms
     """
     M = len(specs1)
     N = len(specs2)

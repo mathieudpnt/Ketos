@@ -31,6 +31,51 @@ import os
 import numpy as np
 
 
+def random_floats(size=1, low=0, high=1, seed=1):
+    """ Returns a random number or numpy array of randum numbers uniformly distributed in the half-open interval [low, high)
+        
+        Args:
+            size: int
+                Number of random numbers to be generated
+            low: float
+                Lower value
+            high: float
+                Upper value (not included)
+            seed: int
+                Seed for the random number generator
+
+        Returns:
+            res: float or numpy array
+                Generated random number(s)
+
+        Example:
+            >>> from ketos.utils import random_floats
+            >>> 
+            >>> x = random_floats(3, 0.4, 7.2)
+            >>> print(x)
+            [3.23574963 5.29820656 0.40077775]
+    """
+
+    assert high >= low, "Upper limit must be greater than or equal to lower limit"
+    assert size >= 1, "Size must be an int greater than or equal to 1"
+
+    np.random.seed(seed)
+
+    if high == low:
+        if size == 1:
+            res = high
+        else:
+            res = np.ones(size, dtype=float) * high
+    
+    else:
+        rndm = np.random.random_sample(size)
+        res = low + (high - low) * rndm
+        if len(res) == 1:
+            res = np.float(res)
+
+    return res
+
+
 def ndim(a):
     """ Returns the number of dimensions of a list/tuple/array.
         
