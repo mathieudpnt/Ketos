@@ -1,14 +1,29 @@
-"""This module contains functions for working with hdf5 tables.
+""" database_interface module within the ketos library
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    This module provides functions to create and use HDF5 databases as storage for acoustic data. 
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import tables
