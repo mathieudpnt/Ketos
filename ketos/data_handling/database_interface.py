@@ -75,6 +75,8 @@ def open_table(h5file, table_path):
 
 def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
     """ Create a new table.
+        
+        If the table already exists, open it.
 
         Args:
             h5file: tables.file.File object
@@ -94,7 +96,28 @@ def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbo
 
         Returns:
             table: table.Table object
-                The created table.    
+                The created/open table.    
+
+        Examples:
+
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import create
+
+            >>> h5file = tables.open_file("database.h5", 'w')
+            >>> my_table =create(h5file, "/group1/", "table1", shape=(64,20)) 
+            >>> my_table
+            /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
+              description := {
+              "boxes": StringCol(itemsize=421, shape=(), dflt=b'', pos=0),
+              "data": Float32Col(shape=(64, 20), dflt=0.0, pos=1),
+              "file_vector": UInt8Col(shape=(64,), dflt=0, pos=2),
+              "files": StringCol(itemsize=100, shape=(), dflt=b'', pos=3),
+              "id": StringCol(itemsize=25, shape=(), dflt=b'', pos=4),
+              "labels": StringCol(itemsize=31, shape=(), dflt=b'', pos=5),
+              "time_vector": Float32Col(shape=(64,), dflt=0.0, pos=6)}
+              byteorder := 'little'
+              chunkshape := (21,)
+            
     """
     max_annotations = max(1, int(max_annotations))
 
