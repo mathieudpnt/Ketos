@@ -984,17 +984,21 @@ class Spectrogram(AnnotationHandler):
             >>> # create audio signal
             >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
             >>> # create spectrogram
-            >>> spec = Spectrogram.from_signal(s, winlen=0.2, winstep=0.05)
+            >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
+            <Figure size 640x480 with 2 Axes>
+            
             >>> plt.show()
             >>> # apply very small amount (0.01 sec) of horizontal blur
             >>> # and significant amount of vertical blur (30 Hz)  
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
             >>> # show blurred image
             >>> spec.plot()
-            >>> plt.show()
+            <Figure size 640x480 with 2 Axes>
 
+            >>> plt.show()
+            
             .. image:: _static/morlet_spectrogram.png
                 :width: 300px
                 :align: left
