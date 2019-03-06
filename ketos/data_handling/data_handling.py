@@ -24,7 +24,7 @@ import tables
 from subprocess import call
 import scipy.io.wavfile as wave
 import ketos.external.wavfile as wave_bit
-from ketos.audio_processing.annotation import tostring
+from ketos.utils import tostring
 #from sound_classification.data_handling import get_wave_files, parse_datetime
 import datetime
 import datetime_glob
@@ -894,6 +894,11 @@ def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name
         Returns:
             None
     """
+
+    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
+    #TODO: Reorganize modules to prevent circular dependency
+    from ketos.audio_processing.audio import AudioSignal
+
 
     rate=raw_sig_table.attrs.sample_rate
     ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
