@@ -483,7 +483,7 @@ def test_interbreed_spectrograms_with_validation_function():
         m = np.max(new_spec.image)
         return m > m1 + 0.5 * m2
 
-    specs = interbreed(specs1=[s1], specs2=[s2], num=9, scale_min=0, scale_max=1, seed=1, validation_function=check_max)
+    specs = interbreed(specs1=[s1], specs2=[s2], num=9, scale=(0,1), seed=1, validation_function=check_max)
 
     assert len(specs) == 9
     for s in specs:
