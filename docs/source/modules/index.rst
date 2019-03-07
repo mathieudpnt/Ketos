@@ -8,4 +8,4 @@
    Audio processing <audio_processing/index>
    Neural networks <neural_networks/index>
    External <external>
-   Utilities <util>
+   Utilities <utils>

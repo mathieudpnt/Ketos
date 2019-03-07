@@ -20,8 +20,8 @@
     Organization: MERIDIAN (https://meridian.cs.dal.ca/)
     Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
     Project: ketos
-             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
-             creating deep neural networks for sound detection and classification projects.
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
      
     License: GNU GPLv3
 
@@ -119,10 +119,10 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
-            smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1,\
-            t_scale_max=1, f_scale_min=1, f_scale_max=1, seed=1):
-    """ ``Interbreed`` spectrograms to create new ones.
+def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
+            scale_min=1, scale_max=1, t_scale_min=1, t_scale_max=1,\
+            f_scale_min=1, f_scale_max=1, seed=1):
+    """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
 
@@ -132,7 +132,7 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
         The shorter spectrogram may also be subject to re-scaling along any of its dimensions, as 
         specified via the arguments t_scale_min, t_scale_max, f_scale_min, f_scale_max, scale_min, scale_max.
 
-        Note that the two spectrogram groups must have the same time and frequency resolution. Otherwise an assertion error will be thrown.
+        Note that the spectrograms must have the same time and frequency resolution. Otherwise an assertion error will be thrown.
 
         Args:
             specs1: list
@@ -141,75 +141,125 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True,\
                 Second group of input spectrograms.
             num: int
                 Number of spectrograms that will be created
-            scale_min, scale_max: float, float
-                Scale the spectrogram that is being added by a random 
-                number between scale_min and scale_max
             smooth: bool
                 If True, a smoothing operation will be applied 
                 to avoid sharp discontinuities in the resulting spetrogram
             smooth_par: int
                 Smoothing parameter. The larger the value, the less 
-                smoothing.
+                smoothing. Only applicable if smooth is set to True
             shuffle: bool
                 Select spectrograms from the two groups in random 
                 order instead of the order in which they are provided.
+            scale_min, scale_max: float, float
+                Scale the spectrogram that is being added by a random 
+                number between scale_min and scale_max
+            t_scale_min, t_scale_max: float, float
+                Scale the time axis of the spectrogram that is being added 
+                by a random number between t_scale_min and t_scale_max
+            f_scale_min, f_scale_max: float, float
+                Scale the frequency axis of the spectrogram that is being added 
+                by a random number between f_scale_min and f_scale_max
             seed: int
                 Seed for numpy's random number generator
 
         Returns:   
-            specs: list
-                List of child spectrograms
-    """
-    M = len(specs1)
-    N = len(specs2)
-    x = np.arange(M)
-    y = np.arange(N)
+            specs: Spectrogram or list of Spectrograms
+                Created spectrogram(s)
 
+        Example:
+            >>> # extract saved spectrograms from database file
+            >>> import tables
+            >>> import ketos.data_handling.database_interface as di
+            >>> db = tables.open_file("ketos/tests/assets/morlet.h5", "r") 
+            >>> spec1 = di.get_objects(di.open(db, "/spec1"))[0]
+            >>> spec2 = di.get_objects(di.open(db, "/spec2"))[0]
+            >>> db.close()
+            >>> 
+            >>> # interbreed the two spectrograms
+            >>> from ketos.audio_processing.spectrogram import interbreed
+            >>> new_spec = interbreed([spec1], [spec2], num=1)
+            >>>
+            >>> # plot the original spectrograms and the new one
+            >>> import matplotlib.pyplot as plt
+            >>> fig = spec1.plot()
+            >>> plt.show()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec1.png")
+            >>> fig = spec2.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec2.png")
+            >>> fig = new_spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/new_spec.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/spec1.png
+                :width: 300px
+                :align: left
+                
+
+            .. image:: ../../../../ketos/tests/assets/tmp/spec2.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/new_spec.png
+                :width: 300px
+                :align: center
+    """
     # randomly sampled scaling factors
     t_scale = random_floats(size=num, low=t_scale_min, high=t_scale_max, seed=seed)
     f_scale = random_floats(size=num, low=f_scale_min, high=f_scale_max, seed=seed)
     scale = random_floats(size=num, low=scale_min, high=scale_max, seed=seed)
 
+    if num == 1:
+        t_scale = [t_scale]
+        f_scale = [f_scale]
+        scale = [scale]
+
+    N = min(len(specs1), len(specs2))
+
     specs = list()
     while len(specs) < num:
         
         if shuffle:
-            np.random.shuffle(x)
-            np.random.shuffle(y)
+            _specs1 = np.random.choice(specs1, N, replace=False)
+            _specs2 = np.random.choice(specs2, N, replace=False)
+        else:
+            _specs1 = specs1[:N]
+            _specs2 = specs2[:N]
 
-        for i in x:
-            for j in y:
+        for s1, s2 in zip(_specs1, _specs2):
 
-                # time offset
-                dt = specs1[i].duration() - specs2[j].duration()
-                if dt != 0:
-                    rndm = np.random.random_sample()
-                    delay = np.abs(dt) * rndm
-                else:
-                    delay = 0
+            # time offset
+            dt = s1.duration() - s2.duration()
+            if dt != 0:
+                rndm = np.random.random_sample()
+                delay = np.abs(dt) * rndm
+            else:
+                delay = 0
 
-                if dt >= 0:
-                    spec_long = specs1[i]
-                    spec_short = specs2[j]
-                else:
-                    spec_short = specs1[i]
-                    spec_long = specs2[j]
+            if dt >= 0:
+                spec_long = s1
+                spec_short = s2
+            else:
+                spec_short = s1
+                spec_long = s2
 
-                spec = spec_long.copy() # make a copy
+            spec = spec_long.copy() # make a copy
 
-                k = len(specs)
+            k = len(specs)
 
-                # add the two spectrograms
-                spec.add(spec=spec_short, delay=delay, scale=scale[k], make_copy=True,\
-                        smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time,\
-                        t_scale=t_scale[k], f_scale=f_scale[k])
-                
-                specs.append(spec)
+            # add the two spectrograms
+            spec.add(spec=spec_short, delay=delay, scale=scale[k], make_copy=True,\
+                    smooth=smooth, smooth_par=smooth_par, t_scale=t_scale[k], f_scale=f_scale[k])
+            
+            specs.append(spec)
 
-                if len(specs) >= num:
-                    return specs
+            if len(specs) >= num:
+                break
+
+    # if list has length 1, return the element rather than the list
+    if len(specs) == 1:
+        specs = specs[0]
 
     return specs
+
 
 class Spectrogram(AnnotationHandler):
     """ Spectrogram
@@ -1067,10 +1117,10 @@ class Spectrogram(AnnotationHandler):
 
             >>> plt.show()
             
-            .. image:: _static/morlet_spectrogram.png
+            .. image:: ../../_static/morlet_spectrogram.png
                 :width: 300px
                 :align: left
-            .. image:: _static/morlet_spectrogram_blurred.png
+            .. image:: ../../_static/morlet_spectrogram_blurred.png
                 :width: 300px
                 :align: right
         """
