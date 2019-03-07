@@ -346,7 +346,7 @@ def filter_by_label(table, label):
     return rows
 
 def load_specs(table, index_list=None):
-    """ Retrieves the spectrograms specified by the index
+    """ Retrieve all the spectrograms in a table or a subset specified by the index_list
 
         Warnings: Loading all spectrograms in a table might cause memory problems.
 
@@ -360,6 +360,18 @@ def load_specs(table, index_list=None):
         Returns:
             res: list
                 List of spectrogram objects.
+
+
+        Examples:
+
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/train/species1")
+
+            >>> selected_specs = load_specs(table, [0,1,10])
+            >>> type(spec) for spec in selected_specs
 
     """
     res = list()
