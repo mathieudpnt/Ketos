@@ -331,8 +331,6 @@ def filter_by_label(table, label):
 
             >>> filter_by_label(table, 2)
             []
-            
-
     """
     if isinstance(label, (list)):
         if not all (isinstance(l, int) for l in label):
@@ -347,34 +345,38 @@ def filter_by_label(table, label):
 
     return rows
 
-def get_objects(table):
-    """ Get all objects (spectrogram or audio signal) that are stored in the table.
+def load_specs(table, index_list=None):
+    """ Retrieves the spectrograms specified by the index
+
+        Warnings: Loading all spectrograms in a table might cause memory problems.
 
         Args:
             table: tables.Table
-                Table
+                The table containing the spectrogtrams
+            index_list: list of ints or None
+                A list with the indices of the spectrograms that will be retrieved.
+                If set to None, loads all spectrograms in the table.
 
         Returns:
             res: list
-                List of objects.
+                List of spectrogram objects.
+
     """
     res = list()
 
     # loop over items in table
-    for it in table:
+    for idx in index_list:
 
+        it = table[idx]
         # parse labels and boxes
         labels = parse_labels(it)
         boxes = parse_boxes(it)
         
-        # get the data (audio signal or spectrogram)
+        # get the spectrogram data
         data = it['data']
 
         # create audio signal or spectrogram object
-        if np.ndim(data) == 1:
-            x = AudioSignal(rate=table.attrs.sample_rate, data=data, tag=it['id'])
-        elif np.ndim(data) == 2:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
+        x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
 
         # annotate
         x.annotate(labels=labels, boxes=boxes)
