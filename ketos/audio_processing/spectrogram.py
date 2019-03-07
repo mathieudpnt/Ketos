@@ -177,14 +177,13 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
             >>> spec2 = di.get_objects(di.open(db, "/spec2"))[0]
             >>> db.close()
             >>> 
-            >>> # interbreed the two spectrograms
+            >>> # interbreed the two spectrograms once to make one new spectrogram
             >>> from ketos.audio_processing.spectrogram import interbreed
             >>> new_spec = interbreed([spec1], [spec2], num=1)
             >>>
             >>> # plot the original spectrograms and the new one
             >>> import matplotlib.pyplot as plt
             >>> fig = spec1.plot()
-            >>> plt.show()
             >>> fig.savefig("ketos/tests/assets/tmp/spec1.png")
             >>> fig = spec2.plot()
             >>> fig.savefig("ketos/tests/assets/tmp/spec2.png")
@@ -203,6 +202,25 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
             .. image:: ../../../../ketos/tests/assets/tmp/new_spec.png
                 :width: 300px
                 :align: center
+
+            >>> # Interbreed the two spectrograms to make 3 new spectrograms.
+            >>> # Apply a random scaling factor between 0.0 and 5.0.
+            >>> # Only accept spectrograms with peak value at least two times 
+            >>> # larger than either of the two parent spectrograms
+            >>> def func(spec1, spec2, new_spec):
+            ...     m1 = np.max(spec1.image)
+            ...     m2 = np.max(spec2.image)
+            ...     m = np.max(new_spec.image)
+            ...     return m >= 2 * max(m1, m2)
+            >>> new_specs = interbreed([spec1], [spec2], num=3, scale_min=0, scale_max=5, validation_function=func)
+            >>>
+            >>> # plot the first of the new spectrograms
+            >>> fig = new_specs[0].plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/new_spec_x.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/new_spec_x.png
+                :width: 300px
+                :align: left
     """
     if validation_function is None:
         def always_true(spec1, spec2, new_spec):
