@@ -370,8 +370,8 @@ def load_specs(table, index_list=None):
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
 
-            >>> selected_specs = load_specs(table, [0,1,10])
-            >>> type(spec) for spec in selected_specs
+            >>> selected_specs = load_specs(table, [0])
+            >>> [type(spec) for spec in selected_specs]
 
     """
     res = list()
@@ -391,6 +391,7 @@ def load_specs(table, index_list=None):
         x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
 
         # annotate
+        import pdb; pdb.set_trace()
         x.annotate(labels=labels, boxes=boxes)
 
         # handle file and time info
@@ -480,6 +481,7 @@ def parse_boxes(item):
             labels: list(tuple)
                 List of boxes
     """
+    
     boxes_str = item['boxes'].decode()
     boxes_str = boxes_str.replace("inf", "-99")
     try:
@@ -488,5 +490,6 @@ def parse_boxes(item):
         boxes = []
 
     boxes = np.array(boxes_str)
-    boxes[boxes == -99] = math.inf
+    if (boxes == -99).any():
+         boxes[boxes == -99] = math.inf
     return boxes
