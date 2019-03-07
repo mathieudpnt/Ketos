@@ -311,17 +311,34 @@ def filter_by_label(table, label):
             label: int or list of ints
                 The labels to be searched
         Raises:
-            TypeError: if label is not an int or list of ints
+            TypeError: if label is not an int or list of ints.
 
         Returns:
             rows: list(int)
                 List of row numbers of the objects that have the specified label.
+                If there are no spectrograms that match the label, returs an empty list.
+
+        Examples:
+
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/train/species1")
+
+            >>> filter_by_label(table, 1)
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+            >>> filter_by_label(table, 2)
+            []
+            
+
     """
     if isinstance(label, (list)):
         if not all (isinstance(l, int) for l in label):
             raise TypeError("label must be an int or a list of ints")    
     elif isinstance(label, int):
-        label = list(label)
+        label = [label]
     else:
         raise TypeError("label must be an int or a list of ints")    
     
