@@ -33,7 +33,7 @@ import math
 import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram
+from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -103,7 +103,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
             >>> import tables
             >>> from ketos.data_handling.database_interface import create_table
 
-            >>> h5file = tables.open_file("database.h5", 'w')
+            >>> h5file = tables.open_file("ketos/tests/assets/tmp/database1.h5", 'w')
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
             >>> my_table
             /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
@@ -117,6 +117,8 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
               "time_vector": Float32Col(shape=(64,), dflt=0.0, pos=6)}
               byteorder := 'little'
               chunkshape := (21,)
+
+            >>> h5file.close()
             
     """
     max_annotations = max(1, int(max_annotations))
@@ -145,7 +147,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
         filters = tables.Filters(complevel=1, fletcher32=True)
         labels_len = 2 + max_annotations * 3 - 1 # assumes that labels have at most 2 digits (i.e. 0-99)
         boxes_len = 2 + max_annotations * (6 + 4*9) - 1 # assumes that box values have format xxxxx.xxx  
-        descrip = description(shape=shape, labels_len=labels_len, boxes_len=boxes_len)
+        descrip = table_description(shape=shape, labels_len=labels_len, boxes_len=boxes_len)
         table = h5file.create_table(group, "{0}".format(name), descrip, filters=filters, chunkshape=chunkshape)
 
     return table
@@ -167,7 +169,7 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
             boxes_len : int
                 The number of characters for the 'boxes' field
             files_len: int
-                The number of charecter for the 'files' field.
+                The number of characters for the 'files' field.
 
 
         Attr:
@@ -229,27 +231,54 @@ def write_spec(table, spec, id=None):
 
         Returns:
             None.
+
+        Examples:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import create_table
+            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+            >>> from ketos.audio_processing.audio import AudioSignal
+
+            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> spec = MagSpectrogram(audio,winlen=0.2, winstep=0.05)
+            >>> spec.labels = [1,2]
+            >>> spec.boxes = [[5.3,8.9,200,350], [103.3,105.8,180,320]]
+           
+            >>> h5file = tables.open_file("ketos/tests/assets/tmp/database2.h5", 'w')
+            >>> my_table = create_table(h5file, "/group1/", "table1", shape=spec.image.shape)
+            >>> write_spec(my_table, spec)
+            >>> my_table.nrows
+            1
+            >>> my_table[0]['labels']
+            b'[1,2]'
+            >>> my_table[0]['boxes']
+            b'[[5.3,8.9,200.0,350.0],[103.3,105.8,180.0,320.0]]'
+            
+            >>> h5file.close()
+
+            
+
     """
 
     try:
         assert(isinstance(spec, Spectrogram))
-        table.attrs.time_res = spec.tres
-        table.attrs.freq_res = spec.fres
-        table.attrs.freq_min = spec.fmin
     except AssertionError:
         raise TypeError("spec must be an instance of Spectrogram")      
+
+    table.attrs.time_res = spec.tres
+    table.attrs.freq_res = spec.fres
+    table.attrs.freq_min = spec.fmin
 
     if id is None:
         id_str = spec.tag
     else:
         id_str = id
 
-    if x.labels is not None:
+    if spec.labels is not None:
         labels_str = tostring(spec.labels, decimals=0)
     else:
         labels_str = ''
 
-    if x.boxes is not None:          
+    if spec.boxes is not None:          
         boxes_str = tostring(spec.boxes, decimals=3)
     else:
         boxes_str = ''
@@ -273,8 +302,8 @@ def write_spec(table, spec, id=None):
 
     seg_r.append()
 
-def select(table, label):
-    """ Find all objects in the table with the specified label.
+def filter_by_label(table, label):
+    """ Find all spectrograms in the table with the specified label.
 
         Args:
             table: tables.Table
@@ -287,6 +316,9 @@ def select(table, label):
             rows: list(int)
                 List of row numbers of the objects that have the specified label.
     """
+    
+    table.get_where_list('')
+
     # selected rows
     rows = list()
 
