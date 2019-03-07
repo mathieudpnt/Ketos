@@ -200,7 +200,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                 :align: center
 
             >>> # Interbreed the two spectrograms to make 3 new spectrograms.
-            >>> # Apply a random scaling factor between 0.0 and 5.0.
+            >>> # Apply a random scaling factor between 0.0 and 5.0 to the spectrogram 
+            >>> # that is being added.
             >>> # Only accept spectrograms with peak value at least two times 
             >>> # larger than either of the two parent spectrograms
             >>> def func(spec1, spec2, new_spec):
@@ -297,19 +298,49 @@ class Spectrogram(AnnotationHandler):
         Each axis is characterized by a starting value (tmin and fmin)
         and a resolution or bin size (tres and fres).
 
-        Attributes:
-            signal: AudioSignal object
-                Audio signal 
-            winlen: float
-                Window size in seconds
-            winstep: float
-                Step size in seconds 
-            hamming: bool
-                Apply Hamming window
+        Args:
+            image: 2d numpy array
+                Spectrogram image
             NFFT: int
                 Number of points for the FFT. If None, set equal to the number of samples.
+            tres: float
+                Time resolution in seconds (i.e. bin size used for x axis)
+            tmin: float
+                Start time in seconds
+            fres: float
+                Frequency resolution in Hz (i.e. bin size used for y axis)
+            fmin: float
+                Minimum frequency in Hz (i.e. frequency value of bin 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
+            flabels: list or array
+               Labels for the frequency bins (optional)
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
+            
+        Attributes:
+            image: 2d numpy array
+                Spectrogram image
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            tres: float
+                Time resolution in seconds (i.e. bin size used for x axis)
+            tmin: float
+                Start time in seconds
+            fres: float
+                Frequency resolution in Hz (i.e. bin size used for y axis)
+            fmin: float
+                Minimum frequency in Hz (i.e. frequency value of bin 0)
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list or array
+                Labels for the frequency bins (optional)
+            file_dict: dict
+                Wave files used to generate this spectrogram
+            file_vector: 1d numpy array
+                Associates a particular wave file with each time bin in the spectrogram
+            time_vector: 1d numpy array
+                Associated a particular time within a wave file with each time bin in the spectrogram
 """
     def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag=''):
         
@@ -321,17 +352,37 @@ class Spectrogram(AnnotationHandler):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
-        self.tag = tag
 
         super().__init__() # initialize AnnotationHandler
 
-        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
+        # assign values to the file dictionary and the file and time vectors
+        self.file_dict, self.file_vector, self.time_vector = self._track(tag)        
 
-    def _make_file_and_time_vectors(self):
+    def _track(self, tag):
+        """ Creates a file dictionary, a file vector and a time vector
+
+            Args:
+                tag: str
+                    Identifier, typically the name of the wave file used to generate the spectrogram
+
+            Returns: 
+                file_dict: dict
+                    Wave files used to generate this spectrogram
+                file_vector: 1d numpy array
+                    Associates a particular wave file with each time bin in the spectrogram
+                time_vector: 1d numpy array
+                    Associated a particular time within a wave file with each time bin in the spectrogram
+
+            Example:
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = Spectrogram(tag='file.wav') # create a dummy spectrogram
+                >>> print(spec.file_dict) # inspect the file dictionary
+                {0: 'file.wav'}
+        """                
         n = self.image.shape[0]
         time_vector = self.tres * np.arange(n) + self.tmin
         file_vector = np.zeros(n)
-        file_dict = {0: self.tag}
+        file_dict = {0: tag}
         return file_dict, file_vector, time_vector
 
     def copy(self):
@@ -350,7 +401,6 @@ class Spectrogram(AnnotationHandler):
         spec.fmin = self.fmin
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
-        spec.tag = self.tag
         spec.time_vector = self.time_vector.copy()
         spec.file_vector = self.file_vector.copy()
         spec.file_dict = self.file_dict.copy()
@@ -361,7 +411,7 @@ class Spectrogram(AnnotationHandler):
 
         return spec
 
-    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False, preserve_time=False):
+    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False):
         """ Create a new spectrogram from an existing spectrogram by 
             cropping in time and/or frequency.
         
@@ -400,18 +450,11 @@ class Spectrogram(AnnotationHandler):
         f1 = self._fbin_low(fbin1)
         f2 = self._fbin_low(fbin2)
 
-        if preserve_time:
-            tmin = t1
-        else:
-            tmin = 0
-
         # handle annotations
         labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-        ann = AnnotationHandler(labels, boxes)
-        ann._shift_annotations(delay=tmin)
 
         # create cropped spectrogram
-        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
+        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=t1, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
 
         # add annotations
         spec.annotate(labels=labels, boxes=boxes)
@@ -1006,7 +1049,7 @@ class Spectrogram(AnnotationHandler):
 
         # loop over boxes
         for i in range(N):     
-            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad, preserve_time=preserve_time)
+            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad)
             specs.append(spec)
 
         # complement
@@ -1526,7 +1569,7 @@ class MagSpectrogram(Spectrogram):
         super(MagSpectrogram, self).__init__(timestamp=timestamp, flabels=flabels, tag=tag)
         self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
-        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
+        self.file_dict, self.file_vector, self.time_vector = self._track(tag)        
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal

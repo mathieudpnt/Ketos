@@ -195,7 +195,7 @@ class AnnotationHandler():
                 >>> print(cropped_labels)
                 [0, 1]
                 >>> print(cropped_boxes)
-                [[0, 1.9, 110.0, 555.0], [19.7, 23.7, 0, 555.0]]
+                [[10.3, 12.2, 110.0, 555.0], [30.0, 34.0, 0, 555.0]]
         """
         if t1 is None: t1 = 0
         if t2 is None: t2 = math.inf
@@ -211,10 +211,8 @@ class AnnotationHandler():
             if b[0] < t2 and b[1] > t1 and b[2] < f2 and b[3] > f1:
 
                 # update box boundaries
-                b0 = b[0] - t1
-                b0 = max(b0, 0)
-                b1 = b[1] - t1
-                b1 = min(b1, t2-t1)
+                b0 = max(b[0], t1)
+                b1 = min(b[1], t2)
                 b2 = max(b[2], f1)
                 b3 = min(b[3], f2)
 

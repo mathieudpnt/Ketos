@@ -198,10 +198,6 @@ def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0, preserve_time=True)
-    assert spec.image.shape == (37, 18)
-    spec.crop(thigh=2.5)
-    assert spec.image.shape == (30, 18)
 
 def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
@@ -209,10 +205,6 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 23)
     spec.crop(flow=1000)
     assert spec.image.shape == (57, 18)
-    spec.crop(tlow=1.0, preserve_time=True)
-    assert spec.image.shape == (37, 18)
-    spec.crop(thigh=2.5)
-    assert spec.image.shape == (30, 18)
 
 # TODO: Fix cropping method so it also works for Mel spectrograms
 #def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
@@ -533,3 +525,22 @@ def test_compress_freq_axis():
     assert spec.image.shape[1] == 20
     assert spec.image[0,5] == pytest.approx(1)
     assert spec.image[0,2] == pytest.approx(0.78, abs=0.1)
+
+@pytest.mark.test_track
+def test_track_with_two_files():
+    spec1 = Spectrogram(tag='file1.wav', tres=0.6) 
+    spec2 = Spectrogram(tag='file2.wav', tres=0.6) 
+    spec1.append(spec2)
+    d = spec1.file_dict
+    assert d[0] == 'file1.wav'
+    assert d[1] == 'file2.wav'
+    f = spec1.file_vector
+    assert f[0] == 0
+    assert f[1] == 0
+    assert f[2] == 1
+    assert f[3] == 1
+    t = spec1.time_vector
+    assert t[0] == 0.
+    assert t[1] == 0.6
+    assert t[2] == 0.
+    assert t[3] == 0.6
