@@ -134,8 +134,9 @@ def test_h5_extract(sine_audio):
     fshape = int(250 / spec1.fres)
     assert selection[0].image.shape[1] == fshape
     assert complement.image.shape[0] == 2*tshape_orig - selection[0].image.shape[0] - selection[1].image.shape[0]
-    assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
-    assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
+    assert selection[0].boxes[0][0] == pytest.approx(1.001, abs=0.000001)
+    assert selection[0].boxes[0][1] == pytest.approx(1.401, abs=0.000001)
+    assert selection[0].tmin == pytest.approx(0.80, abs=0.01)
 
 @pytest.mark.test_h5_select_spec
 def test_h5_select_spec(sine_audio):
