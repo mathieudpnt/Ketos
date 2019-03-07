@@ -104,7 +104,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
             >>> from ketos.data_handling.database_interface import create
 
             >>> h5file = tables.open_file("database.h5", 'w')
-            >>> my_table =create(h5file, "/group1/", "table1", shape=(64,20)) 
+            >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
             >>> my_table
             /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
               description := {
@@ -223,6 +223,9 @@ def write_spec(table, spec, id=None):
             spec: instance of :class:`spectrogram.MagSpectrogram', \
             :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
                 the spectrogram object to be stored in the table.
+
+        Raises:
+            TypeError: if spec is not an Spectrogram object    
 
         Returns:
             None.
