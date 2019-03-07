@@ -450,13 +450,11 @@ class Spectrogram(AnnotationHandler):
         f1 = self._fbin_low(fbin1)
         f2 = self._fbin_low(fbin2)
 
-        # handle annotations
-        labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-
         # create cropped spectrogram
         spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=t1, fres=self.fres, fmin=fmin, timestamp=self.timestamp)
 
-        # add annotations
+        # handle annotations
+        labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
         spec.annotate(labels=labels, boxes=boxes)
 
         # handle time vector, file vector and file dict
