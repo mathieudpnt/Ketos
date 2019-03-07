@@ -209,7 +209,7 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
     
     return TableDescription
 
-def write(table, spec, id=None):
+def write_spec(table, spec, id=None):
     """ Write data into the HDF5 table.
 
         Note: If the id field is left blank, it 
