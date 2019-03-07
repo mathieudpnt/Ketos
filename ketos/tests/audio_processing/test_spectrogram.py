@@ -385,19 +385,29 @@ def test_annotate():
 
 def test_make_spec_from_cut():
     img = np.zeros((19,31))
-    spec = Spectrogram(image=img)
+    spec = Spectrogram(image=img, tag='file.wav')
     labels = [1,2]
     box1 = [14.,17.,0.,29.]
     box2 = [2.1,13.0,1.1,28.5]
     boxes = [box1, box2]
     spec.annotate(labels=labels, boxes=boxes)
     scut = spec._make_spec_from_cut(2,5,24,27)
+    # check that start time is as expected
+    assert scut.tmin == 2    
+    # check that annotations have been correctly carried over
     assert len(scut.labels) == 1
     assert scut.labels[0] == 2
-    assert scut.boxes[0][0] == pytest.approx(0.1, abs=0.001)
-    assert scut.boxes[0][1] == pytest.approx(3.0, abs=0.001)
+    assert scut.boxes[0][0] == pytest.approx(2.1, abs=0.001)
+    assert scut.boxes[0][1] == pytest.approx(5.0, abs=0.001)
     assert scut.boxes[0][2] == pytest.approx(24.0, abs=0.001)
     assert scut.boxes[0][3] == pytest.approx(27.0, abs=0.001)
+    # check that file and time information have been correctly carried over
+    assert spec.file_dict[0] == 'file.wav'
+    n = len(scut.file_vector)
+    assert n == scut.image.shape[0]
+    for i in range(n):
+        assert spec.file_vector[i] == 0
+        assert spec.time_vector[i] == i * scut.tres
 
 @pytest.mark.test_stretch
 def test_stretch():
@@ -526,8 +536,8 @@ def test_compress_freq_axis():
     assert spec.image[0,5] == pytest.approx(1)
     assert spec.image[0,2] == pytest.approx(0.78, abs=0.1)
 
-@pytest.mark.test_track
-def test_track_with_two_files():
+@pytest.mark.test_create_tracking_data
+def test_create_tracking_data_with_two_files():
     spec1 = Spectrogram(tag='file1.wav', tres=0.6) 
     spec2 = Spectrogram(tag='file2.wav', tres=0.6) 
     spec1.append(spec2)
@@ -544,3 +554,20 @@ def test_track_with_two_files():
     assert t[1] == 0.6
     assert t[2] == 0.
     assert t[3] == 0.6
+
+@pytest.mark.test_crop_tracking_data
+def test_crop_tracking_data_with_two_files():
+    spec1 = Spectrogram(image=np.ones(shape=(100,10)), tag='file1.wav', tres=0.6) 
+    spec2 = Spectrogram(image=np.ones(shape=(50,10)), tag='file2.wav', tres=0.6) 
+    spec1.append(spec2)
+    tvec, fvec, fdict = spec1._crop_tracking_data(80, 130)
+    assert fdict[0] == 'file1.wav'
+    assert fdict[1] == 'file2.wav'
+    assert len(tvec) == 50
+    assert len(fvec) == 50
+    for i in range(20):
+        assert tvec[i] == (80 + i) * 0.6
+        assert fvec[i] == 0
+    for i in range(20,50):
+        assert tvec[i] == (i - 20) * 0.6
+        assert fvec[i] == 1

@@ -356,9 +356,9 @@ class Spectrogram(AnnotationHandler):
         super().__init__() # initialize AnnotationHandler
 
         # assign values to the file dictionary and the file and time vectors
-        self.file_dict, self.file_vector, self.time_vector = self._track(tag)        
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag)        
 
-    def _track(self, tag):
+    def _create_tracking_data(self, tag):
         """ Creates a file dictionary, a file vector and a time vector
 
             Args:
@@ -444,7 +444,7 @@ class Spectrogram(AnnotationHandler):
             fmin = self.fmin + self.fres * fbin1
             fmin = max(fmin, self.fmin)
 
-        # cut labels and boxes
+        # convert bin numbers to time and frequency values
         t1 = self._tbin_low(tbin1)
         t2 = self._tbin_low(tbin2)
         f1 = self._fbin_low(fbin1)
@@ -454,40 +454,56 @@ class Spectrogram(AnnotationHandler):
         labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
 
         # create cropped spectrogram
-        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=t1, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
+        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=t1, fres=self.fres, fmin=fmin, timestamp=self.timestamp)
 
         # add annotations
         spec.annotate(labels=labels, boxes=boxes)
 
         # handle time vector, file vector and file dict
-        spec.time_vector, spec.file_vector, spec.file_dict = self._cut_time_and_file_vectors(tbin1, tbin2)
+        spec.time_vector, spec.file_vector, spec.file_dict = self._crop_tracking_data(tbin1, tbin2)
 
         return spec
 
-    def _cut_time_and_file_vectors(self, tbin1, tbin2):
+    def _crop_tracking_data(self, tbin1, tbin2):
+        """ Update tracking data in response to time cut
+
+            Args:
+                tbin1: int
+                    Lower time bin of cut
+                tbin2: int
+                    Upper time bin of cut
+
+            Returns:
+                new_file_dict: dict
+                    Cropped file dictionary
+                new_file_vector: 1d numpy array
+                    Cropped file vector
+                new_time_vector: 1d numpy array
+                    Cropped time vector
+        """
         if tbin1 is None:
             tbin1 = 0
         if tbin2 is None:
             tbin2 = len(self.time_vector)
         
-        time_vector = self.time_vector.copy()
-        file_vector = self.file_vector.copy()
+        new_time_vector = self.time_vector.copy()
+        new_time_vector = new_time_vector[tbin1:tbin2]
 
-        time_vector = time_vector[tbin1:tbin2]
+        file_vector = self.file_vector.copy()
         file_vector = file_vector[tbin1:tbin2]
 
-        file_dict = {}
+        new_file_dict = {}
         new_file_vector = file_vector.copy()
         new_key = 0
         for it in self.file_dict.items():
             key = it[0]
             val = it[1]
             if np.any(file_vector == key):
-                file_dict[new_key] = val
+                new_file_dict[new_key] = val
                 new_file_vector[file_vector == key] = new_key
                 new_key += 1
 
-        return time_vector, new_file_vector, file_dict
+        return new_time_vector, new_file_vector, new_file_dict
 
     def get_time_vector(self):
         return self.time_vector
@@ -1569,7 +1585,7 @@ class MagSpectrogram(Spectrogram):
         super(MagSpectrogram, self).__init__(timestamp=timestamp, flabels=flabels, tag=tag)
         self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         self.tres = winstep
-        self.file_dict, self.file_vector, self.time_vector = self._track(tag)        
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag)        
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
