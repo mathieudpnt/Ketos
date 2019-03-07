@@ -307,32 +307,26 @@ def filter_by_label(table, label):
 
         Args:
             table: tables.Table
-                Table
-
-            label: int
-                Label
+                The table containing the spectrograms
+            label: int or list of ints
+                The labels to be searched
+        Raises:
+            TypeError: if label is not an int or list of ints
 
         Returns:
             rows: list(int)
                 List of row numbers of the objects that have the specified label.
     """
+    if isinstance(label, (list)):
+        if not all (isinstance(l, int) for l in label):
+            raise TypeError("label must be an int or a list of ints")    
+    elif isinstance(label, int):
+        label = list(label)
+    else:
+        raise TypeError("label must be an int or a list of ints")    
     
-    table.get_where_list('')
-
-    # selected rows
-    rows = list()
-
-    # loop over items in table
-    for i, it in enumerate(table):
-
-        # parse labels
-        labels = parse_labels(it)
-
-        # check if the specified label is present
-        if label not in labels:
-            continue
-
-        rows.append(i)
+    condition = "|".join(["(labels == b'[[{0}]]')".format(l) for l in label])
+    rows = list(table.get_where_list(condition))
 
     return rows
 
