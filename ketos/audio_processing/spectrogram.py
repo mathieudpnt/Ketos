@@ -121,7 +121,7 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
             scale_min=1, scale_max=1, t_scale_min=1, t_scale_max=1,\
-            f_scale_min=1, f_scale_max=1, seed=1):
+            f_scale_min=1, f_scale_max=1, seed=1, validation_function=None):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -161,6 +161,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
                 by a random number between f_scale_min and f_scale_max
             seed: int
                 Seed for numpy's random number generator
+            validation_function:
+                This function is applied to each new spectrogram. The function must accept 'spec1', 'spec2', and 'new_spec'; returns True or False. If True, the new spectrogram is accepted; if False, it gets discarded.
 
         Returns:   
             specs: Spectrogram or list of Spectrograms
@@ -202,21 +204,28 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
                 :width: 300px
                 :align: center
     """
-    # randomly sampled scaling factors
-    t_scale = random_floats(size=num, low=t_scale_min, high=t_scale_max, seed=seed)
-    f_scale = random_floats(size=num, low=f_scale_min, high=f_scale_max, seed=seed)
-    scale = random_floats(size=num, low=scale_min, high=scale_max, seed=seed)
-
-    if num == 1:
-        t_scale = [t_scale]
-        f_scale = [f_scale]
-        scale = [scale]
+    if validation_function is None:
+        def always_true(spec1, spec2, new_spec):
+            return True
+        validation_function = always_true
 
     N = min(len(specs1), len(specs2))
 
     specs = list()
     while len(specs) < num:
         
+        # randomly sampled scaling factors
+        M = num - len(specs)
+        t_scale = random_floats(size=M, low=t_scale_min, high=t_scale_max, seed=seed)
+        f_scale = random_floats(size=M, low=f_scale_min, high=f_scale_max, seed=seed)
+        scale = random_floats(size=M, low=scale_min, high=scale_max, seed=seed)
+        seed += 1
+
+        if M == 1:
+            t_scale = [t_scale]
+            f_scale = [f_scale]
+            scale = [scale]
+
         if shuffle:
             _specs1 = np.random.choice(specs1, N, replace=False)
             _specs2 = np.random.choice(specs2, N, replace=False)
@@ -224,7 +233,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
             _specs1 = specs1[:N]
             _specs2 = specs2[:N]
 
-        for s1, s2 in zip(_specs1, _specs2):
+        for i in range(N):
+            
+            s1 = _specs1[i]
+            s2 = _specs2[i]
 
             # time offset
             dt = s1.duration() - s2.duration()
@@ -243,13 +255,12 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5, shuffle=True,\
 
             spec = spec_long.copy() # make a copy
 
-            k = len(specs)
-
             # add the two spectrograms
-            spec.add(spec=spec_short, delay=delay, scale=scale[k], make_copy=True,\
-                    smooth=smooth, smooth_par=smooth_par, t_scale=t_scale[k], f_scale=f_scale[k])
+            spec.add(spec=spec_short, delay=delay, scale=scale[i], make_copy=True,\
+                    smooth=smooth, smooth_par=smooth_par, t_scale=t_scale[i], f_scale=f_scale[i])
             
-            specs.append(spec)
+            if validation_function(spec_long, spec_short, spec):
+                specs.append(spec)
 
             if len(specs) >= num:
                 break
