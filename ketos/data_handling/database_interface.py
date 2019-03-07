@@ -150,7 +150,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
 
     return table
 
-def description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
+def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
     """ Create the class that describes the table structure for the HDF5 database.
 
         The columns in the table are described as the class Attributes (see Attr section below)
