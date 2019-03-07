@@ -73,7 +73,7 @@ def open_table(h5file, table_path):
 
     return table
 
-def create(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
+def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
     """ Create a new table.
         
         If the table already exists, open it.
