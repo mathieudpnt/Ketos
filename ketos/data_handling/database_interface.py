@@ -101,7 +101,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
         Examples:
 
             >>> import tables
-            >>> from ketos.data_handling.database_interface import create
+            >>> from ketos.data_handling.database_interface import create_table
 
             >>> h5file = tables.open_file("database.h5", 'w')
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
@@ -191,9 +191,9 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
                 will store images in the HDF5 database.
 
         Examples:
-            >>> from ketos.data_handling.database_interface import description
-            >>> table_description =  description(shape=(64,20))
-            >>> table_description.columns
+            >>> from ketos.data_handling.database_interface import table_description
+            >>> descr =  table_description(shape=(64,20))
+            >>> descr.columns
             {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
 
 
