@@ -526,9 +526,17 @@ def parse_labels(item):
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
             >>>
+            >>> type(table[0]['labels'])
+            <class 'numpy.bytes_'>
             >>> table[0]['labels']
+            b'[1]'
 
-            >>> parse_labels(table[0]['labels'])
+            >>> label = parse_labels(table[0])
+            >>> type(label)
+            <class 'list'>
+            >>> label
+            [1]
+            
 
 
 
@@ -536,6 +544,7 @@ def parse_labels(item):
     """
     labels_str = item['labels'].decode()
     labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
+    labels = list(labels)
     return labels
 
 def parse_boxes(item):
