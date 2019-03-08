@@ -447,11 +447,13 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
                 and maximum frequencies specified by the bounding box.
 
         Returns:
-            selection: list
-                List of spectrograms segments matching the specified label
-            complement: spectrogram or audio signal
+            extractated: list
+                List of spectrograms, created from segments matching the specified label
+            complements: spectrogram or audio signal
                 A list of spectrograms containing the joined segments that did not match the specified label.
                 There will be on such spectrogram for each of the original spectrograms in the table.
+                In case nothing is left after the extraction (i.e.: the whole spectrogram was covered by 
+                the box/label of interest), the item in the complement list will have a None value.
 
         Examples:
             >>> import tables
@@ -463,9 +465,11 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             >>> extracted_specs, spec_complements = extract(table, label=1, min_length=2)
             >>> len(extracted_specs)
             15
-            >>> len(specs_complements)
+            >>> len(spec_complements)
             15
 
+           # >>> type(extracted_specs)
+            #>>> type(spec_complements)
             >>> spec_1_fig = extracted_specs[0].plot()
             >>> comp_1_fig = spec_complements[0].plot()
 
@@ -473,25 +477,23 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
     """
 
     # selected segments
-    selection = list()
-    complement = None
+    extracted = list()
+    complements = list()
 
     items = load_specs(table)
 
     # loop over items in table
-    for x in items:
+    for spec in items:
 
         # extract segments of interest
-        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
-        selection = selection + segs
+        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
+        extracted = extracted + segs
 
         # collect
-        if complement is None:
-            complement = x
-        else:
-            complement.append(x)
+        complements.append(spec)
+    
 
-    return selection, complement
+    return extracted, complements
 
 def parse_labels(item):
     """ Parse labels string.
