@@ -439,12 +439,17 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             center: bool
                 If True, place the annotation box in the center of the segments.
                 Otherwise, place it randomly within the spectrogram.
-
             fpad: bool
                 If True, ensure that all extracted spectrograms have the same 
                 frequency range by padding with zeros, if necessary.
                 If False, the resulting spectrograms will be cropped at the minimum
                 and maximum frequencies specified by the bounding box.
+            preserve_time: bool
+                If True, the initial time in the extracted spectrograms will maintained
+                 (i.e.: will be equal to the start_time of the box).
+                If false, the initial time is set to 0. 
+
+            
 
         Returns:
             extractated: list
@@ -458,21 +463,28 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
         Examples:
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
-
+            >>>
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
-
+            >>>
             >>> extracted_specs, spec_complements = extract(table, label=1, min_length=2)
             >>> len(extracted_specs)
             15
             >>> len(spec_complements)
             15
-
-           # >>> type(extracted_specs)
-            #>>> type(spec_complements)
+            >>> 
+            >>> #Plot one of the extracted spectrograms        
             >>> spec_1_fig = extracted_specs[0].plot()
+            >>> spec_1_fig.savefig("ketos/tests/assets/tmp/extract_spec_1.png")
+              
+            .. image:: ../../../../ketos/tests/assets/tmp/extract_spec_1.png
+               
+            
+            >>> # Plot the portion without any annotations
             >>> comp_1_fig = spec_complements[0].plot()
-
+            >>> comp_1_fig.savefig("ketos/tests/assets/tmp/extract_comp_1.png")
+           
+            .. image:: ../../../../ketos/tests/assets/tmp/extract_comp_1.png
 
     """
 
