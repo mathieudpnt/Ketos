@@ -676,6 +676,10 @@ class Spectrogram(AnnotationHandler):
             Args:
                 t: float
                    Time since spectrogram start in duration
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
 
             Returns:
                 bin : int
@@ -704,6 +708,10 @@ class Spectrogram(AnnotationHandler):
             Args:
                 f: float
                    Frequency in Hz 
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
 
             Returns:
                 bin: int
@@ -723,16 +731,44 @@ class Spectrogram(AnnotationHandler):
         return f
 
     def tbins(self):
-        return self.image.shape[0]
+        """ Get number of time bins
+
+            Returns:
+                n: int
+                    Number of bins
+        """
+        n = self.image.shape[0]
+        return n
 
     def fbins(self):
-        return self.image.shape[1]
+        """ Get number of frequency bins
+
+            Returns:
+                n: int
+                    Number of bins
+        """
+        n = self.image.shape[1]
+        return n
 
     def fmax(self):
-        return self.fmin + self.fres * self.fbins()
+        """ Get upper range of frequency axis
+
+            Returns:
+                fmax: float
+                    Maximum frequency in Hz
+        """
+        fmax = self.fmin + self.fres * self.fbins()
+        return fmax
         
     def duration(self):
-        return self.tbins() * self.tres
+        """ Get spectrogram duration
+
+            Returns:
+                t: float
+                    Duration in seconds
+        """
+        t = self.tbins() * self.tres
+        return t
 
     def get_label_vector(self, label):
         """ Get a vector indicating presence/absence (1/0) 
@@ -757,20 +793,42 @@ class Spectrogram(AnnotationHandler):
 
         return y
 
-    #TODO: handle datetime=None
-    def taxis(self):
-        if self.timestamp is not None:
-            times = list()
+    def time_labels(self):
+        """ Generates an array of labels for the time bins
+            
+            If the spectrogram was created with a timestamp, the labels 
+            will be datetime objects.
+
+            If the spectrogram was created without a timestamp, the labels 
+            will be 't0', 't1', etc.
+
+            Returns:
+                img: list of str or datetime
+                    Labels for the time bins
+        """
+        if self.timestamp is None:
+            tax = ['t{0}'.format(t) for t in range(self.tbins())]
+
+        else:
+            tax = list()
             delta = datetime.timedelta(seconds=self.tres)
             t = self.timestamp + datetime.timedelta(seconds=self.tmin)
             for _ in range(self.tbins()):
-                times.append(t)
+                tax.append(t)
                 t += delta
             
-            return times
+        return tax
 
+    def frequency_labels(self):
+        """ Generates an array of labels for the frequency bins
+            
+            This will return the value of the attribute flabels, or 
+            simply 'f0', 'f1', etc., if this attribute was not set.
 
-    def faxis(self):
+            Returns:
+                img: list of str
+                    Labels for the frequency bins
+        """
         if self.flabels == None:
             self.flabels = ['f{0}'.format(x) for x in range(self.fbins())]
         
@@ -783,9 +841,8 @@ class Spectrogram(AnnotationHandler):
             If the cropping box extends beyond the boarders of the spectrogram, 
             the cropped spectrogram is the overlap of the two.
             
-            In general, the cuts will not coincide with bin divisions. 
-            For the lower cuts, the entire lower bin is included.
-            For the higher cuts, the entire upper bin is excluded.
+            In general, the cuts will not coincide with bin divisions.             
+            The cropping operation includes both the lower and upper bin.
 
             Args:
                 tlow: float
@@ -796,6 +853,10 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
 
             Returns:
                 img: 2d numpy array
@@ -833,7 +894,6 @@ class Spectrogram(AnnotationHandler):
 
         return img, t1, f1
 
-
     def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, fpad=False, keep_time=True, make_copy=False):
         """ Crop spectogram along time axis, frequency axis, or both.
             
@@ -852,9 +912,21 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
                 keep_time: bool
                     Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
                     the first bin of the cropped spectrogram.
+                make_copy: bool
+                    Do not modify the present instance, but make a copy instead and applying the cropping operation to this copy
+
+            Returns:
+                spec: Spectrogram
+                    Cropped spectrogram, empy unless make_copy is True
+
+            Examples: 
         """
         if make_copy:
             spec = self.copy()
