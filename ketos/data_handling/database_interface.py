@@ -508,15 +508,31 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
     return extracted, complements
 
 def parse_labels(item):
-    """ Parse labels string.
+    """ Parse the 'labels' field from an item in a hdf5 spectrogram table 
+        
 
         Args:
             item: 
-                Table item
+                A table item (a row from a hdf5 spectrogram table).
 
         Returns:
             labels: list(int)
                 List of labels
+
+        Example:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+            >>>
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/train/species1")
+            >>>
+            >>> table[0]['labels']
+
+            >>> parse_labels(table[0]['labels'])
+
+
+
+
     """
     labels_str = item['labels'].decode()
     labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
