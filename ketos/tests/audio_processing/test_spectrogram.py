@@ -105,14 +105,27 @@ def test_init_mel_spectrogram_with_kwargs(sine_audio):
 def test_find_bins():    
     img = np.ones(shape=(20,30))
     spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
-    b = spec._find_tbin(t=[0.5, 4.5, 99])
+    b = spec._find_tbin(t=[-0.5, 4.5, 99])
+    assert b[0] == -1
+    assert b[1] == 4
+    assert b[2] == img.shape[0]
+    b = spec._find_fbin(f=[30, 61.2])
+    assert b[0] == -1
+    assert b[1] == 1
+    b = spec._find_fbin(f=[200])
+    assert b[0] == img.shape[1]
+
+def test_find_bins_with_truncation():    
+    img = np.ones(shape=(20,30))
+    spec = Spectrogram(image=img, fmin=60.5, fres=0.5)
+    b = spec._find_tbin(t=[-0.5, 4.5, 99], truncate=True)
     assert b[0] == 0
     assert b[1] == 4
     assert b[2] == img.shape[0]-1
-    b = spec._find_fbin(f=[30, 61.2])
+    b = spec._find_fbin(f=[30, 61.2], truncate=True)
     assert b[0] == 0
     assert b[1] == 1
-    b = spec._find_fbin(f=[200])
+    b = spec._find_fbin(f=[200], truncate=True)
     assert b[0] == img.shape[1]-1
 
 def test_clip_one_box():    
@@ -123,12 +136,12 @@ def test_clip_one_box():
     box = [5.1, 10.5, 30., 64.3]
     y = spec._clip(boxes=box)
     assert len(y) == 1
-    assert y[0].image.shape[0] == 5
-    assert y[0].image.shape[1] == 7
+    assert y[0].image.shape[0] == 6
+    assert y[0].image.shape[1] == 8
     assert y[0].fmin == 60.5
     assert spec.image.shape[0] == img.shape[0] - y[0].image.shape[0]
     assert y[0].image[1,0] == 1.2
-    assert spec.image[8,0] == 1.66
+    assert spec.image[7,0] == 1.66
 
 def test_clip_2d_box():    
     img = np.ones(shape=(20,30))
@@ -138,7 +151,7 @@ def test_clip_2d_box():
     box = [5.1, 10.5, 0, 3000]
     y = spec._clip(boxes=box)
     assert len(y) == 1
-    assert y[0].image.shape[0] == 5
+    assert y[0].image.shape[0] == 6
     assert y[0].image.shape[1] == img.shape[1]
 
 def test_clip_two_boxes():    
@@ -148,13 +161,13 @@ def test_clip_two_boxes():
     box2 = (6.1, 11.5, 64.1, 65.1)
     y = spec._clip(boxes=[box1,box2])
     assert len(y) == 2
-    assert y[0].image.shape[0] == 5
-    assert y[0].image.shape[1] == 7
+    assert y[0].image.shape[0] == 6
+    assert y[0].image.shape[1] == 8
     assert y[0].fmin == 60.5
-    assert y[1].image.shape[0] == 5
-    assert y[1].image.shape[1] == 2
+    assert y[1].image.shape[0] == 6
+    assert y[1].image.shape[1] == 3
     assert y[1].fmin == 64.0
-    assert spec.image.shape[0] == img.shape[0] - 6
+    assert spec.image.shape[0] == img.shape[0] - 7
 
 def test_append_spectrogram(sine_audio):
     spec1 = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
@@ -195,16 +208,16 @@ def test_add_spectrograms_with_smoothing():
 def test_cropped_mag_spectrogram_has_correct_size(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     spec.crop(fhigh=4000)
-    assert spec.image.shape == (57, 23)
+    assert spec.image.shape == (57, 24)
     spec.crop(flow=1000)
-    assert spec.image.shape == (57, 18)
+    assert spec.image.shape == (57, 19)
 
 def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     spec.crop(fhigh=4000)
-    assert spec.image.shape == (57, 23)
+    assert spec.image.shape == (57, 24)
     spec.crop(flow=1000)
-    assert spec.image.shape == (57, 18)
+    assert spec.image.shape == (57, 19)
 
 # TODO: Fix cropping method so it also works for Mel spectrograms
 #def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
@@ -217,7 +230,6 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
 #    assert spec.image.shape == (37, 15)
 #    spec.crop(thigh=2.5)
 #    assert spec.image.shape == (30, 15)
-
 
 def test_mag_compute_average_and_median_without_cropping(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
@@ -252,42 +264,41 @@ def test_mag_compute_average_and_median_with_cropping(sine_audio):
     avg = spec.average(tlow=0, thigh=0.4)
     med = spec.median(flow=1000, fhigh=2000)
     assert avg == pytest.approx(8618, abs=0.5)
-    assert med == pytest.approx(30931, abs=0.5)   
+    assert med == pytest.approx(33923.9, abs=0.5)   
 
 def test_power_compute_average_and_median_with_cropping(sine_audio):
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average(tlow=0, thigh=0.4)
     med = spec.median(flow=1000, fhigh=2000)
     assert avg == pytest.approx(3567190, abs=1.0)
-    assert med == pytest.approx(3772284, abs=0.5)   
+    assert med == pytest.approx(4495422.5, abs=0.5)   
 
 def test_mel_compute_average_and_median_with_cropping(sine_audio):
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average(tlow=0, thigh=0.4)
     med = spec.median(flow=1000, fhigh=2000)
     assert avg == pytest.approx(-259, abs=1.0)
-    assert med == pytest.approx(270, abs=1.0) 
-
+    assert med == pytest.approx(211.8, abs=1.0) 
 
 def test_mag_compute_average_with_axis(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average(tlow=1, thigh=1.2, axis=1)
-    assert avg.shape == (3,)
-    expected =  np.array([8618.055108, 8618.055108, 8618.055108])
+    assert avg.shape == (4,)
+    expected =  np.array([8618.055108, 8618.055108, 8618.055108, 8618.055108])
     np.testing.assert_array_almost_equal(avg, expected)
 
 def test_power_compute_average_with_axis(sine_audio):
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average(tlow=1, thigh=1.2, axis=1)
-    assert avg.shape == (3,)
-    expected =  np.array([3567190.528536, 3567190.528536, 3567190.528536])
+    assert avg.shape == (4,)
+    expected =  np.array([3567190.528536, 3567190.528536, 3567190.528536, 3567190.528536])
     np.testing.assert_array_almost_equal(avg, expected)
 
 def test_mel_compute_average_with_axis(sine_audio):
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
     avg = spec.average(tlow=1, thigh=1.2, axis=1)
-    assert avg.shape == (3,)
-    expected =  np.array([-259.345679, -259.345679, -259.345679])
+    assert avg.shape == (4,)
+    expected =  np.array([-259.345679, -259.345679, -259.345679, -259.345679])
     np.testing.assert_array_almost_equal(avg, expected)
         
 def test_mag_spectrogram_has_correct_time_axis(sine_audio):
@@ -383,7 +394,7 @@ def test_annotate():
     assert len(spec.labels) == 1
     assert spec.labels[0] == 3
 
-def test_make_spec_from_cut():
+def test_crop_with_copy_true():
     img = np.zeros((19,31))
     spec = Spectrogram(image=img, tag='file.wav')
     labels = [1,2]
@@ -391,7 +402,7 @@ def test_make_spec_from_cut():
     box2 = [2.1,13.0,1.1,28.5]
     boxes = [box1, box2]
     spec.annotate(labels=labels, boxes=boxes)
-    scut = spec._make_spec_from_cut(2,5,24,27)
+    scut = spec.crop(2,5,24,27, make_copy=True)
     # check that start time is as expected
     assert scut.tmin == 2    
     # check that annotations have been correctly carried over
@@ -560,7 +571,7 @@ def test_crop_tracking_data_with_two_files():
     spec1 = Spectrogram(image=np.ones(shape=(100,10)), tag='file1.wav', tres=0.6) 
     spec2 = Spectrogram(image=np.ones(shape=(50,10)), tag='file2.wav', tres=0.6) 
     spec1.append(spec2)
-    tvec, fvec, fdict = spec1._crop_tracking_data(80, 130)
+    tvec, fvec, fdict = spec1._crop_tracking_data(tlow=0.6*80, thigh=0.6*130)
     assert fdict[0] == 'file1.wav'
     assert fdict[1] == 'file2.wav'
     assert len(tvec) == 50
