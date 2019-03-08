@@ -340,7 +340,7 @@ def filter_by_label(table, label):
     else:
         raise TypeError("label must be an int or a list of ints")    
     
-    condition = "|".join(["(labels == b'[[{0}]]')".format(l) for l in label])
+    condition = "|".join(["(labels == b'[{0}]')".format(l) for l in label])
     rows = list(table.get_where_list(condition))
 
     return rows
@@ -370,8 +370,11 @@ def load_specs(table, index_list=None):
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
 
-            >>> selected_specs = load_specs(table, [0])
-            >>> [type(spec) for spec in selected_specs]
+            >>> selected_specs = load_specs(table, [0,3,10])
+            >>> len(selected_specs)
+            3
+            >>> type(selected_specs[0])
+            <class 'ketos.audio_processing.spectrogram.Spectrogram'>
 
     """
     res = list()
@@ -391,7 +394,7 @@ def load_specs(table, index_list=None):
         x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
 
         # annotate
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         x.annotate(labels=labels, boxes=boxes)
 
         # handle file and time info
