@@ -415,33 +415,66 @@ def load_specs(table, index_list=None):
     return res
 
 def extract(table, label, min_length, center=False, fpad=True, preserve_time=False):
-    """ Extract segments that match the specified label.
+    """ Create new spectrograms by croping segments annotated with the specified label.
+
+        Filter the table by the specified label. In each of the selected spectrograms,
+        search for the individual annotations (i.e.: boxes that match the specified label).
+        Each annotation will result in a new spectrogram. After the matching segments are extracted,
+        what is left is stiched together to create a spectrogram object. This spectrogram contains all
+        the parts of the original spectrogram that did not contain any matching annotations and is treated
+        as a complement to the extracted spectrograms. All the extracted spectrograms are returned in a list and 
+        the complements in another.
+        
+        Any spectrogram in the table that does not contain any annotations of interest is added to the complements list. 
 
         Args:
             table: tables.Table
-                Table
+                The table containing the spectrograms.
             label: int
-                Label
+                The label
             min_length: float
-                Minimum individual duration of extracted segments
+                Minimum duration (in seconds) the of extracted segments.
             center: bool
-                Place labels in the center of the segments
+                If True, place the annotation box in the center of the segments.
+                Otherwise, place it randomly within the spectrogram.
+
             fpad: bool
-                Ensure that all extracted spectrograms have the same 
-                frequency range by padding with zeros, if necessary
+                If True, ensure that all extracted spectrograms have the same 
+                frequency range by padding with zeros, if necessary.
+                If False, the resulting spectrograms will be cropped at the minimum
+                and maximum frequencies specified by the bounding box.
 
         Returns:
             selection: list
-                List of segments matching the specified label
+                List of spectrograms segments matching the specified label
             complement: spectrogram or audio signal
-                Segments (joined) that did not match the specified label
+                A list of spectrograms containing the joined segments that did not match the specified label.
+                There will be on such spectrogram for each of the original spectrograms in the table.
+
+        Examples:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/train/species1")
+
+            >>> extracted_specs, spec_complements = extract(table, label=1, min_length=2)
+            >>> len(extracted_specs)
+            15
+            >>> len(specs_complements)
+            15
+
+            >>> spec_1_fig = extracted_specs[0].plot()
+            >>> comp_1_fig = spec_complements[0].plot()
+
+
     """
 
     # selected segments
     selection = list()
     complement = None
 
-    items = get_objects(table)
+    items = load_specs(table)
 
     # loop over items in table
     for x in items:
