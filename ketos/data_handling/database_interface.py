@@ -378,6 +378,8 @@ def load_specs(table, index_list=None):
 
     """
     res = list()
+    if index_list is None:
+        index_list = list(range(table.nrows))
 
     # loop over items in table
     for idx in index_list:
