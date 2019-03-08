@@ -250,6 +250,8 @@ class AnnotationHandler():
         for b in self.boxes:
             b[0] += delay
             b[1] += delay
+            for v in b: 
+                v = round(v, self.precision)
         
     def _scale_annotations(self, scale=0):
         """ Scale the time axis by a constant factor.
@@ -271,3 +273,5 @@ class AnnotationHandler():
         for b in self.boxes:
             b[0] *= scale
             b[1] *= scale
+            for v in b: 
+                v = round(v, self.precision)

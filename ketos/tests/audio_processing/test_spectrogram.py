@@ -420,6 +420,34 @@ def test_crop_with_copy_true():
         assert spec.file_vector[i] == 0
         assert spec.time_vector[i] == i * scut.tres
 
+def test_extract_with_empty_remainder():
+    img = np.zeros((19,31))
+    spec = Spectrogram(image=img, tag='file.wav')
+    spec.annotate(labels=1, boxes=[0,19])
+    seg = spec.extract(label=1)
+    assert spec.image is None
+    assert np.all(seg[0].image == img) 
+
+def test_extract_with_non_empty_remainder():
+    img = np.zeros((19,31))
+    spec = Spectrogram(image=img, tag='file.wav')
+    spec.annotate(labels=[1,1], boxes=[[4,13],[5.1,6.4]])
+    seg = spec.extract(label=1)
+    assert spec.image.shape[0] == 10
+    assert spec.image.shape[1] == img.shape[1]
+    assert seg[0].image.shape[0] == 9
+    assert seg[0].image.shape[1] == img.shape[1]
+    assert seg[1].image.shape[0] == 2
+    assert seg[1].image.shape[1] == img.shape[1]
+    assert np.sum(spec.get_label_vector(1)) == 0
+    assert np.sum(seg[0].get_label_vector(1)) == 9
+    assert np.sum(seg[1].get_label_vector(1)) == 2
+    assert seg[0].file_dict[0] == 'file.wav'
+    assert seg[1].file_dict[0] == 'file.wav'
+    assert len(seg[1].time_vector) == 2
+    assert seg[1].time_vector[0] == 5
+    assert seg[1].time_vector[1] == 6
+
 @pytest.mark.test_stretch
 def test_stretch():
     box1 = [1.0, 2.0]
@@ -478,6 +506,15 @@ def test_copy_spectrogram():
     assert spec2.fmin == 14
     assert spec2.fres == 0.1
 
+@pytest.mark.test_copy_mag_spectrogram
+def test_copy_mag_spectrogram(sine_audio):
+    spec = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec2 = spec.copy()
+    assert spec2.image.shape[0] == spec.image.shape[0]
+    assert spec2.image.shape[1] == spec.image.shape[1]
+    assert spec2.tmin == spec.tmin
+    assert spec2.tres == spec.tres
+
 @pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_default_args():
     s1 = Spectrogram(image=np.ones((100,100)))
@@ -525,9 +562,9 @@ def test_get_label_vector():
     y = spec.get_label_vector(label=1)
     assert y[0] == 0
     assert y[1] == 1 
-    assert np.all(y[2:11] == 0)
-    assert np.all(y[11:17] == 1)
-    assert np.all(y[17:] == 0)
+    assert np.all(y[3:11] == 0)
+    assert np.all(y[11:18] == 1)
+    assert np.all(y[18:] == 0)
 
 @pytest.mark.test_scale_freq_axis
 def test_stretch_freq_axis():
