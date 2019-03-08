@@ -6,7 +6,6 @@
     sound waves, in which time is shown along the horizontal 
     axis, frequency along the vertical axis, and color is used 
     to indicate the sound amplitude. Read more on Wikipedia:
-
     https://en.wikipedia.org/wiki/Spectrogram
 
     Contents:
@@ -71,20 +70,21 @@ def ensure_same_length(specs, pad=False):
                 List of same-length spectrograms
 
         Example:
-        >>> from ketos.audio_processing.audio import AudioSignal
 
+        >>> from ketos.audio_processing.audio import AudioSignal
+        >>>
         >>> # Create two audio signals with different lengths
         >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
         >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
-
+        >>>
         >>> # Compute spectrograms
         >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
         >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
-
+        >>>
         >>> # Print the durations
         >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
         5.85, 8.85
-
+        >>>
         >>> # Ensure all spectrograms have same duration as the shortest spectrogram
         >>> specs = ensure_same_length([spec1, spec2])
         >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
@@ -164,7 +164,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             specs: Spectrogram or list of Spectrograms
                 Created spectrogram(s)
 
-        Example:
+        Examples:
             >>> # extract saved spectrograms from database file
             >>> import tables
             >>> import ketos.data_handling.database_interface as di
@@ -178,7 +178,6 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             >>> new_spec = interbreed([spec1], [spec2], num=1)
             >>>
             >>> # plot the original spectrograms and the new one
-            >>> import matplotlib.pyplot as plt
             >>> fig = spec1.plot()
             >>> fig.savefig("ketos/tests/assets/tmp/spec1.png")
             >>> fig = spec2.plot()
@@ -189,7 +188,6 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             .. image:: ../../../../ketos/tests/assets/tmp/spec1.png
                 :width: 300px
                 :align: left
-                
 
             .. image:: ../../../../ketos/tests/assets/tmp/spec2.png
                 :width: 300px
@@ -296,7 +294,7 @@ class Spectrogram(AnnotationHandler):
         The 1st axis is the frequency axis (f-axis).
         
         Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and fres).
+        and a resolution (tres and fres).
 
         Use the annotation method to add annotations to the spectrogram.
 
@@ -391,10 +389,10 @@ class Spectrogram(AnnotationHandler):
         """ Update tracking data in response to a cropping operation
 
             Args:
-                tbin1: int
-                    Lower time bin of cut
-                tbin2: int
-                    Upper time bin of cut
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
 
             Returns:
                 new_file_dict: dict
@@ -591,6 +589,23 @@ class Spectrogram(AnnotationHandler):
                 boxes: list(tuple)
                     Annotation boxes, specifying the start and stop time of the annotation 
                     and, optionally, the minimum and maximum frequency.
+
+            Example:
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
+                >>> # add two annotations
+                >>> spec.annotate(labels=[1,2], boxes=[[1.5,4.5],[5.0,5.4]])
+                >>> # show the spectrogram with the annotation that has label=1
+                >>> fig = spec.plot(label=1)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_label1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_label1.png
+                    :width: 550px
+                    :align: center
         """
         super().annotate(labels, boxes)
         for b in self.boxes:
@@ -826,8 +841,7 @@ class Spectrogram(AnnotationHandler):
             the cropped spectrogram is the overlap of the two.
             
             In general, the cuts will not coincide with bin divisions.             
-            For the lower cuts, the entire lower bin is included.
-            For the higher cuts, the entire upper bin is excluded.
+            The cropping operation includes both the lower and upper bin.
 
             Args:
                 tlow: float
@@ -1372,7 +1386,7 @@ class Spectrogram(AnnotationHandler):
 
             Args:
                 spec: Spectrogram
-                    Spectrogram to be added
+                    Spectrogram to be appended
         """
         assert self.tres == spec.tres, 'It is not possible to append spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to append spectrograms with different frequency resolutions'
