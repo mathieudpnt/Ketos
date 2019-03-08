@@ -304,26 +304,26 @@ def test_mel_compute_average_with_axis(sine_audio):
 def test_mag_spectrogram_has_correct_time_axis(sine_audio):
     now = datetime.datetime.today()
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
-    assert len(spec.taxis()) == 3
-    assert spec.taxis()[0] == now
-    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
-    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)   
+    assert len(spec.time_labels()) == 3
+    assert spec.time_labels()[0] == now
+    assert spec.time_labels()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.time_labels()[2] == now + datetime.timedelta(seconds=2)   
     
 def test_power_spectrogram_has_correct_time_axis(sine_audio):
     now = datetime.datetime.today()
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
-    assert len(spec.taxis()) == 3
-    assert spec.taxis()[0] == now
-    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
-    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)   
+    assert len(spec.time_labels()) == 3
+    assert spec.time_labels()[0] == now
+    assert spec.time_labels()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.time_labels()[2] == now + datetime.timedelta(seconds=2)   
 
 def test_mel_spectrogram_has_correct_time_axis(sine_audio):
     now = datetime.datetime.today()
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=1, winstep=1, NFFT=256, timestamp=now)
-    assert len(spec.taxis()) == 3
-    assert spec.taxis()[0] == now
-    assert spec.taxis()[1] == now + datetime.timedelta(seconds=1)
-    assert spec.taxis()[2] == now + datetime.timedelta(seconds=2)
+    assert len(spec.time_labels()) == 3
+    assert spec.time_labels()[0] == now
+    assert spec.time_labels()[1] == now + datetime.timedelta(seconds=1)
+    assert spec.time_labels()[2] == now + datetime.timedelta(seconds=2)
 
 def test_mag_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.seconds()
