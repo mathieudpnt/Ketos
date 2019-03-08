@@ -127,11 +127,11 @@ def test_h5_extract(sine_audio):
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    selection, complement = h5.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
+    selection, complement = h5.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True, keep_time=True)
     assert len(selection) == 2
-    tshape = int(0.8 / spec1.tres)
+    tshape = int(0.8 / spec1.tres) + 1
     assert selection[0].image.shape[0] == tshape
-    fshape = int(250 / spec1.fres)
+    fshape = int(250 / spec1.fres) + 1
     assert selection[0].image.shape[1] == fshape
     assert complement.image.shape[0] == 2*tshape_orig - selection[0].image.shape[0] - selection[1].image.shape[0]
     assert selection[0].boxes[0][0] == pytest.approx(1.001, abs=0.000001)

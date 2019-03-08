@@ -271,7 +271,7 @@ def get_objects(table):
 
     return res
 
-def extract(table, label, min_length, center=False, fpad=True, preserve_time=False):
+def extract(table, label, min_length, center=False, fpad=True, keep_time=False):
     """ Extract segments that match the specified label.
 
         Args:
@@ -304,7 +304,7 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
     for x in items:
 
         # extract segments of interest
-        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
+        segs = x.extract(label=label, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
         selection = selection + segs
 
         # collect
