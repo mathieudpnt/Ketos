@@ -200,7 +200,7 @@ def test_add_spectrograms_with_different_shapes(sine_audio):
 def test_add_spectrograms_with_smoothing():
     spec1 = Spectrogram(image=np.ones((100,100)))
     spec2 = spec1.copy()
-    spec1.add(spec2, smooth=True)
+    spec1.add(spec2, smooth=True, smooth_par=5)
     assert spec1.image[50,50] == pytest.approx(2.0, abs=0.0001)
     assert spec1.image[0,50] == pytest.approx(1.01, abs=0.01)
     assert spec1.image[9,50] == pytest.approx(1.50, abs=0.06)
@@ -570,7 +570,7 @@ def test_get_label_vector():
 def test_stretch_freq_axis():
     spec = Spectrogram(image=np.ones(shape=(10,20)))
     spec.image[:,5] = 0.5
-    spec.scale_freq_axis(scale=2)
+    spec._scale_freq_axis(scale=2)
     assert spec.image.shape[1] == 20
     assert spec.image[0,5] == pytest.approx(1)
     assert spec.image[0,10] == pytest.approx(0.625, abs=0.001)
@@ -579,7 +579,7 @@ def test_stretch_freq_axis():
 def test_compress_freq_axis():
     spec = Spectrogram(image=np.ones(shape=(10,20)))
     spec.image[:,5] = 0.5
-    spec.scale_freq_axis(scale=0.5)
+    spec._scale_freq_axis(scale=0.5)
     assert spec.image.shape[1] == 20
     assert spec.image[0,5] == pytest.approx(1)
     assert spec.image[0,2] == pytest.approx(0.78, abs=0.1)

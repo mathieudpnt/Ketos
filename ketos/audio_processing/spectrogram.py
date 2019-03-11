@@ -1514,8 +1514,8 @@ class Spectrogram(AnnotationHandler):
             sp = spec
 
         # stretch/squeeze
-        sp.scale_time_axis(scale=t_scale, preserve_shape=False)
-        sp.scale_freq_axis(scale=f_scale, preserve_shape=True)
+        sp._scale_time_axis(scale=t_scale, preserve_shape=False)
+        sp._scale_freq_axis(scale=f_scale, preserve_shape=True)
 
         # crop spectrogram
         if delay < 0:
@@ -1562,8 +1562,28 @@ class Spectrogram(AnnotationHandler):
         self.file_vector = np.zeros(n)
         self.file_dict = {0: 'fake'}
 
-    def scale_time_axis(self, scale, preserve_shape=True):
+    def _scale_time_axis(self, scale, preserve_shape=True):
+        """ Scale the spectrogram's time axis by a constant factor
 
+            If preserve_shape is False, this operation simply stretches (scale > 1)
+            or squeezes (scale < 1) the spectrogram lengthwise (i.e. along the time axis) 
+            by the specified scale factor.  
+
+            If preserve_shape is True, the effect of this operation is to stretch or 
+            squeeze the spectrogram lengthwise by the specified scale factor, then
+
+                i) if stretched, remove the section that extends beyond the original length
+                ii) if squeezed, extend the spectrogram so that its length matches that of 
+                the original spectrogram by appending to it part of the original spectrogram
+
+            Args:
+                scale: float
+                    Scaling factor
+                preserve_shape: bool
+                    If True, the time axis will have the same length after rescaling as it had before.
+                    If False, the length will change.
+
+        """
         flip_pad = False
 
         if scale == 1:
@@ -1593,8 +1613,28 @@ class Spectrogram(AnnotationHandler):
         # update annotations
         self._scale_annotations(scale)
 
-    def scale_freq_axis(self, scale, preserve_shape=True):
+    def _scale_freq_axis(self, scale, preserve_shape=True):
+        """ Scale the spectrogram's frequency axis by a constant factor
 
+            If preserve_shape is False, this operation simply stretches (scale > 1)
+            or squeezes (scale < 1) the spectrogram heightwise (i.e. along the frequency axis) 
+            by the specified scale factor.  
+
+            If preserve_shape is True, the effect of this operation is to stretch or 
+            squeeze the spectrogram heightwise by the specified scale factor, then
+
+                i) if stretched, remove the section that extends beyond the original height
+                ii) if squeezed, extend the spectrogram so that its height matches that of 
+                the original spectrogram by appending to it part of the original spectrogram
+
+            Args:
+                scale: float
+                    Scaling factor
+                preserve_shape: bool
+                    If True, the time axis will have the same height after rescaling as it had before.
+                    If False, the height will change.
+
+        """
         pad_with_gaussian_noise = False
         flip_pad = False
 
