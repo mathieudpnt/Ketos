@@ -61,6 +61,7 @@ def test_open_existing_table():
     # open non-existing table
     tbl = di.open_table(h5file=h5file, table_path='/train/species1')
     assert isinstance(tbl, tables.table.Table)
+    assert tbl.nrows == 15
     # clean
     h5file.close()
    
@@ -80,6 +81,22 @@ def test_create_table():
     # clean
     h5file.close()
     os.remove(fpath)
+
+@pytest.mark.test_create_table
+def test_create_table_existing():
+    """Test if a table is open when it already exists"""
+    # open h5 file
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = tables.open_file(fpath, 'a')
+    # create table
+    _ = di.create_table(h5file=h5file, path='/train/', name='species1', shape=(20,60))
+    table = h5file.get_node("/train/species1")
+    assert table.nrows == 15
+    assert table[0]['data'].shape == (2413,201)
+    assert table[1]['id'] == b'1'
+    # clean
+    h5file.close()
+    
 
 @pytest.mark.test_h5_write_spec
 def test_h5_write_spec(sine_audio):
