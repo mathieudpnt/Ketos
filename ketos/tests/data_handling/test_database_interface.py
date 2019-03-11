@@ -1,20 +1,34 @@
-""" Unit tests for the the 'h5' module in the 'sound_classification' package
+""" Unit tests for the database_interface module within the ketos library
 
-
+    
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Institute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import pytest
 import tables
 import os
-import ketos.data_handling.database_interface as h5
+import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
 from ketos.audio_processing.spectrogram import MagSpectrogram
 
@@ -24,14 +38,16 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-@pytest.mark.test_h5_open
-def test_h5_open_non_existing_table():
+@pytest.mark.test_open_table
+def test_open_non_existing_table():
+    """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     f = tables.open_file(fpath, 'w')
     # open non-existing table
-    tbl = h5.open(h5file=f, table_path='/group_1/table_1')
-    assert tbl == None
+    with pytest.raises(tables.NoSuchNodeError):
+        tbl = di.open_table(h5file=f, table_path='/group_1/table_1')
+        assert tbl == None
     # clean
     f.close()
     os.remove(fpath)
