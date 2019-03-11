@@ -1300,10 +1300,11 @@ class Spectrogram(AnnotationHandler):
 
             Currently, offers the following two methods:
 
-                1) MEDIAN: Subtracts from each row the median value of that row
-
-                2) RUNNING_MEAN: Subtracts from each row a running mean, computed according to the 
-                    formula given in Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
+                1. MEDIAN: Subtracts from each row the median value of that row.
+                
+                2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
+                
+            The running mean is computed according to the formula given in Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
 
             Args:
                 method: str
