@@ -512,12 +512,12 @@ def parse_labels(item):
         
 
         Args:
-            item: 
-                A table item (a row from a hdf5 spectrogram table).
+            item: tables.tableextension.Row
+            A table item (a row from a hdf5 spectrogram table).
 
         Returns:
             labels: list(int)
-                List of labels
+            List of labels
 
         Example:
             >>> import tables
@@ -536,11 +536,7 @@ def parse_labels(item):
             <class 'list'>
             >>> label
             [1]
-            
-
-
-
-
+  
     """
     labels_str = item['labels'].decode()
     labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
@@ -548,15 +544,31 @@ def parse_labels(item):
     return labels
 
 def parse_boxes(item):
-    """ Parse boxes string.
+    """ Parse the 'boxes' field from an item in a hdf5 spectrogram table
 
         Args:
-            item: 
-                Table item
-
+            item: tables.tableextension.Row
+            A table item (a row from a hdf5 spectrogram table).
         Returns:
             labels: list(tuple)
                 List of boxes
+        Example:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+            >>>
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/train/species1")
+            >>>
+            >>> type(table[0]['boxes'])
+            <class 'numpy.bytes_'>
+            >>> table[0]['boxes']
+            b'[[10,15,200,400]]'
+
+            >>> box = parse_boxes(table[0])
+            >>> type(box)
+            <class 'list'>
+            >>> box
+            [[10, 15, 200, 400]]
     """
     
     boxes_str = item['boxes'].decode()
@@ -569,4 +581,6 @@ def parse_boxes(item):
     boxes = np.array(boxes_str)
     if (boxes == -99).any():
          boxes[boxes == -99] = math.inf
+    boxes = boxes.tolist()
+    
     return boxes
