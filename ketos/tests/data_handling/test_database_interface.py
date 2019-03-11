@@ -213,13 +213,15 @@ def test_parse_labels(sine_audio):
     di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
     #parse labels
     labels = di.parse_labels(item=tbl[0])
+    assert type(labels) == list
     assert labels == [1]
 
     labels = di.parse_labels(item=tbl[1])
+    assert type(labels) == list
     assert labels == [1,2]
     
 
-@pytest.mark.test_parse_labels
+@pytest.mark.test_parse_boxes
 def test_parse_boxes(sine_audio):
     """Test if boxes with the expected format are correctly parsed"""
     # create spectrogram    
@@ -238,10 +240,12 @@ def test_parse_boxes(sine_audio):
     di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
     # parse boxes
     boxes = di.parse_boxes(item=tbl[0])
+    assert type(boxes) == list
     assert boxes == [[1.001, 1.401, 50, 300]]
 
-    labels = di.parse_labels(item=tbl[1])
-    assert labels == [[1.1, 1.5], [1.6, 1.7]]
+    boxes = di.parse_boxes(item=tbl[1])
+    assert type(boxes) == list
+    assert boxes == [[1.1, 1.5, 0.0, 22050.0], [1.6, 1.7, 0.0, 22050.0]]
 
 
 
