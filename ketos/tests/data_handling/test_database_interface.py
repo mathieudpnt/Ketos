@@ -127,30 +127,6 @@ def test_write_spec(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_h5_write_audio_signal
-def test_h5_write_audio_signal(sine_audio):
-    # annotate audio
-    sine_audio.annotate(labels=(1,2), boxes=((1,2),(1.5,2.5)))
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
-    f = tables.open_file(fpath, 'w')
-    # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
-    # write audio signal to table
-    h5.write(table=tbl, x=sine_audio)
-    # write audio signal to table with optional args
-    h5.write(table=tbl, x=sine_audio, id='123%')
-
-    assert tbl[0]['id'].decode() == 'audio'
-    assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,0.0,inf],[1.5,2.5,0.0,inf]]'
-
-    assert tbl[1]['id'].decode() == '123%'
-    assert tbl[1]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,0.0,inf],[1.5,2.5,0.0,inf]]'
-
-    f.close()
-    os.remove(fpath)
 
 @pytest.mark.test_h5_extract
 def test_h5_extract(sine_audio):
