@@ -211,20 +211,3 @@ def test_h5_select_spec(sine_audio):
     assert len(rows) == 2
     assert rows[0] == 0
 
-@pytest.mark.test_h5_select_audio
-def test_h5_select_audio(sine_audio):
-    sine_audio2 = sine_audio.copy()
-    sine_audio.annotate(labels=(1), boxes=((1.0, 1.4)))
-    sine_audio2.annotate(labels=(2), boxes=((1.0, 1.4)))
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
-    f = tables.open_file(fpath, 'w')
-    # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
-    # write audio files to table
-    h5.write(table=tbl, x=sine_audio, id='1') 
-    h5.write(table=tbl, x=sine_audio2, id='2') 
-    # select audio signals with label=2
-    rows = h5.select(table=tbl, label=2)
-    assert len(rows) == 1
-    assert rows[0] == 1
