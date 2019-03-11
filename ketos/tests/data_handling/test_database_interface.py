@@ -174,14 +174,22 @@ def test_extract(sine_audio):
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    selection, complement = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
+    selection, complements = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
     assert len(selection) == 2
-    assert selection[0].image.shape == ()
+    assert len(complements) == 2
+    
+    assert selection[0].image.shape == (40,50)
+    assert complements[0].image.shape[0] == (spec1.image.shape[0] - selection[0].image.shape[0])
+
+    assert selection[1].image.shape == (40,4411)
+    assert complements[1].image.shape[0] == (spec2.image.shape[0] - selection[0].image.shape[0])
+
+
+
     tshape = int(0.8 / spec1.tres)
     assert selection[0].image.shape[0] == tshape
     fshape = int(250 / spec1.fres)
     assert selection[0].image.shape[1] == fshape
-    assert len(complement) == 2#.image.shape[0] == 2*tshape_orig - selection[0].image.shape[0] - selection[1].image.shape[0]
     assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
     assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
 
