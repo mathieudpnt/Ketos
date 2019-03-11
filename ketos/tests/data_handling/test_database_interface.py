@@ -127,6 +127,24 @@ def test_write_spec(sine_audio):
     h5file.close()
     os.remove(fpath)
 
+@pytest.mark.test_write_spec
+def test_write_spec_TypeError(sine_audio):
+    """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
+    sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
+    h5file = tables.open_file(fpath, 'w')
+    # create table
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
+    # write spectrogram to table
+    with pytest.raises(TypeError):
+        di.write_spec(table=tbl, spec=sine_audio)
+       
+    assert tbl.nrows == 0
+    
+    h5file.close()
+    os.remove(fpath)
+
 
 @pytest.mark.test_h5_extract
 def test_h5_extract(sine_audio):
