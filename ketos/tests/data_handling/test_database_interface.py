@@ -150,6 +150,7 @@ def test_write_spec_TypeError(sine_audio):
 
 @pytest.mark.test_extract
 def test_extract(sine_audio):
+    """ Test if annotations are correctly extracted from spectrograms"""
     # create spectrogram    
     spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
     spec1.annotate(labels=(1), boxes=((1.001, 1.401, 50, 300)))
@@ -175,6 +176,7 @@ def test_extract(sine_audio):
     # get segments with label=1
     selection, complement = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
     assert len(selection) == 2
+    assert selection[0].image.shape == ()
     tshape = int(0.8 / spec1.tres)
     assert selection[0].image.shape[0] == tshape
     fshape = int(250 / spec1.fres)
