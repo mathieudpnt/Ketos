@@ -1390,7 +1390,7 @@ class Spectrogram(AnnotationHandler):
             If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap, None is returned.
+            If there is no overlap, NaN is returned.
 
             Args:
                 axis: bool
@@ -1470,8 +1470,11 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5, keep_time=False, t_scale=1, f_scale=1):
-        """ Add another spectrogram to this spectrogram.
+    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, keep_time=False, t_scale=1, f_scale=1, **kwargs):
+        """ Add another spectrogram on top of this spectrogram.
+
+            Meta-data (e.g. annotations) will also be added.
+
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
 
@@ -1487,6 +1490,15 @@ class Spectrogram(AnnotationHandler):
                     to the method is unchanged.       
                 smooth: bool
                     Smoothen the edges of the spectrogram that is being added.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
+                t_scale: float
+                    Scale the time axis of the spectrogram that is being added by this factor
+                f_scale: float
+                    Scale the frequency axis of the spectrogram that is being added by this factor
+
+            Optional args:
                 smooth_par: int
                     This parameter can be used to control the amount of smoothing.
                     A value of 1 gives the largest effect. The larger the value, the smaller 
@@ -1516,6 +1528,11 @@ class Spectrogram(AnnotationHandler):
 
         # fade-in/fade-out
         if smooth:
+
+            smooth_par = 5
+            if 'smooth_par' in kwargs.keys():
+                smooth_par = kwargs['smooth_par']
+
             sigmas = 3
             p = 2 * np.ceil(smooth_par)
             nt = sp.tbins()
@@ -1615,7 +1632,10 @@ class Spectrogram(AnnotationHandler):
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.
-            The spectrograms must have the same dimensions and resolutions.
+
+            Includes any meta-data associated with the spectrogram (e.g. annotations).
+
+            The spectrograms must have the same time and frequency resolutions and share the same frequency range.
 
             Args:
                 spec: Spectrogram
