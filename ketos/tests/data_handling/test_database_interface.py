@@ -193,6 +193,36 @@ def test_extract(sine_audio):
     assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
     assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
 
+
+@pytest.mark.test_parse_labels
+def test_parse_labels(sine_audio):
+    """Test if labels with the expected format are correctly parsed"""
+    # create spectrogram    
+    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec1.annotate(labels=(1), boxes=[[1.001, 1.401, 50, 300]])
+    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec2.annotate(labels=(1,2), boxes=[[1.1, 1.5], [1.6, 1.7]])
+    tshape_orig = spec1.image.shape[0]
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
+    h5file = tables.open_file(fpath, 'w')
+    # create table
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
+    # write spectrograms to table
+    di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
+    di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
+    # parse labels and boxes
+    labels = di.parse_labels(item=tbl[0])
+    assert labels == [1]
+
+    labels = di.parse_labels(item=tbl[1])
+    assert labels == [1,2]
+    
+
+
+
+
+
 @pytest.mark.test_h5_select_spec
 def test_h5_select_spec(sine_audio):
     # create spectrogram    
