@@ -43,26 +43,29 @@ def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
-    f = tables.open_file(fpath, 'w')
+    h5file = tables.open_file(fpath, 'w')
     # open non-existing table
     with pytest.raises(tables.NoSuchNodeError):
-        tbl = di.open_table(h5file=f, table_path='/group_1/table_1')
+        tbl = di.open_table(h5file=h5file, table_path='/group_1/table_1')
         assert tbl == None
     # clean
     f.close()
     os.remove(fpath)
 
 @pytest.mark.test_h5_create
-def test_h5_create():
+def test_create_table():
+    """Test if a taqble and its group are created"""
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
-    f = tables.open_file(fpath, 'w')
+    h5file = tables.open_file(fpath, 'w')
     # create table
-    _ = h5.create(h5file=f, path='/group_1/', name='table_1', shape=(20,60))
-    assert '/group_1' in f
-    assert '/group_1/table_1' in f    
+    _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=(20,60))
+    group = h5file.get_node("/group_1")
+    assert isinstance(group, tables.group.Group)
+    table = h5file.get_node("/group_1/table_1")
+    assert isinstance(table, tables.table.Table)    
     # clean
-    f.close()
+    h5file.close()
     os.remove(fpath)
 
 @pytest.mark.test_h5_write_spec
