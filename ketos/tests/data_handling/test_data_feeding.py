@@ -1,4 +1,4 @@
-""" Unit tests for the data feeding module within the ketos library
+""" Unit tests for the data_feeding module within the ketos library
 
     
     Authors: Fabio Frazao and Oliver Kirsebom
