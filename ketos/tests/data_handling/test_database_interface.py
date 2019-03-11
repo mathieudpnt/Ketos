@@ -49,7 +49,20 @@ def test_open_non_existing_table():
         tbl = di.open_table(h5file=h5file, table_path='/group_1/table_1')
         assert tbl == None
     # clean
-    f.close()
+    h5file.close()
+    os.remove(fpath)
+
+@pytest.mark.test_open_table
+def test_open_existing_table():
+    """ Test if the expected table is open """
+    # open h5 file
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = tables.open_file(fpath, 'r')
+    # open non-existing table
+    tbl = di.open_table(h5file=h5file, table_path='/train/species1')
+    assert isinstance(tbl, tables.table.Table)
+    # clean
+    h5file.close()
     os.remove(fpath)
 
 @pytest.mark.test_h5_create
