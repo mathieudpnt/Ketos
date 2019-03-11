@@ -98,8 +98,9 @@ def test_create_table_existing():
     h5file.close()
     
 
-@pytest.mark.test_h5_write_spec
-def test_h5_write_spec(sine_audio):
+@pytest.mark.test_write_spec
+def test_write_spec(sine_audio):
+    """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     spec.tag = "dummytag"
@@ -107,13 +108,13 @@ def test_h5_write_spec(sine_audio):
     spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
-    f = tables.open_file(fpath, 'w')
+    h5file = tables.open_file(fpath, 'w')
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.image.shape)
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
-    h5.write(table=tbl, x=spec)
+    di.write_spec(table=tbl, spec=spec)
     # write spectrogram to table with id
-    h5.write(table=tbl, x=spec, id='123%')
+    di.write_spec(table=tbl, spec=spec, id='123%')
 
     assert tbl[0]['id'].decode() == 'dummytag'
     assert tbl[0]['labels'].decode() == '[1,2]'
@@ -123,7 +124,7 @@ def test_h5_write_spec(sine_audio):
     assert tbl[1]['labels'].decode() == '[1,2]'
     assert tbl[1]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
 
-    f.close()
+    h5file.close()
     os.remove(fpath)
 
 @pytest.mark.test_h5_write_audio_signal
