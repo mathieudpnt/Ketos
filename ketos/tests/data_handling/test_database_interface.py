@@ -112,7 +112,9 @@ def test_write_spec(sine_audio):
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
-    di.write_spec(table=tbl, spec=spec)
+    spec = di.write_spec(table=tbl, spec=spec)
+    
+    assert spec is None
     # write spectrogram to table with id
     di.write_spec(table=tbl, spec=spec, id='123%')
 
@@ -146,8 +148,8 @@ def test_write_spec_TypeError(sine_audio):
     os.remove(fpath)
 
 
-@pytest.mark.test_h5_extract
-def test_h5_extract(sine_audio):
+@pytest.mark.test_extract
+def test_extract(sine_audio):
     # create spectrogram    
     spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
     spec1.annotate(labels=(1), boxes=((1.001, 1.401, 50, 300)))
@@ -156,28 +158,28 @@ def test_h5_extract(sine_audio):
     tshape_orig = spec1.image.shape[0]
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
-    f = tables.open_file(fpath, 'w')
+    h5file = tables.open_file(fpath, 'w')
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec1.image.shape)
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrograms to table
-    h5.write(table=tbl, x=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
-    h5.write(table=tbl, x=spec2, id='2')  # Box: 1.1-1.5 s Hz
+    di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
+    di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
     # parse labels and boxes
-    labels = h5.parse_labels(item=tbl[0])
-    boxes = h5.parse_boxes(item=tbl[0])
+    labels = di.parse_labels(item=tbl[0])
+    boxes = di.parse_boxes(item=tbl[0])
     assert labels == [1]
     assert boxes[0][0] == 1.001
     assert boxes[0][1] == 1.401
     assert boxes[0][2] == 50
     assert boxes[0][3] == 300    
     # get segments with label=1
-    selection, complement = h5.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
+    selection, complement = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
     assert len(selection) == 2
     tshape = int(0.8 / spec1.tres)
     assert selection[0].image.shape[0] == tshape
     fshape = int(250 / spec1.fres)
     assert selection[0].image.shape[1] == fshape
-    assert complement.image.shape[0] == 2*tshape_orig - selection[0].image.shape[0] - selection[1].image.shape[0]
+    assert len(complement) == 2#.image.shape[0] == 2*tshape_orig - selection[0].image.shape[0] - selection[1].image.shape[0]
     assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
     assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
 
