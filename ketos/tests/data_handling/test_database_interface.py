@@ -165,14 +165,7 @@ def test_extract(sine_audio):
     # write spectrograms to table
     di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
     di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
-    # parse labels and boxes
-    labels = di.parse_labels(item=tbl[0])
-    boxes = di.parse_boxes(item=tbl[0])
-    assert labels == [1]
-    assert boxes[0][0] == 1.001
-    assert boxes[0][1] == 1.401
-    assert boxes[0][2] == 50
-    assert boxes[0][3] == 300    
+   
     # get segments with label=1
     selection, complements = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
     assert len(selection) == 2
