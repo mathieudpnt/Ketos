@@ -1092,7 +1092,36 @@ class Spectrogram(AnnotationHandler):
             Returns:
                 segs: list
                     List of segments
-        """        
+
+            Example:
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1, dfdt=10)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
+                >>> # split the spectrogram into three equally long segments
+                >>> segs = spec.segment(number=3, keep_time=True)
+                >>> # display the segments
+                >>> fig = segs[0].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_1.png")
+                >>> fig = segs[1].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_2.png")
+                >>> fig = segs[2].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_3.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_1.png
+                    :width: 180px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_2.png
+                    :width: 180px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_3.png
+                    :width: 180px
+                    :align: left
+        """
         epsilon = 1E-12
 
         if make_copy:
@@ -1202,7 +1231,7 @@ class Spectrogram(AnnotationHandler):
                     2d numpy array with shape=(?,4) 
                 fpad: bool
                     If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted spectrogram had the same frequency range as the source 
+                    the extracted spectrogram has the same frequency range as the source 
                     spectrogram.
                 keep_time: bool
                     If True, the extracted segments keep the time from the present instance. 
@@ -1266,11 +1295,61 @@ class Spectrogram(AnnotationHandler):
 
         return specs
 
-    def subtract_background(self):
-        """ Subtract the median value from each row (frequency bin) 
+    def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
+        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
 
+            Currently, offers the following two methods:
+
+                1) MEDIAN: Subtracts from each row the median value of that row
+
+                2) RUNNING_MEAN: Subtracts from each row a running mean, computed according to the 
+                    formula given in Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
+
+            Args:
+                method: str
+                    Options are 'MEDIAN' and 'RUNNING_MEAN'
+            
+            Optional args:
+                time_constant: float
+                    Time constant used for the computation of the running mean (in seconds).
+                    Must be provided if the method 'RUNNING_MEAN' is chosen.
         """
-        self.image = self.image - np.median(self.image, axis=0)
+        if method is 'MEDIAN':
+            self.image = self.image - np.median(self.image, axis=0)
+        
+        elif method is 'RUNNING_MEAN':
+            assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
+            self.image = self._tonal_noise_reduction_running_mean(kwargs['time_constant'])
+
+        else:
+            print('Invalid tonal noise reduction method:',method)
+            print('Available options are: MEDIAN, RUNNIN_MEAN')
+            print('Spectrogram is unchanged')
+
+    def _tonal_noise_reduction_running_mean(self, time_constant):
+        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
+            by subtracting from each row a running mean, computed according to the formula given in 
+            Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
+
+            Args:
+                time_constant: float
+                    Time constant used for the computation of the running mean (in seconds).
+
+            Returns:
+                new_img : 2d numpy array
+                    Corrected spetrogram image
+        """
+        dt = self.tres
+        T = time_constant
+        eps = 1 - np.exp((np.log(0.15) * dt / T))
+        nx, ny = self.image.shape
+        rmean = np.average(self.image, axis=0)
+        new_img = np.zeros(shape=(nx,ny))
+        for ix in range(nx):
+            new_img[ix,:] = self.image[ix,:] - rmean # subtract running mean
+            rmean = (1 - eps) * rmean + eps * self.image[ix,:] # update running mean
+
+        return new_img
 
     def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
@@ -1278,7 +1357,7 @@ class Spectrogram(AnnotationHandler):
             If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap, None is returned.
+            If there is no overlap, NaN is returned.
 
             Args:
                 axis: bool

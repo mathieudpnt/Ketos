@@ -619,3 +619,23 @@ def test_crop_tracking_data_with_two_files():
     for i in range(20,50):
         assert tvec[i] == (i - 20) * 0.6
         assert fvec[i] == 1
+
+@pytest.mark.test_tonal_noise_reduction
+def test_tonal_noise_reduction():
+    img = np.array([[1, 2, 3],[4, 5, 6],[7, 8, 9]])
+    spec = Spectrogram(image=img, tres=0.5) 
+    spec.tonal_noise_reduction(method='MEDIAN')
+    assert spec.image[0,0] == -3
+    assert spec.image[0,1] == -3
+    assert spec.image[1,0] == 0
+    spec.tonal_noise_reduction(method='bla')
+    assert spec.image[0,0] == -3
+    assert spec.image[0,1] == -3
+    assert spec.image[1,0] == 0
+    spec = Spectrogram(image=img, tres=0.5) 
+    with pytest.raises(AssertionError):
+        spec.tonal_noise_reduction(method='RUNNING_MEAN')
+    spec.tonal_noise_reduction(method='RUNNING_MEAN', time_constant=10)
+    assert spec.image[0,0] == -3
+    assert spec.image[0,1] == -3
+    assert spec.image[1,0] == pytest.approx(0.27, abs=0.01)
