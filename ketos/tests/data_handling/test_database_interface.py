@@ -63,11 +63,11 @@ def test_open_existing_table():
     assert isinstance(tbl, tables.table.Table)
     # clean
     h5file.close()
-    os.remove(fpath)
+   
 
-@pytest.mark.test_h5_create
+@pytest.mark.test_create_table
 def test_create_table():
-    """Test if a taqble and its group are created"""
+    """Test if a table and its group are created"""
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
     h5file = tables.open_file(fpath, 'w')
