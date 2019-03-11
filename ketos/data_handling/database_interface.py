@@ -69,6 +69,7 @@ def open_table(h5file, table_path):
     
     except tables.NoSuchNodeError:  
         print('Attempt to open non-existing table {0} in file {1}'.format(table_path, h5file))
+        raise
         table = None
 
     return table
