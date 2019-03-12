@@ -325,6 +325,8 @@ class Spectrogram(AnnotationHandler):
                Labels for the frequency bins (optional)
             tag: str
                 Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
             
         Attributes:
             image: 2d numpy array
@@ -350,7 +352,7 @@ class Spectrogram(AnnotationHandler):
             time_vector: 1d numpy array
                 Associated a particular time within a wave file with each time bin in the spectrogram
 """
-    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag=''):
+    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag='', decibel=False):
         
         self.image = image
         self.NFFT = NFFT
@@ -360,6 +362,7 @@ class Spectrogram(AnnotationHandler):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
+        self.decibel = decibel
 
         super().__init__() # initialize AnnotationHandler
 
@@ -1959,11 +1962,13 @@ class MagSpectrogram(Spectrogram):
             tag: str
                 Identifier, typically the name of the wave file used to generate the spectrogram.
                 If no tag is provided, the tag from the audio_signal will be used.
+            decibel: bool
+                Use logarithmic z axis
     """
     def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
-        super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag)
+        super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
         if audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
@@ -2061,11 +2066,13 @@ class PowerSpectrogram(Spectrogram):
                 Use logarithmic (decibel) scale.
             tag: str
                 Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
     """
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
                  hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False, tag=''):
 
-        super(PowerSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag)
+        super(PowerSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
         if audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
@@ -2134,13 +2141,15 @@ class MelSpectrogram(Spectrogram):
                 List of labels for the frequency bins.
             tag: str
                 Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
     """
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None, tag='', **kwargs):
+                 NFFT=None, timestamp=None, tag='', decibel=False, **kwargs):
 
-        super(MelSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag)
+        super(MelSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
         if audio_signal is not None:
             self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
