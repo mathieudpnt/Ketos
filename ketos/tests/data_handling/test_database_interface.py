@@ -186,6 +186,10 @@ def test_extract(sine_audio):
     assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
     assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
 
+    h5file.close()
+    os.remove(fpath)
+
+
 
 @pytest.mark.test_parse_labels
 def test_parse_labels(sine_audio):
@@ -212,6 +216,9 @@ def test_parse_labels(sine_audio):
     labels = di.parse_labels(item=tbl[1])
     assert type(labels) == list
     assert labels == [1,2]
+
+    h5file.close()
+    os.remove(fpath)
     
 
 @pytest.mark.test_parse_boxes
@@ -240,24 +247,49 @@ def test_parse_boxes(sine_audio):
     assert type(boxes) == list
     assert boxes == [[1.1, 1.5, 0.0, 22050.0], [1.6, 1.7, 0.0, 22050.0]]
 
+    h5file.close()
+    os.remove(fpath)
 
 
+@pytest.mark.filter_by_label
+def test_filter_by_label(sine_audio):
+    """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
+    # create spectrogram  
+    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec1.annotate(labels=(1), boxes=((1.0, 1.4, 50, 300)))
 
-@pytest.mark.test_h5_select_spec
-def test_h5_select_spec(sine_audio):
-    # create spectrogram    
-    spec = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec.annotate(labels=(2), boxes=((1.0, 1.4, 50, 300)))
+    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec2.annotate(labels=(2), boxes=((1.0, 1.4, 50, 300)))
+
+    spec3 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
+    spec3.annotate(labels=(2,3), boxes=((1.0, 1.4, 50, 300), (2.0, 2.4, 80, 200)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
-    f = tables.open_file(fpath, 'w')
+    h5file = tables.open_file(fpath, 'w')
     # create table
-    tbl = h5.create(h5file=f, path='/group_1/', name='table_1', shape=spec.image.shape)
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrogram to table
-    h5.write(table=tbl, x=spec, id='A') 
-    h5.write(table=tbl, x=spec, id='B') 
-    # select spectrograms with label=2
-    rows = h5.select(table=tbl, label=2)
-    assert len(rows) == 2
-    assert rows[0] == 0
+    di.write_spec(table=tbl, spec=spec1, id='A') 
+    di.write_spec(table=tbl, spec=spec1, id='B') 
+    di.write_spec(table=tbl, spec=spec2, id='C') 
+    di.write_spec(table=tbl, spec=spec2, id='D')
+    di.write_spec(table=tbl, spec=spec3, id='E') 
+    
 
+    # select spectrograms containing the label 1
+    rows = di.filter_by_label(table=tbl, label=1)
+    assert len(rows) == 2
+    assert rows == [0,1]
+
+    # select spectrograms containing the label 2
+    rows = di.filter_by_label(table=tbl, label=[2])
+    assert len(rows) == 3
+    assert rows == [2,3,4]
+
+    # select spectrograms containing the labels 1 or 3
+    rows = di.filter_by_label(table=tbl, label=[1,3])
+    assert len(rows) == 3
+    assert rows == [0,1,4]
+
+    h5file.close()
+    os.remove(fpath)
