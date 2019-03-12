@@ -338,3 +338,18 @@ def test_load_specs_no_index_list():
     
     h5file.close()
 
+@pytest.mark.load_specs
+def test_load_specs_with_index_list():
+    """Test if load_specs loads the spectrograms specified by index_list""" 
+
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = tables.open_file(fpath, 'r')
+    tbl = di.open_table(h5file,"/train/species1")
+    
+    selected_specs = di.load_specs(tbl, index_list=[0,3,14])
+    assert len(selected_specs) == 3
+    is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
+    assert all(is_spec)
+
+    
+    h5file.close()
