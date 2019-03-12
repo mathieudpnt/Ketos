@@ -1714,7 +1714,7 @@ class Spectrogram(AnnotationHandler):
         
         else:
             n = self.image.shape[1]
-            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
+            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False, mode='constant')
             dn = n - scaled_image.shape[1]
 
             if not preserve_shape:
