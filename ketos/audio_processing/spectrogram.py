@@ -8,6 +8,14 @@
     to indicate the sound amplitude. Read more on Wikipedia:
     https://en.wikipedia.org/wiki/Spectrogram
 
+    The module contains the parent class Spectrogram, and three 
+    child classes (MagSpectrogram, PowerSpectrogram, MelSpectrogram), 
+    which inherit methods and attributes from the parent class.
+
+    Note, however, that many of methods (e.g. crop) only work correctly 
+    for the MagSpectrogram and PowerSpectrogram classes. See the documentation 
+    of the individual methods for further details.
+
     Contents:
         Spectrogram class
         MagSpectrogram class
@@ -483,7 +491,7 @@ class Spectrogram(AnnotationHandler):
 
         return spec
 
-    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
+    def _make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -1098,7 +1106,7 @@ class Spectrogram(AnnotationHandler):
                 >>> from ketos.audio_processing.audio import AudioSignal
                 >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1, dfdt=10)
                 >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
                 >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
                 >>> # split the spectrogram into three equally long segments
                 >>> segs = spec.segment(number=3, keep_time=True)
@@ -1314,6 +1322,33 @@ class Spectrogram(AnnotationHandler):
                 time_constant: float
                     Time constant used for the computation of the running mean (in seconds).
                     Must be provided if the method 'RUNNING_MEAN' is chosen.
+
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # show spectrogram as is
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
+                >>> # tonal noise reduction
+                >>> spec.tonal_noise_reduction()
+                >>> # show modified spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
+                    :width: 250px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
+                    :width: 250px
+                    :align: left
+
         """
         if method is 'MEDIAN':
             self.image = self.image - np.median(self.image, axis=0)
@@ -1504,6 +1539,38 @@ class Spectrogram(AnnotationHandler):
                     This parameter can be used to control the amount of smoothing.
                     A value of 1 gives the largest effect. The larger the value, the smaller 
                     the effect.
+
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # make a copy
+                >>> spec_copy = spec.copy()
+                >>> # perform tonal noise reduction on copied spectrogram and crop time
+                >>> spec_copy.tonal_noise_reduction()
+                >>> spec_copy.crop(tlow=0.9, thigh=1.7)
+                >>> # show orignal spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_orig.png")
+                >>> # place the tonal-noise-corrected and cropped spectrogram on top of 
+                >>> # the original spectrogram, shifted by 1.8 seconds
+                >>> spec.add(spec_copy, delay=1.8)
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_added.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
+                    :width: 250px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_added.png
+                    :width: 250px
+                    :align: left
+
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
@@ -1889,6 +1956,9 @@ class MagSpectrogram(Spectrogram):
                 Compute phase spectrogram in addition to magnitude spectrogram
             decibel: bool
                 Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram.
+                If no tag is provided, the tag from the audio_signal will be used.
     """
     def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
@@ -1897,11 +1967,13 @@ class MagSpectrogram(Spectrogram):
 
         if audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+            if tag is '':
+                tag = audio_signal.tag
 
         self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
-        """ Create spectrogram from audio signal
+        """ Create magnitude spectrogram from audio signal
         
             Args:
                 signal: AudioSignal
@@ -1927,20 +1999,22 @@ class MagSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
 
     def audio_signal(self):
         """ Generate audio signal from magnitude spectrogram
+
+            Note that the current implementation does not account for the effect of 
+            the Hamming window function, nor does it take into account phase 
+            information. 
+
+            An improved implementation is planned for release 2.0.0.
             
             Returns:
                 a: AudioSignal
                     Audio signal
-
-            TODO: Check that this implementation is correct!
-                  (For example, the window function is not being 
-                  taken into account which I believe it should be)
         """
         y = np.fft.irfft(self.image)
         d = self.tres * self.fres * (y.shape[1] + 1)
@@ -1985,16 +2059,20 @@ class PowerSpectrogram(Spectrogram):
                 Compute phase spectrogram in addition to power spectrogram                        
             decibel: bool
                 Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
     """
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
-                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
+                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False, tag=''):
 
-        super(PowerSpectrogram, self).__init__()
-        self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-        self.tres = winstep
-        self.timestamp = timestamp
-        self.flabels = flabels
+        super(PowerSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag)
 
+        if audio_signal is not None:
+            self.image, self.NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
     def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
@@ -2023,7 +2101,7 @@ class PowerSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         return power_spec, NFFT, fres, phase_change
@@ -2054,18 +2132,23 @@ class MelSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels: list of strings
                 List of labels for the frequency bins.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
     """
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None, **kwargs):
+                 NFFT=None, timestamp=None, tag='', **kwargs):
 
-        super(MelSpectrogram, self).__init__()
-        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
-                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
-        self.tres = winstep
-        self.timestamp = timestamp
-        self.flabels = flabels
+        super(MelSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag)
+
+        if audio_signal is not None:
+            self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
 
     def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
                          n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None):
@@ -2104,7 +2187,7 @@ class MelSpectrogram(Spectrogram):
            
         """
 
-        image, NFFT, fres, _ = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
+        image, NFFT, fres, _ = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
@@ -2138,15 +2221,13 @@ class MelSpectrogram(Spectrogram):
         
         return mel_spec, filter_banks, NFFT, fres
 
-    def plot(self,filter_bank=False, decibel=False):
+    def plot(self, filter_bank=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
             Args:
-                decibel: bool
-                    Use linear (if False) or logarithmic scale (if True)
                 filter_bank: bool
                     Plot the filter banks if True. If false (default) print the mel spectrogram.
             
@@ -2160,15 +2241,11 @@ class MelSpectrogram(Spectrogram):
         else:
             img = self.image
 
-        if decibel:
-            from ketos.pre_processing import to_decibel
-            img = to_decibel(img)
-
         fig, ax = plt.subplots()
-        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(self.tmin,self.tmin+self.duration(),self.fmin,self.fmax()))
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
-        if decibel:
+        if self.decibel:
             fig.colorbar(img_plot,format='%+2.0f dB')
         else:
             fig.colorbar(img_plot,format='%+2.0f')  
