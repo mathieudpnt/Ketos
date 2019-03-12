@@ -151,6 +151,8 @@ def test_labels_as_Y():
     train_generator = BatchGenerator(hdf5_table=train_data, y_field='labels', batch_size=5, return_batch_ids=False) #create a batch generator 
     _, Y = next(train_generator)
     np.testing.assert_array_equal(Y, five_labels)
+
+    h5.close()
     
 
 
@@ -196,6 +198,8 @@ def test_last_batch():
     assert ids == [12,13,14]
     assert X.shape == (3, 2413, 201)
 
+    h5.close()
+
 @pytest.mark.test_BatchGenerator
 def test_multiple_epochs():
     """ Test if batches are as expected after the first epoch
@@ -223,6 +227,8 @@ def test_multiple_epochs():
     ids, X, _ = next(train_generator)
     assert ids == [0,1,2,3,4,5]
     assert X.shape == (6, 2413, 201)
+
+    h5.close()
 
 @pytest.mark.test_BatchGenerator
 def test_shuffle():
