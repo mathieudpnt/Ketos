@@ -292,3 +292,31 @@ def test_filter_by_label(sine_audio):
 
     h5file.close()
     os.remove(fpath)
+
+
+@pytest.mark.filter_by_label
+def test_filter_by_label_raises(sine_audio):
+    """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
+    # open h5 file
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = tables.open_file(fpath, 'r')
+    tbl = di.open_table(h5file,"/train/species1")
+    
+    with pytest.raises(TypeError):
+        di.filter_by_label(table=tbl, label='a')
+    with pytest.raises(TypeError):
+        di.filter_by_label(table=tbl, label=['a','b'])
+    with pytest.raises(TypeError):        
+        di.filter_by_label(table=tbl, label='1')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label='1,2')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=b'1')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=1.0)
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label= (1,2))
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=[1.0,2])
+   
+    h5file.close()
