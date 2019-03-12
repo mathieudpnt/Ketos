@@ -320,3 +320,21 @@ def test_filter_by_label_raises(sine_audio):
         di.filter_by_label(table=tbl, label=[1.0,2])
    
     h5file.close()
+
+
+
+@pytest.mark.load_specs
+def test_load_specs_no_index_list():
+    """Test if load specs loads the entire table if index_list is None""" 
+
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = tables.open_file(fpath, 'r')
+    tbl = di.open_table(h5file,"/train/species1")
+    
+    selected_specs = di.load_specs(tbl)
+    assert len(selected_specs) == tbl.nrows
+    is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
+    assert all(is_spec)
+    
+    h5file.close()
+
