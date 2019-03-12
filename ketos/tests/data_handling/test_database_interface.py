@@ -30,7 +30,7 @@ import tables
 import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
-from ketos.audio_processing.spectrogram import MagSpectrogram
+from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -42,7 +42,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp1_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # open non-existing table
     with pytest.raises(tables.NoSuchNodeError):
@@ -70,7 +70,7 @@ def test_open_existing_table():
 def test_create_table():
     """Test if a table and its group are created"""
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=(20,60))
@@ -107,14 +107,13 @@ def test_write_spec(sine_audio):
     # add annotation
     spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
-    spec = di.write_spec(table=tbl, spec=spec)
-    
-    assert spec is None
+    spec_rtn = di.write_spec(table=tbl, spec=spec) # should return None after writing spectrogram to table
+    assert spec_rtn is None 
     # write spectrogram to table with id
     di.write_spec(table=tbl, spec=spec, id='123%')
 
@@ -134,7 +133,7 @@ def test_write_spec_TypeError(sine_audio):
     """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
     sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
@@ -158,7 +157,7 @@ def test_extract(sine_audio):
     spec2.annotate(labels=(1), boxes=((1.1, 1.5)))
     tshape_orig = spec1.image.shape[0]
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
@@ -231,7 +230,7 @@ def test_parse_boxes(sine_audio):
     spec2.annotate(labels=(1,2), boxes=[[1.1, 1.5], [1.6, 1.7]])
     tshape_orig = spec1.image.shape[0]
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
@@ -264,7 +263,7 @@ def test_filter_by_label(sine_audio):
     spec3 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
     spec3.annotate(labels=(2,3), boxes=((1.0, 1.4, 50, 300), (2.0, 2.4, 80, 200)))
     # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
+    fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
     h5file = tables.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
