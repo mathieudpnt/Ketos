@@ -220,16 +220,17 @@ def test_cropped_power_spectrogram_has_correct_size(sine_audio):
     assert spec.image.shape == (57, 19)
 
 # TODO: Fix cropping method so it also works for Mel spectrograms
-#def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
-#    spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-#    spec.crop(fhigh=4000)
-#    assert spec.image.shape == (57, 20)
-#    spec.crop(flow=1000)
-#    assert spec.image.shape == (57, 15)
-#    spec.crop(tlow=1.0)
-#    assert spec.image.shape == (37, 15)
-#    spec.crop(thigh=2.5)
-#    assert spec.image.shape == (30, 15)
+@pytest.mark.xfail
+def test_cropped_mel_spectrogram_has_correct_size(sine_audio):
+   spec = MelSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+   spec.crop(fhigh=4000)
+   assert spec.image.shape == (57, 20)
+   spec.crop(flow=1000)
+   assert spec.image.shape == (57, 15)
+   spec.crop(tlow=1.0)
+   assert spec.image.shape == (37, 15)
+   spec.crop(thigh=2.5)
+   assert spec.image.shape == (30, 15)
 
 def test_mag_compute_average_and_median_without_cropping(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
