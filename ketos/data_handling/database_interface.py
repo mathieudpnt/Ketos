@@ -341,10 +341,17 @@ def filter_by_label(table, label):
     else:
         raise TypeError("label must be an int or a list of ints")    
     
-    condition = "|".join(["(labels == b'[{0}]')".format(l) for l in label])
-    rows = list(table.get_where_list(condition))
+    
+    matching_rows = []
 
-    return rows
+    for i,row in enumerate(table.iterrows()):
+        r_labels = parse_labels(row)
+
+        if any([l in label for l in r_labels]):
+            matching_rows.append(i)
+    
+
+    return matching_rows
 
 def load_specs(table, index_list=None):
     """ Retrieve all the spectrograms in a table or a subset specified by the index_list
