@@ -54,14 +54,15 @@ def open_table(h5file, table_path):
         Examples:
         >>> import tables
         >>> from ketos.data_handling.database_interface import open_table
-
+        >>>
         >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
         >>> data = open_table(h5file, "/train/species1")
         >>> type(data)
         <class 'tables.table.Table'>
-
+        >>>
         >>> data.nrows
         15
+        >>> h5file.close()
         
     """
     try:
@@ -103,7 +104,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
 
             >>> import tables
             >>> from ketos.data_handling.database_interface import create_table
-
+            >>>
             >>> h5file = tables.open_file("ketos/tests/assets/tmp/database1.h5", 'w')
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
             >>> my_table
@@ -118,7 +119,7 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
               "time_vector": Float32Col(shape=(64,), dflt=0.0, pos=6)}
               byteorder := 'little'
               chunkshape := (21,)
-
+            >>>
             >>> h5file.close()
             
     """
@@ -238,12 +239,12 @@ def write_spec(table, spec, id=None):
             >>> from ketos.data_handling.database_interface import create_table
             >>> from ketos.audio_processing.spectrogram import MagSpectrogram
             >>> from ketos.audio_processing.audio import AudioSignal
-
+            >>>
             >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
             >>> spec = MagSpectrogram(audio,winlen=0.2, winstep=0.05)
             >>> spec.labels = [1,2]
             >>> spec.boxes = [[5.3,8.9,200,350], [103.3,105.8,180,320]]
-           
+            >>>
             >>> h5file = tables.open_file("ketos/tests/assets/tmp/database2.h5", 'w')
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=spec.image.shape)
             >>> write_spec(my_table, spec)
@@ -253,7 +254,7 @@ def write_spec(table, spec, id=None):
             b'[1,2]'
             >>> my_table[0]['boxes']
             b'[[5.3,8.9,200.0,350.0],[103.3,105.8,180.0,320.0]]'
-            
+            >>>
             >>> h5file.close()
 
             
@@ -323,15 +324,17 @@ def filter_by_label(table, label):
 
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
-
+            >>>
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
-
+            >>>
             >>> filter_by_label(table, 1)
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-
+            >>>
             >>> filter_by_label(table, 2)
             []
+            >>>
+            >>> h5file.close()
     """
     if isinstance(label, (list)):
         if not all (isinstance(l, int) for l in label):
@@ -374,15 +377,17 @@ def load_specs(table, index_list=None):
 
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
-
+            >>>
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
-
+            >>>
             >>> selected_specs = load_specs(table, [0,3,10])
             >>> len(selected_specs)
             3
             >>> type(selected_specs[0])
             <class 'ketos.audio_processing.spectrogram.Spectrogram'>
+            >>>
+            >>> h5file.close()
 
     """
     res = list()
@@ -476,6 +481,8 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             >>> table = open_table(h5file, "/train/species1")
             >>>
             >>> extracted_specs, spec_complements = extract(table, label=1, min_length=2)
+            >>> h5file.close()
+            >>>
             >>> len(extracted_specs)
             15
             >>> len(spec_complements)
@@ -493,6 +500,8 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             >>> comp_1_fig.savefig("ketos/tests/assets/tmp/extract_comp_1.png")
            
             .. image:: ../../../../ketos/tests/assets/tmp/extract_comp_1.png
+
+            
 
     """
 
@@ -538,12 +547,14 @@ def parse_labels(item):
             <class 'numpy.bytes_'>
             >>> table[0]['labels']
             b'[1]'
-
+            >>>
             >>> label = parse_labels(table[0])
             >>> type(label)
             <class 'list'>
             >>> label
             [1]
+            >>>
+            >>> h5file.close()
   
     """
     labels_str = item['labels'].decode()
@@ -571,12 +582,14 @@ def parse_boxes(item):
             <class 'numpy.bytes_'>
             >>> table[0]['boxes']
             b'[[10,15,200,400]]'
-
+            >>>
             >>> box = parse_boxes(table[0])
             >>> type(box)
             <class 'list'>
             >>> box
             [[10, 15, 200, 400]]
+            >>>
+            >>> h5file.close()
     """
     
     boxes_str = item['boxes'].decode()
