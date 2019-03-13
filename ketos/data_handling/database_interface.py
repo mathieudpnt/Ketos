@@ -395,8 +395,9 @@ def load_specs(table, index_list=None):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
-            >>> # Open a connection to a database and a the species1 table in the train group
+            >>> # Open a connection to the database.
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
             >>> # Load the spectrograms stored on rows 0, 3 and 10 of the species1 table
@@ -497,6 +498,7 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
+            >>> # Open 
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
             >>>
