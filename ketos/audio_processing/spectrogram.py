@@ -1245,8 +1245,8 @@ class Spectrogram(AnnotationHandler):
                 >>> import tables
                 >>> import ketos.data_handling.database_interface as di
                 >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
-                >>> table = di.open(db, "/sig") 
-                >>> spectrogram = di.get_objects(table)[0]
+                >>> table = di.open_table(db, "/sig") 
+                >>> spectrogram = di.load_specs(table)[0]
                 >>> db.close()
                 >>> 
                 >>> # plot the spectrogram and label '1'
