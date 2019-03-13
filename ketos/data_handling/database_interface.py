@@ -107,12 +107,12 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
             >>> import tables
             >>> from ketos.data_handling.database_interface import create_table
             >>>
-            >>># Open a connection to the database
+            >>> # Open a connection to the database
             >>> h5file = tables.open_file("ketos/tests/assets/tmp/database1.h5", 'w')
-            >>># Create 'table1' within 'group1'
+            >>> # Create 'table1' within 'group1'
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
-            >>># Show the table description, with the field names (columns)
-            >>># and information about types and shapes
+            >>> # Show the table description, with the field names (columns)
+            >>> # and information about types and shapes
             >>> my_table
             /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
               description := {
@@ -202,6 +202,7 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
 
         Examples:
             >>> from ketos.data_handling.database_interface import table_description
+            >>> # create a table description with shape (64,20)
             >>> descr =  table_description(shape=(64,20))
             >>> descr.columns
             {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
