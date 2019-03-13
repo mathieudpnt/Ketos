@@ -295,7 +295,7 @@ class AudioSignal(AnnotationHandler):
             >>> s.plot()
             >>> plt.show() 
 
-            .. image:: _static/morlet.png
+            .. image:: ../../_static/morlet.png
                 :width: 500px
                 :align: center
         """

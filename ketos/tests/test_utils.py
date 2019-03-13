@@ -27,7 +27,7 @@
 
 import pytest
 import numpy as np
-from ketos.utils import tostring, morlet_func, octave_bands
+from ketos.utils import tostring, morlet_func, octave_bands, random_floats
 
 
 @pytest.mark.test_tostring
@@ -71,3 +71,10 @@ def test_morlet_func_with_dfdt_nonzero():
     time = 0.5
     f = morlet_func(time=time, frequency=10, width=3, displacement=0, dfdt=0.5)
     assert f == pytest.approx(0.302416, abs=1E-5) 
+
+@pytest.mark.test_random_floats
+def test_random_floats():
+    x = random_floats(3, 0.4, 7.2)
+    assert x[0] == pytest.approx(3.23574963, abs=1e-5)
+    assert x[1] == pytest.approx(5.29820656, abs=1e-5)
+    assert x[2] == pytest.approx(0.40077775, abs=1e-5)

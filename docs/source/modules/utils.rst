@@ -1,5 +1,5 @@
 Utilities
 =========
 
-.. automodule:: util
+.. automodule:: ketos.utils
    :members:

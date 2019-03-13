@@ -3,7 +3,7 @@
     This module provides utilities to load data and feed it to models.
 
     Contents:
-        BatchGenerator class: 
+        BatchGenerator class
         TrainiDataProvider class
 
     Authors: Fabio Frazao and Oliver Kirsebom

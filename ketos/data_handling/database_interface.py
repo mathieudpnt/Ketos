@@ -283,7 +283,7 @@ def write_spec(table, spec, id=None):
     table.attrs.freq_min = spec.fmin
 
     if id is None:
-        id_str = spec.tag
+        id_str = ''
     else:
         id_str = id
 
@@ -450,7 +450,7 @@ def load_specs(table, index_list=None):
 
     return res
 
-def extract(table, label, min_length, center=False, fpad=True, preserve_time=False):
+def extract(table, label, min_length=None, center=False, fpad=True, keep_time=False):
     """ Create new spectrograms by croping segments annotated with the specified label.
 
         Filter the table by the specified label. In each of the selected spectrograms,
@@ -478,7 +478,7 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
                 frequency range by padding with zeros, if necessary.
                 If False, the resulting spectrograms will be cropped at the minimum
                 and maximum frequencies specified by the bounding box.
-            preserve_time: bool
+            keep_time: bool
                 If True, the initial time in the extracted spectrograms will maintained
                  (i.e.: will be equal to the start_time of the box).
                 If false, the initial time is set to 0. 
@@ -540,7 +540,7 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
     for spec in items:
 
         # extract segments of interest
-        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, preserve_time=preserve_time)
+        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
         extracted = extracted + segs
 
         # collect

@@ -1,37 +1,111 @@
-from abc import ABC
+""" Spectrogram module within the ketos library
+
+    This module provides utilities to work with spectrograms.
+
+    Spectrograms are two-dimensional visual representations of 
+    sound waves, in which time is shown along the horizontal 
+    axis, frequency along the vertical axis, and color is used 
+    to indicate the sound amplitude. Read more on Wikipedia:
+    https://en.wikipedia.org/wiki/Spectrogram
+
+    The module contains the parent class Spectrogram, and three 
+    child classes (MagSpectrogram, PowerSpectrogram, MelSpectrogram), 
+    which inherit methods and attributes from the parent class.
+
+    Note, however, that many of methods (e.g. crop) only work correctly 
+    for the MagSpectrogram and PowerSpectrogram classes. See the documentation 
+    of the individual methods for further details.
+
+    Contents:
+        Spectrogram class
+        MagSpectrogram class
+        PowerSpectrogram class
+        MelSpectrogram class
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
+     
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+
 import numpy as np
 from scipy.fftpack import dct
 from scipy import ndimage
-from collections import namedtuple
+from skimage.transform import rescale
 import matplotlib.pyplot as plt
+import time
 import datetime
 import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from skimage.transform import rescale
-import time
+from ketos.utils import random_floats
 
 
 def ensure_same_length(specs, pad=False):
-    """ Ensure that all spectrograms have the same length/duration.
+    """ Ensure that all spectrograms have the same length
+
+        Note that all spectrograms must have the same time resolution.
+        If this is not the case, an assertion error will be thrown.
         
         Args:
             specs: list
-                Input spectrograms.
+                Input spectrograms
             pad: bool
-                If True, the shorter spectrograms will be padded with zeros
-                to achieve the same duration as the longest spectrogram. 
-                if False, the longer spectrograms will be cropped to achieve 
-                the same duration as the shortest spectrogram.
+                If True, the shorter spectrograms will be padded with zeros. If False, the longer spectrograms will be cropped (removing late times)
     
         Returns:   
             specs: list
-                List of uniform length spectrograms.
+                List of same-length spectrograms
+
+        Example:
+
+        >>> from ketos.audio_processing.audio import AudioSignal
+        >>>
+        >>> # Create two audio signals with different lengths
+        >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
+        >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
+        >>>
+        >>> # Compute spectrograms
+        >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
+        >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
+        >>>
+        >>> # Print the durations
+        >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
+        5.85, 8.85
+        >>>
+        >>> # Ensure all spectrograms have same duration as the shortest spectrogram
+        >>> specs = ensure_same_length([spec1, spec2])
+        >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
+        5.85, 5.85
     """
+    if len(specs) == 0:
+        return specs
+
+    tres = specs[0].tres # time resolution of 1st spectrogram
 
     nt = list()
     for s in specs:
+        assert s.tres == tres, 'Spectrograms must have the same time resolution' 
         nt.append(s.tbins())
 
     nt = np.array(nt)
@@ -53,11 +127,19 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smooth_par=5, shuffle=False, preserve_time=False, t_scale_min=1, t_scale_max=1, f_scale_min=1, f_scale_max=1):
-    """ Create new spectrograms by superimposing spectrograms from two different groups.
+def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
+            scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1, validation_function=None):
+    """ Interbreed spectrograms to create new ones.
+
+        Interbreeding consists in adding/superimposing two spectrograms on top of each other.
 
         If the spectrograms have different lengths, the shorter of the two will be placed 
-        randomly within the larger one.
+        within the larger one with a randomly generated time offset.
+
+        The shorter spectrogram may also be subject to re-scaling along any of its dimensions, as 
+        specified via the arguments t_scale_min, t_scale_max, f_scale_min, f_scale_max, scale_min, scale_max.
+
+        Note that the spectrograms must have the same time and frequency resolution. Otherwise an assertion error will be thrown.
 
         Args:
             specs1: list
@@ -66,109 +148,211 @@ def interbreed(specs1, specs2, num, scale_min=1, scale_max=1, smooth=True, smoot
                 Second group of input spectrograms.
             num: int
                 Number of spectrograms that will be created
-            scale_min, scale_max: float, float
-                Scale the spectrogram that is being added by a random 
-                number between scale_min and scale_max
             smooth: bool
                 If True, a smoothing operation will be applied 
-                to avoid sharp edges in the result spetrogram
+                to avoid sharp discontinuities in the resulting spetrogram
             smooth_par: int
                 Smoothing parameter. The larger the value, the less 
-                smoothing.
-            shuffle: bool
-                Select spectrograms from the two groups in random 
-                order instead of the order in which they are provided.
+                smoothing. Only applicable if smooth is set to True
+            scale: tuple
+                Scale the spectrogram that is being added by a random 
+                number between [a,b)
+            t_scale: tuple
+                Scale the time axis of the spectrogram that is being added 
+                by a random number between [a,b)
+            f_scale: tuple
+                Scale the frequency axis of the spectrogram that is being added 
+                by a random number between [a,b)
+            seed: int
+                Seed for numpy's random number generator
+            validation_function:
+                This function is applied to each new spectrogram. The function must accept 'spec1', 'spec2', and 'new_spec'; returns True or False. If True, the new spectrogram is accepted; if False, it gets discarded.
 
         Returns:   
-            specs: list
-                List of uniform length spectrograms.
+            specs: Spectrogram or list of Spectrograms
+                Created spectrogram(s)
+
+        Examples:
+            >>> # extract saved spectrograms from database file
+            >>> import tables
+            >>> import ketos.data_handling.database_interface as di
+            >>> db = tables.open_file("ketos/tests/assets/morlet.h5", "r") 
+            >>> spec1 = di.load_specs(di.open_table(db, "/spec1"))[0]
+            >>> spec2 = di.load_specs(di.open_table(db, "/spec2"))[0]
+            >>> db.close()
+            >>> 
+            >>> # interbreed the two spectrograms once to make one new spectrogram
+            >>> from ketos.audio_processing.spectrogram import interbreed
+            >>> new_spec = interbreed([spec1], [spec2], num=1)
+            >>>
+            >>> # plot the original spectrograms and the new one
+            >>> fig = spec1.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec1.png")
+            >>> fig = spec2.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec2.png")
+            >>> fig = new_spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/new_spec.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/spec1.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/spec2.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/new_spec.png
+                :width: 300px
+                :align: center
+
+            >>> # Interbreed the two spectrograms to make 3 new spectrograms.
+            >>> # Apply a random scaling factor between 0.0 and 5.0 to the spectrogram 
+            >>> # that is being added.
+            >>> # Only accept spectrograms with peak value at least two times 
+            >>> # larger than either of the two parent spectrograms
+            >>> def func(spec1, spec2, new_spec):
+            ...     m1 = np.max(spec1.image)
+            ...     m2 = np.max(spec2.image)
+            ...     m = np.max(new_spec.image)
+            ...     return m >= 2 * max(m1, m2)
+            >>> new_specs = interbreed([spec1], [spec2], num=3, scale=(0,5), validation_function=func)
+            >>>
+            >>> # plot the first of the new spectrograms
+            >>> fig = new_specs[0].plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/new_spec_x.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/new_spec_x.png
+                :width: 300px
+                :align: left
     """
-    M = len(specs1)
-    N = len(specs2)
-    x = np.arange(M)
-    y = np.arange(N)
+    # set random seed
+    np.random.seed(seed)
+
+    # default validation function always returns True
+    if validation_function is None:
+        def always_true(spec1, spec2, new_spec):
+            return True
+        validation_function = always_true
 
     specs = list()
     while len(specs) < num:
         
-        if shuffle:
-            np.random.shuffle(x)
-            np.random.shuffle(y)
+        N = num - len(specs)
 
-        for i in x:
-            for j in y:
+        # randomly select spectrograms
+        _specs1 = np.random.choice(specs1, N, replace=True)
+        _specs2 = np.random.choice(specs2, N, replace=True)
 
-                # scaling factor for x axis
-                if t_scale_max > t_scale_min:
-                    rndm = np.random.random_sample()
-                    t_scale = t_scale_min + (t_scale_max - t_scale_min) * rndm
-                else:
-                    t_scale = t_scale_max
+        # randomly sampled scaling factors
+        sf_t = random_floats(size=N, low=t_scale[0], high=t_scale[1], seed=seed)
+        sf_f = random_floats(size=N, low=f_scale[0], high=f_scale[1], seed=seed)
+        sf = random_floats(size=N, low=scale[0], high=scale[1], seed=seed)
+        seed += 1
 
-                # scaling factor for y axis
-                if f_scale_max > f_scale_min:
-                    rndm = np.random.random_sample()
-                    f_scale = f_scale_min + (f_scale_max - f_scale_min) * rndm
-                else:
-                    f_scale = f_scale_max
+        if N == 1:
+            sf_t = [sf_t]
+            sf_f = [sf_f]
+            sf = [sf]
 
-                # scaling factor for z axis
-                if scale_max > scale_min:
-                    rndm = np.random.random_sample()
-                    scale = scale_min + (scale_max - scale_min) * rndm
-                else:
-                    scale = scale_max
+        for i in range(N):
+            
+            s1 = _specs1[i]
+            s2 = _specs2[i]
 
-                # placement
-                dt = specs1[i].duration() - specs2[j].duration()
-                if dt != 0:
-                    rndm = np.random.random_sample()
-                    delay = np.abs(dt) * rndm
-                else:
-                    delay = 0
+            # time offset
+            dt = s1.duration() - s2.duration()
+            if dt != 0:
+                rndm = np.random.random_sample()
+                delay = np.abs(dt) * rndm
+            else:
+                delay = 0
 
-                if dt >= 0:
-                    spec_long = specs1[i]
-                    spec_short = specs2[j]
-                else:
-                    spec_short = specs1[i]
-                    spec_long = specs2[j]
+            if dt >= 0:
+                spec_long = s1
+                spec_short = s2
+            else:
+                spec_short = s1
+                spec_long = s2
 
-                spec = spec_long.copy()
-                spec.add(spec=spec_short, delay=delay, scale=scale, make_copy=True, smooth=smooth, smooth_par=smooth_par, preserve_time=preserve_time, t_scale=t_scale, f_scale=f_scale)
+            spec = spec_long.copy() # make a copy
+
+            # add the two spectrograms
+            spec.add(spec=spec_short, delay=delay, scale=sf[i], make_copy=True,\
+                    smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
+            
+            if validation_function(spec_long, spec_short, spec):
                 specs.append(spec)
 
-                if len(specs) >= num:
-                    return specs
+            if len(specs) >= num:
+                break
+
+    # if list has length 1, return the element rather than the list
+    if len(specs) == 1:
+        specs = specs[0]
 
     return specs
+
 
 class Spectrogram(AnnotationHandler):
     """ Spectrogram
 
-        Parent class for spectogram subclasses.
+        Parent class for MagSpectrogram, PowerSpectrogram, and MelSpectrogram.
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
         
         Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and fres).
+        and a resolution (tres and fres).
 
-        Attributes:
-            signal: AudioSignal object
-                Audio signal 
-            winlen: float
-                Window size in seconds
-            winstep: float
-                Step size in seconds 
-            hamming: bool
-                Apply Hamming window
+        Use the annotation method to add annotations to the spectrogram.
+
+        Args:
+            image: 2d numpy array
+                Spectrogram image
             NFFT: int
                 Number of points for the FFT. If None, set equal to the number of samples.
+            tres: float
+                Time resolution in seconds (i.e. bin size used for x axis)
+            tmin: float
+                Start time in seconds
+            fres: float
+                Frequency resolution in Hz (i.e. bin size used for y axis)
+            fmin: float
+                Minimum frequency in Hz (i.e. frequency value of bin 0)
             timestamp: datetime
                 Spectrogram time stamp (default: None)
+            flabels: list or array
+               Labels for the frequency bins (optional)
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
+            
+        Attributes:
+            image: 2d numpy array
+                Spectrogram image
+            NFFT: int
+                Number of points for the FFT. If None, set equal to the number of samples.
+            tres: float
+                Time resolution in seconds (i.e. bin size used for x axis)
+            tmin: float
+                Start time in seconds
+            fres: float
+                Frequency resolution in Hz (i.e. bin size used for y axis)
+            fmin: float
+                Minimum frequency in Hz (i.e. frequency value of bin 0)
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list or array
+                Labels for the frequency bins (optional)
+            file_dict: dict
+                Wave files used to generate this spectrogram
+            file_vector: 1d numpy array
+                Associates a particular wave file with each time bin in the spectrogram
+            time_vector: 1d numpy array
+                Associated a particular time within a wave file with each time bin in the spectrogram
 """
-    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag=''):
+    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag='', decibel=False):
         
         self.image = image
         self.NFFT = NFFT
@@ -178,18 +362,111 @@ class Spectrogram(AnnotationHandler):
         self.fmin = fmin
         self.timestamp = timestamp
         self.flabels = flabels
-        self.tag = tag
+        self.decibel = decibel
 
         super().__init__() # initialize AnnotationHandler
 
-        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
+        # assign values to the file dictionary and the file and time vectors
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag)        
 
-    def _make_file_and_time_vectors(self):
+    def _create_tracking_data(self, tag):
+        """ Creates a file dictionary, a file vector and a time vector
+
+            Args:
+                tag: str
+                    Identifier, typically the name of the wave file used to generate the spectrogram
+
+            Returns: 
+                file_dict: dict
+                    Wave files used to generate this spectrogram
+                file_vector: 1d numpy array
+                    Associates a particular wave file with each time bin in the spectrogram
+                time_vector: 1d numpy array
+                    Associated a particular time within a wave file with each time bin in the spectrogram
+
+            Example:
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = Spectrogram(tag='file.wav') # create a dummy spectrogram
+                >>> print(spec.file_dict) # inspect the file dictionary
+                {0: 'file.wav'}
+        """                
         n = self.image.shape[0]
-        time_vector = self.tres * np.arange(n) + self.tmin
+        time_vector = self.tres * np.arange(n, dtype=float) + self.tmin
         file_vector = np.zeros(n)
-        file_dict = {0: self.tag}
+        file_dict = {0: tag}
         return file_dict, file_vector, time_vector
+
+    def _crop_tracking_data(self, tlow=None, thigh=None):
+        """ Update tracking data in response to a cropping operation
+
+            Args:
+                tlow: float
+                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
+                thigh: float
+                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
+
+            Returns:
+                new_file_dict: dict
+                    Cropped file dictionary
+                new_file_vector: 1d numpy array
+                    Cropped file vector
+                new_time_vector: 1d numpy array
+                    Cropped time vector
+        """
+        tbin1 = 0
+        tbin2 = self.tbins()
+
+        if tlow is not None: tbin1 = self._find_tbin(tlow)
+        if thigh is not None: tbin2 = self._find_tbin(thigh, roundup=False) + 1 # when cropping, include upper bin
+        
+        new_time_vector = self.time_vector.copy()
+        new_time_vector = new_time_vector[tbin1:tbin2]
+
+        file_vector = self.file_vector.copy()
+        file_vector = file_vector[tbin1:tbin2]
+
+        new_file_dict = {}
+        new_file_vector = file_vector.copy()
+        new_key = 0
+        for it in self.file_dict.items():
+            key = it[0]
+            val = it[1]
+            if np.any(file_vector == key):
+                new_file_dict[new_key] = val
+                new_file_vector[file_vector == key] = new_key
+                new_key += 1
+
+        return new_time_vector, new_file_vector, new_file_dict
+
+    def get_time_vector(self):
+        """ Get the spectrogram's time vector
+
+            Returns:
+                v: 1d numpy array
+                    Time vector
+        """
+        v = self.time_vector
+        return v
+
+    def get_file_vector(self):
+        """ Get the spectrogram's file vector
+
+            Returns:
+                v: 1d numpy array
+                    File vector
+        """
+        v = self.file_vector
+        return v
+
+    def get_file_dict(self):
+        """ Get the spectrogram's file dictionary
+
+            Returns:
+                d: dict
+                    File dictionary
+        """
+        d = self.file_dict
+        return d
 
     def copy(self):
         """ Make a deep copy of the spectrogram.
@@ -207,7 +484,6 @@ class Spectrogram(AnnotationHandler):
         spec.fmin = self.fmin
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
-        spec.tag = self.tag
         spec.time_vector = self.time_vector.copy()
         spec.file_vector = self.file_vector.copy()
         spec.file_dict = self.file_dict.copy()
@@ -218,101 +494,7 @@ class Spectrogram(AnnotationHandler):
 
         return spec
 
-    def _make_spec_from_cut(self, tbin1=None, tbin2=None, fbin1=None, fbin2=None, fpad=False, preserve_time=False):
-        """ Create a new spectrogram from an existing spectrogram by 
-            cropping in time and/or frequency.
-        
-            Args:
-                tbin1: int
-                    Lower time bin
-                tbin2: int
-                    Upper time bin
-                fbin1: int
-                    Lower frequency bin
-                fbin2: int
-                    Upper frequency bin
-                fpad: bool
-                    If True, the new spectrogram will have the same 
-                    frequency range as the original, but bins outside 
-                    the cropping range will be set to zero.
-
-            Returns:
-                spec: Spectrogram
-                    Created spectrogram.
-        """
-        # cut image
-        if fpad:
-            img = self.image[tbin1:tbin2]
-            img[:,:fbin1] = 0
-            img[:,fbin2:] = 0 
-            fmin = self.fmin
-        else:
-            img = self.image[tbin1:tbin2, fbin1:fbin2]
-            fmin = self.fmin + self.fres * fbin1
-            fmin = max(fmin, self.fmin)
-
-        # cut labels and boxes
-        t1 = self._tbin_low(tbin1)
-        t2 = self._tbin_low(tbin2)
-        f1 = self._fbin_low(fbin1)
-        f2 = self._fbin_low(fbin2)
-
-        if preserve_time:
-            tmin = t1
-        else:
-            tmin = 0
-
-        # handle annotations
-        labels, boxes = self.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-        ann = AnnotationHandler(labels, boxes)
-        ann._shift_annotations(delay=tmin)
-
-        # create cropped spectrogram
-        spec = Spectrogram(image=img, NFFT=self.NFFT, tres=self.tres, tmin=tmin, fres=self.fres, fmin=fmin, timestamp=self.timestamp, flabels=None, tag='')
-
-        # add annotations
-        spec.annotate(labels=labels, boxes=boxes)
-
-        # handle time vector, file vector and file dict
-        spec.time_vector, spec.file_vector, spec.file_dict = self._cut_time_and_file_vectors(tbin1, tbin2)
-
-        return spec
-
-    def _cut_time_and_file_vectors(self, tbin1, tbin2):
-        if tbin1 is None:
-            tbin1 = 0
-        if tbin2 is None:
-            tbin2 = len(self.time_vector)
-        
-        time_vector = self.time_vector.copy()
-        file_vector = self.file_vector.copy()
-
-        time_vector = time_vector[tbin1:tbin2]
-        file_vector = file_vector[tbin1:tbin2]
-
-        file_dict = {}
-        new_file_vector = file_vector.copy()
-        new_key = 0
-        for it in self.file_dict.items():
-            key = it[0]
-            val = it[1]
-            if np.any(file_vector == key):
-                file_dict[new_key] = val
-                new_file_vector[file_vector == key] = new_key
-                new_key += 1
-
-        return time_vector, new_file_vector, file_dict
-
-    def get_time_vector(self):
-        return self.time_vector
-
-    def get_file_vector(self):
-        return self.file_vector
-
-    def get_file_dict(self):
-        return self.file_dict
-
-    def make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
+    def _make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
         
             Args:
@@ -343,8 +525,7 @@ class Spectrogram(AnnotationHandler):
                 phase_change: numpy.array
                     Phase change spectrogram. Only computed if compute_phase=True.
         """
-
-         # Make frames
+        # Make frames
         frames = audio_signal.make_frames(winlen, winstep) 
 
         # Apply Hamming window    
@@ -419,21 +600,50 @@ class Spectrogram(AnnotationHandler):
                 boxes: list(tuple)
                     Annotation boxes, specifying the start and stop time of the annotation 
                     and, optionally, the minimum and maximum frequency.
+
+            Example:
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
+                >>> # add two annotations
+                >>> spec.annotate(labels=[1,2], boxes=[[1.5,4.5],[5.0,5.4]])
+                >>> # show the spectrogram with the annotation that has label=1
+                >>> fig = spec.plot(label=1)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_label1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_label1.png
+                    :width: 550px
+                    :align: center
         """
         super().annotate(labels, boxes)
         for b in self.boxes:
             if b[3] == math.inf:
                 b[3] = self.fmax()
 
-    def _find_bin(self, x, bins, x_min, x_max, truncate=False):
-        """ Find bin corresponding to given value.
+    def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
+        """ Find bin corresponding to given value
 
-            Returns -1, if x < x_min
-            Returns N, if x > x_max, where N is the number of bins
+            If the value coincides with a bin boundary, the high bin number will 
+            be return if roundup is True (default), or the lower bin number if roundup is False.
+
+            If Truncate is False (default):
+             * Returns -1, if x < x_min
+             * Returns N, if x >= x_max, where N is the number of bins
+
+            If Truncate is True:
+             * Returns 0, if x < x_min
+             * Returns N-1, if x >= x_max, where N is the number of bins
 
             Args:
                 x: float
-                   Value
+                    Value
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
 
             Returns:
                 bin : int
@@ -450,8 +660,9 @@ class Spectrogram(AnnotationHandler):
         x = np.array(x)
         dx = (x_max - x_min) / bins
         b = (x - x_min) / dx
-        b[b % 1 == 0.0] += epsilon
-        b = b.astype(dtype=int, copy=False)
+
+        if not roundup:
+            b[b % 1 == 0.0] -= epsilon
 
         if truncate:
             b[b < 0] = 0
@@ -460,13 +671,14 @@ class Spectrogram(AnnotationHandler):
             b[b < 0] = -1
             b[b >= bins] = bins
 
+        b = b.astype(dtype=int, copy=False)
+
         if scalar:
             b = b[0]
 
         return b
 
-
-    def _find_tbin(self, t, truncate=True):
+    def _find_tbin(self, t, truncate=False, roundup=True):
         """ Find bin corresponding to given time.
 
             Returns -1, if t < t_min
@@ -475,13 +687,17 @@ class Spectrogram(AnnotationHandler):
             Args:
                 t: float
                    Time since spectrogram start in duration
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
 
             Returns:
                 bin : int
                     Bin number
         """
         tmax = self.tmin + self.tbins() * self.tres
-        bin = self._find_bin(x=t, bins=self.tbins(), x_min=self.tmin, x_max=tmax, truncate=truncate)
+        bin = self._find_bin(x=t, bins=self.tbins(), x_min=self.tmin, x_max=tmax, truncate=truncate, roundup=roundup)
         return bin
 
     def _tbin_low(self, bin):
@@ -494,7 +710,7 @@ class Spectrogram(AnnotationHandler):
         t = self.tmin + bin * self.tres
         return t
 
-    def _find_fbin(self, f, truncate=True):
+    def _find_fbin(self, f, truncate=False, roundup=True):
         """ Find bin corresponding to given frequency.
 
             Returns -1, if f < f_min.
@@ -503,12 +719,16 @@ class Spectrogram(AnnotationHandler):
             Args:
                 f: float
                    Frequency in Hz 
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
 
             Returns:
                 bin: int
                      Bin number
         """
-        bin = self._find_bin(x=f, bins=self.fbins(), x_min=self.fmin, x_max=self.fmax(), truncate=truncate)
+        bin = self._find_bin(x=f, bins=self.fbins(), x_min=self.fmin, x_max=self.fmax(), truncate=truncate, roundup=roundup)
         return bin
 
     def _fbin_low(self, bin):
@@ -522,20 +742,44 @@ class Spectrogram(AnnotationHandler):
         return f
 
     def tbins(self):
-        return self.image.shape[0]
+        """ Get number of time bins
 
+            Returns:
+                n: int
+                    Number of bins
+        """
+        n = self.image.shape[0]
+        return n
 
     def fbins(self):
-        return self.image.shape[1]
+        """ Get number of frequency bins
 
+            Returns:
+                n: int
+                    Number of bins
+        """
+        n = self.image.shape[1]
+        return n
 
     def fmax(self):
-        return self.fmin + self.fres * self.fbins()
+        """ Get upper range of frequency axis
 
+            Returns:
+                fmax: float
+                    Maximum frequency in Hz
+        """
+        fmax = self.fmin + self.fres * self.fbins()
+        return fmax
         
     def duration(self):
-        return self.tbins() * self.tres
+        """ Get spectrogram duration
 
+            Returns:
+                t: float
+                    Duration in seconds
+        """
+        t = self.tbins() * self.tres
+        return t
 
     def get_label_vector(self, label):
         """ Get a vector indicating presence/absence (1/0) 
@@ -555,40 +799,61 @@ class Spectrogram(AnnotationHandler):
         boi, _ = self._select_boxes(label)
         for b in boi:
             t1 = self._find_tbin(b[0])
-            t2 = self._find_tbin(b[1]) 
+            t2 = self._find_tbin(b[1], roundup=False) + 1  # include the upper bin 
             y[t1:t2] = 1
 
         return y
 
-    #TODO: handle datetime=None
-    def taxis(self):
-        if self.timestamp is not None:
-            times = list()
+    def time_labels(self):
+        """ Generates an array of labels for the time bins
+            
+            If the spectrogram was created with a timestamp, the labels 
+            will be datetime objects.
+
+            If the spectrogram was created without a timestamp, the labels 
+            will be 't0', 't1', etc.
+
+            Returns:
+                img: list of str or datetime
+                    Labels for the time bins
+        """
+        if self.timestamp is None:
+            tax = ['t{0}'.format(t) for t in range(self.tbins())]
+
+        else:
+            tax = list()
             delta = datetime.timedelta(seconds=self.tres)
             t = self.timestamp + datetime.timedelta(seconds=self.tmin)
             for _ in range(self.tbins()):
-                times.append(t)
+                tax.append(t)
                 t += delta
             
-            return times
+        return tax
 
+    def frequency_labels(self):
+        """ Generates an array of labels for the frequency bins
+            
+            This will return the value of the attribute flabels, or 
+            simply 'f0', 'f1', etc., if this attribute was not set.
 
-    def faxis(self):
+            Returns:
+                img: list of str
+                    Labels for the frequency bins
+        """
         if self.flabels == None:
             self.flabels = ['f{0}'.format(x) for x in range(self.fbins())]
         
         return self.flabels
 
 
-    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None):
-        """ Crop spectogram along time axis, frequency axis, or both.
+    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None, fpad=False):
+        """ Crop image along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
-            the cropped spectrogram is the overlap of the two.
+            the cropped image is the overlap of the two.
             
             In general, the cuts will not coincide with bin divisions.             
-            For the lower cuts, the entire lower bin is included.
-            For the higher cuts, the entire upper bin is excluded.
+            The cropping operation includes both the lower and upper bin.
 
             Args:
                 tlow: float
@@ -599,6 +864,10 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
 
             Returns:
                 img: 2d numpy array
@@ -616,32 +885,34 @@ class Spectrogram(AnnotationHandler):
         f1 = 0
         f2 = Nf
 
-        if tlow != None and tlow > self.tmin:
-            t1 = self._find_tbin(tlow, truncate=True)
-        if thigh != None and thigh < self.tmin + self.duration():
-            t2 = self._find_tbin(thigh, truncate=True)
-        if flow != None and flow > self.fmin:
-            f1 = self._find_fbin(flow, truncate=True)
-        if fhigh != None and fhigh < self.fmax():
-            f2 = self._find_fbin(fhigh, truncate=True)
+        if tlow is not None: t1 = self._find_tbin(tlow, truncate=True)
+        if thigh is not None: t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
+        if flow is not None: f1 = self._find_fbin(flow, truncate=True)
+        if fhigh is not None: f2 = self._find_fbin(fhigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
             
-        if t2 <= t1 or f2 <= f1:
+        if t2 <= t1:
             img = None
         else:
-            img = self.image[t1:t2, f1:f2]
+            if fpad:
+                img = np.zeros(shape=(t2-t1, self.image.shape[1]))
+                if f2 > f1: 
+                    img[:,f1:f2] = self.image[t1:t2, f1:f2]
+            else:
+                if f2 > f1:
+                    img = self.image[t1:t2, f1:f2]
+                else:
+                    img = None
 
         return img, t1, f1
 
-
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, preserve_time=False):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, fpad=False, keep_time=True, make_copy=False):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
             the cropped spectrogram is the overlap of the two.
             
             In general, the cuts will not coincide with bin divisions.             
-            For the lower cuts, the entire lower bin is included.
-            For the higher cuts, the entire upper bin is excluded.
+            The cropping operation includes both the lower and upper bin.
 
             Args:
                 tlow: float
@@ -652,30 +923,87 @@ class Spectrogram(AnnotationHandler):
                     Lower limit on frequency cut in Hz
                 fhigh: float
                     Upper limit on frequency cut in Hz
-                preserve_time: bool
+                fpad: bool
+                    If necessary, pad with zeros along the frequency axis to ensure that 
+                    the extracted spectrogram had the same frequency range as the source 
+                    spectrogram.
+                keep_time: bool
                     Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
                     the first bin of the cropped spectrogram.
-        """
-        # crop image
-        self.image, tbin1, fbin1 = self._crop_image(tlow, thigh, flow, fhigh)
+                make_copy: bool
+                    Do not modify the present instance, but make a copy instead and applying the cropping operation to this copy
 
-        # update t_min and f_min
-        if preserve_time: 
-            self.tmin += self.tres * tbin1
-        
-        self.fmin += self.fres * fbin1
+            Returns:
+                spec: Spectrogram
+                    Cropped spectrogram, empy unless make_copy is True
+
+            Examples: 
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
+                >>> # add an annotation
+                >>> spec.annotate(labels=1, boxes=[1.5,4.5,250,350])
+                >>> # show the spectrogram with the annotation that has label=1
+                >>> fig = spec.plot(label=1)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
+                
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
+                    :width: 550px
+                    :align: center
+                
+                >>> # now crop the spectrogram in time and frequency and display the result
+                >>> spec.crop(tlow=2.1, thigh=5.6, flow=275, fhigh=406, keep_time=True)
+                >>> fig = spec.plot(label=1)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
+                    :width: 550px
+                    :align: center
+        """
+        if make_copy:
+            spec = self.copy()
+        else:
+            spec = self
 
         # crop labels and boxes
-        self.labels, self.boxes = self.get_cropped_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
-        
-        if self.flabels != None:
-            self.flabels = self.flabels[fbin1:fbin1+self.image.shape[1]]
+        spec.labels, spec.boxes = spec.get_cropped_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
 
-    def extract(self, label, min_length=None, center=False, fpad=False, make_copy=False, preserve_time=False):
+        # handle time vector, file vector and file dict
+        spec.time_vector, spec.file_vector, spec.file_dict = spec._crop_tracking_data(tlow, thigh)
+
+        # crop image
+        spec.image, tbin1, fbin1 = spec._crop_image(tlow, thigh, flow, fhigh, fpad=fpad)
+
+        # update frequency axis
+        if not fpad:
+            spec.fmin += spec.fres * fbin1
+
+        # update time axis
+        if keep_time: 
+            spec.tmin += spec.tres * tbin1
+        else:
+            dt = spec.tmin + spec.tres * tbin1
+            spec.tmin = 0
+            spec._shift_annotations(-dt)      
+
+        # handle flabels
+        if spec.flabels != None:
+            if not fpad:
+                spec.flabels = spec.flabels[fbin1:fbin1+spec.image.shape[1]]
+
+        if make_copy:
+            return spec
+
+    def extract(self, label, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
-            After the selected segments have been extracted, this instance contains the 
+            After the selected segments have been extracted, the present instance contains the 
             remaining part of the spectrogram.
+
+            If nothing remains, the image attribute of the present instance will be None
 
             Args:
                 label: int
@@ -689,33 +1017,72 @@ class Spectrogram(AnnotationHandler):
                     (instead of placing it randomly).                     
                 fpad: bool
                     If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted spectrogram had the same frequency range as the source 
+                    the extracted segments have the same frequency range as the source 
                     spectrogram.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
                 make_copy: bool
-                    If true, the extracted portion of the spectrogram is copied rather 
-                    than cropped, so this instance is unaffected by the operation.
+                    If true, the present instance is unaffected by the extraction operation.
 
             Returns:
                 specs: list(Spectrogram)
-                    List of clipped spectrograms.                
+                    List of clipped spectrograms.       
+
+            Example:         
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
+                >>> # add an annotation
+                >>> spec.annotate(labels=1, boxes=[1.5,4.5,250,350])
+                >>> # show the spectrogram with the annotation that has label=1
+                >>> fig = spec.plot(label=1)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
+                
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
+                    :width: 550px
+                    :align: center
+                
+                >>> # extract the annotated region of the spectrogram
+                >>> roi = spec.extract(label=1, keep_time=True)
+                >>> # display the extracted region and what is left
+                >>> fig = roi[0].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_extracted.png")
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_left.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_extracted.png
+                    :width: 280px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_left.png
+                    :width: 280px
+                    :align: right
+
         """
         if make_copy:
             s = self.copy()
         else:
             s = self
 
-        # select boxes of interest (BOI)
+        # select boxes of interest
         boi, idx = s._select_boxes(label)
-        # stretch to minimum length, if necessary
+
+        # stretch to achieve minimum length, if necessary
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
+
         # extract
-        res = s._clip(boxes=boi, fpad=fpad, preserve_time=preserve_time)
+        res = s._clip(boxes=boi, fpad=fpad, keep_time=keep_time)
+
         # remove extracted labels
         s.delete_annotations(idx)
         
         return res
 
-    def segment(self, number=1, length=None, pad=False, preserve_time=False):
+    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -727,12 +1094,51 @@ class Spectrogram(AnnotationHandler):
                 pad: bool
                     If True, pad spectrogram with zeros if necessary to ensure 
                     that bins are used.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
+                make_copy: bool
+                    If true, the present instance is unaffected by the extraction operation.
 
             Returns:
                 segs: list
                     List of segments
-        """        
+
+            Example:
+                >>> # create an audio signal
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1, dfdt=10)
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
+                >>> # split the spectrogram into three equally long segments
+                >>> segs = spec.segment(number=3, keep_time=True)
+                >>> # display the segments
+                >>> fig = segs[0].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_1.png")
+                >>> fig = segs[1].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_2.png")
+                >>> fig = segs[2].plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/segs_3.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_1.png
+                    :width: 180px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_2.png
+                    :width: 180px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/segs_3.png
+                    :width: 180px
+                    :align: left
+        """
         epsilon = 1E-12
+
+        if make_copy:
+            spec = self.copy()
+        else:
+            spec = self
 
         if pad:
             f = np.ceil
@@ -740,24 +1146,24 @@ class Spectrogram(AnnotationHandler):
             f = np.floor
 
         if number > 1:
-            bins = int(f(self.tbins() / number))
-            dt = bins * self.tres
+            bins = int(f(spec.tbins() / number)) - 1
+            dt = bins * spec.tres
         
         elif length is not None:
-            bins = int(np.ceil(self.tbins() * length / self.duration()))
-            number = int(f(self.tbins() / bins))
-            dt = bins * self.tres
+            bins = int(np.ceil(spec.tbins() * length / spec.duration())) - 1
+            number = int(f(spec.tbins() / bins))
+            dt = bins * spec.tres
 
         else:
-            return [self]
+            return [spec]
 
         t1 = np.arange(number) * dt + epsilon
         t2 = (np.arange(number) + 1) * dt + epsilon
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
-        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=self.fmax()+0.5*self.fres)
-        segs = self._clip(boxes=boxes, preserve_time=preserve_time)
+        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fmax()+0.5*spec.fres)
+        segs = spec._clip(boxes=boxes, keep_time=keep_time)
         
         return segs
 
@@ -786,8 +1192,7 @@ class Spectrogram(AnnotationHandler):
         return res, idx
 
     def _stretch(self, boxes, min_length, center=False):
-        """ Stretch boxes to ensure that all have a 
-            minimum time length.
+        """ Stretch boxes to ensure that all have a minimum length.
 
             Args:
                 boxes: list
@@ -802,6 +1207,9 @@ class Spectrogram(AnnotationHandler):
                 res: list
                     stretchted boxes
         """ 
+        if min_length is None:
+            return boxes
+
         res = list()
         for b in boxes:
             b = b.copy()
@@ -824,7 +1232,7 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def _clip(self, boxes, fpad=False, preserve_time=False):
+    def _clip(self, boxes, fpad=False, keep_time=False):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -834,8 +1242,11 @@ class Spectrogram(AnnotationHandler):
                     2d numpy array with shape=(?,4) 
                 fpad: bool
                     If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted spectrogram had the same frequency range as the source 
+                    the extracted spectrogram has the same frequency range as the source 
                     spectrogram.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
 
             Returns:
                 specs: list(Spectrogram)
@@ -853,18 +1264,20 @@ class Spectrogram(AnnotationHandler):
         boxes = np.array(boxes)
         N = boxes.shape[0]
 
-        # convert from time/frequency to bin numbers
-        t1 = self._find_tbin(boxes[:,0]) # start time bin
-        t2 = self._find_tbin(boxes[:,1], truncate=False) # end time bin
-        f1 = self._find_fbin(boxes[:,2]) # lower frequency bin
-        f2 = self._find_fbin(boxes[:,3], truncate=False) # upper frequency bin
-
-        specs = list()
+        tlow = boxes[:,0]
+        thigh = boxes[:,1]
+        flow = boxes[:,2]
+        fhigh = boxes[:,3]
 
         # loop over boxes
-        for i in range(N):     
-            spec = self._make_spec_from_cut(tbin1=t1[i], tbin2=t2[i], fbin1=f1[i], fbin2=f2[i], fpad=fpad, preserve_time=preserve_time)
+        specs = list()
+        for i in range(N):
+            spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i], fpad=fpad, keep_time=keep_time, make_copy=True)
             specs.append(spec)
+
+        # convert from time to bin numbers
+        t1 = self._find_tbin(tlow, truncate=True) 
+        t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
 
         # complement
         t2 = np.insert(t2, 0, 0)
@@ -883,6 +1296,9 @@ class Spectrogram(AnnotationHandler):
                     time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
                     file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
 
+        if img_c.shape[0] == 0:
+            img_c = None
+
         self.image = img_c
         self.time_vector = time_vector
         self.file_vector = file_vector
@@ -890,11 +1306,89 @@ class Spectrogram(AnnotationHandler):
 
         return specs
 
-    def subtract_background(self):
-        """ Subtract the median value from each row (frequency bin) 
+    def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
+        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
+
+            Currently, offers the following two methods:
+
+                1. MEDIAN: Subtracts from each row the median value of that row.
+                
+                2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
+                
+            The running mean is computed according to the formula given in Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
+
+            Args:
+                method: str
+                    Options are 'MEDIAN' and 'RUNNING_MEAN'
+            
+            Optional args:
+                time_constant: float
+                    Time constant used for the computation of the running mean (in seconds).
+                    Must be provided if the method 'RUNNING_MEAN' is chosen.
+
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # show spectrogram as is
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
+                >>> # tonal noise reduction
+                >>> spec.tonal_noise_reduction()
+                >>> # show modified spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
+                    :width: 250px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
+                    :width: 250px
+                    :align: left
 
         """
-        self.image = self.image - np.median(self.image, axis=0)
+        if method is 'MEDIAN':
+            self.image = self.image - np.median(self.image, axis=0)
+        
+        elif method is 'RUNNING_MEAN':
+            assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
+            self.image = self._tonal_noise_reduction_running_mean(kwargs['time_constant'])
+
+        else:
+            print('Invalid tonal noise reduction method:',method)
+            print('Available options are: MEDIAN, RUNNIN_MEAN')
+            print('Spectrogram is unchanged')
+
+    def _tonal_noise_reduction_running_mean(self, time_constant):
+        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
+            by subtracting from each row a running mean, computed according to the formula given in 
+            Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
+
+            Args:
+                time_constant: float
+                    Time constant used for the computation of the running mean (in seconds).
+
+            Returns:
+                new_img : 2d numpy array
+                    Corrected spetrogram image
+        """
+        dt = self.tres
+        T = time_constant
+        eps = 1 - np.exp((np.log(0.15) * dt / T))
+        nx, ny = self.image.shape
+        rmean = np.average(self.image, axis=0)
+        new_img = np.zeros(shape=(nx,ny))
+        for ix in range(nx):
+            new_img[ix,:] = self.image[ix,:] - rmean # subtract running mean
+            rmean = (1 - eps) * rmean + eps * self.image[ix,:] # update running mean
+
+        return new_img
 
     def average(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute average magnitude within specified time and frequency regions.
@@ -902,7 +1396,7 @@ class Spectrogram(AnnotationHandler):
             If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap, None is returned.
+            If there is no overlap, NaN is returned.
 
             Args:
                 axis: bool
@@ -929,14 +1423,13 @@ class Spectrogram(AnnotationHandler):
 
         return avg
 
-
     def median(self, axis=None, tlow=None, thigh=None, flow=None, fhigh=None):
         """ Compute median magnitude within specified time and frequency regions.
             
             If the region extends beyond the boarders of the spectrogram, 
             only the overlap region is used for the computation.
 
-            If there is no overlap, None is returned.
+            If there is no overlap, NaN is returned.
 
             Args:
                 axis: bool
@@ -999,10 +1492,10 @@ class Spectrogram(AnnotationHandler):
 
             >>> plt.show()
             
-            .. image:: _static/morlet_spectrogram.png
+            .. image:: ../../_static/morlet_spectrogram.png
                 :width: 300px
                 :align: left
-            .. image:: _static/morlet_spectrogram_blurred.png
+            .. image:: ../../_static/morlet_spectrogram_blurred.png
                 :width: 300px
                 :align: right
         """
@@ -1016,8 +1509,11 @@ class Spectrogram(AnnotationHandler):
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
     
-    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, smooth_par=5, preserve_time=False, t_scale=1, f_scale=1):
-        """ Add another spectrogram to this spectrogram.
+    def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, keep_time=False, t_scale=1, f_scale=1, **kwargs):
+        """ Add another spectrogram on top of this spectrogram.
+
+            Meta-data (e.g. annotations) will also be added.
+
             The spectrograms must have the same time and frequency resolution.
             The output spectrogram always has the same dimensions (time x frequency) as the original spectrogram.
 
@@ -1033,10 +1529,51 @@ class Spectrogram(AnnotationHandler):
                     to the method is unchanged.       
                 smooth: bool
                     Smoothen the edges of the spectrogram that is being added.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
+                t_scale: float
+                    Scale the time axis of the spectrogram that is being added by this factor
+                f_scale: float
+                    Scale the frequency axis of the spectrogram that is being added by this factor
+
+            Optional args:
                 smooth_par: int
                     This parameter can be used to control the amount of smoothing.
                     A value of 1 gives the largest effect. The larger the value, the smaller 
                     the effect.
+
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # make a copy
+                >>> spec_copy = spec.copy()
+                >>> # perform tonal noise reduction on copied spectrogram and crop time
+                >>> spec_copy.tonal_noise_reduction()
+                >>> spec_copy.crop(tlow=0.9, thigh=1.7)
+                >>> # show orignal spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_orig.png")
+                >>> # place the tonal-noise-corrected and cropped spectrogram on top of 
+                >>> # the original spectrogram, shifted by 1.8 seconds
+                >>> spec.add(spec_copy, delay=1.8)
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_added.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
+                    :width: 250px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_added.png
+                    :width: 250px
+                    :align: left
+
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to add spectrograms with different frequency resolutions'
@@ -1048,8 +1585,8 @@ class Spectrogram(AnnotationHandler):
             sp = spec
 
         # stretch/squeeze
-        sp.scale_time_axis(scale=t_scale, preserve_shape=False)
-        sp.scale_freq_axis(scale=f_scale, preserve_shape=True)
+        sp._scale_time_axis(scale=t_scale, preserve_shape=False)
+        sp._scale_freq_axis(scale=f_scale, preserve_shape=True)
 
         # crop spectrogram
         if delay < 0:
@@ -1058,10 +1595,15 @@ class Spectrogram(AnnotationHandler):
             tlow = sp.tmin
         thigh = sp.tmin + self.duration() - delay  
 
-        sp.crop(tlow, thigh, self.fmin, self.fmax(), preserve_time=preserve_time)
+        sp.crop(tlow, thigh, self.fmin, self.fmax(), keep_time=keep_time)
 
         # fade-in/fade-out
         if smooth:
+
+            smooth_par = 5
+            if 'smooth_par' in kwargs.keys():
+                smooth_par = kwargs['smooth_par']
+
             sigmas = 3
             p = 2 * np.ceil(smooth_par)
             nt = sp.tbins()
@@ -1091,8 +1633,28 @@ class Spectrogram(AnnotationHandler):
         self.file_vector = np.zeros(n)
         self.file_dict = {0: 'fake'}
 
-    def scale_time_axis(self, scale, preserve_shape=True):
+    def _scale_time_axis(self, scale, preserve_shape=True):
+        """ Scale the spectrogram's time axis by a constant factor
 
+            If preserve_shape is False, this operation simply stretches (scale > 1)
+            or squeezes (scale < 1) the spectrogram lengthwise (i.e. along the time axis) 
+            by the specified scale factor.  
+
+            If preserve_shape is True, the effect of this operation is to stretch or 
+            squeeze the spectrogram lengthwise by the specified scale factor, then
+
+                i) if stretched, remove the section that extends beyond the original length
+                ii) if squeezed, extend the spectrogram so that its length matches that of 
+                the original spectrogram by appending to it part of the original spectrogram
+
+            Args:
+                scale: float
+                    Scaling factor
+                preserve_shape: bool
+                    If True, the time axis will have the same length after rescaling as it had before.
+                    If False, the length will change.
+
+        """
         flip_pad = False
 
         if scale == 1:
@@ -1122,8 +1684,28 @@ class Spectrogram(AnnotationHandler):
         # update annotations
         self._scale_annotations(scale)
 
-    def scale_freq_axis(self, scale, preserve_shape=True):
+    def _scale_freq_axis(self, scale, preserve_shape=True):
+        """ Scale the spectrogram's frequency axis by a constant factor
 
+            If preserve_shape is False, this operation simply stretches (scale > 1)
+            or squeezes (scale < 1) the spectrogram heightwise (i.e. along the frequency axis) 
+            by the specified scale factor.  
+
+            If preserve_shape is True, the effect of this operation is to stretch or 
+            squeeze the spectrogram heightwise by the specified scale factor, then
+
+                i) if stretched, remove the section that extends beyond the original height
+                ii) if squeezed, extend the spectrogram so that its height matches that of 
+                the original spectrogram by appending to it part of the original spectrogram
+
+            Args:
+                scale: float
+                    Scaling factor
+                preserve_shape: bool
+                    If True, the time axis will have the same height after rescaling as it had before.
+                    If False, the height will change.
+
+        """
         pad_with_gaussian_noise = False
         flip_pad = False
 
@@ -1132,7 +1714,7 @@ class Spectrogram(AnnotationHandler):
         
         else:
             n = self.image.shape[1]
-            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False)
+            scaled_image = rescale(self.image, (1, scale), anti_aliasing=True, multichannel=False, mode='constant')
             dn = n - scaled_image.shape[1]
 
             if not preserve_shape:
@@ -1161,11 +1743,14 @@ class Spectrogram(AnnotationHandler):
 
     def append(self, spec):
         """ Append another spectrogram to this spectrogram.
-            The spectrograms must have the same dimensions and resolutions.
+
+            Includes any meta-data associated with the spectrogram (e.g. annotations).
+
+            The spectrograms must have the same time and frequency resolutions and share the same frequency range.
 
             Args:
                 spec: Spectrogram
-                    Spectrogram to be added
+                    Spectrogram to be appended
         """
         assert self.tres == spec.tres, 'It is not possible to append spectrograms with different time resolutions'
         assert self.fres == spec.fres, 'It is not possible to append spectrograms with different frequency resolutions'
@@ -1276,9 +1861,12 @@ class Spectrogram(AnnotationHandler):
         else:
             ax0 = ax[-1]
 
+        t1 = self.tmin
+        t2 = self.tmin+self.duration()
+
         # spectrogram
         x = self.image
-        img_plot = ax0.imshow(x.T, aspect='auto', origin='lower', extent=(0, self.duration(), self.fmin, self.fmax()))
+        img_plot = ax0.imshow(x.T, aspect='auto', origin='lower', extent=(t1, t2, self.fmin, self.fmax()))
         ax0.set_xlabel('Time (s)')
         ax0.set_ylabel('Frequency (Hz)')
         fig.colorbar(img_plot, ax=ax0, format='%+2.0f dB')
@@ -1292,9 +1880,9 @@ class Spectrogram(AnnotationHandler):
             t_axis = np.arange(n, dtype=float)
             dt = self.duration() / n
             t_axis *= dt 
-            t_axis += 0.5 * dt
+            t_axis += 0.5 * dt + self.tmin
             ax[row].plot(t_axis, labels, color='C1')
-            ax[row].set_xlim(0, self.duration())
+            ax[row].set_xlim(t1, t2)
             ax[row].set_ylim(-0.1, 1.1)
             ax[row].set_ylabel('label')
             fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
@@ -1306,9 +1894,9 @@ class Spectrogram(AnnotationHandler):
             t_axis = np.arange(n, dtype=float)
             dt = self.duration() / n
             t_axis *= dt 
-            t_axis += 0.5 * dt
+            t_axis += 0.5 * dt + self.tmin
             ax[row].plot(t_axis, pred, color='C2')
-            ax[row].set_xlim(0, self.duration())
+            ax[row].set_xlim(t1, t2)
             ax[row].set_ylim(-0.1, 1.1)
             ax[row].set_ylabel('prediction')
             fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
@@ -1316,17 +1904,12 @@ class Spectrogram(AnnotationHandler):
 
         # feat
         if feat is not None:
-            n = len(feat)
-            t_axis = np.arange(n, dtype=float)
-            dt = self.duration() / n
-            t_axis *= dt 
-            t_axis += 0.5 * dt
             m = np.mean(feat, axis=0)
             idx = np.argwhere(m != 0)
             idx = np.squeeze(idx)
             x = feat[:,idx]
             x = x / np.max(x, axis=0)
-            img_plot = ax[row].imshow(x.T, aselft='auto', origin='lower', extent=(0, self.duration(), 0, 1))
+            img_plot = ax[row].imshow(x.T, aselft='auto', origin='lower', extent=(t1, t2, 0, 1))
             ax[row].set_ylabel('feature #')
             fig.colorbar(img_plot, ax=ax[row])
             row -= 1
@@ -1337,9 +1920,9 @@ class Spectrogram(AnnotationHandler):
             t_axis = np.arange(n, dtype=float)
             dt = self.duration() / n
             t_axis *= dt 
-            t_axis += 0.5 * dt
+            t_axis += 0.5 * dt + self.tmin
             ax[row].plot(t_axis, conf, color='C3')
-            ax[row].set_xlim(0, self.duration())
+            ax[row].set_xlim(t1, t2)
             ax[row].set_ylim(-0.1, 1.1)
             ax[row].set_ylabel('confidence')
             fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
@@ -1376,17 +1959,26 @@ class MagSpectrogram(Spectrogram):
                 Compute phase spectrogram in addition to magnitude spectrogram
             decibel: bool
                 Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram.
+                If no tag is provided, the tag from the audio_signal will be used.
+            decibel: bool
+                Use logarithmic z axis
     """
-    def __init__(self, audio_signal, winlen, winstep, timestamp=None,
+    def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
-        super(MagSpectrogram, self).__init__(timestamp=timestamp, flabels=flabels, tag=tag)
-        self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-        self.tres = winstep
-        self.file_dict, self.file_vector, self.time_vector = self._make_file_and_time_vectors()        
+        super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+
+        if audio_signal is not None:
+            self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
-        """ Create spectrogram from audio signal
+        """ Create magnitude spectrogram from audio signal
         
             Args:
                 signal: AudioSignal
@@ -1412,20 +2004,22 @@ class MagSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
 
     def audio_signal(self):
         """ Generate audio signal from magnitude spectrogram
+
+            Note that the current implementation does not account for the effect of 
+            the Hamming window function, nor does it take into account phase 
+            information. 
+
+            An improved implementation is planned for release 2.0.0.
             
             Returns:
                 a: AudioSignal
                     Audio signal
-
-            TODO: Check that this implementation is correct!
-                  (For example, the window function is not being 
-                  taken into account which I believe it should be)
         """
         y = np.fft.irfft(self.image)
         d = self.tres * self.fres * (y.shape[1] + 1)
@@ -1470,16 +2064,22 @@ class PowerSpectrogram(Spectrogram):
                 Compute phase spectrogram in addition to power spectrogram                        
             decibel: bool
                 Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
     """
     def __init__(self, audio_signal, winlen, winstep,flabels=None,
-                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
+                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False, tag=''):
 
-        super(PowerSpectrogram, self).__init__()
-        self.image, self. NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-        self.tres = winstep
-        self.timestamp = timestamp
-        self.flabels = flabels
+        super(PowerSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
+        if audio_signal is not None:
+            self.image, self.NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
     def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
         """ Create spectrogram from audio signal
@@ -1508,7 +2108,7 @@ class PowerSpectrogram(Spectrogram):
                 and the phase spectrogram (only if compute_phase=True).
         """
 
-        image, NFFT, fres, phase_change = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
+        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         return power_spec, NFFT, fres, phase_change
@@ -1539,18 +2139,25 @@ class MelSpectrogram(Spectrogram):
                 Spectrogram time stamp (default: None)
             flabels: list of strings
                 List of labels for the frequency bins.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram
+            decibel: bool
+                Use logarithmic z axis
     """
 
 
     def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None, **kwargs):
+                 NFFT=None, timestamp=None, tag='', decibel=False, **kwargs):
 
-        super(MelSpectrogram, self).__init__()
-        self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep,
-                                                                                 hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
-        self.tres = winstep
-        self.timestamp = timestamp
-        self.flabels = flabels
+        super(MelSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+
+        if audio_signal is not None:
+            self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
 
     def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
                          n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None):
@@ -1589,7 +2196,7 @@ class MelSpectrogram(Spectrogram):
            
         """
 
-        image, NFFT, fres, _ = self.make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
+        image, NFFT, fres, _ = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
         power_spec = (1.0/NFFT) * (image ** 2)
         
         low_freq_mel = 0
@@ -1623,15 +2230,13 @@ class MelSpectrogram(Spectrogram):
         
         return mel_spec, filter_banks, NFFT, fres
 
-    def plot(self,filter_bank=False, decibel=False):
+    def plot(self, filter_bank=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
             Args:
-                decibel: bool
-                    Use linear (if False) or logarithmic scale (if True)
                 filter_bank: bool
                     Plot the filter banks if True. If false (default) print the mel spectrogram.
             
@@ -1645,15 +2250,11 @@ class MelSpectrogram(Spectrogram):
         else:
             img = self.image
 
-        if decibel:
-            from ketos.pre_processing import to_decibel
-            img = to_decibel(img)
-
         fig, ax = plt.subplots()
-        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(0,self.duration(),self.fmin,self.fmax()))
+        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(self.tmin,self.tmin+self.duration(),self.fmin,self.fmax()))
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Frequency (Hz)')
-        if decibel:
+        if self.decibel:
             fig.colorbar(img_plot,format='%+2.0f dB')
         else:
             fig.colorbar(img_plot,format='%+2.0f')  

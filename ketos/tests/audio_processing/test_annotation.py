@@ -102,13 +102,13 @@ def test_get_cropped_annotations():
     l, b = a.get_cropped_annotations(t1=2, t2=15, f1=24, f2=27)
     assert len(l) == 2
     assert l[0] == 1
-    assert b[0][0] == pytest.approx(12.0, abs=0.001)
-    assert b[0][1] == pytest.approx(13.0, abs=0.001)
+    assert b[0][0] == pytest.approx(14.0, abs=0.001)
+    assert b[0][1] == pytest.approx(15.0, abs=0.001)
     assert b[0][2] == pytest.approx(24.0, abs=0.001)
     assert b[0][3] == pytest.approx(27.0, abs=0.001)
     assert l[1] == 2
-    assert b[1][0] == pytest.approx(0.1, abs=0.001)
-    assert b[1][1] == pytest.approx(11.0, abs=0.001)
+    assert b[1][0] == pytest.approx(2.1, abs=0.001)
+    assert b[1][1] == pytest.approx(13.0, abs=0.001)
     assert b[1][2] == pytest.approx(24.0, abs=0.001)
     assert b[1][3] == pytest.approx(27.0, abs=0.001)
 
@@ -121,12 +121,12 @@ def test_get_cropped_annotations_2():
     assert l[0] == 0
     assert l[1] == 1
     assert len(b) == 2
-    assert b[0][0] == 0
-    assert b[0][1] == 1.9
+    assert b[0][0] == 10.3
+    assert b[0][1] == 12.2
     assert b[0][2] == 110.0
     assert b[0][3] == 555.0
-    assert b[1][0] == 19.7
-    assert b[1][1] == 23.7
+    assert b[1][0] == 30.
+    assert b[1][1] == 34.
     assert b[1][2] == 0
     assert b[1][3] == 555.0
 
