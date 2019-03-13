@@ -730,7 +730,7 @@ def test_next_batch_with_single_file(sine_wave_file):
     assert reader.finished() == False
     b = reader.next()
     assert reader.finished() == True
-    assert b.seconds() == s.seconds()
+    assert b.duration() == s.duration()
 
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
     reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])

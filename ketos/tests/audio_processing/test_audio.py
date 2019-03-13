@@ -1,17 +1,29 @@
-""" Unit tests for the the 'audio_signal' module in the 'sound_classification' package
-
+""" Unit tests for the 'audio' module within the ketos library
 
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Intitute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
 
 import pytest
 import ketos.audio_processing.audio as aud
@@ -24,7 +36,7 @@ def test_time_stamped_audio_signal_has_correct_begin_and_end_times(sine_audio):
     audio = sine_audio
     today = datetime.datetime.today()
     audio.time_stamp = today 
-    seconds = sine_audio.seconds()
+    seconds = sine_audio.duration()
     duration = datetime.timedelta(seconds=seconds)
     assert audio.begin() == today
     assert audio.end() == today + duration
@@ -99,22 +111,22 @@ def test_append_audio_signal_without_time_stamp_to_itself(sine_audio_without_tim
 
 def test_append_with_smoothing(sine_audio):
     audio = sine_audio
-    t = audio.seconds()
+    t = audio.duration()
     at = audio.append(signal=audio, n_smooth=100)
-    assert audio.seconds() == pytest.approx(2.*t - 100/audio.rate, rel=1./audio.rate)
+    assert audio.duration() == pytest.approx(2.*t - 100/audio.rate, rel=1./audio.rate)
     assert at == audio.begin() + datetime.timedelta(microseconds=1e6*(t - 100/audio.rate))
 
 def test_append_with_delay(sine_audio):
     audio = sine_audio
-    t = audio.seconds()
+    t = audio.duration()
     delay = 3.0
     audio.append(signal=audio, delay=3)
-    assert audio.seconds() == 2.*t + 3.0
+    assert audio.duration() == 2.*t + 3.0
 
 def test_append_with_max_length(sine_audio):
     audio = sine_audio
     audio2 = audio.copy()
-    t = audio.seconds()
+    t = audio.duration()
     n = len(audio.data)
     nmax = int(1.5 * n)
     audio.append(signal=audio2, max_length=nmax)
@@ -124,7 +136,7 @@ def test_append_with_max_length(sine_audio):
 def test_append_with_max_length_and_smooth(sine_audio):
     audio = sine_audio
     audio2 = audio.copy()
-    t = audio.seconds()
+    t = audio.duration()
     n = len(audio.data)
     nmax = int(1.5 * n)
     n_smooth = 200
@@ -135,7 +147,7 @@ def test_append_with_max_length_and_smooth(sine_audio):
 def test_append_with_max_length_and_delay(sine_audio):
     audio = sine_audio
     audio2 = audio.copy()
-    t = audio.seconds()
+    t = audio.duration()
     n = len(audio.data)
     nmax = int(1.5 * n)
     delay = t
@@ -149,27 +161,27 @@ def test_append_delay_determined_from_time_stamps(sine_audio):
     audio2 = audio.copy()
     dt = 5.
     audio2.time_stamp = audio.end() + datetime.timedelta(microseconds=1e6*dt)
-    t = audio.seconds()
+    t = audio.duration()
     n = len(audio.data)
     audio.append(signal=audio2)
-    assert audio.seconds() == 2*t + dt
+    assert audio.duration() == 2*t + dt
     assert np.ma.is_masked(audio.data[n]) 
     
 def test_add_identical_audio_signals(sine_audio):
     audio = sine_audio
-    t = audio.seconds()
+    t = audio.duration()
     v = np.copy(audio.data)
     audio.add(signal=audio)
-    assert audio.seconds() == t
+    assert audio.duration() == t
     assert np.all(audio.data == 2*v)
     
 def test_add_identical_audio_signals_with_delay(sine_audio):
     audio = sine_audio
-    t = audio.seconds()
+    t = audio.duration()
     v = np.copy(audio.data)
     delay = 1
     audio.add(signal=audio, delay=delay)
-    assert audio.seconds() == t
+    assert audio.duration() == t
     i = int(audio.rate * delay)
     assert audio.data[5] == v[5]
     assert audio.data[i+5] == v[i+5] + v[5]    
@@ -191,15 +203,15 @@ def test_gaussian_noise():
     noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
     assert noise.std() == pytest.approx(2, rel=0.05) # check standard deviation
     assert noise.average() == pytest.approx(0, abs=6*2/np.sqrt(40000)) # check mean
-    assert noise.seconds() == 20 # check length
+    assert noise.duration() == 20 # check length
 
 def test_clip(sine_audio):
     audio = sine_audio
     segs = audio.clip(boxes=[[0.1, 0.4],[0.3, 0.7]])
     assert len(segs) == 2
-    assert segs[0].seconds() == pytest.approx(0.3, abs=2./audio.rate)
-    assert segs[1].seconds() == pytest.approx(0.4, abs=2./audio.rate)
-    assert audio.seconds() == pytest.approx(3.0-0.6, abs=2./audio.rate)
+    assert segs[0].duration() == pytest.approx(0.3, abs=2./audio.rate)
+    assert segs[1].duration() == pytest.approx(0.4, abs=2./audio.rate)
+    assert audio.duration() == pytest.approx(3.0-0.6, abs=2./audio.rate)
 
 @pytest.mark.test_resample
 def test_resampled_signal_has_correct_rate(sine_wave_file):
@@ -217,7 +229,7 @@ def test_resampled_signal_has_correct_rate(sine_wave_file):
 def test_resampled_signal_has_correct_length(sine_wave_file):
     signal = aud.AudioSignal.from_wav(sine_wave_file)
 
-    duration = signal.seconds()
+    duration = signal.duration()
 
     new_signal = signal.copy()
     new_signal.resample(new_rate=22000)
