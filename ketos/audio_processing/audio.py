@@ -1,9 +1,41 @@
+""" audio module within the ketos library
+
+    This module provides utilities to work with audio data.
+
+    Contents:
+        AudioSignal class: 
+        TimeStampedAudioSignal class
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
+     
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
+
 import numpy as np
 import datetime
 import math
 import scipy.io.wavfile as wave
 from scipy import interpolate
-
 from ketos.utils import morlet_func
 import ketos.audio_processing.audio_processing as ap
 import matplotlib.pyplot as plt
@@ -12,6 +44,7 @@ from scipy.stats import norm
 from tqdm import tqdm
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.data_handling.data_handling import read_wave
+
 
 class AudioSignal(AnnotationHandler):
     """ Audio signal
@@ -22,13 +55,33 @@ class AudioSignal(AnnotationHandler):
             data: 1d numpy array
                 Audio data 
             tag: str
-                Optional meta data string
+                Meta-data string (optional)
+            tstart: float
+                Start time in seconds (optional)
+
+        Attributes:
+            rate: float
+                Sampling rate in Hz
+            data: 1d numpy array
+                Audio data 
+            tag: str
+                Meta-data string
+            tmin: float
+                Start time in seconds              
+            file_dict: dict
+                Wave files used to generate this spectrogram
+            file_vector: 1d numpy array
+                Associates a particular wave file with each time bin in the spectrogram
+            time_vector: 1d numpy array
+                Associated a particular time within a wave file with each time bin in the spectrogram                
     """
-    def __init__(self, rate, data, tag='', tmin=0):
+    def __init__(self, rate, data, tag='', tstart=0):
+
         self.rate = float(rate)
         self.data = data.astype(dtype=np.float32)
         self.tag = tag
-        self.tmin = tmin
+        self.tmin = tstart
+
         super(AudioSignal, self).__init__() # initialize AnnotationHandler
 
         n = self.data.shape[0]
@@ -40,19 +93,37 @@ class AudioSignal(AnnotationHandler):
     def from_wav(cls, path, channel=0):
         """ Generate audio signal from wave file
 
+            The tag attribute will be set equal to the file name.
+
             Args:
                 path: str
                     Path to input wave file
+                channel: int
+                    In the case of stereo recordings, this argument is used 
+                    to specify which channel to read from. Default is 0.
 
             Returns:
                 Instance of AudioSignal
                     Audio signal from wave file
+
+            Example:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # read audio signal from wav file
+            >>> a = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+            >>> # show signal
+            >>> fig = a.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
+                :width: 500px
+                :align: center
         """        
         rate, data = read_wave(file=path, channel=channel)
         return cls(rate, data, path[path.rfind('/')+1:])
 
     @classmethod
-    def gaussian_noise(cls, rate, sigma, samples):
+    def gaussian_noise(cls, rate, sigma, samples, tag=''):
         """ Generate Gaussian noise signal
 
             Args:
@@ -62,18 +133,36 @@ class AudioSignal(AnnotationHandler):
                     Standard deviation of the signal amplitude
                 samples: int
                     Length of the audio signal given as the number of samples
+                tag: str
+                    Meta-data string (optional)
 
             Returns:
                 Instance of AudioSignal
                     Audio signal sampling of Gaussian noise
+
+            Example:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create gaussian noise with sampling rate of 10 Hz, standard deviation of 2.0 and 1000 samples
+            >>> a = AudioSignal.gaussian_noise(rate=10, sigma=2.0, samples=1000)
+            >>> # show signal
+            >>> fig = a.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
+                :width: 500px
+                :align: center
         """        
         assert sigma > 0, "sigma must be strictly positive"
 
+        if tag == '':
+            tag = "Gaussian_noise_sigma{0:.3f}".format(sigma)
+
         y = np.random.normal(loc=0, scale=sigma, size=samples)
-        return cls(rate=rate, data=y, tag="Gaussian_noise_s{0:.3f}s".format(sigma))
+        return cls(rate=rate, data=y, tag=tag)
 
     @classmethod
-    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, dfdt=0):
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, dfdt=0, tag=''):
         """ Audio signal with the shape of the Morlet wavelet
 
             Uses :func:`util.morlet_func` to compute the Morlet wavelet.
@@ -97,9 +186,35 @@ class AudioSignal(AnnotationHandler):
                         
                         f = frequency + (time - displacement) * dfdt 
 
+                tag: str
+                    Meta-data string (optional)
+
             Returns:
                 Instance of AudioSignal
                     Audio signal sampling of the Morlet wavelet 
+
+            Examples:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a Morlet wavelet with frequency of 3 Hz and 1-sigma width of envelope set to 2.0 seconds
+            >>> wavelet1 = AudioSignal.morlet(rate=100., frequency=3., width=2.0)
+            >>> # show signal
+            >>> fig = wavelet1.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
+                :width: 500px
+                :align: center
+
+            >>> # create another wavelet, but with frequency increasing linearly with time
+            >>> wavelet2 = AudioSignal.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
+            >>> # show signal
+            >>> fig = wavelet2.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
+                :width: 500px
+                :align: center
         """        
         if samples is None:
             samples = int(6 * width * rate)
@@ -114,12 +229,13 @@ class AudioSignal(AnnotationHandler):
         y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False, dfdt=dfdt)        
         y *= height
         
-        tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
+        if tag == '':
+            tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
     @classmethod
-    def cosine(cls, rate, frequency, duration=1, height=1, displacement=0):
+    def cosine(cls, rate, frequency, duration=1, height=1, displacement=0, tag=''):
         """ Audio signal with the shape of a cosine function
 
             Args:
@@ -133,10 +249,25 @@ class AudioSignal(AnnotationHandler):
                     Peak value of the audio signal
                 displacement: float
                     Phase offset in fractions of 2*pi
+                tag: str
+                    Meta-data string (optional)
 
             Returns:
                 Instance of AudioSignal
                     Audio signal sampling of the cosine function 
+
+            Examples:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a Cosine wave with frequency of 7 Hz
+            >>> cos = AudioSignal.cosine(rate=1000., frequency=7.)
+            >>> # show signal
+            >>> fig = cos.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
+                :width: 500px
+                :align: center
         """        
         N = int(duration * rate)
 
@@ -148,7 +279,8 @@ class AudioSignal(AnnotationHandler):
         x = (time * frequency + displacement) * 2 * np.pi
         y = height * np.cos(x)
         
-        tag = "cosine_f{0:.0f}Hz".format(frequency) # this is just a string with some helpful info
+        if tag == '':
+            tag = "cosine_f{0:.0f}Hz".format(frequency) # this is just a string with some helpful info
 
         return cls(rate=rate, data=np.array(y), tag=tag)
 
@@ -162,13 +294,34 @@ class AudioSignal(AnnotationHandler):
         return self.data
 
     def get_time_vector(self):
-        return self.time_vector
+        """ Get the audio signal's time vector
+
+            Returns:
+                v: 1d numpy array
+                    Time vector
+        """
+        v = self.time_vector
+        return v
 
     def get_file_vector(self):
-        return self.file_vector
+        """ Get the audio signal's file vector
+
+            Returns:
+                v: 1d numpy array
+                    File vector
+        """
+        v = self.file_vector
+        return v
 
     def get_file_dict(self):
-        return self.file_dict
+        """ Get the audio signal's file dictionary
+
+            Returns:
+                d: dict
+                    File dictionary
+        """
+        d = self.file_dict
+        return d
 
     def make_frames(self, winlen, winstep, zero_padding=False):
         """ Split the signal into frames of length 'winlen' with consecutive 
@@ -200,7 +353,6 @@ class AudioSignal(AnnotationHandler):
         frames = ap.make_frames(sig, winlen, winstep, zero_padding)
         return frames
 
-
     def to_wav(self, path):
         """ Save audio signal to wave file
 
@@ -224,7 +376,7 @@ class AudioSignal(AnnotationHandler):
         
         return False
 
-    def seconds(self):
+    def duration(self):
         """ Signal duration in seconds
 
             Returns:
@@ -287,25 +439,27 @@ class AudioSignal(AnnotationHandler):
     def plot(self):
         """ Plot the signal with proper axes ranges and labels
             
-            Examples:
+            Example:
             
             >>> from ketos.audio_processing.audio import AudioSignal
-            >>> import matplotlib.pyplot as plt
-            >>> s = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> s.plot()
-            >>> plt.show() 
+            >>> # create a morlet wavelet
+            >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> # plot the wave form
+            >>> fig = a.plot()
 
             .. image:: _static/morlet.png
                 :width: 500px
                 :align: center
         """
+        fig, ax = plt.subplots(nrows=1)
         start = 0.5 / self.rate
-        stop = self.seconds() - 0.5 / self.rate
+        stop = self.duration() - 0.5 / self.rate
         num = len(self.data)
-        plt.plot(np.linspace(start=start, stop=stop, num=num), self.data)
+        ax.plot(np.linspace(start=start, stop=stop, num=num), self.data)
         ax = plt.gca()
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Signal')
+        return fig
 
     def _selection(self, begin, end):
         """ Convert time range to sample range.
@@ -331,7 +485,7 @@ class AudioSignal(AnnotationHandler):
             i1 = max(i1, 0)
 
         if end is not None:
-            end = min(self.seconds(), end)
+            end = min(self.duration(), end)
             i2 = int(end * self.rate)
             i2 = min(i2, len(self.data))
 
@@ -341,21 +495,21 @@ class AudioSignal(AnnotationHandler):
         """ Select a portion of the audio data
 
             Args:
-                begin: float
-                    Start time of selection window in seconds
-                end: float
-                    End time of selection window in seconds
+                i1: int
+                    Start bin of selection window
+                end: int
+                    End bin of selection window
 
             Returns:
                 cropped_data: numpy array
                    Selected portion of the audio data
-        """   
+        """
         if i2 > i1:
             self.data = self.data[i1:i2] 
         else:
             self.data = None           
 
-    def crop(self, begin=None, end=None):
+    def crop(self, begin=None, end=None, make_copy=False):
         """ Clip audio signal
 
             Args:
@@ -363,9 +517,44 @@ class AudioSignal(AnnotationHandler):
                     Start time of selection window in seconds
                 end: float
                     End time of selection window in seconds
-        """   
-        i1, i2 = self._selection(begin, end)
-        self._crop(i1, i2)
+                make_copy: bool
+                    Create a new instance instead of modifying the present instance
+
+            Returns:
+                cropped_signal: AudioSignal
+                    None, unless make_copy is True
+
+            Example:
+            
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a morlet wavelet
+            >>> a1 = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> # crop the first 1 second
+            >>> a2 = a1.crop(end=1.0, make_copy=True)
+            >>> # show the wave forms
+            >>> fig = a1.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_orig.png")
+            >>> fig = a2.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_cropped.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_orig.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_cropped.png
+                :width: 300px
+                :align: left
+        """ 
+        if make_copy:
+            x = self.copy()
+        else:
+            x = self
+
+        i1, i2 = x._selection(begin, end)
+        x._crop(i1, i2)
+
+        if make_copy:
+            return x
 
     def clip(self, boxes):
         """ Extract boxed intervals from audio signal.
@@ -377,9 +566,37 @@ class AudioSignal(AnnotationHandler):
                     2d numpy array with shape (?,2)   
 
             Returns:
-                specs: list(AudioSignal)
+                segs: list(AudioSignal)
                     List of clipped audio signals.                
-        """
+
+            Example:
+            
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a morlet wavelet
+            >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> # clip segment between 1.0-1.8 sec and again between 3.1-3.8 sec
+            >>> segs = a.clip(boxes=[[1.0, 1.8],[3.1, 3.8]])
+            >>> # show the wave forms
+            >>> fig = a.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_whats_left.png")
+            >>> fig = segs[0].plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_clip_1.png")
+            >>> fig = segs[1].plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/audio_clip_2.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_whats_left.png
+                :width: 500px
+                :align: center
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_1.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_2.png
+                :width: 300px
+                :align: left
+        """ 
+
         if np.ndim(boxes) == 1:
             boxes = [boxes]
 
@@ -396,8 +613,12 @@ class AudioSignal(AnnotationHandler):
         t1, t2 = list(), list()
         for i in range(N):
             
-            begin = boxes[i][0]
-            end = boxes[i][1]
+            b = boxes[i]
+
+            assert len(b) >= 2, "box must have dimension 2 or greater"
+
+            begin = b[0]
+            end = b[1]
             t1i, t2i = self._selection(begin, end)
 
             data = self.data[t1i:t2i]
@@ -430,8 +651,8 @@ class AudioSignal(AnnotationHandler):
             The two audio signals must have the same samling rate.
             
             If delay is None or 0, a smooth transition is made between the 
-            two signals. The width of the smoothing region (number of samples), 
-            where the two signals overlap, is given by n_smooth.
+            two signals. The width of the smoothing region where the two signals 
+            overlap is specified via the argument n_smooth.
 
             Note that the current implementation of the smoothing procedure is 
             quite slow, so it is advisable to use small overlap regions.
@@ -457,6 +678,25 @@ class AudioSignal(AnnotationHandler):
             Returns:
                 append_time: float
                     Start time of appended part in seconds from the beginning of the original signal.
+
+            Example:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a morlet wavelet
+            >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> # create a cosine wave
+            >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
+            >>> # append the cosine wave to the morlet wavelet, using a overlap of 100 bins
+            >>> mor.append(signal=cos, n_smooth=100)
+            5.0
+            >>> # show the wave form
+            >>> fig = mor.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
+                :width: 500px
+                :align: center
+
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
@@ -484,18 +724,18 @@ class AudioSignal(AnnotationHandler):
         if delay == 0 and n_smooth > 0:
 
             # signal 1
-            a = self.split(-n_smooth)
+            a = self._split(-n_smooth)
 
             # signal 2
-            b = signal.split(n_smooth)
+            b = signal._split(n_smooth)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
-            # TODO: Cache values returned by smoothclamp to avoid repeated calculation
+            # TODO: Cache values returned by _smoothclamp to avoid repeated calculation
             # TODO: Use coarser binning for smoothing function to speed things up even more
             c = np.empty(n_smooth)
             for i in range(n_smooth):
-                w = smoothclamp(i, 0, n_smooth-1)
+                w = _smoothclamp(i, 0, n_smooth-1)
                 c[i] = (1.-w) * a.data[i] + w * b.data[i]
             
             append_time = len(self.data) / self.rate
@@ -530,7 +770,7 @@ class AudioSignal(AnnotationHandler):
         
         return append_time
 
-    def split(self, s):
+    def _split(self, s):
         """ Split audio signal.
 
             After splitting, this instance contains the remaining part of the audio signal.        
@@ -556,7 +796,7 @@ class AudioSignal(AnnotationHandler):
         return AudioSignal(rate=self.rate, data=v, tag=self.tag)
 
     def merged_length(self, signal=None, delay=None, n_smooth=None):
-        """ Compute sample size of merged signal.
+        """ Compute sample size of merged signal (without actually merging the signals)
 
             Args:
                 signal: AudioSignal
@@ -592,6 +832,29 @@ class AudioSignal(AnnotationHandler):
             Args:
                 sigma: float
                     Standard deviation of the gaussian noise
+
+            Example:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a morlet wavelet
+            >>> morlet = AudioSignal.morlet(rate=100, frequency=2.5, width=1)
+            >>> morlet_pure = morlet.copy() # make a copy
+            >>> # add some noise
+            >>> morlet.add_gaussian_noise(sigma=0.3)
+            >>> # show the wave form
+            >>> fig = morlet_pure.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_wo_noise.png")
+            >>> fig = morlet.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
+                :width: 300px
+                :align: left
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
+                :width: 300px
+                :align: left
+
         """
         noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
@@ -601,7 +864,7 @@ class AudioSignal(AnnotationHandler):
         
             The audio signals must have the same sampling rates.
 
-            The summed signal always has the same length as the original signal.
+            The summed signal always has the same length as the present instance.
 
             If the audio signals have different lengths and/or a non-zero delay is selected, 
             only the overlap region will be affected by the operation.
@@ -615,6 +878,24 @@ class AudioSignal(AnnotationHandler):
                     Shift the audio signal by this many seconds
                 scale: float
                     Scaling factor for signal to be added
+
+            Example:
+
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # create a morlet wavelet
+            >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
+            >>> # create a cosine wave
+            >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
+            >>> # add the cosine on top of the morlet wavelet, with a delay of 2 sec and a scaling factor of 0.3
+            >>> mor.add(signal=cos, delay=2.0, scale=0.3)
+            >>> # show the wave form
+            >>> fig = mor.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
+                :width: 500px
+                :align: center
+
         """
         assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
 
@@ -665,16 +946,16 @@ class AudioSignal(AnnotationHandler):
             self.data = new_sig
 
     def copy(self):
-        """ Makes a copy of the time stamped audio signal.
+        """ Makes a hard copy of the present instance.
 
             Returns:
                 Instance of TimeStampedAudioSignal
                     Copied signal
         """                
         data = np.copy(self.data)
-        return AudioSignal(rate=self.rate, data=data, tag=self.tag)
+        return AudioSignal(rate=self.rate, data=data, tag=self.tag, tstart=self.tmin)
 
-def smoothclamp(x, mi, mx): 
+def _smoothclamp(x, mi, mx): 
         """ Smoothing function
         """    
         return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
@@ -772,7 +1053,7 @@ class TimeStampedAudioSignal(AudioSignal):
                     Upper bound of cropping interval
         """   
         dt = max(0, i1/self.rate)
-        dt = min(self.seconds(), dt)
+        dt = min(self.duration(), dt)
         self.time_stamp += datetime.timedelta(microseconds=1e6*dt) # update time stamp
 
         super(TimeStampedAudioSignal, self)._crop(i1, i2)   # crop signal
@@ -797,7 +1078,7 @@ class TimeStampedAudioSignal(AudioSignal):
         
         self._crop(i1, i2)
 
-    def split(self, s):
+    def _split(self, s):
         """ Split time-stamped audio signal.
 
             After splitting, this instance contains the remaining part of the audio signal.        
@@ -819,7 +1100,7 @@ class TimeStampedAudioSignal(AudioSignal):
             dt = -s / self.rate
             t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
             
-        a = super(TimeStampedAudioSignal, self).split(s)
+        a = super(TimeStampedAudioSignal, self)._split(s)
         return self.from_audio_signal(audio_signal=a, time_stamp=t)
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):
