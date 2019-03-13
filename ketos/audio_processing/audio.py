@@ -724,10 +724,10 @@ class AudioSignal(AnnotationHandler):
         if delay == 0 and n_smooth > 0:
 
             # signal 1
-            a = self._split(-n_smooth)
+            a = self.split(-n_smooth)
 
             # signal 2
-            b = signal._split(n_smooth)
+            b = signal.split(n_smooth)
 
             # superimpose a and b
             # TODO: If possible, vectorize this loop for faster execution
@@ -770,7 +770,7 @@ class AudioSignal(AnnotationHandler):
         
         return append_time
 
-    def _split(self, s):
+    def split(self, s):
         """ Split audio signal.
 
             After splitting, this instance contains the remaining part of the audio signal.        
@@ -1078,7 +1078,7 @@ class TimeStampedAudioSignal(AudioSignal):
         
         self._crop(i1, i2)
 
-    def _split(self, s):
+    def split(self, s):
         """ Split time-stamped audio signal.
 
             After splitting, this instance contains the remaining part of the audio signal.        
@@ -1100,7 +1100,7 @@ class TimeStampedAudioSignal(AudioSignal):
             dt = -s / self.rate
             t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
             
-        a = super(TimeStampedAudioSignal, self)._split(s)
+        a = super(TimeStampedAudioSignal, self).split(s)
         return self.from_audio_signal(audio_signal=a, time_stamp=t)
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):

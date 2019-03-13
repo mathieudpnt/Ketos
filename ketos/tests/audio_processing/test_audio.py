@@ -61,7 +61,7 @@ def test_split_with_positive_sample_id(sine_audio):
     n = len(audio.data)
     m = int(0.1*n)
     dt = m / audio.rate
-    s = audio._split(m)
+    s = audio.split(m)
     assert len(s.data) == m
     assert len(audio.data) == n-m
     assert first == s.data[0]
@@ -73,7 +73,7 @@ def test_split_with_sample_larger_than_length(sine_audio):
     audio = sine_audio
     n = len(audio.data)
     m = int(1.5*n)
-    s = audio._split(m)
+    s = audio.split(m)
     assert len(s.data) == n
     assert audio.empty() == True
 
@@ -86,7 +86,7 @@ def test_split_with_negative_sample_id(sine_audio):
     n = len(audio.data)
     m = -int(0.2*n)
     dt = -m / audio.rate
-    s = audio._split(m)
+    s = audio.split(m)
     assert len(s.data) == -m
     assert len(audio.data) == n+m
     assert first == audio.data[0]
