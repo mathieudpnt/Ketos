@@ -57,9 +57,11 @@ def open_table(h5file, table_path):
             >>>
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> data = open_table(h5file, "/train/species1")
+            >>> #data is a pytables 'Table' object
             >>> type(data)
             <class 'tables.table.Table'>
             >>>
+            >>> # with 15 items (rows)
             >>> data.nrows
             15
             >>> h5file.close()
@@ -105,8 +107,12 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
             >>> import tables
             >>> from ketos.data_handling.database_interface import create_table
             >>>
+            >>># Open a connection to the database
             >>> h5file = tables.open_file("ketos/tests/assets/tmp/database1.h5", 'w')
+            >>># Create 'table1' within 'group1'
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
+            >>># Show the table description, with the field names (columns)
+            >>># and information about types and shapes
             >>> my_table
             /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
               description := {
