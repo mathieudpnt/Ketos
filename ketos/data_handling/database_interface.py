@@ -570,7 +570,7 @@ def parse_labels(item):
             >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
-            >>> #The labels are stored as bytes strings in the table
+            >>> #The labels are stored as byte strings in the table
             >>> type(table[0]['labels'])
             <class 'numpy.bytes_'>
             >>> table[0]['labels']
@@ -604,9 +604,12 @@ def parse_boxes(item):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
+            >>> # Open a connection to the database.
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
+             >>> #The boxes are stored as byte strings in the table
             >>> type(table[0]['boxes'])
             <class 'numpy.bytes_'>
             >>> table[0]['boxes']
@@ -615,6 +618,8 @@ def parse_boxes(item):
             >>> box = parse_boxes(table[0])
             >>> type(box)
             <class 'list'>
+            >>> # After parsing, the all of boxes becomes a list, which
+            >>> # has each box as a list of integers
             >>> box
             [[10, 15, 200, 400]]
             >>>
