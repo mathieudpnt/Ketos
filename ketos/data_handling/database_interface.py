@@ -247,25 +247,30 @@ def write_spec(table, spec, id=None):
             >>> from ketos.audio_processing.spectrogram import MagSpectrogram
             >>> from ketos.audio_processing.audio import AudioSignal
             >>>
+            >>> # Create an AudioSignal object from a .wav file
             >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> # Use that signal to create a spectrogram
             >>> spec = MagSpectrogram(audio,winlen=0.2, winstep=0.05)
-            >>> spec.labels = [1,2]
-            >>> spec.boxes = [[5.3,8.9,200,350], [103.3,105.8,180,320]]
+            >>> # Annotate the spectrogram, adding two boxes and their corresponding labels
+            >>> spec.annotate(boxes=[[5.3,8.9,200,350], [103.3,105.8,180,320]], labels=[1,2])
             >>>
+            >>> # Open a connection to a database (and create the file)
             >>> h5file = tables.open_file("ketos/tests/assets/tmp/database2.h5", 'w')
+            >>> # Create a table
             >>> my_table = create_table(h5file, "/group1/", "table1", shape=spec.image.shape)
+            >>> # And write the spectrogram in the table
             >>> write_spec(my_table, spec)
+            
+            >>> # The table now has one item
             >>> my_table.nrows
             1
+            >>> # We can check that the labels and boxes are the ones we created
             >>> my_table[0]['labels']
             b'[1,2]'
             >>> my_table[0]['boxes']
             b'[[5.3,8.9,200.0,350.0],[103.3,105.8,180.0,320.0]]'
             >>>
             >>> h5file.close()
-
-            
-
     """
 
     try:
