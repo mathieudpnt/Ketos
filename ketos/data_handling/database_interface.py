@@ -498,13 +498,16 @@ def extract(table, label, min_length, center=False, fpad=True, preserve_time=Fal
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
-            >>> # Open 
+            >>> # Open a connection to the database.
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
+            >>> # Extract the portions of the spectrograms annotated with label 1
             >>> extracted_specs, spec_complements = extract(table, label=1, min_length=2)
             >>> h5file.close()
             >>>
+            >>> # The results show 
             >>> len(extracted_specs)
             15
             >>> len(spec_complements)
@@ -562,9 +565,12 @@ def parse_labels(item):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
+            >>> # Open a connection to the database.
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
+            >>> #The labels are stored as bytes strings in the table
             >>> type(table[0]['labels'])
             <class 'numpy.bytes_'>
             >>> table[0]['labels']
@@ -573,6 +579,7 @@ def parse_labels(item):
             >>> label = parse_labels(table[0])
             >>> type(label)
             <class 'list'>
+            >>> # After parsing, they are lists of integers and can be used as such
             >>> label
             [1]
             >>>
