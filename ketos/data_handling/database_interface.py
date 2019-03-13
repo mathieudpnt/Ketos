@@ -52,17 +52,17 @@ def open_table(h5file, table_path):
                 The table, if it exists. Otherwise, raises an exeption and returns None.
 
         Examples:
-        >>> import tables
-        >>> from ketos.data_handling.database_interface import open_table
-        >>>
-        >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
-        >>> data = open_table(h5file, "/train/species1")
-        >>> type(data)
-        <class 'tables.table.Table'>
-        >>>
-        >>> data.nrows
-        15
-        >>> h5file.close()
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_table
+            >>>
+            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> data = open_table(h5file, "/train/species1")
+            >>> type(data)
+            <class 'tables.table.Table'>
+            >>>
+            >>> data.nrows
+            15
+            >>> h5file.close()
         
     """
     try:
