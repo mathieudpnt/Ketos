@@ -395,10 +395,13 @@ def load_specs(table, index_list=None):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
+            >>> # Open a connection to a database and a the species1 table in the train group
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
             >>>
+            >>> # Load the spectrograms stored on rows 0, 3 and 10 of the species1 table
             >>> selected_specs = load_specs(table, [0,3,10])
+            >>> # The resulting list has the 3 spectrogram objects
             >>> len(selected_specs)
             3
             >>> type(selected_specs[0])
