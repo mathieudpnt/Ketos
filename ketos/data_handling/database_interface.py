@@ -337,12 +337,17 @@ def filter_by_label(table, label):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_table
             >>>
+            >>> # Open a database and an existing table
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
             >>>
+            >>> # Retrieve the indices for all spectrograms that contain the label 1
+            >>> # (all spectrograms in this table)
             >>> filter_by_label(table, 1)
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
             >>>
+            >>> # Since none of the spectrograms in the table include the label 2, 
+            >>> # an empty list is returned
             >>> filter_by_label(table, 2)
             []
             >>>
