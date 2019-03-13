@@ -103,7 +103,6 @@ def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = "dummytag"
     # add annotation
     spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
@@ -112,12 +111,11 @@ def test_write_spec(sine_audio):
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
-    spec_rtn = di.write_spec(table=tbl, spec=spec) # should return None after writing spectrogram to table
-    assert spec_rtn is None 
+    di.write_spec(table=tbl, spec=spec) # should return None after writing spectrogram to table
     # write spectrogram to table with id
     di.write_spec(table=tbl, spec=spec, id='123%')
 
-    assert tbl[0]['id'].decode() == 'dummytag'
+    assert tbl[0]['id'].decode() == ''
     assert tbl[0]['labels'].decode() == '[1,2]'
     assert tbl[0]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
 
@@ -170,13 +168,13 @@ def test_extract(sine_audio):
     assert len(selection) == 2
     assert len(complements) == 2
     
-    assert selection[0].image.shape == (40,50)
+    assert selection[0].image.shape == (41,51)
     assert complements[0].image.shape[0] == (spec1.image.shape[0] - selection[0].image.shape[0])
 
-    assert selection[1].image.shape == (40,4411)
+    assert selection[1].image.shape == (41,4411)
     assert complements[1].image.shape[0] == (spec2.image.shape[0] - selection[0].image.shape[0])
 
-    tshape = int(0.8 / spec1.tres)
+    tshape = int(0.8 / spec1.tres) + 1
     assert selection[0].image.shape[0] == tshape
     fshape = int(250 / spec1.fres) + 1
     assert selection[0].image.shape[1] == fshape

@@ -177,8 +177,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             >>> import tables
             >>> import ketos.data_handling.database_interface as di
             >>> db = tables.open_file("ketos/tests/assets/morlet.h5", "r") 
-            >>> spec1 = di.get_objects(di.open(db, "/spec1"))[0]
-            >>> spec2 = di.get_objects(di.open(db, "/spec2"))[0]
+            >>> spec1 = di.load_specs(di.open_table(db, "/spec1"))[0]
+            >>> spec2 = di.load_specs(di.open_table(db, "/spec2"))[0]
             >>> db.close()
             >>> 
             >>> # interbreed the two spectrograms once to make one new spectrogram
