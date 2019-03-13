@@ -18,7 +18,7 @@ src/__pycache__
 /dev_env
 
 # Html
-docs/build
+docs/build/*
 
 # cache
 .pytest_cache

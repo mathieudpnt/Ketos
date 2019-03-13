@@ -43,11 +43,13 @@ class AnnotationHandler():
         a bounding box that delimits the audio segment of interest 
         in time and optionally frequency. 
         
-        The bounding box can be a list of two or four floats. A list 
-        of two floats is interpreted as the start and end time of the 
-        segment (in seconds); a list of four floats is interpreted as 
-        start time, end time, minimum frequency, and maximum frequency 
-        (with frequency expressed in Hz).
+        The bounding box is a list of four floats: start time, end time,
+        minimum frequency, and maximum frequency (with frequency expressed in Hz)
+        A list of two floats ([start time, end time]) can also be used in the initialization.
+        In this case, the minimum and maximum frequencies will be respectivelly filled as 0 and Inf.
+        is interpreted as the start and end time of the 
+        segment (in seconds). list of four floats is interpreted as 
+        .
 
         Args:
             labels: list(int)

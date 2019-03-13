@@ -76,10 +76,10 @@ class BatchGenerator():
         
             Examples:
                 >>> from tables import open_file
-                >>> from ketos.data_handling.database_interface import open
+                >>> from ketos.data_handling.database_interface import open_table
                   
                 >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
-                >>> train_data = open(h5, "/train/species1")
+                >>> train_data = open_table(h5, "/train/species1")
 
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
                 
