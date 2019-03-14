@@ -226,20 +226,15 @@ def read_wave(file, channel=0):
     return rate, data
 
 def create_dir(dir):
-    """ Create a new directory only if it does not exist
+    """ Create a new directory if it does not exist
 
+        Will also create any intermediate directories that do not exist
         Args:
             dir: str
-                The path to the new directory
-        Raises:
-                EEXIST (17) if dir already exists
-    """
-    try:
-        os.makedirs(dir)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
+               The path to the new directory
+     """
+    os.makedirs(dir, exist_ok=True)
+ 
 #DELETE
 def slice_ffmpeg(file,start,end,out_name):
     """ Creates an audio segment from a longer audio file using ffmpeg package.
