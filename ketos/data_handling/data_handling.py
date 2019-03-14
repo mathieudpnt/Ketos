@@ -33,24 +33,52 @@ import re
 
 
 def parse_datetime(fname, fmt=None, replace_spaces='0'):
-    """
-        Parse date-time data from string.
-
-        Uses the datetime_glob package (https://pypi.org/project/datetime-glob/).
-
-        Returns None if parsing fails.
+    """Parse date-time data from string.
+       
+       Returns None if parsing fails.
         
         Args:
             fname: str
                 String with date-time data.
-            datetime_fmt: str
-                Date-time format
+            fmt: str
+                String defining the date-time format. 
+                Example: %d_%m_%Y* would capture "14_3_1999.txt"
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives
+                
             replace_spaces: str
                 If string contains spaces, replaces them with this string
 
         Returns:
-            datetime
-                datetime object
+            datetime: datetime object
+
+        Examples:
+            >>> #This will parse dates in the day/month/year format,
+            >>> #separated by '/'. It will also ignore any test after the year,
+            >>> # (such as a file extension )
+            >>> fmt = "%d/%m/%Y*"
+            >>> datetime = parse_datetime("10/03/1942.txt", fmt)
+            >>> datetime.year
+            1942
+            >>> datetime.month
+            3
+            >>> datetime.day
+            10
+            >>>
+            >>> # Now with the time (hour:minute:second) separated from the date by un underscore
+            >>> fmt = "%H:%M:%S_%d/%m/%Y*"
+            >>> datetime = parse_datetime("15:43:03_10/03/1918.wav", fmt)
+            >>> datetime.year
+            1918
+            >>> datetime.month
+            3
+            >>> datetime.day
+            10
+            >>> datetime.hour
+            15
+            >>> datetime.minute
+            43
+            >>> datetime.second
+            3
     """
 
     # replace spaces with zeros
@@ -169,6 +197,7 @@ def create_dir(dir):
         if e.errno != errno.EEXIST:
             raise
 
+#DELETE
 def slice_ffmpeg(file,start,end,out_name):
     """ Creates an audio segment from a longer audio file using ffmpeg package.
 
