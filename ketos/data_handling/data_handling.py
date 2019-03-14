@@ -189,19 +189,36 @@ def find_wave_files(path, fullpath=True, subdirs=False):
 
 
 def read_wave(file, channel=0):
-    """ Read wave file in either mono or stereo mode
+    """ Read a wave file in either mono or stereo mode
 
         Args:
             file: str
-                Wave file path
-            channel: bool
+                path to the wave file
+            channel: int
                 Which channel should be used in case of stereo data (0: left, 1: right) 
+
+        Returns: (rate,data)
+            rate: int
+                The sampling rate
+            data: numpy.array (float)
+                A 1d array containing the audio data
+        
+        Examples:
+            >>> rate, data = read_wave("../tests/assets/2min.wav")
+            >>> type(rate)
+            <class 'int'>
+            >>> rate
+            2000
+            >>> type(data)
+            <class 'numpy.ndarray'>
+            >>> len(data)
+            241664
     """
     try:
         rate, signal, _ = wave_bit.read(file)
     except TypeError:
         rate, signal = wave.read(file)
-        
+           
     if len(signal.shape) == 2:
         data = signal[:, channel]
     else:
