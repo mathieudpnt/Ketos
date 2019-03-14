@@ -44,7 +44,7 @@ import re
 
 
 
-def parse_datetime(fname, fmt=None, replace_spaces='0'):
+def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
        
        Returns None if parsing fails.
@@ -68,28 +68,28 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
             >>> #separated by '/'. It will also ignore any test after the year,
             >>> # (such as a file extension )
             >>> fmt = "%d/%m/%Y*"
-            >>> datetime = parse_datetime("10/03/1942.txt", fmt)
-            >>> datetime.year
+            >>> result = parse_datetime("10/03/1942.txt", fmt)
+            >>> result.year
             1942
-            >>> datetime.month
+            >>> result.month
             3
-            >>> datetime.day
+            >>> result.day
             10
             >>>
             >>> # Now with the time (hour:minute:second) separated from the date by un underscore
             >>> fmt = "%H:%M:%S_%d/%m/%Y*"
-            >>> datetime = parse_datetime("15:43:03_10/03/1918.wav", fmt)
-            >>> datetime.year
+            >>> result = parse_datetime("15:43:03_10/03/1918.wav", fmt)
+            >>> result.year
             1918
-            >>> datetime.month
+            >>> result.month
             3
-            >>> datetime.day
+            >>> result.day
             10
-            >>> datetime.hour
+            >>> result.hour
             15
-            >>> datetime.minute
+            >>> result.minute
             43
-            >>> datetime.second
+            >>> result.second
             3
     """
 
@@ -115,13 +115,20 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             substr: str
                 Substring contained in file name
             fullpath: bool
-                Return full path to each file or just the file name 
+                If True, return full path to each file. If false, only return the file names 
             subdirs: bool
-                Also search all subdirectories
+                If True, search all subdirectories
 
         Returns:
             files: list (str)
                 Alphabetically sorted list of file names
+
+        Examples:
+            >>> find_files(path="../tests/assets", substr="super")
+            ['super_short_1.wav','super_short_1.wav']
+
+            >>> find_files(path="../tests/assets", substr=".h5")
+            ['super_short_1.wav','super_short_1.wav']
     """
     # find all files
     allfiles = list()
