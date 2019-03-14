@@ -126,13 +126,13 @@ def find_files(path, substr, fullpath=True, subdirs=False):
         Examples:
             >>> # Find files that contain 'super' in the name;
             >>> # Do not return the relative path
-            >>> find_files(path="../tests/assets", substr="super", fullpath=False)
+            >>> find_files(path="ketos/tests/assets", substr="super", fullpath=False)
             ['super_short_1.wav', 'super_short_2.wav']
 
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
-            >>> find_files(path="../tests/assets", substr=".h5")
-            ['../tests/assets/15x_same_spec.h5', '../tests/assets/cod.h5', '../tests/assets/morlet.h5']
+            >>> find_files(path="ketos/tests/assets", substr=".h5")
+            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()
@@ -180,7 +180,7 @@ def find_wave_files(path, fullpath=True, subdirs=False):
                 Alphabetically sorted list of file names
 
         Examples:
-            >>> find_wave_files(path="../tests/assets", fullpath=False)
+            >>> find_wave_files(path="ketos/tests/assets", fullpath=False)
             ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
 
     """
@@ -204,7 +204,7 @@ def read_wave(file, channel=0):
                 A 1d array containing the audio data
         
         Examples:
-            >>> rate, data = read_wave("../tests/assets/2min.wav")
+            >>> rate, data = read_wave("ketos/tests/assets/2min.wav")
             >>> type(rate)
             <class 'int'>
             >>> rate
@@ -234,23 +234,6 @@ def create_dir(dir):
                The path to the new directory
      """
     os.makedirs(dir, exist_ok=True)
- 
-#DELETE
-def slice_ffmpeg(file,start,end,out_name):
-    """ Creates an audio segment from a longer audio file using ffmpeg package.
-
-        Args:
-            file: str
-                The path to the original file.
-            start: float
-                The start time in seconds.
-            end: float
-                The end time in seconds.
-            out_name: str
-                The path to the output file.
-        
-    """
-    call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
 
 def to1hot(value,depth):
     """Converts the binary label to one hot format
@@ -307,7 +290,7 @@ def from1hot(value):
     return output
 
 def encode_database(database, x_column, y_column):
-    """ Encodes database in a format suitable for machine learning:
+    """ Encodes database in a format convenient for image models:
          - the input images are flattened (i.e. matrices converted to row vectors).
          - the labels are one-hot encoded.
 
@@ -328,6 +311,12 @@ def encode_database(database, x_column, y_column):
                 'one_hot_encoding' containing the one hot version of the labels.
             image_shape: tuple (int,int)
                 Tuple specifying the shape of the input images in pixels. Example: (128,128)
+
+        Examples:
+                >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+                >>> encoded_db = encode_database(data, x_column="image", y_column="label")
+                >>> encoded_db
+
     """
 
     # assert that columns exist
