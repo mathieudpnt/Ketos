@@ -166,20 +166,25 @@ def find_files(path, substr, fullpath=True, subdirs=False):
     return files
 
 
-def get_wave_files(path, fullpath=True, subdirs=False):
+def find_wave_files(path, fullpath=True, subdirs=False):
     """ Find all wave files in the specified directory
 
         Args:
             path: str
                 Directory path
             fullpath: bool
-                Return full path to each file or just the file name 
+                Return relative path to each file or just the file name 
 
         Returns:
             wavefiles: list (str)
                 Alphabetically sorted list of file names
+
+        Examples:
+            >>> find_wave_files(path="../tests/assets", fullpath=False)
+            ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
+
     """
-    wavefiles = get_files(path, '.wav', fullpath, subdirs)
+    wavefiles = find_files(path, '.wav', fullpath, subdirs)
     return wavefiles
 
 
