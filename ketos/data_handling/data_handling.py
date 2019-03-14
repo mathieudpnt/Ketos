@@ -313,9 +313,32 @@ def encode_database(database, x_column, y_column):
                 Tuple specifying the shape of the input images in pixels. Example: (128,128)
 
         Examples:
+                >>> # Load a database with images and integer labels
                 >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
-                >>> encoded_db = encode_database(data, x_column="image", y_column="label")
-                >>> encoded_db
+                >>> data.columns
+                Index(['image', 'label'], dtype='object')
+                >>> # Ecode the database
+                >>> encoded_db, image_size = encode_database(data, x_column="image", y_column="label")
+                >>>
+                # The shape of the original images is returned
+                >>> image_size
+                (20, 20)
+                >>> # The encoded database preserves the original data and add two columns: 
+                >>> # 'one_hot_encoding' and 'x_flatten'
+                >>> encoded_db.columns
+                Index(['image', 'label', 'one_hot_encoding', 'x_flatten'], dtype='object')
+                >>>
+                >>> # The one-hot representation depends on the number of categories in the original data
+                >>> # In this example, each image was either labelled 0 or 1
+                >>> # so the one-hot column is has a vector of two values for each image
+                >>> encoded_db['label'][0] 
+                0
+                >>> encoded_db['one_hot_encoding'][0]
+                array([1., 0.])
+                >>>
+                >>> # Since the images had a shape of 20x20, the flatten representation is a vector of 400 elements
+                >>> encoded_db['x_flatten'][0].shape
+                (400,)
 
     """
 
