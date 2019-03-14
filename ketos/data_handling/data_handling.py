@@ -50,8 +50,8 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
        Returns None if parsing fails.
         
         Args:
-            fname: str
-                String with date-time data.
+            to_parse: str
+                String with date-time data to parse.
             fmt: str
                 String defining the date-time format. 
                 Example: %d_%m_%Y* would capture "14_3_1999.txt"
@@ -93,14 +93,12 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
             3
     """
 
-    # replace spaces with zeros
-    for i in range(len(fname)):
-        if fname[i] == ' ':
-            fname = fname[:i] + replace_spaces + fname[i+1:]
-
+    # replace spaces
+    to_parse = to_parse.replace(' ', replace_spaces)
+    
     if fmt is not None:
         matcher = datetime_glob.Matcher(pattern=fmt)
-        match = matcher.match(path=fname)
+        match = matcher.match(path=to_parse)
         if match is None:
             return None
         else:
@@ -108,7 +106,7 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
 
     return None
 
-def get_files(path, substr, fullpath=True, subdirs=False):
+def find_files(path, substr, fullpath=True, subdirs=False):
     """ Find all files in the specified directory containing the specified substring in their file name
 
         Args:
