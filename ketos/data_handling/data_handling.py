@@ -115,7 +115,7 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             substr: str
                 Substring contained in file name
             fullpath: bool
-                If True, return full path to each file. If false, only return the file names 
+                If True, return relative path to each file. If false, only return the file names 
             subdirs: bool
                 If True, search all subdirectories
 
@@ -124,11 +124,15 @@ def find_files(path, substr, fullpath=True, subdirs=False):
                 Alphabetically sorted list of file names
 
         Examples:
-            >>> find_files(path="../tests/assets", substr="super")
-            ['super_short_1.wav','super_short_1.wav']
+            >>> # Find files that contain 'super' in the name;
+            >>> # Do not return the relative path
+            >>> find_files(path="../tests/assets", substr="super", fullpath=False)
+            ['super_short_1.wav', 'super_short_2.wav']
 
+            >>> # find all files with '.h5" in the name
+            >>> # Return the relative path
             >>> find_files(path="../tests/assets", substr=".h5")
-            ['super_short_1.wav','super_short_1.wav']
+            ['../tests/assets/15x_same_spec.h5', '../tests/assets/cod.h5', '../tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()
