@@ -290,57 +290,6 @@ def from1hot(value):
     return output
 
 
-def stack_dataset(dataset, input_shape):
-    """ Stack and reshape a dataset.
-
-        The inputs (x) will be have the shape [N,H,W,C]
-        (number of images, height, width, number of channels).
-        For spectrograms, C will tipically be 1.
-        The labels (y) will have shape [N, Nc], where Nc is the number
-        of categories (e.g.: the lenght of the one-hot encoded label vector)
-
-        This format is convenient for convolutional neural networks.
-
-
-        Args:
-            dataset: pandas DataFrame
-                A pandas dataset with two columns:'x_flatten' and
-                'one_hot_encoding' (the output of the 'encode_database' function)
-            input_shape: tuple(int,int)
-                A tuple with the shape of each input.
-
-        Results:
-            stacked_dataset: dict (of numpy arrays)
-            A dictionary containing the stacked versions of the input and labels, 
-            respectively under the keys 'x' and 'y'
-
-        Examples:
-            >>> # Load a database with images and integer labels
-            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
-            >>> data.columns
-            Index(['image', 'label'], dtype='object')
-            >>> # Encode the database
-            >>> encoded_db, image_size = encode_database(data, x_column="image", y_column="label")
-            >>>
-            >>> stacked_data = stack_dataset(encoded_db, image_size)
-            >>> stacked_data['x'].shape
-            (24, 20, 20, 1)
-            >>> stacked_data['y'].shape
-            (24, 2)
-
-    """
-
-    assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
-    assert "one_hot_encoding" in dataset.columns, "'dataset' does not contain column named 'one_hot_encoding'"
-
-    x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
-    y = np.vstack(dataset.one_hot_encoding)
-
-    stacked_dataset = {'x': x,
-                       'y': y}
-
-    return stacked_dataset
-
 def prepare_database(database, x_column, y_column, divisions):
     """ Encode data base, split it into training, validation and test sets
         and stack those sets.
