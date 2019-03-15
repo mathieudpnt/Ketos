@@ -668,50 +668,6 @@ def parse_seg_name(seg_name):
 
 
 
-def open_table(h5, where, table_name, table_description, sample_rate, chunkshape=None):
-    """ Open the specified table or creates it if it does not exist.
-
-        Args:
-            h5: tables.file.File object
-                HDF5 file handler for the database where the table is/will be located
-            where: str
-                The group in which the table is/will be located. Ex: '/features/spectrograms'
-            table_name: str
-                The name of the table. This name will be part of the table's path.
-                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
-            table_description: tables.IsDescription object
-                The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
-            sample_rate: int
-                The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
-            chunkshape: tuple
-                The chunk shape to be used for compression
-
-        Returns:
-            table: table.Table object
-            The opened/created table.    
-    """
-    try:
-       group = h5.get_node(where)
-    
-    except tables.NoSuchNodeError:
-        print("group '{0}' not found. Creating it now...".format(where))
-        if where.endswith('/'): 
-             where = where[:-1]
-        name=os.path.basename(where)
-        path=where.split(name)[0]
-        if path.endswith('/'): 
-             path = path[:-1]
-        group = h5.create_group(path, name, createparents=True)
-        
-    try:
-       table = h5.get_node("{0}/{1}".format(where,table_name))
-    
-    except tables.NoSuchNodeError:    
-        filters = tables.Filters(complevel=1, fletcher32=True)
-        table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
-
-    table.attrs.sample_rate = sample_rate
-    return table
 
 def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
