@@ -554,9 +554,9 @@ def check_data_sanity(images, labels):
         and number of images and labels match.
      
         Args:
-            images: numpy array
+            images: numpy array or pandas series
                 Images
-            labels: numpy array
+            labels: numpy array or pandas series
                 Labels
         Raises:
             ValueError:
@@ -619,12 +619,20 @@ def get_image_size(images):
     """ Get image size and check that all images have same size.
      
         Args:
-            images: numpy array
+            images: numpy array or pandas series
                 Images
 
         Results:
             image_size: tuple (int,int)
                 Image size
+
+        Examples:
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> images = data['image']
+            >>> get_image_size(images)
+            (20, 20)
+
     """
     # determine image size and check that all images have same size
     image_shape = images[0].shape
