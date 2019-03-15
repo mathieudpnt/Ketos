@@ -518,13 +518,14 @@ def prepare_database(database, x_column, y_column, divisions):
             >>>
             >>> # The resulting dictionary has the following keys
             >>> prepared_db.keys()
+            dict_keys(['train_x', 'train_y', 'validation_x', 'validation_y', 'test_x', 'test_y'])
             >>> prepared_db['train_x'].shape
             (12, 20, 20, 1)
             >>> prepared_db['train_y'].shape
             (12, 2)
             >>> prepared_db['validation_x'].shape
             (6, 20, 20, 1)
-            >>> prepared_db['validation_y].shape
+            >>> prepared_db['validation_y'].shape
             (6, 2)
             >>> prepared_db['test_x'].shape
             (6, 20, 20, 1)
