@@ -502,6 +502,34 @@ def prepare_database(database, x_column, y_column, divisions):
                 Keys are: train_x, train_y, validation_x, validation_y
                           test_x and test_y. Values are the respective
                                              stacked datasets (numpy arrays)
+
+        Examples:
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> data.columns
+            Index(['image', 'label'], dtype='object')
+            >>>
+            >>> divisions={"train":(0,12),
+            ...            "validation": (12,18),
+            ...            "test": (18,24)}
+            >>>
+            >>> # prepare the database for use with a Convolutional Neural Network
+            >>> prepared_db = prepare_database(data, x_column="image", y_column="label", divisions=divisions)
+            >>>
+            >>> # The resulting dictionary has the following keys
+            >>> prepared_db.keys()
+            >>> prepared_db['train_x'].shape
+            (12, 20, 20, 1)
+            >>> prepared_db['train_y'].shape
+            (12, 2)
+            >>> prepared_db['validation_x'].shape
+            (6, 20, 20, 1)
+            >>> prepared_db['validation_y].shape
+            (6, 2)
+            >>> prepared_db['test_x'].shape
+            (6, 20, 20, 1)
+            >>> prepared_db['test_y'].shape
+            (6, 2)
     """
 
     encoded_data, input_shape = encode_database(database=database, x_column=x_column, y_column=y_column)
