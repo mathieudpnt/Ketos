@@ -641,28 +641,6 @@ def get_image_size(images):
     return image_shape
 
 
-
-def spec_table_description(dimensions):
-    """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
-             
-        Args:
-            dimension : tuple (ints)
-            A tuple with ints describing the number of rows and number of collumns of each 
-            image to be stored in the table (n_rows,n_cols). Optionally, a third integer 
-            can be added if the image has multiple channels (n_rows, n_cols, n_channels)
-        Results:
-            TableDescription: class (tables.IsDescription)
-                The class describing the table structure to be used when creating tables that 
-                will store images in the HDF5 database.
-    """
-    class TableDescription(tables.IsDescription):
-            id = tables.StringCol(25)
-            labels = tables.StringCol(100)
-            signal = tables.Float32Col(shape=dimensions)
-            boxes = tables.StringCol(100) 
-    
-    return TableDescription
-
 def parse_seg_name(seg_name):
     """ Retrieves the segment id and label from the segment name
 
