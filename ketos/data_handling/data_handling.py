@@ -666,37 +666,7 @@ def parse_seg_name(seg_name):
 
     return (id,labels)
 
-def write_audio_to_table(seg_file_name, table, pad=False, duration=None ):
-    """ Write data form .wav files containing segments into the h5 database.
 
-        Args:
-            seg_file: str
-                .wav file name (including path).
-                Expected to follow the format:format id_*_l_*.wav,
-                where * denotes 'any number of characters'.
-            table: tables.Table
-                Table in which the segment will be stored
-                (described by audio_table_description()).
-            pad: bool
-                True if signal should be padded with zeros until it's duration
-                 is equal to the 'duration' argument. Flase if signal should be
-                 written as it is.
-            duration: float
-                Desired duration for the padded signal in seconds. 
-        Returns:
-            None.
-    """
-
-    rate, seg_data = read_wave(seg_file_name)
-    id, labels = parse_seg_name(os.path.basename(seg_file_name))
-
-    if pad:
-        seg_data = pad_signal(seg_data, rate, duration)
-    seg_r = table.row
-    seg_r["id"] = id
-    seg_r["labels"] = labels
-    seg_r["signal"] = seg_data
-    seg_r.append()
 
 def write_spec_to_table(table, spectrogram, id=None, labels=None, boxes=None):
     """ Write data from spectrogram object into the h5 database.
