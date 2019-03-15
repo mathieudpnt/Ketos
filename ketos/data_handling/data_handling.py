@@ -668,59 +668,6 @@ def parse_seg_name(seg_name):
 
 
 
-def write_spec_to_table(table, spectrogram, id=None, labels=None, boxes=None):
-    """ Write data from spectrogram object into the h5 database.
-
-        Note: the spectrogram object is expected to have the id and label information in it's 
-        .tag attribute, following the format id_*_[l]_*.
-        Example: spec.tag="id_78536_l_1"
-
-        Args:
-            table: tables.Table
-                Table in which the spectrogram will be stored
-                (described by spec_table_description()).
-
-            spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
-            :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
-                Spectrogram object.
-
-            id: str
-                Spectrogram id (overwrites the id parsed from the spectrogram tag).
-
-            labels: tuple(int)
-                Labels (overwrites the labels parsed from the spectrogram tag).
-
-            boxes: tuple(tuple(int))
-                Boxes confining the regions of interest in time-frequency space
-
-        Returns:
-            None.
-    """
-    id_parsed, labels_parsed = parse_seg_name(spectrogram.tag)
-
-    if id is None:
-        id_str = id_parsed
-    else:
-        id_str = id
-
-    if labels is None:
-        labels_str = labels_parsed
-    else:
-        labels_str = tostring(labels)
-
-    boxes_str = tostring(boxes)
-
-    # check that number of labels match number of boxes
-    if labels is not None and boxes is not None:
-        assert len(labels) == len(boxes), 'Number of labels and number of boxes do not match'
-
-    seg_r = table.row
-    seg_r["signal"] = spectrogram.image
-    seg_r["id"] = id_str
-    seg_r["labels"] = labels_str
-    seg_r["boxes"] = boxes_str
-    seg_r.append()
-
 def open_table(h5, where, table_name, table_description, sample_rate, chunkshape=None):
     """ Open the specified table or creates it if it does not exist.
 
