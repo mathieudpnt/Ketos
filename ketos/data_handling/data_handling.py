@@ -383,21 +383,24 @@ def split_database(database, divisions):
             >>> data.columns
             Index(['image', 'label'], dtype='object')
             >>>
+            >>> #Define how the data should be split
             >>> divisions={"train":(0,12),
             ...            "validation": (12,18),
             ...            "test": (18,24)}
             >>>
             >>> split_db = split_database(data, divisions)
+            >>> # The result is a dictionary with 3 keys
             >>> split_db.keys()
             dict_keys(['train', 'validation', 'test'])
             >>>
+            >>> # Each containing a pandas dataframe corresponding to the specified dividion
             >>> split_db['train'].shape
-            (12,2)
+            (12, 2)
             >>> split_db['validation'].shape
-            (6,2)
+            (6, 2)
             >>> split_db['test'].shape
-            (6,2)
-            
+            (6, 2)
+
 
 
 
