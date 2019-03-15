@@ -558,25 +558,62 @@ def check_data_sanity(images, labels):
                 Images
             labels: numpy array
                 Labels
+        Raises:
+            ValueError:
+                If no images or labels are passed;
+                If the number of images and labels is different;
+                If images have different shapes;
+                If any labels are NaN.
 
-        Results:
-            image_size: tuple (int,int)
-                Image size
+       Returns:
+            True if all checks pass.
+
+        Examples:
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> images = data['image']
+            >>> labels = data['label']
+            >>> # When all the images and labels  pass all the quality checks,
+            >>> # The function returns True            
+            >>> check_data_sanity(images, labels)
+            True
+            >>> # If something is wrong, like if the number of labels
+            >>> # is different from the number of images, and exeption is raised
+            >>> labels = data['label'][:10] 
+            >>> check_data_sanity(images, labels=labels)
+            Traceback (most recent call last):
+                File "/usr/lib/python3.6/doctest.py", line 1330, in __run
+                    compileflags, 1), test.globs)
+                File "<doctest data_handling.check_data_sanity[5]>", line 1, in <module>
+                    check_data_sanity(images, labels=labels)
+                File "ketos/data_handling/data_handling.py", line 599, in check_data_sanity
+                    raise ValueError("Image and label columns have different lengths")
+            ValueError: Image and label columns have different lengths
+
+
+
     """
-    if images is None and labels is None:
-        return True
+    checks = True
+    if images is None or labels is None:
+        raise ValueError(" Images and labels cannot be None")
+        
 
     # check that number of images matches numbers of labels
-    assert len(images) == len(labels), "Image and label columns have different lengths"
+    if len(images) != len(labels):
+        raise ValueError("Image and label columns have different lengths")
 
     # determine image size and check that all images have same size
     image_shape = images[0].shape
-    assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
+    if not all(x.shape == image_shape for x in images):
+        raise ValueError("Images do not all have the same size")
 
     # check that all labels have values
     b = np.isnan(labels)    
     n = np.count_nonzero(b)
-    assert n == 0, "Some labels are NaN"
+    if n != 0:
+        raise ValueError("Some labels are NaN")
+    
+    return checks
 
 def get_image_size(images):
     """ Get image size and check that all images have same size.
