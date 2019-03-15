@@ -899,59 +899,6 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
-
-
-def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
-    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
-    #TODO: Reorganize modules to prevent circular dependency
-    from ketos.audio_processing.audio import AudioSignal
-    """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
-             
-        Args:
-            h5: tables.File
-                Reference to HDF5 database
-            raw_sig_table: tables.Table
-                Table containing raw signals
-            where: str
-                The group in which the table is/will be located. Ex: '/features/spectrograms'
-            spec_table_name: str
-                The name of the table. This name will be part of the table's path.
-                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
-            spec_class: subclass of :class:`spectrogram.Spectrogram`
-                One of :class:`spectrogram.MagSpectrogram`, :class:`spectrogram.PowerSpectrogram` or
-                :class:`spectrogram.MelSpectrogram`.
-            kwargs:
-                any keyword arguments to be passed to the sec_class
-    
-        Returns:
-            None
-    """
-
-    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
-    #TODO: Reorganize modules to prevent circular dependency
-    from ketos.audio_processing.audio import AudioSignal
-
-
-    rate=raw_sig_table.attrs.sample_rate
-    ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
-    ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
-
-    spec_description = spec_table_description(dimensions=ex_spec.image.shape)
-    spec_table = open_table(h5, where, spec_table_name, spec_description, None)
-
-
-    for segment in raw_sig_table.iterrows():
-        signal = segment['signal']
-        audio = AudioSignal(rate,signal)
-        spec = spec_class(audio_signal=audio, **kwargs)
-        spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spec_to_table(spec_table, spec)
-
-    spec_table.flush()
-
-
-
-
 class BatchReader:
     """ Reads audio file(s) and serves them in batches of specified size.
 
