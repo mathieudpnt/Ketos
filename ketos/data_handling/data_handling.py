@@ -640,33 +640,7 @@ def get_image_size(images):
 
     return image_shape
 
-def audio_table_description(signal_rate, segment_length):
-    """ Create the class that describes the raw signal table structure for the HDF5 database.
-     
-        Args:
-            signal_rate: int
-                The sampling rate of the signals to be stored in this table
-            segment_length: float
-                The duration of each segment (in seconds) that will be stored in this table.
-                All segments must have the same length
 
-        Results:
-            TableDescription: class (tables.IsDescription)
-                The class describing the table structure. To be used when creating tables 
-                in the HDF5 database.
-    """
-
-
-    signal_length = int(np.ceil(signal_rate * segment_length))
-
-    class TableDescription(tables.IsDescription):
-            id = tables.StringCol(25)
-            labels = tables.StringCol(100)
-            signal = tables.Float32Col(shape=(signal_length))
-            boxes = tables.StringCol(100)
-
-    
-    return TableDescription
 
 def spec_table_description(dimensions):
     """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
