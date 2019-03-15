@@ -424,16 +424,41 @@ def split_database(database, divisions):
 def stack_dataset(dataset, input_shape):
     """ Stack and reshape a dataset.
 
-     
+        The inputs (x) will be have the shape [N,H,W,C]
+        (number of images, height, width, number of channels).
+        For spectrograms, C will tipically be 1.
+        The labels (y) will have shape [N, Nc], where Nc is the number
+        of categories (e.g.: the lenght of the one-hot encoded label vector)
+
+        This format is convenient for convolutional neural networks.
+
+
         Args:
             dataset: pandas DataFrame
                 A pandas dataset with two columns:'x_flatten' and
                 'one_hot_encoding' (the output of the 'encode_database' function)
+            input_shape: tuple(int,int)
+                A tuple with the shape of each input.
 
         Results:
             stacked_dataset: dict (of numpy arrays)
             A dictionary containing the stacked versions of the input and labels, 
             respectively under the keys 'x' and 'y'
+
+        Examples:
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> data.columns
+            Index(['image', 'label'], dtype='object')
+            >>> # Encode the database
+            >>> encoded_db, image_size = encode_database(data, x_column="image", y_column="label")
+            >>>
+            >>> stacked_data = stack_dataset(encoded_db, image_size)
+            >>> stacked_data['x'].shape
+            (24, 20, 20, 1)
+            >>> stacked_data['y'].shape
+            (24, 2)
+
     """
 
     assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
