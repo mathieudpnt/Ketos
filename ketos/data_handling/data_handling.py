@@ -290,69 +290,6 @@ def from1hot(value):
     return output
 
 
-def split_database(database, divisions):
-    """ Split the database into 3 datasets: train, validation, test.
-
-        Args:
-        database : pandas.DataFrame
-            The database to be split. Must contain at least 2 colummns (x, y).
-            Each row is an example.
-        divisions: dict
-            Dictionary indicating the initial and final rows for each dataset (Obs: final row is *not* included).
-            Keys must be "train", "validation" and "test".
-            values are tuples with initial and final rows.
-            Example: {"train":(0,1000),
-                        "validation": (1000,1200),
-                        "test": (1200:1400)}
-         Returns:
-            datasets : dict
-                Dictionary with "train", "validation" and "test" as keys
-                and the respective datasets (pandas.Dataframes) as values.
-
-        Examples:
-            >>> # Load a database with images and integer labels
-            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
-            >>> data.columns
-            Index(['image', 'label'], dtype='object')
-            >>>
-            >>> #Define how the data should be split
-            >>> divisions={"train":(0,12),
-            ...            "validation": (12,18),
-            ...            "test": (18,24)}
-            >>>
-            >>> split_db = split_database(data, divisions)
-            >>> # The result is a dictionary with 3 keys
-            >>> split_db.keys()
-            dict_keys(['train', 'validation', 'test'])
-            >>>
-            >>> # Each containing a pandas dataframe corresponding to the specified dividion
-            >>> split_db['train'].shape
-            (12, 2)
-            >>> split_db['validation'].shape
-            (6, 2)
-            >>> split_db['test'].shape
-            (6, 2)
-
-
-
-
-            
-    """
-    assert "train" in divisions, "'divisions' does not contain key 'train'"   
-    assert "validation" in divisions, "'divisions' does not contain key 'validation'"   
-    assert "test" in divisions, "'divisions' does not contain key 'test'"   
-
-    train_data = database[divisions["train"][0]:divisions["train"][1]]
-    validation_data = database[divisions["validation"][0]:divisions["validation"][1]]
-    test_data = database[divisions["test"][0]:divisions["test"][1]]
-
-    datasets = {"train": train_data,
-                "validation": validation_data,
-                "test": test_data}
-
-    return datasets
-
-
 def stack_dataset(dataset, input_shape):
     """ Stack and reshape a dataset.
 
