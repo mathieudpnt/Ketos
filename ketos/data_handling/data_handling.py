@@ -317,7 +317,7 @@ def encode_database(database, x_column, y_column):
                 >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
                 >>> data.columns
                 Index(['image', 'label'], dtype='object')
-                >>> # Ecode the database
+                >>> # Encode the database
                 >>> encoded_db, image_size = encode_database(data, x_column="image", y_column="label")
                 >>>
                 # The shape of the original images is returned
@@ -376,6 +376,32 @@ def split_database(database, divisions):
             datasets : dict
                 Dictionary with "train", "validation" and "test" as keys
                 and the respective datasets (pandas.Dataframes) as values.
+
+        Examples:
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> data.columns
+            Index(['image', 'label'], dtype='object')
+            >>>
+            >>> divisions={"train":(0,12),
+            ...            "validation": (12,18),
+            ...            "test": (18,24)}
+            >>>
+            >>> split_db = split_database(data, divisions)
+            >>> split_db.keys()
+            dict_keys(['train', 'validation', 'test'])
+            >>>
+            >>> split_db['train'].shape
+            (12,2)
+            >>> split_db['validation'].shape
+            (6,2)
+            >>> split_db['test'].shape
+            (6,2)
+            
+
+
+
+            
     """
     assert "train" in divisions, "'divisions' does not contain key 'train'"   
     assert "validation" in divisions, "'divisions' does not contain key 'validation'"   
