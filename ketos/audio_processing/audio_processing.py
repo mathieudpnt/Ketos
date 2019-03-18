@@ -56,9 +56,35 @@ def append_specs(specs):
             s: Spectrogram
                 Output spectrogram
 
-        Example:
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # append spectrogram to itself two times 
+                >>> from ketos.audio_processing.audio_processing import append_specs
+                >>> merged = append_specs([spec, spec, spec])
+                >>> # show orignal spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_orig.png")
+                >>> # show the merged spectrogram
+                >>> fig = merged.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_append_to_itself.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
+                    :width: 250px
+                    :align: left
+
+                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_append_to_itself.png
+                    :width: 250px
+                    :align: left
+
     """
-    s = specs[0]
+    s = specs[0].copy()
     for i in range(1,len(specs)):
         s.append(specs[i])
 

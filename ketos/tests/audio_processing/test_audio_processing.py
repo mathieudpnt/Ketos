@@ -192,7 +192,6 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
-@pytest.mark.test_prepare_for_binary_cnn
 def test_prepare_for_binary_cnn():
     n = 1
     l = 2
@@ -222,6 +221,13 @@ def test_prepare_for_binary_cnn():
     x, y, _ = framer.get_frames()
     assert y.shape == (2*q,)
     assert np.sum(y) == q
+
+@pytest.mark.test_append_specs
+def test_append_specs():
+    img = np.ones(shape=(20,30))
+    s = Spectrogram(image=img)       
+    merged = ap.append_specs([s,s,s])
+    assert merged.image.shape[0] == 3 * s.image.shape[0]
 
 @pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():
