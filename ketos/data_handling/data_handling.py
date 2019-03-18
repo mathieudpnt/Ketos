@@ -599,7 +599,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
             >>>
             >>> get_labels(file='2min',start=99.0, end=110.0,
             ...                        annotations=annotations, not_in_annotations=0)
-            '[2,1]'
+            '[2, 1]'
 
     """
     interval_start = start
@@ -639,9 +639,26 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
             Name of segment file name (including '.wav')
             
 
-         Returns:
+        Returns:
 
-            None   
+            None
+
+        Examples:
+            >>> import os
+            >>> from ketos.data_handling.data_handling import read_wave
+            >>> audio_file = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/tmp/segs_from_tags"
+            >>> os.makedirs(save_dir, exist_ok=True)
+
+            >>> seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=save_dir )
+
+            
+            >>> rate, sig  = read_wave(os.path.join(save_dir, "seg_1.wav"))
+            >>> duration = len(sig)/rate
+            >>> duration
+            2.0
+
+        
 
     """
     out_seg = os.path.join(save_to, name)
