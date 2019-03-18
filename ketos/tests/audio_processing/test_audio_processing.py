@@ -1,18 +1,29 @@
-""" Unit tests for the the 'pre_processing' module in the 'sound_classification' package
-
+""" Unit tests for the 'audio_processing' module within the ketos library
 
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Intitute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-
 import pytest
 import os
 import numpy as np
@@ -196,7 +207,7 @@ def test_prepare_for_binary_cnn():
         specs.append(s)
 
     img_wid = 4
-    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
+    framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
     x, y, _ = framer.get_frames()
     m = 1 + 20 - 4
     q = 4
@@ -207,7 +218,7 @@ def test_prepare_for_binary_cnn():
     assert np.all(x[0,2,:] == 2.5)
     assert np.all(x[1,1,:] == 2.5)
 
-    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
+    framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
     x, y, _ = framer.get_frames()
     assert y.shape == (2*q,)
     assert np.sum(y) == q

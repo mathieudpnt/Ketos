@@ -1,3 +1,35 @@
+""" Audio processing module within the ketos library
+
+    This module provides utilities to perform various types of 
+    operations on audio data.
+
+    Contents:
+        FrameMakerForBinaryCNN class: 
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
+     
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 import numpy as np
 import pandas as pd
 import scipy.io.wavfile as wave
@@ -11,16 +43,20 @@ from sklearn.utils import shuffle
 
 
 def append_specs(specs):
-    """ Append spectrograms in order.
-        The spectrograms must have the same dimensions and resolutions.
+    """ Append spectrograms in the order in which they are provided.
+
+        The spectrograms must have the same time and frequency resolutions
+        and share the same frequency axis.
 
         Args:
             specs: list(Spectrogram)
-                Spectrograms to be combined
+                Input spectrograms
 
         Returns:
             s: Spectrogram
-                Combined spectrograms
+                Output spectrogram
+
+        Example:
     """
     s = specs[0]
     for i in range(1,len(specs)):
@@ -28,8 +64,8 @@ def append_specs(specs):
 
     return s
 
-class BinaryClassFramer():
-    """ Transform the data into format suitable for training a binary CNN.
+class FrameMakerForBinaryCNN():
+    """ Create frames from spectrograms suitable for training a binary CNN.
 
         Attributes:
             specs : list
