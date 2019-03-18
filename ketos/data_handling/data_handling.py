@@ -680,8 +680,32 @@ def segs_from_annotations(annotations, save_to):
             path to the directory where segments will be saved.
             
             
-         Returns:
-            None   
+        Returns:
+            None
+            
+        Examples:
+            >>> import os
+            >>> from glob import glob
+            >>> import pandas as pd
+            >>> audio_file_path = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/from_annot"
+            >>> annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
+            ...                            'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
+            ...                            'end':[6.0,73.0,108.0]})
+            >>>            
+            >>> segs_from_annotations(annotations,save_dir)
+            Creating segment...... ketos/tests/assets/from_annot id_2min_0_l_[1].wav
+            Creating segment...... ketos/tests/assets/from_annot id_2min_1_l_[2].wav
+            Creating segment...... ketos/tests/assets/from_annot id_2min_2_l_[1].wav
+            >>>
+            >>>
+            >>> label_1 = len(glob(save_dir + "/id_2min*l_[[]1].wav"))
+            >>> label_1
+            2
+            >>>
+            >>> label_2 = len(glob(save_dir + "/id_2min*l_[[]2].wav"))
+            >>> label_2
+            1
 
     """ 
     create_dir(save_to)
