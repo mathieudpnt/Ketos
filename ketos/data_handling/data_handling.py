@@ -391,22 +391,42 @@ def parse_seg_name(seg_name):
             followed by base name of the audio file from which the segment was extracted, '_',
             and a sequence number. The 'l' is followed by any number of characters describing the label(s).
 
+        Raise:
+            ValueError
+            If seg_name is empty or in wrong format
         Returns:
             (id,label) : tuple (str,str)
             A tuple with the id and label strings.
 
+        Examples:
+            >>> seg_name = "id_hydr06_23_l_[2].wav"
+            >>> id, label = parse_seg_name(seg_name)
+            >>> id
+            'hydr06_23'
+            >>> label
+            '[2]'
+            >>>
+            >>> seg_name = "id_hydr05_279_l_[2,1].mp3"
+            >>> id, label = parse_seg_name(seg_name)
+            >>> id
+            'hydr05_279'
+            >>> label
+            '[2,1]'
+
     """
     id, labels = None, None
-    if seg_name != '':
+    pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
+    if nor pattern.match(seg_name):
+       raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
-        splits = seg_name.split("_")
-        if len(splits) >= 5:
-            id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
-            tmp = seg_name.split("_")[4]
-            labels = tmp.split(".")[0]
 
+    splits = seg_name.split("_")
+    if len(splits) >= 5:
+        id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
+        tmp = seg_name.split("_")[4]
+        labels = tmp.split(".")[0]
+    
     return (id,labels)
-
 
 
 
