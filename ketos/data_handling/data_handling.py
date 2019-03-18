@@ -542,6 +542,18 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             filtered annotations: pandas.DataFrame
             A subset of the annotations DataFrame containing only the entries for the specified file.
             
+        Examples:
+            >>> import pandas as pd
+            >>> annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
+            ...                     'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
+            ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
+
+            >>> annot_01 = _filter_annotations_by_orig_file(annotations,'2min_01')
+            >>> annot_01
+                 orig_file  label  start    end
+            0  2min_01.wav      1    5.0    6.0
+            1  2min_01.wav      2  100.5  103.0
+                                 
 
     """
     filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name)
