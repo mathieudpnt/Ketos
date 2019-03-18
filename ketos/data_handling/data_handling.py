@@ -735,6 +735,19 @@ def pad_signal(signal,rate, length):
             padded_signal: numpy.array
             Array with the original signal padded with zeros.
 
+        Examples:
+            >>> from ketos.data_handling.data_handling import read_wave
+
+            >>> rate, sig = read_wave("ketos/tests/assets/super_short_1.wav")
+            >>> len(sig)/rate
+            0.00075
+
+
+            >>> padded_signal = pad_signal(signal=sig, rate=rate, length=0.5)
+            >>> len(padded_signal)/rate
+            0.5
+           
+
         
     """
     length = length * rate
