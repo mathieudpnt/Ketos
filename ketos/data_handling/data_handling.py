@@ -416,7 +416,7 @@ def parse_seg_name(seg_name):
     """
     id, labels = None, None
     pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
-    if nor pattern.match(seg_name):
+    if not pattern.match(seg_name):
        raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
 
@@ -430,7 +430,7 @@ def parse_seg_name(seg_name):
 
 
 
-def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
+def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None, verbose=False):
     """ Divides a large .wav file into a sequence of smaller segments with the same duration.
         Names the resulting segments sequentially and save them as .wav files in the specified directory.
 
@@ -469,9 +469,31 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
                 Indicates the number of the segment where the segmentation will stop.
                 A value of 6 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
                 that would correspond to 12.0 seconds from the beginning of the file'
+            verbose:bool
+                If True, print "Creating segment .... name_of_segment" for each segment.
                         
          Returns:
             None   
+
+        Examples:
+            >>> from glob import glob
+            >>> import os
+
+           
+            >>> audio_file = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/tmp/divided_segs"
+            >>> os.makedirs(save_dir, exist_ok=True)
+            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            ...                    'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
+            ...                    'end':[6.0,75.98,110.0]})
+
+
+            >>> divide_audio_into_segs(audio_file=audio_file,
+            ... seg_duration=2.0, annotations=annotations, save_to=save_dir)
+
+            >>> n_seg = len(glob(save_dir + "/id_2min*.wav"))
+            >>> n_seg
+            60
     """
     create_dir(save_to)
     orig_audio_duration = librosa.get_duration(filename=audio_file)
@@ -496,7 +518,8 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         out_name = "id_" + prefix + "_" + str(s) + "_l_" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
-        print("Creating segment......", path_to_seg)
+        if verbose:
+            print("Creating segment......", path_to_seg)
         librosa.output.write_wav(path_to_seg, sig, rate)
 
 def _filter_annotations_by_orig_file(annotations, orig_file_name):
