@@ -586,6 +586,21 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
                 if the interval is not in the annotations, the value 
                 specified in 'not_in_annotations' will be used.
 
+        Examples:
+            >>> import pandas as pd
+            >>> audio_file="2min"
+            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            ...                            'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
+            ...                            'end':[6.0,103.0,108.0]})
+            
+            >>> get_labels(file='2min',start=4.0, end=5.5,
+            ...                        annotations=annotations, not_in_annotations=0)
+            '[1]'
+            >>>
+            >>> get_labels(file='2min',start=99.0, end=110.0,
+            ...                        annotations=annotations, not_in_annotations=0)
+            '[2,1]'
+
     """
     interval_start = start
     interval_end = end
