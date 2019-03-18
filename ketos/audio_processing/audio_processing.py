@@ -91,7 +91,7 @@ def append_specs(specs):
     return s
 
 class FrameMakerForBinaryCNN():
-    """ Create frames from spectrograms suitable for training a binary CNN.
+    """ Make frames suitable for training a binary CNN.
 
         Attributes:
             specs : list
@@ -103,7 +103,7 @@ class FrameMakerForBinaryCNN():
             step_size: int
                 Step size (pixels) used for framing. 
             signal_width: int
-                Part of frame that must have the label for the entire 
+                Number of time bins that must have the label for the entire 
                 frame to be assigned the label.
             rndm: bool
                 Randomize the order of the frames
@@ -112,6 +112,8 @@ class FrameMakerForBinaryCNN():
             equal_rep: bool
                 Ensure equal representation of 0s and 1s by removing the 
                 more abundant class until there are equally many.
+            discard_mixed: bool
+                Discard frames which have time bins with different labels
     """
     def __init__(self, specs, label, image_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
 
@@ -127,11 +129,17 @@ class FrameMakerForBinaryCNN():
         self.discard_mixed = discard_mixed
 
     def eof(self):
+        """ Inquire if all data have been read (end of file, eof)
+
+            Returns:
+                res : bool
+                    True, if all data has been read. False, otherwise               
+        """
         res = (self.idx >= len(self.specs))
         return res
 
     def get_frames(self, max_frames=10000):
-        """ Frame data for training a binary CNN.
+        """ Make frames for training a binary CNN.
 
             Args:
                 max_frames : int
@@ -204,7 +212,6 @@ class FrameMakerForBinaryCNN():
             y = y[idx]
 
         return x, y, spec
-
 
 def to_decibel(x):
     """ Convert to decibels
