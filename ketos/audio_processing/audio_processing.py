@@ -405,36 +405,57 @@ def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
     
     return filtered_array
 
-def blur_image(img, size=20, sigma=5, Gaussian=True):
+def blur_image(img, size=20, sigma=5, gaussian=True):
     """ Smooth the input image using a median or Gaussian blur filter.
+        
         Note that the input image is recasted as np.float32.
 
-    Args:
-        img : numpy array
-            Image to be processed. 
-        size: int
-            Only used by the median filter. Describes  the shape that is taken from the input array,
-            at every element position, to define the input to the filter function
-        sigma: scalar of sequence of scalars
-            Standard deviation for Gaussian kernel (Only used if Gaussian=True). The standard deviations of the Gaussian
-            filter are given for each axis as a sequence, or as a single number, in which case it is equal for all axes.
-        Gaussian: bool
-            Switch between median (default) and Gaussian filter
+        This is essentially a wrapper around the scipy.ndimage.median_filter 
+        and scipy.ndimage.gaussian_filter methods. 
 
-    Returns:
-        blur_img: numpy array
-            Blurred image.
+        For further details, see https://docs.scipy.org/doc/scipy/reference/ndimage.html
+
+        Args:
+            img : numpy array
+                Image to be processed. 
+            size: int
+                Only used by the median filter. Describes the shape that is taken from the input array,
+                at every element position, to define the input to the filter function.
+            sigma: float or array
+                Only used by the Gaussian filter. Standard deviation for Gaussian kernel. May be given as a 
+                single number, in which case all axes have the same standard deviation, or as an array, allowing 
+                for the axes to have different standard deviations.
+            Gaussian: bool
+                Switch between median and Gaussian (default) filter
+
+        Returns:
+            blur_img: numpy array
+                Blurred image.
+
+        Example:
+
+            >>> from ketos.audio_processing.audio_processing import blur_image
+            >>> img = np.array([[0,0,0],
+            ...                 [0,1,0],
+            ...                 [0,0,0]])
+            >>> # blur using Gaussian filter with sigma of 0.5
+            >>> img_blur = blur_image(img, sigma=0.5)
+            >>> img_blur = np.around(img_blur, decimals=2) # only keep up to two decimals
+            >>> print(img_blur)
+            [[0.01 0.08 0.01]
+             [0.08 0.62 0.08]
+             [0.01 0.08 0.01]]
     """
 
     try:
         assert img.dtype == "float32", "img type {0} shoult be 'float32'".format(img.dtype)
     except AssertionError:
-        numpy.ndarray.astype(dtype = np.float32)    
+        img = img.astype(dtype = np.float32)    
     
-    if (Gaussian):
-        img_blur = ndimage.gaussian_filter(img,sigma=sigma)
+    if (gaussian):
+        img_blur = ndimage.gaussian_filter(img, sigma=sigma)
     else:
-        img_blur = ndimage.median_filter(img,size=size)
+        img_blur = ndimage.median_filter(img, size=size)
 
     return img_blur
 
