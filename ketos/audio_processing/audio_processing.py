@@ -128,7 +128,7 @@ class FrameMakerForBinaryCNN():
             >>> table = di.open_table(db, "/sig") 
             >>> spec = di.load_specs(table)[0]
             >>> db.close()
-            >>> # create an instance of FrameMakerForBinaryCNN with default args
+            >>> # create an instance of FrameMakerForBinaryCNN with a single spectrogram as input and frame width of 8
             >>> from ketos.audio_processing.audio_processing import FrameMakerForBinaryCNN
             >>> fmaker = FrameMakerForBinaryCNN(specs=[spec], label=1, image_width=8)
             >>> # make frames 
