@@ -793,7 +793,7 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
-class BatchReader:
+class AudioSequenceReader:
     """ Reads audio file(s) and serves them in batches of specified size.
 
         If the file names do not have date-time information, the files will 
