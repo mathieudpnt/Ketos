@@ -171,43 +171,6 @@ class DataHandler():
         self.images[use] = x
         self.labels[use] = y
 
-    def _ensure4d(self, x):
-        """ Adds a 4th empty dimension to the numpy array
-
-            Args:
-                x: numpy array
-                    Array in which each row holds an image. 
-
-            Return:
-                x: numpy array
-                    Same as input array, but with an additional (empty) dimension 
-        """
-        if np.ndim(x) == 3:
-            x = x[:,:,:,np.newaxis]
-
-        return x
-
-    def _ensure1hot(self, y):
-        """ Ensures that labels are 1-hot encoded
-
-            Args:
-                y: numpy array
-                    Label array
-
-            Return:
-                y: numpy array
-                    1-hot encoded label array
-        """
-        if np.ndim(y) == 1:
-            if self.num_labels is None:
-                depth = np.max(y) + 1 # figure it out from the data
-            else:
-                depth = self.num_labels
-
-            y = to1hot(y, depth=depth) # use one-hot encoding
-
-        return y
-            
     def _add_data(self, x, y, use):
         """ Add data for specified use (training, validation, or test). 
             Will be appended to any existing data for that use type.
@@ -392,3 +355,52 @@ class DataHandler():
         x, y = self._get_data(use=DataUse.TEST)
         return x, y
 
+    def _ensure4d(self, x):
+        """ Adds a 4th empty dimension to the numpy array
+
+            Args:
+                x: numpy array
+                    Array in which each row holds an image. 
+
+            Return:
+                x: numpy array
+                    Same as input array, but with an additional (empty) dimension 
+        """
+        if x is None:
+            return x
+
+        if np.ndim(x) == 3:
+            x = x[:,:,:,np.newaxis]
+
+        return x
+
+    def _ensure1hot(self, y):
+        """ Ensures that labels are 1-hot encoded
+
+            Args:
+                y: numpy array
+                    Label array
+
+            Return:
+                y: numpy array
+                    1-hot encoded label array
+        """
+        if y is None:
+            return y
+
+        y = np.array(y)
+        y = np.squeeze(y)
+
+        if len(y.shape) == 0:
+            y = np.array([y])
+
+        if np.ndim(y) == 1:
+            if self.num_labels is None:
+                depth = np.max(y) + 1 # figure it out from the data
+            else:
+                depth = self.num_labels
+
+            y = to1hot(y, depth=depth) # use one-hot encoding
+
+        return y
+        

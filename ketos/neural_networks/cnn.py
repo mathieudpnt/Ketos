@@ -88,24 +88,6 @@ class CNNWhale(DataHandler):
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y, num_labels=num_labels)
         
-    @classmethod
-    def from_prepared_data(cls, prepared_data, num_labels=2, batch_size=128,
-                num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2):
-
-        train_x = prepared_data["train_x"]
-        train_y = prepared_data["train_y"]
-        validation_x = prepared_data["validation_x"]
-        validation_y = prepared_data["validation_y"]
-        test_x = prepared_data["test_x"]
-        test_y = prepared_data["test_y"]
-
-        return cls(train_x=train_x, train_y=train_y, 
-                validation_x=validation_x, validation_y=validation_y,
-                test_x=test_x, test_y=test_y, num_labels=num_labels, 
-                batch_size=batch_size, num_epochs=num_epochs, 
-                learning_rate=learning_rate, keep_prob=keep_prob, 
-                seed=seed, verbosity=verbosity)
-
     def reset(self):
         self.epoch_counter = 0
         self.sess.run(self.init_op)
@@ -598,13 +580,13 @@ class CNNWhale(DataHandler):
                 if val_acc >= val_acc_goal:
                     break
 
-    def _ensure1hot(self, y):
-        y1hot = y
-        if y is not None and y.shape[-1] is not self.num_labels:
-            depth = y.max() + 1 # number of classes
-            y1hot = to1hot(y, depth)
-        
-        return y1hot
+#    def _ensure1hot(self, y):
+#        y1hot = y
+#        if y is not None and y.shape[-1] is not self.num_labels:
+#            depth = y.max() + 1 # number of classes
+#            y1hot = to1hot(y, depth)
+#        
+#        return y1hot
 
     def save(self, destination):
         """ Save the model to destination
