@@ -65,7 +65,7 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
 
         Examples:
             >>> #This will parse dates in the day/month/year format,
-            >>> #separated by '/'. It will also ignore any test after the year,
+            >>> #separated by '/'. It will also ignore any text after the year,
             >>> # (such as a file extension )
             >>> fmt = "%d/%m/%Y*"
             >>> result = parse_datetime("10/03/1942.txt", fmt)
@@ -205,14 +205,21 @@ def read_wave(file, channel=0):
         
         Examples:
             >>> rate, data = read_wave("ketos/tests/assets/2min.wav")
+            >>> # the function returns the sampling rate (in Hz) as an integer
             >>> type(rate)
             <class 'int'>
             >>> rate
             2000
+            >>> # And the actual audio data is a numpy array
             >>> type(data)
             <class 'numpy.ndarray'>
             >>> len(data)
             241664
+            >>> # Since each item in the vector is one sample,
+            >>> # The duration of the audio in seconds can be obtained by
+            >>> # dividing the the vector length by the sampling rate
+            >>> len(data)/rate
+            120.832
     """
     try:
         rate, signal, _ = wave_bit.read(file)
@@ -251,10 +258,17 @@ def to1hot(value,depth):
                     for the given value(s).
 
             Example:
+                >>> # An example with two possible labels (0 or 1)
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=2)
                 array([[1., 0.],
                        [0., 1.]])
+
+                >>> # The same example with 4 possible labels (0,1,2 or 3)
+                >>> values = np.array([0,1])
+                >>> to1hot(values,depth=4)
+                array([[1., 0., 0., 0.],
+                       [0., 1., 0., 0.]])
      """
     value = np.int64(value)
     one_hot = np.eye(depth)[value]
@@ -265,12 +279,12 @@ def from1hot(value):
 
             Args:
                 value: scalar or numpy.array | int or float
-                    The the label to be converted.
+                    The  label to be converted.
             
             Returns:
                 output: int or numpy array (dtype=int64)
                     An int representing the category if 'value' has 1 dimension or an
-                    array of m ints if  input values is an n by m array.
+                    array of m ints if values is an n by m array.
 
             Example:
                 >>> from1hot(np.array([0,0,0,1,0]))
@@ -368,8 +382,9 @@ def get_image_size(images):
                 Image size
 
         Examples:
-            >>> # Load a database with images and integer labels
+            >>> # Load a dataset with images and integer labels
             >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> # Select only the images from the dataset
             >>> images = data['image']
             >>> get_image_size(images)
             (20, 20)
@@ -431,16 +446,20 @@ def parse_seg_name(seg_name):
 
 
 def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None, verbose=False):
-    """ Divides a large .wav file into a sequence of smaller segments with the same duration.
-        Names the resulting segments sequentially and save them as .wav files in the specified directory.
+    """ Divide a large .wav file into a sequence of smaller segments with the same duration.
+        
 
+        Name the resulting segments sequentially and save them as .wav files in the specified directory.
+        If annotations are provided, this function will check if the segment created emcompasses any labels. If so,
+        the label information will be added to the segment name.
+        
         Note: segments will be saved following the name pattern "id_*_*_l_*.wav",
             where 'id_' is followed by the name of the original file, underscore ('_') 
             and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
             Ex: 'id_rec03_87_l_[1,3]', 'id_rec03_88_l_[0]
 
             The start_seg and end_seg arguments can be used to segment only part of audio files,
-            which is usefule when processing large files in parallel.
+            which is useful when processing large files in parallel.
             
         Args:
             audio_file:str
@@ -478,20 +497,26 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         Examples:
             >>> from glob import glob
             >>> import os
-
-           
+            >>>
+            >>> # Define the paths to the audio file that will be segmented
+            >>> # And the folder where the segments will be saved
             >>> audio_file = "ketos/tests/assets/2min.wav"
             >>> save_dir = "ketos/tests/assets/tmp/divided_segs"
+            >>> # Create that folder (if it does not exist)
             >>> os.makedirs(save_dir, exist_ok=True)
+            >>> # Difine an annotations dataframe
             >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
             ...                    'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
             ...                    'end':[6.0,75.98,110.0]})
 
-
+            >>> # Devide the wav file into 2 seconds segments.
+            >>> # Uses the annotations dataframe to determine if each segment
+            >>> # includes a label names the segments accordingly
             >>> divide_audio_into_segs(audio_file=audio_file,
             ... seg_duration=2.0, annotations=annotations, save_to=save_dir)
-
+            >>> # Count all files have been created in the destination folder
             >>> n_seg = len(glob(save_dir + "/id_2min*.wav"))
+            >>> 60 files have been created
             >>> n_seg
             60
     """
@@ -544,10 +569,11 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             
         Examples:
             >>> import pandas as pd
+            >>> # Create an annotations dataframe
             >>> annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
             ...                     'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
             ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
-
+            >>> # Filter the annotations associated with file "2min_01"
             >>> annot_01 = _filter_annotations_by_orig_file(annotations,'2min_01')
             >>> annot_01
                  orig_file  label  start    end
@@ -589,14 +615,16 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
         Examples:
             >>> import pandas as pd
             >>> audio_file="2min"
+            >>> # Create an annotations dataframe
             >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
             ...                            'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
             ...                            'end':[6.0,103.0,108.0]})
-            
+            >>> # Find all labels between time 4.0 seconds and time 5.0 seconds.
             >>> get_labels(file='2min',start=4.0, end=5.5,
             ...                        annotations=annotations, not_in_annotations=0)
             '[1]'
             >>>
+            >>> # Find all labels between time 99.0 seconds and time 110.0 seconds.
             >>> get_labels(file='2min',start=99.0, end=110.0,
             ...                        annotations=annotations, not_in_annotations=0)
             '[2, 1]'
@@ -620,7 +648,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
 
 
 def seg_from_time_tag(audio_file, start, end, name, save_to):
-    """ Extracts a segment from the audio_file according to the start and end tags.
+    """ Extract a segment from the audio_file according to the start and end tags.
 
         Args:
             audio_file:str
@@ -646,19 +674,21 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
         Examples:
             >>> import os
             >>> from ketos.data_handling.data_handling import read_wave
+            >>>
+            >>> # Define the audio file and the destination folder
             >>> audio_file = "ketos/tests/assets/2min.wav"
             >>> save_dir = "ketos/tests/assets/tmp/segs_from_tags"
+            >>> # Create the folder
             >>> os.makedirs(save_dir, exist_ok=True)
-
+            >>>
+            >>> # Create a segmet starting at 0.5 seconds and ending at 2.5 seconds
             >>> seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=save_dir )
-
-            
+            >>>
+            >>> # Read the created segment and check its duration
             >>> rate, sig  = read_wave(os.path.join(save_dir, "seg_1.wav"))
             >>> duration = len(sig)/rate
             >>> duration
             2.0
-
-        
 
     """
     out_seg = os.path.join(save_to, name)
@@ -687,25 +717,23 @@ def segs_from_annotations(annotations, save_to):
             >>> import os
             >>> from glob import glob
             >>> import pandas as pd
+            >>>
+            >>> # Define the audio file and the destination folder
             >>> audio_file_path = "ketos/tests/assets/2min.wav"
             >>> save_dir = "ketos/tests/assets/from_annot"
+            >>>
+            >>> # Create a dataframe with annotations
             >>> annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
             ...                            'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
             ...                            'end':[6.0,73.0,108.0]})
-            >>>            
+            >>>
+            >>> # Segemnt the audio file according with the annotations           
             >>> segs_from_annotations(annotations,save_dir)
             Creating segment...... ketos/tests/assets/from_annot id_2min_0_l_[1].wav
             Creating segment...... ketos/tests/assets/from_annot id_2min_1_l_[2].wav
             Creating segment...... ketos/tests/assets/from_annot id_2min_2_l_[1].wav
-            >>>
-            >>>
-            >>> label_1 = len(glob(save_dir + "/id_2min*l_[[]1].wav"))
-            >>> label_1
-            2
-            >>>
-            >>> label_2 = len(glob(save_dir + "/id_2min*l_[[]2].wav"))
-            >>> label_2
-            1
+            
+            
 
     """ 
     create_dir(save_to)
@@ -737,17 +765,18 @@ def pad_signal(signal,rate, length):
 
         Examples:
             >>> from ketos.data_handling.data_handling import read_wave
-
+            >>>
+            >>> Read a very short audio signal
             >>> rate, sig = read_wave("ketos/tests/assets/super_short_1.wav")
+            >>> # Calculate its duration (in seconds)
             >>> len(sig)/rate
             0.00075
-
-
+            >>>
+            >>> # Pad the signal
             >>> padded_signal = pad_signal(signal=sig, rate=rate, length=0.5)
+            >>> # Now the duration is equal to the 0.5 seconds specified by the 'length' argument
             >>> len(padded_signal)/rate
             0.5
-           
-
         
     """
     length = length * rate
