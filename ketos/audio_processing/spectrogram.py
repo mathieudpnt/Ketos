@@ -845,6 +845,15 @@ class Spectrogram(AnnotationHandler):
         
         return self.flabels
 
+    def normalize(self):
+        """ Normalize spectogram so that values range from 0 to 1
+
+            Args:
+                spec : numpy array
+                    Spectogram to be normalized.
+        """
+        self.image = self.image - np.min(self.image)
+        self.image = self.image / np.max(self.image)
 
     def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None, fpad=False):
         """ Crop image along time axis, frequency axis, or both.

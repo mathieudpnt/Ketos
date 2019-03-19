@@ -113,23 +113,6 @@ def test_window_length_can_exceed_duration(sine_wave):
     frames = signal.make_frames(winlen, winstep)
     assert frames.shape[0] == 1
 
-@pytest.mark.test_normalize_spec
-def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    mag_norm = ap.normalize_spec(spec.image)
-    for i in range(mag_norm.shape[0]):
-        val = mag_norm[0,i]
-        assert 0 <= val <= 1
-
-@pytest.mark.test_crop_high_freq
-def test_cropped_spectrogram_has_correct_size_and_content(sine_audio):
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    mag = spec.image
-    cut = int(0.7 * mag.shape[1])
-    mag_cropped = ap.crop_high_freq(mag, cut)
-    assert mag_cropped.shape[1] == cut
-    assert mag_cropped[0,0] == mag[0,0]
-
 @pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)

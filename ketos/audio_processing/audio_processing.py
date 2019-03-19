@@ -328,49 +328,6 @@ def make_frames(sig, winlen, winstep, zero_padding=False):
     return frames
 
 
-def normalize_spec(spec):
-    """Normalize spectogram so that values range from 0 to 1
-
-    Args:
-        spec : numpy array
-            Spectogram to be normalized.
-
-    Returns:
-        normalized_spec : numpy array
-            The normalized spectogram, with same shape as the input
-
-    """
-    normalized_spec = spec - spec.min(axis=None)
-    normalized_spec = normalized_spec / spec.max(axis=None)
-
-    return normalized_spec
-
-
-def crop_high_freq(spec, index_max):
-    """ Discard high frequencies
-
-    Args:
-        spec : numpy array
-            Spectogram.
-        index_max: int
-            Remove rows with index >= index_max from spectogram.
-
-    Returns:
-        cropped_spec: numpy array
-            Spectogram without high frequencies. 
-            Note that the dimension of the array is reduced by the number 
-            of rows removed.
-    """
-    if (index_max < 0):
-        index_max = 0
-
-    if (index_max >= spec.shape[1]):
-        index_max = spec.shape[1] - 1
-
-    cropped_spec = spec[:, :index_max]
-
-    return cropped_spec
-
 def filter_isolated_spots(img, struct):
     """Remove isolated spots from the img
 
@@ -407,7 +364,6 @@ def blur_image(img, size=20, sigma=5, Gaussian=True):
             filter are given for each axis as a sequence, or as a single number, in which case it is equal for all axes.
         Gaussian: bool
             Switch between median (default) and Gaussian filter
-
 
     Returns:
         blur_img: numpy array
