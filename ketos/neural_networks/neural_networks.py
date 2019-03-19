@@ -120,7 +120,7 @@ class DataUse(Enum):
     TEST = 3
 
 class DataHandler():
-    """ Parent class for all MERIDIAN machine-learning models handling 
+    """ Parent class for all MERIDIAN machine-learning models, which handles 
         input data for training, validation and testing of models.
 
         Args:
