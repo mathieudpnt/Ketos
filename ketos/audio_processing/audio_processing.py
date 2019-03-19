@@ -366,18 +366,36 @@ def make_frames(x, winlen, winstep, zero_padding=False):
     return frames
 
 
-def filter_isolated_spots(img, struct):
-    """Remove isolated spots from the img
+def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
+    """ Remove isolated spots from the image.
 
-    Args:
-        img : numpy array
-            An array like object representing an image. 
-        struct : numpy array
-            A structuring pattern that defines feature connections.
-            Must be symmetric.
-    Returns:
-        filtered_array : numpy array
-            An array containing the input image without the isolated spots.
+        Args:
+            img : numpy array
+                An array like object representing an image. 
+            struct : numpy array
+                A structuring pattern that defines feature connections.
+                Must be symmetric.
+
+        Returns:
+            filtered_array : numpy array
+                An array containing the input image without the isolated spots.
+
+        Example:
+
+            >>> from ketos.audio_processing.audio_processing import filter_isolated_spots
+            >>> img = np.array([[0,0,1,1,0,0],
+            ...                 [0,0,0,1,0,0],
+            ...                 [0,1,0,0,0,0],
+            ...                 [0,0,0,0,0,0],
+            ...                 [0,0,0,1,0,0]])
+            >>> # remove pixels without neighbors
+            >>> img_fil = filter_isolated_spots(img)
+            >>> print(img_fil)
+            [[0 0 1 1 0 0]
+             [0 0 0 1 0 0]
+             [0 0 0 0 0 0]
+             [0 0 0 0 0 0]
+             [0 0 0 0 0 0]]
     """
     filtered_array = np.copy(img)
     id_regions, num_ids = ndimage.label(filtered_array, structure=struct)
