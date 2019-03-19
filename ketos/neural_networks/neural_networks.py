@@ -165,9 +165,39 @@ class DataHandler():
         """
         check_data_sanity(x, y)
 
+        x = self._ensure4d(x)
+        y = self._ensure1hot(y)
+
+        self.images[use] = x
+        self.labels[use] = y
+
+    def _ensure4d(self, x):
+        """ Adds a 4th empty dimension to the numpy array
+
+            Args:
+                x: numpy array
+                    Array in which each row holds an image. 
+
+            Return:
+                x: numpy array
+                    Same as input array, but with an additional (empty) dimension 
+        """
         if np.ndim(x) == 3:
             x = x[:,:,:,np.newaxis]
 
+        return x
+
+    def _ensure1hot(self, y):
+        """ Ensures that labels are 1-hot encoded
+
+            Args:
+                y: numpy array
+                    Label array
+
+            Return:
+                y: numpy array
+                    1-hot encoded label array
+        """
         if np.ndim(y) == 1:
             if self.num_labels is None:
                 depth = np.max(y) + 1 # figure it out from the data
@@ -176,9 +206,8 @@ class DataHandler():
 
             y = to1hot(y, depth=depth) # use one-hot encoding
 
-        self.images[use] = x
-        self.labels[use] = y
-
+        return y
+            
     def _add_data(self, x, y, use):
         """ Add data for specified use (training, validation, or test). 
             Will be appended to any existing data for that use type.
@@ -194,8 +223,10 @@ class DataHandler():
         x0 = self.images[use]
         y0 = self.labels[use]
         if x0 is not None:
+            x = self._ensure4d(x)
             x = np.append(x0, x, axis=0)
         if y0 is not None:
+            y = self._ensure1hot(y)
             y = np.append(y0, y, axis=0)
         self._set_data(x=x, y=y, use=use)
 
@@ -256,6 +287,26 @@ class DataHandler():
                     Array in which each row holds an image. 
                 y: numpy array
                     Array in which each row contains a label
+
+            Example:
+
+                >>> from ketos.neural_networks.neural_networks import DataHandler
+                >>> handler = DataHandler()
+                >>> # create two 2x2 images
+                >>> img1 = np.array([[1, 2],
+                ...                 [3, 4]])
+                >>> img2 = np.array([[5, 6],
+                ...                 [7, 8]])
+                >>> x = np.array([img1, img2]) # images
+                >>> y = np.array([1, 0])       # labels
+                >>> handler.set_training_data(x, y) # set the training data
+                >>> handler.add_training_data(x, y) # add more training data
+                >>> xt, yt = handler.get_training_data() # get all training data
+                >>> print(yt) # print the (1-hot encoded) labels
+                [[0. 1.]
+                 [1. 0.]
+                 [0. 1.]
+                 [1. 0.]]
         """
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
