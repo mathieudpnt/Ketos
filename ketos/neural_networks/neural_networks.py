@@ -76,7 +76,6 @@ def class_confidences(class_weights):
 
     return conf
 
-
 def predictions(class_weights):
     """ Compute predicted labels from classification weights.
 
@@ -112,31 +111,33 @@ def predictions(class_weights):
 
     return p     
     
-    
 class DataUse(Enum):
+    """ Simple Enum class to indicate data usage context.
+        Options are: TRAINING, VALIDATION, TEST
+    """
     TRAINING = 1
     VALIDATION = 2
     TEST = 3
 
-
 class DataHandler():
-    """ Parent class for all MERIDIAN machine-learning models.
+    """ Parent class for all MERIDIAN machine-learning models handling 
+        input data for training, validation and testing of models.
 
         Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row holds one image.
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
+            train_x: numpy array
+                Array in which each row holds an image.
+            train_y: numpy array
+                Array in which each row contains a label.
+            validation_x: numpy array
+                Array in which each row holds an image
+            validation_y: numpy array
+                Array in which each row contains a label
+            test_x: numpy array
+                Array in which each row holds an image
+            test_y: numpy array
+                Array in which each row contains a label
     """
-    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+    def __init__(self, train_x=None, train_y=None, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=None):
 
         self.num_labels = num_labels    
@@ -152,11 +153,13 @@ class DataHandler():
         """ Set data for specified use (training, validation, or test). 
             Replaces any existing data for that use type.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label.
                 use: DataUse
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
@@ -181,10 +184,10 @@ class DataHandler():
             Will be appended to any existing data for that use type.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label.
                 use: DataUse
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
@@ -197,43 +200,87 @@ class DataHandler():
         self._set_data(x=x, y=y, use=use)
 
     def _get_data(self, use):
-        return self.images[use], self.labels[use]
+        """ Get data of selected usage type
+
+            Args:
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
+        """
+        x = self.images[use]
+        y = self.labels[use]
+        return x, y
 
     def set_training_data(self, x, y):
         """ Set training data. Replaces any existing training data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
+
+            Example:
+
+                >>> from ketos.neural_networks.neural_networks import DataHandler
+                >>> handler = DataHandler()
+                >>> # create two 2x2 images
+                >>> img1 = np.array([[1, 2],
+                ...                 [3, 4]])
+                >>> img2 = np.array([[5, 6],
+                ...                 [7, 8]])
+                >>> x = np.array([img1, img2]) # images
+                >>> y = np.array([1, 0])       # labels
+                >>> handler.set_training_data(x, y) # set the training data
+                >>> xt, yt = handler.get_training_data() # get the training data
+                >>> print(yt) # print the (1-hot encoded) labels
+                [[0. 1.]
+                 [1. 0.]]
         """
         self._set_data(x=x, y=y, use=DataUse.TRAINING)
 
     def add_training_data(self, x, y):
         """ Add training data. Will be appended to any existing training data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
         """
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
     def get_training_data(self):
         """ Get training data.
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
         """
-        return self._get_data(use=DataUse.TRAINING)
+        x, y = self._get_data(use=DataUse.TRAINING)
+        return x, y
 
     def set_validation_data(self, x, y):
         """ Set validation data. Replaces any existing validation data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
         """
         self._set_data(x=x, y=y, use=DataUse.VALIDATION)
 
@@ -241,26 +288,33 @@ class DataHandler():
         """ Add validation data. Will be appended to any existing validation data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._add_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def get_validation_data(self):
         """ Get validation data.
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
         """
-        return self._get_data(use=DataUse.VALIDATION)
+        x, y = self._get_data(use=DataUse.VALIDATION)
+        return x, y
 
     def set_test_data(self, x, y):
         """ Set test data. Replaces any existing test data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._set_data(x=x, y=y, use=DataUse.TEST)
 
@@ -268,15 +322,22 @@ class DataHandler():
         """ Add test data. Will be appended to any existing test data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def get_test_data(self):
         """ Get test data.
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
         """
-        return self._get_data(use=DataUse.TEST)
+        x, y = self._get_data(use=DataUse.TEST)
+        return x, y
 
