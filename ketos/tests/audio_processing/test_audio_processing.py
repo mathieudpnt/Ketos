@@ -145,33 +145,6 @@ def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
     ap.blur_image(img,13,Gaussian=False)
 
-@pytest.mark.test_apply_broadband_filter
-def test_broadband_filter_works_as_expected_for_uniform_columns():
-    img = np.array([[1,1],[2,2],[3,3]], dtype=np.float32)
-    img_fil = ap.apply_broadband_filter(img)
-    for i in range(img_fil.shape[0]):
-        for j in range(img_fil.shape[1]):
-            assert img_fil[i,j] == 0
-
-@pytest.mark.test_apply_broadband_filter
-def test_broadband_filter_works_as_expected_for_non_uniform_columns():
-    img = np.array([[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = ap.apply_broadband_filter(img)
-    assert img_fil[0,0] == 0
-    assert img_fil[0,1] == 0
-    assert img_fil[0,2] == 0
-    assert img_fil[1,0] == 0
-    assert img_fil[1,1] == 0
-    assert img_fil[1,2] == 9
-
-@pytest.mark.test_apply_narrowband_filter
-def test_narrowband_filter_works_as_expected_for_uniform_rows():
-    img = np.array([[1,3],[1,3],[1,3],[1,3]], dtype=np.float32)
-    img_fil = ap.apply_narrowband_filter(img,time_res=1,time_const=1)
-    for i in range(img_fil.shape[0]):
-        for j in range(img_fil.shape[1]):
-            assert img_fil[i,j] == 0
-
 @pytest.mark.test_apply_median_filter
 def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
