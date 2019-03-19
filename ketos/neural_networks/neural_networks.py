@@ -1,32 +1,45 @@
-""" Neural Networks module within the sound_classification package
+""" Neural networks module within the ketos library
 
-This module includes classes and functions useful for creating 
-Deep Neural Networks applied to sound classification within MERIDIAN.
+    This module provides utilities to work with Neural Networks.
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    Contents:
+        DataHandler class:
+        DataUse class:
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import tensorflow as tf
 import numpy as np
-import pandas as pd
 from enum import Enum
 from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
 def class_confidences(class_weights):
-    """Compute the classification confidence from classification weights.
+    """ Compute the classification confidence from classification weights.
 
         Confidence is computed as the difference between the largest class weight 
-        and the second largest class weight. E.g. if there are three classes and 
-        the neural network assigns weights 0.2, 0.55, 0.25, the confidence is 0.55-0.25=0.25.
+        and the second largest class weight.
 
         Args:
             class_weights: numpy array
@@ -35,16 +48,37 @@ def class_confidences(class_weights):
         Returns:
             conf: numpy array
                 Confidence level
+
+        Example:
+
+            >>> from ketos.neural_networks.neural_networks import class_confidences
+            >>> weights = [0.2, 0.55, 0.25]
+            >>> conf = class_confidences(weights)
+            >>> print('{:.2f}'.format(conf))
+            0.30
     """
-    idx = np.argsort(class_weights, axis=1)
-    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
-    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
+    w = class_weights
+
+    if type(w) is not np.ndarray:
+        w = np.array(class_weights)
+        w = np.squeeze(w)
+
+    if np.ndim(w) == 1:
+        w = w[np.newaxis, :]
+
+    idx = np.argsort(w, axis=1)
+    w0 = np.choose(idx[:,-1], w.T) # max weights
+    w1 = np.choose(idx[:,-2], w.T) # second largest weights
     conf = w0 - w1 # classification confidence
+
+    if len(conf) == 1:
+        conf = conf[0]
+
     return conf
 
 
 def predictions(class_weights):
-    """Compute predicted labels from classification weights.
+    """ Compute predicted labels from classification weights.
 
         Args:
             class_weights: numpy array
