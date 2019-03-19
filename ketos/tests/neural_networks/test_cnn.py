@@ -37,7 +37,7 @@ def test_initialize_CNNWhale_with_default_constructor_and_default_args(database_
     d = database_prepared_for_NN
     train_x = d["train_x"]
     train_y = d["train_y"]
-    _ = CNNWhale(train_x, train_y, verbosity=0)
+    _ = CNNWhale(train_x=train_x, train_y=train_y, verbosity=0)
     reset_default_graph()
 
 @pytest.mark.test_CNNWhale
@@ -49,7 +49,7 @@ def test_train_CNNWhale_with_default_args(database_prepared_for_NN):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2, verbosity=0)
+    network = CNNWhale(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
     reset_default_graph()
@@ -63,7 +63,7 @@ def test_train_CNNWhale_with_default_args2(database_prepared_for_NN_2_classes):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2, verbosity=0)
+    network = CNNWhale(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
     reset_default_graph()
@@ -77,8 +77,7 @@ def test_load_CNNWhale_model(database_prepared_for_NN_2_classes, trained_CNNWhal
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y,
-                          test_x, test_y, num_labels=2, verbosity=0)
+    network = CNNWhale(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     path_to_meta, path_to_saved_model, test_acc = trained_CNNWhale
     _ = network.load(path_to_meta, path_to_saved_model)
     assert test_acc == network.accuracy_on_test()
@@ -89,7 +88,7 @@ def test_compute_class_weights_with_CNNWhale(database_prepared_for_NN_2_classes)
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
     y = d["train_y"]
-    network = CNNWhale(train_x=x, train_y=y,  num_labels=2, verbosity=0, seed=41)
+    network = CNNWhale(train_x=x, train_y=y, num_labels=2, verbosity=0, seed=41)
     _ = network.create()
     network.train()
     img = np.zeros((20, 20))

@@ -54,18 +54,20 @@ class CNNWhale(DataHandler):
     """ Create a Convolutional Neural Network for classification tasks.
 
         Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row holds one image.
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
+            image_shape: tuple
+                Shape of images
+            train_x: numpy array
+                Array in which each row holds an image
+            train_y: numpy array
+                Array in which each row contains a label
+            validation_x: numpy array
+                Array in which each row holds an image
+            validation_y: numpy array
+                Array in which each row contains a label
+            test_x: numpy array
+                Array in which each row holds an image
+            test_y: numpy array
+                Array in which each row contains a label
             num_labels: int
                 Number of labels
             batch_size: int
@@ -82,10 +84,12 @@ class CNNWhale(DataHandler):
                 Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
     """
 
-    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
-                 test_x=None, test_y=None, num_labels=2, batch_size=128, 
-                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2,
-                 max_size=1E6):
+    def __init__(self, image_shape=None, train_x=None, train_y=None, 
+                validation_x=None, validation_y=None, test_x=None, test_y=None, 
+                num_labels=2, batch_size=128, num_epochs=10, learning_rate=0.01, 
+                keep_prob=1.0, seed=42, verbosity=2, max_size=1E6):
+
+        assert (image_shape is not None) or (train_x is not None), "image_shape or train_x must be provided"
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -105,7 +109,13 @@ class CNNWhale(DataHandler):
         super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y, num_labels=num_labels)
-        
+
+        if train_x is not None:
+            self.image_shape = self._image_shape()
+        else:
+            self.image_shape = image_shape
+
+
     def reset(self):
         self.epoch_counter = 0
         self.sess.run(self.init_op)
@@ -452,15 +462,20 @@ class CNNWhale(DataHandler):
                     Shape of the input data images
 
         """
-        assert self.images[DataUse.TRAINING] is not None, "Training data must be provided before the neural network structure can be created."
+        tr = self.images[DataUse.TRAINING]
 
-        img_shape = get_image_size(self.images[DataUse.TRAINING]) 
+        if tr is None:
+            img_shape = self.image_shape
 
-        if self.images[DataUse.VALIDATION] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
+        else:        
+            img_shape = get_image_size(tr) 
+            self.image_shape = img_shape
 
-        if self.images[DataUse.TEST] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
+            if self.images[DataUse.VALIDATION] is not None:
+                assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
+
+            if self.images[DataUse.TEST] is not None:
+                assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
 
         return img_shape
 
@@ -781,7 +796,7 @@ class CNNWhale(DataHandler):
                     and the index of examples misclassified examples with the
                     correct and predicted labels.
             Returns:
-                results: tuple (pandas DataFrames)
+                results: tuple (numpy arrays)
                 Tuple with two  DataFrames (report, incorrect). The first contains
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
@@ -829,7 +844,7 @@ class CNNWhale(DataHandler):
                     and the index of examples misclassified examples with the
                     correct and predicted labels.
             Returns:
-                results: tuple (pandas DataFrames)
+                results: tuple (numpy arrays)
                 Tuple with two  DataFrames. The first contains
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
@@ -851,7 +866,7 @@ class CNNWhale(DataHandler):
                     and the index of examples misclassified examples with the
                     correct and predicted labels.
             Returns:
-                results: tuple (pandas DataFrames)
+                results: tuple (numpy arrays)
                 Tuple with two  DataFrames. The first contains
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
