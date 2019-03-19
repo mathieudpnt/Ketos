@@ -98,7 +98,7 @@ class FrameMakerForBinaryCNN():
                 Spectograms
             label : int
                 Label that we want the CNN to learn to detect
-            image_width: int
+            frame_width: int
                 Frame width (pixels).
             step_size: int
                 Step size (pixels) used for framing. 
@@ -130,7 +130,7 @@ class FrameMakerForBinaryCNN():
             >>> db.close()
             >>> # create an instance of FrameMakerForBinaryCNN with a single spectrogram as input and frame width of 8
             >>> from ketos.audio_processing.audio_processing import FrameMakerForBinaryCNN
-            >>> fmaker = FrameMakerForBinaryCNN(specs=[spec], label=1, image_width=8)
+            >>> fmaker = FrameMakerForBinaryCNN(specs=[spec], label=1, frame_width=8)
             >>> # make frames 
             >>> x, y, _ = fmaker.make_frames()
             >>> print(x.shape)
@@ -157,12 +157,12 @@ class FrameMakerForBinaryCNN():
                 :align: center
 
     """
-    def __init__(self, specs, label, image_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
+    def __init__(self, specs, label, frame_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
 
         self.idx = 0
         self.specs = specs
         self.label = label
-        self.image_width = image_width
+        self.frame_width = frame_width
         self.step_size = step_size
         self.signal_width = signal_width
         self.rndm = rndm
@@ -191,7 +191,7 @@ class FrameMakerForBinaryCNN():
                 x : 3D numpy array
                     Input data for the CNN.
                     x.shape[0] = number of frames
-                    x.shape[1] = image_width
+                    x.shape[1] = frame_width
                     x.shape[2] = number of frequency bins (y axis)        
                 y : 1D numpy array
                     Labels for input data.
@@ -217,8 +217,8 @@ class FrameMakerForBinaryCNN():
         x = spec.get_data()
         y = spec.get_label_vector(self.label)
 
-        x = make_frames(x, winlen=self.image_width, winstep=self.step_size)
-        y = make_frames(y, winlen=self.image_width, winstep=self.step_size)
+        x = make_frames(x, winlen=self.frame_width, winstep=self.step_size)
+        y = make_frames(y, winlen=self.frame_width, winstep=self.step_size)
 
         Nx = (x.shape[0] - 1) * self.step_size + x.shape[1]
         spec.image = spec.image[:Nx,:]
@@ -227,8 +227,8 @@ class FrameMakerForBinaryCNN():
 
         # discard mixed
         if self.discard_mixed:
-            x = x[np.logical_or(y==0, y==self.image_width)]
-            y = y[np.logical_or(y==0, y==self.image_width)]
+            x = x[np.logical_or(y==0, y==self.frame_width)]
+            y = y[np.logical_or(y==0, y==self.frame_width)]
             y = (y > 0)
         else:
             y = (y >= self.signal_width)
