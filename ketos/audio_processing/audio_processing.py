@@ -93,7 +93,7 @@ def append_specs(specs):
 class FrameMakerForBinaryCNN():
     """ Make frames suitable for training a binary CNN.
 
-        Attributes:
+        Args:
             specs : list
                 Spectograms
             label : int
@@ -114,6 +114,48 @@ class FrameMakerForBinaryCNN():
                 more abundant class until there are equally many.
             discard_mixed: bool
                 Discard frames which have time bins with different labels
+
+        Attributes:
+            idx : int
+                Index of current spectrogram. Used for internal book keeping.
+
+        Example:
+
+            >>> # extract saved spectrogram from database file
+            >>> import tables
+            >>> import ketos.data_handling.database_interface as di
+            >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
+            >>> table = di.open_table(db, "/sig") 
+            >>> spec = di.load_specs(table)[0]
+            >>> db.close()
+            >>> # create an instance of FrameMakerForBinaryCNN with default args
+            >>> from ketos.audio_processing.audio_processing import FrameMakerForBinaryCNN
+            >>> fmaker = FrameMakerForBinaryCNN(specs=[spec], label=1, image_width=8)
+            >>> # make frames 
+            >>> x, y, _ = fmaker.make_frames()
+            >>> print(x.shape)
+            (143, 8, 224)
+            >>> print(y)
+            [False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False  True  True  True  True  True  True  True  True  True  True  True
+              True  True  True  True  True  True  True  True  True  True  True  True
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False False
+             False False False False False False False False False False False]
+            >>> # show the input spectrogram
+            >>> fig = spec.plot(1)
+            >>> fig.savefig("ketos/tests/assets/tmp/cod_w_label.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/cod_w_label.png
+                :width: 550px
+                :align: center
+
     """
     def __init__(self, specs, label, image_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
 
@@ -138,7 +180,7 @@ class FrameMakerForBinaryCNN():
         res = (self.idx >= len(self.specs))
         return res
 
-    def get_frames(self, max_frames=10000):
+    def make_frames(self, max_frames=10000):
         """ Make frames for training a binary CNN.
 
             Args:

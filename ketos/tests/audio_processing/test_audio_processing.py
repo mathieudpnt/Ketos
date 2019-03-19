@@ -207,7 +207,7 @@ def test_prepare_for_binary_cnn():
 
     img_wid = 4
     framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
-    x, y, _ = framer.get_frames()
+    x, y, _ = framer.make_frames()
     m = 1 + 20 - 4
     q = 4
     assert y.shape == (m*n,)
@@ -218,7 +218,7 @@ def test_prepare_for_binary_cnn():
     assert np.all(x[1,1,:] == 2.5)
 
     framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
-    x, y, _ = framer.get_frames()
+    x, y, _ = framer.make_frames()
     assert y.shape == (2*q,)
     assert np.sum(y) == q
 
