@@ -265,6 +265,17 @@ def to_decibel(x):
     Returns:
         y : numpy array
             Converted array
+
+    Example:
+
+        >>> from ketos.audio_processing.audio_processing import to_decibel 
+        >>> import numpy as np
+        >>> img = np.array([[10., 20.],[30., 40.]])
+        >>> img_db = to_decibel(img)
+        >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
+        >>> print(img_db)
+        [[20.0 26.02]
+         [29.54 32.04]]
     """
     y = 20 * np.ma.log10(x)
 
@@ -280,42 +291,69 @@ def from_decibel(y):
     Returns:
         x : numpy array
             Converted array
+
+    Example:
+
+        >>> from ketos.audio_processing.audio_processing import from_decibel 
+        >>> import numpy as np
+        >>> img = np.array([[10., 20.],[30., 40.]])
+        >>> img_db = from_decibel(img)
+        >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
+        >>> print(img_db)
+        [[  3.16  10.  ]
+         [ 31.62 100.  ]]
     """
 
     x = np.power(10., y/20.)
     return x
 
-def make_frames(sig, winlen, winstep, zero_padding=False):
-    """ Split the signal into frames of length 'winlen' with consecutive 
-        frames being shifted by an amount 'winstep'. 
+def make_frames(x, winlen, winstep, zero_padding=False):
+    """ Split time-series data into frames of length 'winlen' with consecutive 
+        frames being shifted by an amount 'winstep'.
+
+        The data can be 1-dimensional, i.e. one value per time step (e.g. an audio signal), 
+        or 2-dimensions, i.e. several values per time step (e.g. a spectrogram) 
         
         If 'winstep' < 'winlen', the frames overlap.
 
-    Args: 
-        sig: numpy array
-            The signal to be frame.
-        winlen: float
-            The window length in bins.
-        winstep: float
-            The window step (or stride) in bins.
-        zero_padding: bool
-            If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
-            This assures that sample are not truncated from the original signal.
+        Args: 
+            x: 1d or 2d numpy array
+                The data to be framed.
+            winlen: float
+                The window length in bins.
+            winstep: float
+                The window step (or stride) in bins.
+            zero_padding: bool
+                If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
+                This assures that sample are not truncated from the original signal.
 
-    Returns:
-        frames: numpy array
-            2-d array with padded frames.
+        Returns:
+            frames: numpy array
+                2-d or 3-d array with framed data
+
+        Example:
+
+            >>> from ketos.audio_processing.audio_processing import make_frames
+            >>> x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            >>> f = make_frames(x=x, winlen=4, winstep=2)    
+            >>> print(f.shape)
+            (4, 4)
+            >>> print(f)
+            [[ 1  2  3  4]
+             [ 3  4  5  6]
+             [ 5  6  7  8]
+             [ 7  8  9 10]]
     """
 
-    totlen = sig.shape[0]
+    totlen = x.shape[0]
 
     if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
         n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
         z = np.zeros(n_zeros)
-        padded_signal = np.append(sig, z)
+        padded_signal = np.append(x, z)
     else:
-        padded_signal = sig
+        padded_signal = x
         if winlen > totlen:
             n_frames = 1
             winlen = totlen
