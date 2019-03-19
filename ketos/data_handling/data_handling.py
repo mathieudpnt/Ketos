@@ -516,7 +516,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             ... seg_duration=2.0, annotations=annotations, save_to=save_dir)
             >>> # Count all files have been created in the destination folder
             >>> n_seg = len(glob(save_dir + "/id_2min*.wav"))
-            >>> 60 files have been created
+            >>> #60 files have been created
             >>> n_seg
             60
     """
@@ -766,7 +766,7 @@ def pad_signal(signal,rate, length):
         Examples:
             >>> from ketos.data_handling.data_handling import read_wave
             >>>
-            >>> Read a very short audio signal
+            >>> #Read a very short audio signal
             >>> rate, sig = read_wave("ketos/tests/assets/super_short_1.wav")
             >>> # Calculate its duration (in seconds)
             >>> len(sig)/rate
@@ -794,7 +794,8 @@ def pad_signal(signal,rate, length):
 
 
 class AudioSequenceReader:
-    """ Reads audio file(s) and serves them in batches of specified size.
+    """ Reads sequences of audio files and serves them as a merged :class:: ketos.audio_processing.audio.AudioSignal.
+
 
         If the file names do not have date-time information, the files will 
         be sorted in alphabetical order and smoothly joined to one another.
@@ -815,7 +816,28 @@ class AudioSequenceReader:
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
-                Print progress messages during processing 
+                If True, print progress messages during processing 
+
+        Examples:
+        >>> from ketos.data_handling.data_handling import AudioSequenceReader
+        >>> # Define the folder containing the audio files
+        >>> path_to_files = "ketos/tests/assets/2s_segs"
+        >>> # This folder contains 60 files (of 2 seconds each) 
+        >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
+        >>> 
+        >>> # Define the size (in samples) for each batch.
+        >>> size = 2000 * 20 # The sampling rate is 2000Hz
+        >>> # Create an AudioSequenceReader object
+        >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+        >>> # get the first audio signal
+        >>> seq_1 = reader.next(size=size)
+        >>> # The length the same as the specified size
+        >>> len(seq_1.data)
+        40000
+        >>> seq_2 = reader.next(size=size)
+        >>> len(seq_2.data)
+        40000
+
     """
     def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100, verbose=False):
         self.rate = rate
@@ -850,7 +872,7 @@ class AudioSequenceReader:
             if source[-4:] == '.wav':
                 fnames = [source]
             else:
-                fnames = get_wave_files(path=source, subdirs=recursive_search)
+                fnames = find_wave_files(path=source, subdirs=recursive_search)
         
         # check that files exist
         for f in fnames:
