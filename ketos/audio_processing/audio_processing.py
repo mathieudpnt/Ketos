@@ -459,7 +459,7 @@ def blur_image(img, size=20, sigma=5, gaussian=True):
 
     return img_blur
 
-def apply_median_filter(img,row_factor=3, col_factor=4):
+def apply_median_filter(img, row_factor=3, col_factor=4):
     """ Discard pixels that are lower than the median threshold. 
 
         The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
@@ -467,18 +467,31 @@ def apply_median_filter(img,row_factor=3, col_factor=4):
         Note: Code adapted from Kahl et al. (2017)
             Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
             Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
-    Args:
-        img : numpy array
-            Array containing the img to be filtered. 
-            OBS: Note that contents of img are modified by call to function.
-        row_factor: int or float
-            Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
-        col_factor: int or float
-            Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
 
-    Returns:
-        filtered_img: numpy array
-            The filtered image with 0s and 1s.
+        Args:
+            img : numpy array
+                Array containing the img to be filtered. 
+                OBS: Note that contents of img are modified by call to function.
+            row_factor: int or float
+                Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
+            col_factor: int or float
+                Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
+
+        Returns:
+            filtered_img: numpy array
+                The filtered image with 0s and 1s.
+
+        Example:
+
+            >>> from ketos.audio_processing.audio_processing import apply_median_filter
+            >>> img = np.array([[1,4,5],
+            ...                 [3,5,1],
+            ...                 [1,0,9]])
+            >>> img_fil = apply_median_filter(img, row_factor=1, col_factor=1)
+            >>> print(img_fil)
+            [[0 0 0]
+             [0 1 0]
+             [0 0 1]]
     """
 
     col_median = np.median(img, axis=0, keepdims=True)
@@ -491,82 +504,28 @@ def apply_median_filter(img,row_factor=3, col_factor=4):
 
     return filtered_img
 
-def apply_preemphasis(sig,coeff=0.97):
-    """Apply pre-emphasis to signal
+def apply_preemphasis(sig, coeff=0.97):
+    """ Apply pre-emphasis to signal
 
         Args:
             sig : numpy array
                 1-d array containing the signal.
             coeff: float
                 The preemphasis coefficient. If set to 0,
-                 no preemphasis is applied (the output will be the same as the input).
+                no preemphasis is applied (the output will be the same as the input).
+
         Returns:
             emphasized_signal : numpy array
                 The filtered signal.
+
+        Example:
+
+            >>> from ketos.audio_processing.audio_processing import apply_preemphasis
+            >>> sig = np.array([1,2,3,4,5])
+            >>> sig_new = apply_preemphasis(sig, coeff=0.95)
+            >>> print(sig_new)
+            [1.   1.05 1.1  1.15 1.2 ]
     """
     emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
     
     return emphasized_signal
-
-
-def extract_mfcc_features(mag_frames, NFFT, rate, n_filters=40, n_ceps=20, cep_lifter=20):
-    """ Extract MEL-frequency cepstral coefficients (mfccs) from signal.
-    
-        Args:
-            pow_frames : numpy array
-                Power spectrogram.
-            NFFT : int
-                The number of points used for creating the magnitude spectrogram.
-            rate : int
-                The sampling rate of the signal (in Hz).                
-            n_filters: int
-                The number of filters in the filter bank.
-            n_ceps: int
-                The number of Mel-frequency cepstrums.
-            cep_lifters: int
-                The number of cepstum filters.
-
-        Returns:
-            filter_banks : numpy array
-                Array containing the filter banks.
-            mfcc : numpy array
-                Array containing the MFCCs.
-    """
-    #check that NFFT has sensible value
-    n = mag_frames.shape[1] - 1
-    assert (NFFT == 2*n or NFFT == 2*n+1), "NFFT does not agree with size of magnitude spectrogram"
-
-    #make Power Spectrogram
-    pow_frames = (1.0 / NFFT) * (mag_frames**2)  # Power Spectrum
-
-    low_freq_mel = 0
-    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
-    mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
-    hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-    bin = np.floor((NFFT + 1) * hz_points / rate)
-
-    fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
-    for m in range(1, n_filters + 1):
-        f_m_minus = int(bin[m - 1])   # left
-        f_m = int(bin[m])             # center
-        f_m_plus = int(bin[m + 1])    # right
-
-        for k in range(f_m_minus, f_m):
-            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
-        for k in range(f_m, f_m_plus):
-            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
-
-    filter_banks = np.dot(pow_frames, fbank.T)
-    filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
-    filter_banks = 20 * np.log10(filter_banks)  # dB
-    
-    #num_ceps = 20
-    mfcc = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
-    
-    #cep_lifter = 22
-    (nframes, ncoeff) = mfcc.shape
-    n = np.arange(ncoeff)
-    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
-    mfcc *= lift  
-    
-    return filter_banks, mfcc

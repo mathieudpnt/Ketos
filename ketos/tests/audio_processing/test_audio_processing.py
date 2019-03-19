@@ -56,77 +56,20 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = ap.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-@pytest.mark.test_make_frames
-def test_signal_is_padded(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2*duration
-    winstep = 2*duration
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep, zero_padding=True)
-    assert frames.shape[0] == 1
-    assert frames.shape[1] == 2*len(sig)
-    assert frames[0, len(sig)] == 0
-    assert frames[0, 2*len(sig)-1] == 0
-
-@pytest.mark.test_make_frames
-def test_can_make_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/2
-    winstep = duration/4
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep)
-    assert frames.shape[0] == 3
-    assert frames.shape[1] == len(sig)/2
-
-@pytest.mark.test_make_frames
-def test_can_make_non_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/2
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 2
-    assert frames.shape[1] == len(sig)/4
-
-@pytest.mark.test_make_frames
-def test_first_frame_matches_original_signal(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 8
-    for i in range(int(winlen*rate)):
-        assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
-
-@pytest.mark.test_make_frames
-def test_window_length_can_exceed_duration(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2 * duration
-    winstep = duration
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 1
-
 @pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = ap.blur_image(img,5,Gaussian=False)
+    img_median = ap.blur_image(img,5,gaussian=False)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
-    img_gaussian = ap.blur_image(img,9,Gaussian=True)
+    img_gaussian = ap.blur_image(img,9,gaussian=True)
     np.testing.assert_array_equal(img, img_gaussian)
             
 @pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    ap.blur_image(img,13,Gaussian=False)
+    ap.blur_image(img,13,gaussian=False)
 
 @pytest.mark.test_apply_median_filter
 def test_median_filter_works_as_expected():
