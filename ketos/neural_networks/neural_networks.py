@@ -87,8 +87,29 @@ def predictions(class_weights):
         Returns:
             p: numpy array
                 Predicted labels
+
+        Example:
+
+            >>> from ketos.neural_networks.neural_networks import predictions
+            >>> weights = [0.2, 0.55, 0.25]
+            >>> pred = predictions(weights)
+            >>> print(pred)
+            1
     """
-    p = np.argmax(class_weights, axis=1)
+    w = class_weights
+
+    if type(w) is not np.ndarray:
+        w = np.array(class_weights)
+        w = np.squeeze(w)
+
+    if np.ndim(w) == 1:
+        w = w[np.newaxis, :]
+    
+    p = np.argmax(w, axis=1)
+
+    if len(p) == 1:
+        p = p[0]
+
     return p     
     
     
