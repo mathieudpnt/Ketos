@@ -208,7 +208,7 @@ def test_parse_datetime_with_urban_sharks_format():
     full_path = os.path.join(path_to_assets, fname)
     ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt is not None
     assert dt.year == 2084
@@ -224,7 +224,7 @@ def test_parse_datetime_with_non_matching_format():
     full_path = os.path.join(path_to_assets, fname)
     ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt == None
 
