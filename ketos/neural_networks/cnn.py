@@ -51,23 +51,23 @@ filter_shape - Filter shape, e.g. [4,4]'''
 
 
 class CNNWhale(DataHandler):
-    """ Create a Convolutional Neural Network for classification tasks.
+    """ Convolutional Neural Network for classification tasks.
 
         Args:
             image_shape: tuple
-                Shape of images
+                Shape of input images
             train_x: numpy array
-                Array in which each row holds an image
+                Training data
             train_y: numpy array
-                Array in which each row contains a label
+                Labels for training data. Can be integers or 1-hot encoded
             validation_x: numpy array
-                Array in which each row holds an image
+                Validation data
             validation_y: numpy array
-                Array in which each row contains a label
+                Labels for validation data. Can be integers or 1-hot encoded
             test_x: numpy array
-                Array in which each row holds an image
+                Test data
             test_y: numpy array
-                Array in which each row contains a label
+                Labels for test data. Can be integers or 1-hot encoded
             num_labels: int
                 Number of labels
             batch_size: int
@@ -77,13 +77,28 @@ class CNNWhale(DataHandler):
             learning_rate: float
                 The learning rate to be using by the optimization algorithm
             keep_prob: float
-                Probability of keeping weights. If keep_prob < 1.0, drop-out is enabled during training.
+                Probability of keeping weights during training. Set keep_prob to 1.0 to disable drop-out (default).
             seed: int
                 Seed to be used by both tensorflow and numpy when generating random numbers            
             verbosity: int
                 Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
-    """
 
+        Attributes:
+            learning_rate_value: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob_value: float
+                Probability of keeping weights during training. Set keep_prob to 1.0 to disable drop-out (default).
+            sess: tf.Session
+                Current TensorFlow session
+            max_frames: int
+                Maximum number of frames that will be acted on by a tensorflow operation at a time.
+                Useful to avoid memory warnings/errors.
+            epoch_counter: int
+                Keeps count of the current training epoch
+            image_shape: tuple
+                Shape of input data                
+
+    """
     def __init__(self, image_shape=None, train_x=None, train_y=None, 
                 validation_x=None, validation_y=None, test_x=None, test_y=None, 
                 num_labels=2, batch_size=128, num_epochs=10, learning_rate=0.01, 
@@ -115,8 +130,11 @@ class CNNWhale(DataHandler):
         else:
             self.image_shape = image_shape
 
-
     def reset(self):
+        """ Reset the state of the network.
+
+            Resets the epoch counter to 0 and reinitializes all weights to random values.
+        """
         self.epoch_counter = 0
         self.sess.run(self.init_op)
 

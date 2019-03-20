@@ -226,7 +226,7 @@ def trained_CNNWhale(database_prepared_for_NN_2_classes):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
+    network = CNNWhale(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, batch_size=1, num_labels=2)
     tf_nodes = network.create()
     network.set_tf_nodes(tf_nodes)
     network.train()
