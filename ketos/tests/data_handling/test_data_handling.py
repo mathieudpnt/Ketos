@@ -277,15 +277,6 @@ def test_parse_datetime_with_non_matching_format():
     assert dt == None
 
 
-
-@pytest.mark.spec_table_description
-def test_spec_table_description():
-    description = dh.spec_table_description(dimensions=(20,64))
-    description_columns = list(description.columns.keys())
-    description_columns.sort()
-    assert description_columns ==  ['boxes','id', 'labels', 'signal']
-    assert description.columns['signal'].shape == (20, 64)
-
 @pytest.mark.parse_seg_name
 def test_parse_seg_name():
     id,labels = dh.parse_seg_name('id_rb001_89_l_[0].wav')
