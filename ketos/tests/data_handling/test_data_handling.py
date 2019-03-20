@@ -526,45 +526,6 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-@pytest.mark.test_create_spec_table_from_audio_table
-def test_create_spec_table_from_audio_table():
-    audio_file = path_to_assets+ "/2min.wav"
-    
-    try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
-    except FileNotFoundError:
-        pass
-
-    dir = path_to_assets + "/2s_segs"
-    dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=None, save_to=dir)
-
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-
-    raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_table_description(dimensions=(20,60))
-
-    table_raw = dh.open_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
-    
-    segs = os.listdir(dir)
-    for seg in segs:
-        dh.write_audio_to_table(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
-
-    table_raw.flush()
-    
-    dh.create_spec_table_from_audio_table(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
-    spec_table = h5.root.features.mag_spectrograms.seq_2s
-
-    assert len(spec_table) == len(segs)
-    assert pytest.approx(spec_table[:]['id'], table_raw[:]['id'])
-    assert pytest.approx(spec_table[:]['labels'], table_raw[:]['labels'])
-    
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-
-    shutil.rmtree(path_to_assets + "/2s_segs")
-
-
 
 
 def test_init_batch_reader_with_single_file(sine_wave_file):
