@@ -877,15 +877,15 @@ class AudioSequenceReader:
                     If the specified directory does not have any .wav files
 
             Examples:
-                >>> import os
+                >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
                 >>> # Define a list with the 10 files
-                >>> list_of_files_1 = os.path.listdir(path_to_files)[0:10]
+                >>> list_of_files_1 = glob(path_to_files + "/*" )[0:10]
                 >>> # Define another list with 10 different files
-                >>> list_of_files_2 = os.path.listdir(path_to_files)[10:20]
+                >>> list_of_files_2 = glob(path_to_files + "/*" )[10:20]
                 >>>
                 >>> # Define the size (in samples) for each batch.
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz
@@ -894,7 +894,6 @@ class AudioSequenceReader:
                 >>> reader = AudioSequenceReader(source=list_of_files_1, rate=2000)
                 >>> # Load the reader with a new source of files
                 >>> reader.load(source=list_of_files_1)
-
 
         """
         self.files.clear()
@@ -1056,6 +1055,32 @@ class AudioSequenceReader:
             Returns: 
                 x: bool
                 True if all data has been process, False otherwise
+            
+            Example:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # This folder contains 60 files (of 2 seconds each) 
+                >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+                
+                >>> # Go through the batches, retriving the merged ausio signal
+                >>> # and printing the number of samples in each, until there are no btaches left unprocessed
+                >>> while reader.finished() != True:
+                ...     seq = reader.next(size=size)
+                ...     print(len(seq.data))
+                40000
+                40000
+                40000
+                40000
+                40000
+                30300
+                >>> # The last batch generated a signal with 30300 samples only, because there were not 
+                >>> # enough files to create a 40000 samples signal as specified by the 'size' argument
 
             
         """
