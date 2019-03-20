@@ -250,25 +250,25 @@ def test_parse_seg_name():
 
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
-    audio_file = path_to_assets+ "/2min.wav"
+    audio_file = path_to_assets + "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=annotations, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*.wav"))
     assert n_seg == 60
 
 
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_divide_audio_into_segments
@@ -279,19 +279,19 @@ def test_start_end_args():
                                  'end':[6.0,75.98,110.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, start_seg=10, end_seg=19, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, start_seg=10, end_seg=19, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*.wav"))
     assert n_seg == 10
 
 
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 @pytest.mark.test_divide_audio_into_segments
 def test_seg_labels_are_correct():
@@ -301,23 +301,23 @@ def test_seg_labels_are_correct():
                                  'end':[6.0,73.0,108.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=annotations, save_to=path_to_tmp + "/2s_segs")
     
-    label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]0].wav"))
+    label_0 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]0].wav"))
     assert label_0 == 53
 
-    label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]1].wav"))
+    label_1 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]1].wav"))
     assert label_1 == 5
 
-    label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]2].wav"))
+    label_2 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]2].wav"))
     assert label_2 == 2
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_divide_audio_into_segments
@@ -325,17 +325,17 @@ def test_creates_segments_without_annotations():
     audio_file = path_to_assets+ "/2min.wav"
     
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=None, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=None, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]NULL].wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]NULL].wav"))
 
     assert n_seg == 60
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_seg_from_time_tag
