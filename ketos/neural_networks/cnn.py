@@ -1,17 +1,35 @@
-""" Neural Networks module within the sound_classification package
+""" CNN module within the ketos library
 
-This module includes classes and functions useful for creating 
-Deep Neural Networks applied to sound classification within MERIDIAN.
+    This module provides utilities to work with Convolutional 
+    Neural Networks for classification tasks.
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    Contents:
+        DataHandler class:
+        DataUse class:
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 
 import tensorflow as tf
@@ -32,22 +50,28 @@ n_filters - Number of filters, e.g. 16
 filter_shape - Filter shape, e.g. [4,4]'''
 
 
-class CNNWhale(DataHandler):
-    """ Create a Convolutional Neural Network for classification tasks.
+class BasicCNN(DataHandler):
+    """ Convolutional Neural Network for classification tasks.
+
+        The network architecture can only be constructed if the shape of the input data is known.
+        Therefore, either image_shape or train_x must be provided.
+        In the latter case, the shape is automatically determined from the input data.
 
         Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row holds one image.
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
+            image_shape: tuple
+                Shape of input images
+            train_x: numpy array
+                Training data
+            train_y: numpy array
+                Labels for training data. Can be integers or 1-hot encoded
+            validation_x: numpy array
+                Validation data
+            validation_y: numpy array
+                Labels for validation data. Can be integers or 1-hot encoded
+            test_x: numpy array
+                Test data
+            test_y: numpy array
+                Labels for test data. Can be integers or 1-hot encoded
             num_labels: int
                 Number of labels
             batch_size: int
@@ -57,17 +81,41 @@ class CNNWhale(DataHandler):
             learning_rate: float
                 The learning rate to be using by the optimization algorithm
             keep_prob: float
-                Probability of keeping weights. If keep_prob < 1.0, drop-out is enabled during training.
+                Probability of keeping weights during training. Set keep_prob to 1.0 to disable drop-out (default).
             seed: int
                 Seed to be used by both tensorflow and numpy when generating random numbers            
             verbosity: int
                 Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
-    """
+            max_frames: int
+                Maximum number of frames that will be acted on by a tensorflow operation at a time.
+                Useful to avoid memory warnings/errors.
 
-    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
-                 test_x=None, test_y=None, num_labels=2, batch_size=128, 
-                 num_epochs=10, learning_rate=0.01, keep_prob=1.0, seed=42, verbosity=2,
-                 max_size=1E6):
+        Attributes:
+            learning_rate_value: float
+                The learning rate to be using by the optimization algorithm
+            keep_prob_value: float
+                Probability of keeping weights during training. Set keep_prob to 1.0 to disable drop-out (default).
+            sess: tf.Session
+                Current TensorFlow session
+            epoch_counter: int
+                Keeps count of the current training epoch
+            image_shape: tuple
+                Shape of input data                
+
+        Example:
+
+            >>> # initialize BasicCNN for classifying 2x2 images
+            >>> from ketos.neural_networks.cnn import BasicCNN
+            >>> cnn = BasicCNN(image_shape=(2,2))
+            >>> print(cnn.image_shape)
+            (2, 2)
+    """
+    def __init__(self, image_shape=None, train_x=None, train_y=None, 
+                validation_x=None, validation_y=None, test_x=None, test_y=None, 
+                num_labels=2, batch_size=128, num_epochs=10, learning_rate=0.01, 
+                keep_prob=1.0, seed=42, verbosity=2, max_frames=1E4):
+
+        assert (image_shape is not None) or (train_x is not None), "image_shape or train_x must be provided"
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -75,20 +123,25 @@ class CNNWhale(DataHandler):
         self.keep_prob_value = keep_prob
         self.set_seed(seed)
         self.verbosity = verbosity
+        self.max_frames = max_frames
+
         self.sess = tf.Session()
         self.epoch_counter = 0
 
-        prod = 1
-        for i in range(1, np.ndim(train_x)):
-            prod *= train_x.shape[i]
-
-        self.max_frames = int(max_size / prod)
-
-        super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
+        super(BasicCNN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y, num_labels=num_labels)
-        
+
+        if train_x is not None:
+            self.image_shape = self._image_shape()
+        else:
+            self.image_shape = image_shape
+
     def reset(self):
+        """ Reset the state of the network.
+
+            Resets the epoch counter to 0 and reinitializes all weights to random values.
+        """
         self.epoch_counter = 0
         self.sess.run(self.init_op)
 
@@ -96,13 +149,13 @@ class CNNWhale(DataHandler):
         """ Set the nodes of the tensorflow graph as instance attributes, so that other methods can access them
 
             Args:
-                tf_nodes:dict
-                A dictionary with the tensorflow objects necessary
-                to train and run the model.
-                sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                accuracy,init_op, merged, writer, saver
-                These objects are stored as
-                instance attributes when the class is instantiated.
+                tf_nodes: dict
+                    A dictionary with the tensorflow objects necessary to train and run the model:
+                    sess, x, y, cost_function, optimizer, predict, correct_prediction,
+                    accuracy, init_op, merged, writer, saver, keep_prob, learning_rate, class_weights.
+                    These objects are stored as instance attributes when the class is instantiated.
+                reset: bool
+                    Reset the epoch counter and re-initialize the weights
 
             Returns:
                 None
@@ -121,6 +174,7 @@ class CNNWhale(DataHandler):
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
+
         if reset:
             self.reset()
 
@@ -140,6 +194,7 @@ class CNNWhale(DataHandler):
              
     def set_verbosity(self, verbosity):
         """Set verbosity level.
+            
             0: no messages
             1: warnings only
             2: warnings and diagnostics
@@ -167,12 +222,9 @@ class CNNWhale(DataHandler):
 
             Returns:
                 tf_nodes: dict
-                    A dictionary with the tensorflow objects necessary
-                    to train and run the model.
+                    A dictionary with the tensorflow objects necessary to train and run the model:
                     sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                    accuracy,init_op, merged, writer, saver
-                    These objects are stored as
-                    instance attributes when the class is instantiated.
+                    accuracy, init_op, merged, writer, saver, keep_prob, learning_rate, class_weights.
         """
         sess = self.sess
         restorer = tf.train.import_meta_graph(saved_meta)
@@ -221,6 +273,11 @@ class CNNWhale(DataHandler):
             The Network has a number of convolutional layers followed by a number 
             of fully connected layers with ReLU activation functions and a final 
             output layer with softmax activation.
+
+            Each new convolutional layer is created with the method _create_new_conv_layer().
+
+            Note that the window used for performing max-pooling on each convolutional layer has 
+            the shape [2,2].
             
             The default network structure has two convolutional layers 
             and one fully connected layers with ReLU activation.
@@ -234,13 +291,34 @@ class CNNWhale(DataHandler):
 
             Returns:
                 tf_nodes: dict
-                    A dictionary with the tensorflow objects necessary
-                    to train and run the model.
+                    A dictionary with the tensorflow objects necessary to train and run the model:
                     sess, x, y, cost_function, optimizer, predict, correct_prediction,
-                    accuracy,init_op, merged, writer, saver
-                    These objects are stored as
-                    instance attributes when the class is instantiated.
+                    accuracy, init_op, merged, writer, saver, keep_prob, learning_rate, class_weights.
 
+            Example:
+
+                >>> # initialize BasicCNN for classifying 4x4 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(4,4), verbosity=2)
+                >>> # create a small network with two convolutional layers and one dense layer
+                >>> layer1 = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> layer2 = ConvParams(name='conv_2', n_filters=8, filter_shape=[4,4])
+                >>> _ = cnn.create(conv_params=[layer1, layer2], dense_size=[8])
+                ======================================================
+                                   Convolutional layers               
+                ------------------------------------------------------
+                  Name   Input x Filters   Filter Shape   Output dim. 
+                ------------------------------------------------------
+                  conv_1       1 x 4          [2,2]         16
+                  conv_2       4 x 8          [4,4]         8
+                ======================================================
+                                  Fully connected layers              
+                ------------------------------------------------------
+                  Name       Size                                      
+                ------------------------------------------------------
+                  dense_1    8
+                  class_weights    2
+                ======================================================
         """
         input_shape = self._image_shape()
         num_labels = self.num_labels
@@ -274,13 +352,13 @@ class CNNWhale(DataHandler):
             filter_shape = params[i].filter_shape
             name = params[i].name
             # create new layer
-            l = self.create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
+            l = self._create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
             conv_layers.append(l)
             # collect info
             dim = l.shape[1] * l.shape[2] * l.shape[3]
             conv_summary.append("  {0}       {1} x {2}          [{3},{4}]         {5}".format(name, n_input, n_filters, filter_shape[0], filter_shape[1], dim))
-            # apply DropOut 
-            drop_out = tf.nn.dropout(l, keep_prob)  # DROP-OUT here
+            # apply drop-out 
+            drop_out = tf.nn.dropout(l, keep_prob)
             conv_layers.append(drop_out)
 
         # last layer
@@ -313,7 +391,6 @@ class CNNWhale(DataHandler):
             dense_summary.append("  {0}    {1}".format(n, size))
 
         if self.verbosity >= 2:
-            print('\n')
             print('======================================================')
             print('                   Convolutional layers               ')
             print('------------------------------------------------------')
@@ -372,7 +449,7 @@ class CNNWhale(DataHandler):
 
         return tf_nodes
         
-    def create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
+    def _create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
         """Create a convolutional layer.
 
             Args:
@@ -427,46 +504,74 @@ class CNNWhale(DataHandler):
         return out_layer
 
     def _image_shape(self):
-        """Get the image shape.
+        """ Get the shape of the input data.
 
             Returns:
-                img_shape: array
+                img_shape: tuple
                     Shape of the input data images
 
         """
-        assert self.images[DataUse.TRAINING] is not None, "Training data must be provided before the neural network structure can be created."
+        tr = self.images[DataUse.TRAINING]
 
-        img_shape = get_image_size(self.images[DataUse.TRAINING]) 
+        if tr is None:
+            img_shape = self.image_shape
 
-        if self.images[DataUse.VALIDATION] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
+        else:        
 
-        if self.images[DataUse.TEST] is not None:
-            assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
+            img_shape = get_image_size(tr) 
+            self.image_shape = img_shape
+
+            if self.images[DataUse.VALIDATION] is not None:
+                assert img_shape == get_image_size(self.images[DataUse.VALIDATION]), "Training and validation images must have same shape."
+
+            if self.images[DataUse.TEST] is not None:
+                assert img_shape == get_image_size(self.images[DataUse.TEST]), "Training and test images must have same shape."
 
         return img_shape
 
-    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None):
-        """Train the neural network on the training set.
+    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+        """ Train the neural network on the training set.
 
-           Devide the training set in batches in orther to train.
-           Once training is done, check the accuracy on the validation set.
-           Record summary statics during training. 
+            Devide the training set in batches in orther to train.
 
-        Args:
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            num_epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
-            learning_rate: float
-                The learning rate to be using by the optimization algorithm
-            keep_prob: float
-                Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop-out will be applied if keep_prob < 1.
+            Once training is done, check the accuracy on the validation set.
+            
+            Record summary statics during training. 
 
-        Returns:
-            avg_cost: float
-                Average cost of last completed training epoch.
+            Args:
+                batch_size: int
+                    Batch size. Overwrites batch size specified at initialization.
+                num_epochs: int
+                    Number of epochs: Overwrites number of epochs specified at initialization.
+                learning_rate: float
+                    The learning rate to be using by the optimization algorithm
+                keep_prob: float
+                    Float in the range [0,1] specifying the probability of keeping the weights, 
+                    i.e., drop-out will be applied if keep_prob < 1.
+                val_acc_goal: float 
+                    Terminate training when validation accuracy reaches this value 
+
+            Returns:
+                avg_cost: float
+                    Average cost of last completed training epoch.
+                val_acc: float
+                    Accuracy on validation data. Will be 0 if no validation data is provided.
+
+            Example:
+
+                >>> # initialize BasicCNN for classifying 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
+                >>> # create a small network with one convolutional layers and one dense layer
+                >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> _ = cnn.create(conv_params=[params], dense_size=[4])
+                >>> # give the network some training data
+                >>> img0 = np.zeros(shape=(2,2))
+                >>> img1 = np.ones(shape=(2,2))
+                >>> x = [img0, img1, img0, img1, img0] # input data
+                >>> y = [0, 1, 0, 1, 0] # labels
+                >>> cnn.set_training_data(x, y)
+                >>> cost, _ = cnn.train(batch_size=2, num_epochs=7, learning_rate=0.005)
         """
         if batch_size is None:
             batch_size = self.batch_size
@@ -507,7 +612,7 @@ class CNNWhale(DataHandler):
             for i in range(batches):
                 offset = i * batch_size
                 x_i = x[offset:(offset + batch_size), :, :, :]
-                x_i = self.reshape_x(x_i)
+                x_i = self._reshape_x(x_i)
                 y_i = y[offset:(offset + batch_size)]
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
@@ -516,7 +621,10 @@ class CNNWhale(DataHandler):
                 avg_cost += c / batches
                 avg_acc += a / batches
 
-                val_acc = self.accuracy_on_validation()
+            val_acc = self.accuracy_on_validation()
+
+            if val_acc >= val_acc_goal:
+                break
 
             if self.verbosity >= 2:
                 s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
@@ -533,27 +641,49 @@ class CNNWhale(DataHandler):
 
         return avg_cost, val_acc
 
-    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=None):
-        """Train the neural network in an active manner using a data provider module.
+    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+        """ Train the neural network in an active manner using a data provider module.
 
-        Args:
-            provider: ActiveLearningBatchGenerator
-                ActiveLearningBatchGenerator
-            iterations: int
-                Number of training iterations.
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            num_epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
-            learning_rate: float
-                The learning rate to be using by the optimization algorithm
-            keep_prob: float
-                Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop-out will be applied if keep_prob < 1.
+            Args:
+                provider: ActiveLearningBatchGenerator
+                    ActiveLearningBatchGenerator
+                iterations: int
+                    Number of training iterations.
+                batch_size: int
+                    Batch size. Overwrites batch size specified at initialization.
+                num_epochs: int
+                    Number of epochs: Overwrites number of epochs specified at initialization.
+                learning_rate: float
+                    The learning rate to be using by the optimization algorithm
+                keep_prob: float
+                    Float in the range [0,1] specifying the probability of keeping the weights, 
+                    i.e., drop-out will be applied if keep_prob < 1.
+                val_acc_goal: float 
+                    Terminate training when validation accuracy reaches this value 
 
-        Returns:
-            avg_cost: float
-                Average cost of last completed training epoch.
+            Returns:
+                avg_cost: float
+                    Average cost of last completed training epoch.
+                val_acc: float
+                    Accuracy on validation data. Will be 0 if no validation data is provided.
+
+            Example:
+
+                >>> # initialize BasicCNN for classifying 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
+                >>> # create a small network with one convolutional layers and one dense layer
+                >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> _ = cnn.create(conv_params=[params], dense_size=[4])
+                >>> # create some training data
+                >>> img0 = np.zeros(shape=(2,2))
+                >>> img1 = np.ones(shape=(2,2))
+                >>> x = [img0, img1, img0, img1, img0, img1, img0] # input data
+                >>> y = [0, 1, 0, 1, 0, 1, 0] # labels
+                >>> # create a data provider
+                >>> from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator
+                >>> g = ActiveLearningBatchGenerator(x, y)
+                >>> cost, _ = cnn.train_active(provider=g, iterations=3, batch_size=2, num_epochs=7, learning_rate=0.005)
         """    
         for i in range(iterations):
 
@@ -568,7 +698,7 @@ class CNNWhale(DataHandler):
             self.set_training_data(x=x_train, y=to1hot(y_train,2))
 
             # train
-            _, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob)
+            avg_cost, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
 
             # update predictions and confidences
             w = self.get_class_weights(x_train)
@@ -576,20 +706,13 @@ class CNNWhale(DataHandler):
             conf = class_confidences(w)
             provider.update_prediction_confidence(pred=pred, conf=conf)
 
-            if val_acc_goal is not None:
-                if val_acc >= val_acc_goal:
-                    break
+            if val_acc >= val_acc_goal:
+                break
 
-#    def _ensure1hot(self, y):
-#        y1hot = y
-#        if y is not None and y.shape[-1] is not self.num_labels:
-#            depth = y.max() + 1 # number of classes
-#            y1hot = to1hot(y, depth)
-#        
-#        return y1hot
+        return avg_cost, val_acc
 
     def save(self, destination):
-        """ Save the model to destination
+        """ Save the model
 
             Args:
                 destination: str
@@ -597,16 +720,29 @@ class CNNWhale(DataHandler):
 
             Returns:
                 None.
-        
         """
         self.saver.save(self.sess, destination)
 
     def _get_summary(self, x, y):
+        """ Obtain summary of model performance on dataset x, y
+
+            Obs: If the dataset contains more than max_frames samples, only the first 
+            max_frames samples will be computed.
+
+            Args:
+                x: tensor
+                    Tensor containing the input data
+                y: tensor
+                    Tensor containing the labels
+
+            Returns:
+                summary
+        """
 
         if x is None:
             return None
 
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         N = min(x.shape[0], self.max_frames)
         x = x[:N]
@@ -618,24 +754,25 @@ class CNNWhale(DataHandler):
 
     def _check_accuracy(self, x, y):
         """ Check accuracy of the model by checking how close
-         to y the models predictions are when fed x
+            to y the models predictions are when fed x
 
             Based on the accuracy operation stored in the attribute 'self.accuracy'),
             which is defined by the 'create_net_structure()' method.
 
-        Args:
-            x:tensor
-                Tensor containing the input data
-            y: tensor
-                Tensor containing the one hot encoded labels
-        Returns:
-            results: float
-                The accuracy value
+            Args:
+                x: tensor
+                    Tensor containing the input data
+                y: tensor
+                    Tensor containing the labels
+
+            Returns:
+                results: float
+                    The accuracy value
         """
         if x is None:
             return 0
 
-        x = self.reshape_x(x) 
+        x = self._reshape_x(x) 
         y1hot = self._ensure1hot(y)       
         results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
@@ -643,15 +780,28 @@ class CNNWhale(DataHandler):
     def get_predictions(self, x):
         """ Predict labels by running the model on x
 
-        Args:
-            x:tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
+            Args:
+                x: tensor
+                    Tensor containing the input data.
+                
+            Returns:
+                results: vector
+                    A vector containing the predicted labels.                
+
+            Example:
+
+                >>> # initialize BasicCNN for binary classification of 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1, num_labels=2)
+                >>> # create a small network with one convolutional layers and one dense layer
+                >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> _ = cnn.create(conv_params=[params], dense_size=[4])
+                >>> # create a 2x2 image
+                >>> img = np.zeros(shape=(2,2))
+                >>> # obtain the label predicted by the untrained network 
+                >>> p = cnn.get_predictions(img)
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         x, _ = self._split(x)
         results = list()
@@ -665,17 +815,17 @@ class CNNWhale(DataHandler):
     def get_features(self, x, layer_name):
         """ Compute feature vector by running the model on x
 
-        Args:
-            x: tensor
-                Tensor containing the input data.
-            layer_name: str
-                Name of the feature layer.
-            
-        Returns:
-            results: vector
-                A vector containing the feature values.                
+            Args:
+                x: tensor
+                    Tensor containing the input data.
+                layer_name: str
+                    Name of the feature layer.
+                
+            Returns:
+                results: vector
+                    A vector containing the feature values.                
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         graph = tf.get_default_graph()
         f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
@@ -692,15 +842,15 @@ class CNNWhale(DataHandler):
     def get_class_weights(self, x):
         """ Compute classification weights by running the model on x.
 
-        Args:
-            x:tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the classification weights. 
+            Args:
+                x:tensor
+                    Tensor containing the input data.
+                
+            Returns:
+                results: vector
+                    A vector containing the classification weights. 
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         fetch = self.class_weights
 
@@ -714,15 +864,16 @@ class CNNWhale(DataHandler):
         results = np.array(results)
         return results
 
-    def reshape_x(self, x):
-        """ Reshape input data from a 2s matrix to a 1d vector.
+    def _reshape_x(self, x):
+        """ Reshape input data from a 2d matrix to a 1d vector.
 
-        Args:
-            x: numpy array
-                2d array containing the input data.
-        Returns:
-            results: vector
-                A vector containing the flattened inputs.                
+            Args:
+                x: numpy array
+                    2d array containing the input data.
+            
+            Returns:
+                results: vector
+                    A vector containing the flattened inputs.                
         """
         img_shape = self._image_shape()
         reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
@@ -731,9 +882,9 @@ class CNNWhale(DataHandler):
     def predict_on_validation(self):
         """ Predict labels by running the model on the validation set.
         
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
+            Returns:
+                results: vector
+                    A vector containing the predicted labels.                
         """
         x = self.images[DataUse.VALIDATION]
         results = self.get_predictions(x)
@@ -742,9 +893,9 @@ class CNNWhale(DataHandler):
     def predict_on_test(self):
         """ Predict labels by running the model on the test set.
         
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
+            Returns:
+                results: vector
+                    A vector containing the predicted labels.                
         """
         x = self.images[DataUse.TEST]
         results = self.get_predictions(x)
@@ -758,20 +909,22 @@ class CNNWhale(DataHandler):
                     Tensor containing the input data.
                 y: tensor
                     Tensor containing the one hot encoded labels.
-                print_report:bool
+                print_report: bool
                     If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
+                print_detailed_report: bool
+                    If True, additionally prints all misclassified examples with the
                     correct and predicted labels.
+
             Returns:
-                results: tuple (pandas DataFrames)
-                Tuple with two  DataFrames (report, incorrect). The first contains
-                number and percentage of correct/incorrect classification. The second,
-                the incorrect examples indices with incorrect and correct labels. 
+                results: tuple (numpy arrays)
+                    Tuple with two DataFrames (report, incorrect). The first contains
+                    number and percentage of correct/incorrect classification. The second,
+                    the incorrect examples indices with incorrect and correct labels. 
         
         """
         y1hot = self._ensure1hot(y) 
 
-        x_reshaped = self.reshape_x(x)
+        x_reshaped = self._reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
         pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y1hot))), "pred": predicted})
        
@@ -796,7 +949,7 @@ class CNNWhale(DataHandler):
                 print(incorrect)
             print("=============================================") 
         
-        results =(report,incorrect)    
+        results =(report, incorrect)    
         return results
 
     def mislabelled_on_validation(self, print_report=False, print_detailed_report=False):
@@ -806,12 +959,13 @@ class CNNWhale(DataHandler):
             This method wraps around the '_get_mislabelled()' method in the same class.
 
             Args:
-                print_report:bool
+                print_report: bool
                     If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
+                print_detailed_report: bool
+                    If True, additionally prints all misclassified examples with the
                     correct and predicted labels.
             Returns:
-                results: tuple (pandas DataFrames)
+                results: tuple (numpy arrays)
                 Tuple with two  DataFrames. The first contains
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
@@ -828,12 +982,13 @@ class CNNWhale(DataHandler):
             This method wraps around the '_get_mislabelled()' method in the same class.
 
             Args:
-                print_report:bool
+                print_report: bool
                     If True, prints the percentage of correct and incorrect
-                    and the index of examples misclassified examples with the
+                print_detailed_report: bool
+                    If True, additionally prints all misclassified examples with the
                     correct and predicted labels.
             Returns:
-                results: tuple (pandas DataFrames)
+                results: tuple (numpy arrays)
                 Tuple with two  DataFrames. The first contains
                 number and percentage of correct/incorrect classification. The second,
                 the incorrect examples indices with incorrect and correct labels. 
@@ -846,7 +1001,7 @@ class CNNWhale(DataHandler):
     def accuracy_on_train(self):
         """ Report the model accuracy on the training set
 
-            This method wraps around 'check_accuracy()' in the same class.
+            This method wraps around '_check_accuracy()' in the same class.
 
             Returns:
                 results: float
@@ -860,7 +1015,7 @@ class CNNWhale(DataHandler):
     def accuracy_on_validation(self):
         """Report the model accuracy on the validation set
 
-            This method wraps around 'check_accuracy()' in the same class.
+            This method wraps around '_check_accuracy()' in the same class.
 
             Returns:
                 results: float
@@ -874,7 +1029,7 @@ class CNNWhale(DataHandler):
     def accuracy_on_test(self):
         """Report the model accuracy on the test set
 
-            This method wraps around 'check_accuracy()' in the same class.
+            This method wraps around '_check_accuracy()' in the same class.
 
             Returns:
                 results: float
@@ -886,15 +1041,27 @@ class CNNWhale(DataHandler):
         return results
 
     def _split(self, x, y=None):
+        """ Splits the data into chunks 
+
+            Useful when apply tensorflow operations to large amounts of data
+
+            Args:
+                x: tensor
+                    Tensor containing the input data
+                y: tensor
+                    Tensor containing the labels
+
+            Returns:
+                x_split: list
+                    Input data split up into chunks
+                y_split: list
+                    Labels split up into chunks
+        """
 
         x_split, y_split = list(), list()
 
         if x.shape[0] == 0:
             return x_split, y_split
-
-        prod = 1
-        for i in range(1,np.ndim(x)):
-            prod *= x.shape[i]
 
         N = self.max_frames
 

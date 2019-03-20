@@ -103,7 +103,8 @@ class EDTCN(DataHandler):
                 print(' Warning: max_len must be divisible by 4; max_len has been adjust to {0}'.format(self.max_len))
 
         x, _ = self.get_training_data()
-        n_feat = x.shape[1]
+        x = np.squeeze(x)
+        n_feat = x.shape[-1]
         n_layers = len(n_nodes)
         n_classes = self.num_labels
 
@@ -223,6 +224,8 @@ class EDTCN(DataHandler):
                 a: numpy array
                     Array containing the data to be split.
         """
+        a = np.squeeze(a)
+
         n = self.max_len
         orig_len = a.shape[0]
         nsegs = int(np.ceil(orig_len / n))
