@@ -14,16 +14,10 @@
 
 import pytest
 import numpy as np
-import pandas as pd
 import ketos.data_handling.data_handling as dh
 from ketos.neural_networks.cnn import CNNWhale
 from tensorflow import reset_default_graph
 
-
-@pytest.mark.test_CNNWhale
-def test_initialize_CNNWhale_with_class_method_and_default_args(database_prepared_for_NN):
-    d = database_prepared_for_NN
-    _ = CNNWhale.from_prepared_data(d, verbosity=0)
 
 @pytest.mark.test_CNNWhale
 def test_initialize_CNNWhale_with_default_constructor_and_default_args(database_prepared_for_NN):
@@ -42,7 +36,7 @@ def test_train_CNNWhale_with_default_args(database_prepared_for_NN):
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=1, verbosity=0)
+    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
     reset_default_graph()
@@ -88,8 +82,7 @@ def test_compute_class_weights_with_CNNWhale(database_prepared_for_NN_2_classes)
     img = np.zeros((20, 20))
     result = network.get_class_weights(x=[img])
     weights = result[0]
-    assert weights[0] == pytest.approx(0.4982678, abs=0.001)
-    assert weights[1] == pytest.approx(1-0.4982678, abs=0.001)
+    assert weights[0] + weights[1] == pytest.approx(1.000, abs=0.001)
     reset_default_graph()
 
 @pytest.mark.test_CNNWhale
