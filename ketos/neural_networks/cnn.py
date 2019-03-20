@@ -50,7 +50,7 @@ n_filters - Number of filters, e.g. 16
 filter_shape - Filter shape, e.g. [4,4]'''
 
 
-class CNNWhale(DataHandler):
+class BasicCNN(DataHandler):
     """ Convolutional Neural Network for classification tasks.
 
         The network architecture can only be constructed if the shape of the input data is known.
@@ -104,9 +104,9 @@ class CNNWhale(DataHandler):
 
         Example:
 
-            >>> # initialize CNNWhale for classifying 2x2 images
-            >>> from ketos.neural_networks.cnn import CNNWhale
-            >>> cnn = CNNWhale(image_shape=(2,2))
+            >>> # initialize BasicCNN for classifying 2x2 images
+            >>> from ketos.neural_networks.cnn import BasicCNN
+            >>> cnn = BasicCNN(image_shape=(2,2))
             >>> print(cnn.image_shape)
             (2, 2)
     """
@@ -128,7 +128,7 @@ class CNNWhale(DataHandler):
         self.sess = tf.Session()
         self.epoch_counter = 0
 
-        super(CNNWhale, self).__init__(train_x=train_x, train_y=train_y, 
+        super(BasicCNN, self).__init__(train_x=train_x, train_y=train_y, 
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y, num_labels=num_labels)
 
@@ -297,9 +297,9 @@ class CNNWhale(DataHandler):
 
             Example:
 
-                >>> # initialize CNNWhale for classifying 4x4 images
-                >>> from ketos.neural_networks.cnn import CNNWhale
-                >>> cnn = CNNWhale(image_shape=(4,4), verbosity=2)
+                >>> # initialize BasicCNN for classifying 4x4 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(4,4), verbosity=2)
                 >>> # create a small network with two convolutional layers and one dense layer
                 >>> layer1 = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
                 >>> layer2 = ConvParams(name='conv_2', n_filters=8, filter_shape=[4,4])
@@ -559,9 +559,9 @@ class CNNWhale(DataHandler):
 
             Example:
 
-                >>> # initialize CNNWhale for classifying 2x2 images
-                >>> from ketos.neural_networks.cnn import CNNWhale
-                >>> cnn = CNNWhale(image_shape=(2,2), verbosity=0, seed=1)
+                >>> # initialize BasicCNN for classifying 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
                 >>> # create a small network with one convolutional layers and one dense layer
                 >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
                 >>> _ = cnn.create(conv_params=[params], dense_size=[4])
@@ -669,9 +669,9 @@ class CNNWhale(DataHandler):
 
             Example:
 
-                >>> # initialize CNNWhale for classifying 2x2 images
-                >>> from ketos.neural_networks.cnn import CNNWhale
-                >>> cnn = CNNWhale(image_shape=(2,2), verbosity=0, seed=1)
+                >>> # initialize BasicCNN for classifying 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
                 >>> # create a small network with one convolutional layers and one dense layer
                 >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
                 >>> _ = cnn.create(conv_params=[params], dense_size=[4])
@@ -790,9 +790,9 @@ class CNNWhale(DataHandler):
 
             Example:
 
-                >>> # initialize CNNWhale for binary classification of 2x2 images
-                >>> from ketos.neural_networks.cnn import CNNWhale
-                >>> cnn = CNNWhale(image_shape=(2,2), verbosity=0, seed=1, num_labels=2)
+                >>> # initialize BasicCNN for binary classification of 2x2 images
+                >>> from ketos.neural_networks.cnn import BasicCNN
+                >>> cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1, num_labels=2)
                 >>> # create a small network with one convolutional layers and one dense layer
                 >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
                 >>> _ = cnn.create(conv_params=[params], dense_size=[4])
