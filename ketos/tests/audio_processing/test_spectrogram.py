@@ -640,3 +640,12 @@ def test_tonal_noise_reduction():
     assert spec.image[0,0] == -3
     assert spec.image[0,1] == -3
     assert spec.image[1,0] == pytest.approx(0.27, abs=0.01)
+
+
+@pytest.mark.test_normalize
+def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
+    spec.normalize()
+    for i in range(spec.image.shape[0]):
+        val = spec.image[0,i]
+        assert 0 <= val <= 1
