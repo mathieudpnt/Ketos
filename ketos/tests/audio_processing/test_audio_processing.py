@@ -1,18 +1,29 @@
-""" Unit tests for the the 'pre_processing' module in the 'sound_classification' package
-
+""" Unit tests for the 'audio_processing' module within the ketos library
 
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Intitute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
-
 import pytest
 import os
 import numpy as np
@@ -45,121 +56,20 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = ap.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-@pytest.mark.test_make_frames
-def test_signal_is_padded(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2*duration
-    winstep = 2*duration
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep, zero_padding=True)
-    assert frames.shape[0] == 1
-    assert frames.shape[1] == 2*len(sig)
-    assert frames[0, len(sig)] == 0
-    assert frames[0, 2*len(sig)-1] == 0
-
-@pytest.mark.test_make_frames
-def test_can_make_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/2
-    winstep = duration/4
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep)
-    assert frames.shape[0] == 3
-    assert frames.shape[1] == len(sig)/2
-
-@pytest.mark.test_make_frames
-def test_can_make_non_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/2
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 2
-    assert frames.shape[1] == len(sig)/4
-
-@pytest.mark.test_make_frames
-def test_first_frame_matches_original_signal(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 8
-    for i in range(int(winlen*rate)):
-        assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
-
-@pytest.mark.test_make_frames
-def test_window_length_can_exceed_duration(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2 * duration
-    winstep = duration
-    signal = AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 1
-
-@pytest.mark.test_normalize_spec
-def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    mag_norm = ap.normalize_spec(spec.image)
-    for i in range(mag_norm.shape[0]):
-        val = mag_norm[0,i]
-        assert 0 <= val <= 1
-
-@pytest.mark.test_crop_high_freq
-def test_cropped_spectrogram_has_correct_size_and_content(sine_audio):
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=0.2, winstep=0.05, NFFT=256)
-    mag = spec.image
-    cut = int(0.7 * mag.shape[1])
-    mag_cropped = ap.crop_high_freq(mag, cut)
-    assert mag_cropped.shape[1] == cut
-    assert mag_cropped[0,0] == mag[0,0]
-
 @pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = ap.blur_image(img,5,Gaussian=False)
+    img_median = ap.blur_image(img,5,gaussian=False)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
-    img_gaussian = ap.blur_image(img,9,Gaussian=True)
+    img_gaussian = ap.blur_image(img,9,gaussian=True)
     np.testing.assert_array_equal(img, img_gaussian)
             
 @pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    ap.blur_image(img,13,Gaussian=False)
-
-@pytest.mark.test_apply_broadband_filter
-def test_broadband_filter_works_as_expected_for_uniform_columns():
-    img = np.array([[1,1],[2,2],[3,3]], dtype=np.float32)
-    img_fil = ap.apply_broadband_filter(img)
-    for i in range(img_fil.shape[0]):
-        for j in range(img_fil.shape[1]):
-            assert img_fil[i,j] == 0
-
-@pytest.mark.test_apply_broadband_filter
-def test_broadband_filter_works_as_expected_for_non_uniform_columns():
-    img = np.array([[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = ap.apply_broadband_filter(img)
-    assert img_fil[0,0] == 0
-    assert img_fil[0,1] == 0
-    assert img_fil[0,2] == 0
-    assert img_fil[1,0] == 0
-    assert img_fil[1,1] == 0
-    assert img_fil[1,2] == 9
-
-@pytest.mark.test_apply_narrowband_filter
-def test_narrowband_filter_works_as_expected_for_uniform_rows():
-    img = np.array([[1,3],[1,3],[1,3],[1,3]], dtype=np.float32)
-    img_fil = ap.apply_narrowband_filter(img,time_res=1,time_const=1)
-    for i in range(img_fil.shape[0]):
-        for j in range(img_fil.shape[1]):
-            assert img_fil[i,j] == 0
+    ap.blur_image(img,13,gaussian=False)
 
 @pytest.mark.test_apply_median_filter
 def test_median_filter_works_as_expected():
@@ -181,7 +91,6 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
-@pytest.mark.test_prepare_for_binary_cnn
 def test_prepare_for_binary_cnn():
     n = 1
     l = 2
@@ -196,8 +105,8 @@ def test_prepare_for_binary_cnn():
         specs.append(s)
 
     img_wid = 4
-    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2)
-    x, y, _ = framer.get_frames()
+    framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, frame_width=img_wid, step_size=1, signal_width=2)
+    x, y, _ = framer.make_frames()
     m = 1 + 20 - 4
     q = 4
     assert y.shape == (m*n,)
@@ -207,10 +116,17 @@ def test_prepare_for_binary_cnn():
     assert np.all(x[0,2,:] == 2.5)
     assert np.all(x[1,1,:] == 2.5)
 
-    framer = ap.BinaryClassFramer(specs=specs, label=7, image_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
-    x, y, _ = framer.get_frames()
+    framer = ap.FrameMakerForBinaryCNN(specs=specs, label=7, frame_width=img_wid, step_size=1, signal_width=2, equal_rep=True)
+    x, y, _ = framer.make_frames()
     assert y.shape == (2*q,)
     assert np.sum(y) == q
+
+@pytest.mark.test_append_specs
+def test_append_specs():
+    img = np.ones(shape=(20,30))
+    s = Spectrogram(image=img)       
+    merged = ap.append_specs([s,s,s])
+    assert merged.image.shape[0] == 3 * s.image.shape[0]
 
 @pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():

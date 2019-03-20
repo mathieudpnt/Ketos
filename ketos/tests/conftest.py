@@ -6,7 +6,7 @@ import scipy.signal as sg
 import pandas as pd
 import ketos.audio_processing.audio_processing as ap
 import ketos.data_handling.data_handling as dh
-from ketos.neural_networks.cnn import CNNWhale
+from ketos.neural_networks.cnn import BasicCNN
 import ketos.audio_processing.audio as aud
 from tensorflow import reset_default_graph
 
@@ -216,17 +216,17 @@ def database_prepared_for_NN_2_classes():
 
 
 @pytest.fixture
-def trained_CNNWhale(database_prepared_for_NN_2_classes):
+def trained_BasicCNN(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_CNNWhale")         
+    path_to_meta = os.path.join(path_to_saved_model, "trained_BasicCNN")         
     train_x = d["train_x"]
     train_y = d["train_y"]
     validation_x = d["validation_x"]
     validation_y = d["validation_y"]
     test_x = d["test_x"]
     test_y = d["test_y"]
-    network = CNNWhale(train_x, train_y, validation_x, validation_y, test_x, test_y, batch_size=1, num_labels=2)
+    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, batch_size=1, num_labels=2)
     tf_nodes = network.create()
     network.set_tf_nodes(tf_nodes)
     network.train()

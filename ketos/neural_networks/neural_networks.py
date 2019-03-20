@@ -1,32 +1,45 @@
-""" Neural Networks module within the sound_classification package
+""" Neural networks module within the ketos library
 
-This module includes classes and functions useful for creating 
-Deep Neural Networks applied to sound classification within MERIDIAN.
+    This module provides utilities to work with Neural Networks.
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    Contents:
+        DataHandler class:
+        DataUse class:
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-import tensorflow as tf
 import numpy as np
-import pandas as pd
 from enum import Enum
 from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
 def class_confidences(class_weights):
-    """Compute the classification confidence from classification weights.
+    """ Compute the classification confidence from classification weights.
 
         Confidence is computed as the difference between the largest class weight 
-        and the second largest class weight. E.g. if there are three classes and 
-        the neural network assigns weights 0.2, 0.55, 0.25, the confidence is 0.55-0.25=0.25.
+        and the second largest class weight.
 
         Args:
             class_weights: numpy array
@@ -35,16 +48,36 @@ def class_confidences(class_weights):
         Returns:
             conf: numpy array
                 Confidence level
+
+        Example:
+
+            >>> from ketos.neural_networks.neural_networks import class_confidences
+            >>> weights = [0.2, 0.55, 0.25]
+            >>> conf = class_confidences(weights)
+            >>> print('{:.2f}'.format(conf))
+            0.30
     """
-    idx = np.argsort(class_weights, axis=1)
-    w0 = np.choose(idx[:,-1], class_weights.T) # max weights
-    w1 = np.choose(idx[:,-2], class_weights.T) # second largest weights
+    w = class_weights
+
+    if type(w) is not np.ndarray:
+        w = np.array(class_weights)
+        w = np.squeeze(w)
+
+    if np.ndim(w) == 1:
+        w = w[np.newaxis, :]
+
+    idx = np.argsort(w, axis=1)
+    w0 = np.choose(idx[:,-1], w.T) # max weights
+    w1 = np.choose(idx[:,-2], w.T) # second largest weights
     conf = w0 - w1 # classification confidence
+
+    if len(conf) == 1:
+        conf = conf[0]
+
     return conf
 
-
 def predictions(class_weights):
-    """Compute predicted labels from classification weights.
+    """ Compute predicted labels from classification weights.
 
         Args:
             class_weights: numpy array
@@ -53,35 +86,58 @@ def predictions(class_weights):
         Returns:
             p: numpy array
                 Predicted labels
+
+        Example:
+
+            >>> from ketos.neural_networks.neural_networks import predictions
+            >>> weights = [0.2, 0.55, 0.25]
+            >>> pred = predictions(weights)
+            >>> print(pred)
+            1
     """
-    p = np.argmax(class_weights, axis=1)
+    w = class_weights
+
+    if type(w) is not np.ndarray:
+        w = np.array(class_weights)
+        w = np.squeeze(w)
+
+    if np.ndim(w) == 1:
+        w = w[np.newaxis, :]
+    
+    p = np.argmax(w, axis=1)
+
+    if len(p) == 1:
+        p = p[0]
+
     return p     
     
-    
 class DataUse(Enum):
+    """ Simple Enum class to indicate data usage context.
+        Options are: TRAINING, VALIDATION, TEST
+    """
     TRAINING = 1
     VALIDATION = 2
     TEST = 3
 
-
 class DataHandler():
-    """ Parent class for all MERIDIAN machine-learning models.
+    """ Parent class for all MERIDIAN machine-learning models, which handles 
+        input data for training, validation and testing of models.
 
         Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row holds one image.
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
+            train_x: numpy array
+                Array in which each row holds an image.
+            train_y: numpy array
+                Array in which each row contains a label.
+            validation_x: numpy array
+                Array in which each row holds an image
+            validation_y: numpy array
+                Array in which each row contains a label
+            test_x: numpy array
+                Array in which each row holds an image
+            test_y: numpy array
+                Array in which each row contains a label
     """
-    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+    def __init__(self, train_x=None, train_y=None, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=None):
 
         self.num_labels = num_labels    
@@ -97,26 +153,20 @@ class DataHandler():
         """ Set data for specified use (training, validation, or test). 
             Replaces any existing data for that use type.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label.
                 use: DataUse
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
         check_data_sanity(x, y)
 
-        if np.ndim(x) == 3:
-            x = x[:,:,:,np.newaxis]
-
-        if np.ndim(y) == 1:
-            if self.num_labels is None:
-                depth = np.max(y) + 1 # figure it out from the data
-            else:
-                depth = self.num_labels
-
-            y = to1hot(y, depth=depth) # use one-hot encoding
+        x = self._ensure4d(x)
+        y = self._ensure1hot(y)
 
         self.images[use] = x
         self.labels[use] = y
@@ -126,59 +176,125 @@ class DataHandler():
             Will be appended to any existing data for that use type.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label.
                 use: DataUse
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
         x0 = self.images[use]
         y0 = self.labels[use]
         if x0 is not None:
+            x = self._ensure4d(x)
             x = np.append(x0, x, axis=0)
         if y0 is not None:
+            y = self._ensure1hot(y)
             y = np.append(y0, y, axis=0)
         self._set_data(x=x, y=y, use=use)
 
     def _get_data(self, use):
-        return self.images[use], self.labels[use]
+        """ Get data of selected usage type
+
+            Args:
+                use: DataUse
+                    Data use. Possible options are TRAINING, VALIDATION and TEST
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
+        """
+        x = self.images[use]
+        y = self.labels[use]
+        return x, y
 
     def set_training_data(self, x, y):
         """ Set training data. Replaces any existing training data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
+
+            Example:
+
+                >>> from ketos.neural_networks.neural_networks import DataHandler
+                >>> handler = DataHandler()
+                >>> # create two 2x2 images
+                >>> img1 = np.array([[1, 2],
+                ...                 [3, 4]])
+                >>> img2 = np.array([[5, 6],
+                ...                 [7, 8]])
+                >>> x = np.array([img1, img2]) # images
+                >>> y = np.array([1, 0])       # labels
+                >>> handler.set_training_data(x, y) # set the training data
+                >>> xt, yt = handler.get_training_data() # get the training data
+                >>> print(yt) # print the (1-hot encoded) labels
+                [[0. 1.]
+                 [1. 0.]]
         """
         self._set_data(x=x, y=y, use=DataUse.TRAINING)
 
     def add_training_data(self, x, y):
         """ Add training data. Will be appended to any existing training data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
+
+            Example:
+
+                >>> from ketos.neural_networks.neural_networks import DataHandler
+                >>> handler = DataHandler()
+                >>> # create two 2x2 images
+                >>> img1 = np.array([[1, 2],
+                ...                 [3, 4]])
+                >>> img2 = np.array([[5, 6],
+                ...                 [7, 8]])
+                >>> x = np.array([img1, img2]) # images
+                >>> y = np.array([1, 0])       # labels
+                >>> handler.set_training_data(x, y) # set the training data
+                >>> handler.add_training_data(x, y) # add more training data
+                >>> xt, yt = handler.get_training_data() # get all training data
+                >>> print(yt) # print the (1-hot encoded) labels
+                [[0. 1.]
+                 [1. 0.]
+                 [0. 1.]
+                 [1. 0.]]
         """
         self._add_data(x=x, y=y, use=DataUse.TRAINING)
 
     def get_training_data(self):
         """ Get training data.
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
         """
-        return self._get_data(use=DataUse.TRAINING)
+        x, y = self._get_data(use=DataUse.TRAINING)
+        return x, y
 
     def set_validation_data(self, x, y):
         """ Set validation data. Replaces any existing validation data.
 
+            Labels (y) can be provided as integers or encoded in 1-hot format.
+
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds an image. 
+                y: numpy array
+                    Array in which each row contains a label
         """
         self._set_data(x=x, y=y, use=DataUse.VALIDATION)
 
@@ -186,26 +302,33 @@ class DataHandler():
         """ Add validation data. Will be appended to any existing validation data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._add_data(x=x, y=y, use=DataUse.VALIDATION)
 
     def get_validation_data(self):
         """ Get validation data.
+
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
         """
-        return self._get_data(use=DataUse.VALIDATION)
+        x, y = self._get_data(use=DataUse.VALIDATION)
+        return x, y
 
     def set_test_data(self, x, y):
         """ Set test data. Replaces any existing test data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._set_data(x=x, y=y, use=DataUse.TEST)
 
@@ -213,15 +336,84 @@ class DataHandler():
         """ Add test data. Will be appended to any existing test data.
 
             Args:
-                x: pandas DataFrame
-                    Data Frame in which each row holds one image. 
-                y: pandas DataFrame
-                    Data Frame in which each row contains the one hot encoded label
+                x: numpy array
+                    Array in which each row holds one image. 
+                y: numpy array
+                    Array in which each row contains the one hot encoded label
         """
         self._add_data(x=x, y=y, use=DataUse.TEST)
 
     def get_test_data(self):
         """ Get test data.
-        """
-        return self._get_data(use=DataUse.TEST)
 
+            Returns:
+                x: numpy array
+                    Array in which each row holds an image.
+                y: numpy array
+                    Array in which each row contains a label
+        """
+        x, y = self._get_data(use=DataUse.TEST)
+        return x, y
+
+    def _ensure4d(self, x):
+        """ Adds a 4th empty dimension to the numpy array
+
+            If x is a list, it is converted to a numpy array
+
+            Args:
+                x: numpy array
+                    Array in which each row holds an image. 
+
+            Return:
+                x: numpy array
+                    Same as input array, but with an additional (empty) dimension 
+        """
+        if x is None:
+            return x
+
+        x = np.array(x)
+        x = np.squeeze(x)
+
+        if len(x.shape) == 0:
+            x = np.array([x])
+
+        if np.ndim(x) == 2:
+            x = x[np.newaxis,:,:,]
+
+        if np.ndim(x) == 3:
+            x = x[:,:,:,np.newaxis]
+
+        return x
+
+    def _ensure1hot(self, y):
+        """ Ensures that labels are 1-hot encoded
+
+            If y is a list, it is converted to a numpy array
+
+            Args:
+                y: numpy array
+                    Label array
+
+            Return:
+                y: numpy array
+                    1-hot encoded label array
+        """
+        if y is None:
+            return y
+
+        y = np.array(y)
+        y = np.squeeze(y)
+
+        if len(y.shape) == 0:
+            y = np.array([y])
+
+        if np.ndim(y) == 1:
+            if self.num_labels is None:
+                depth = np.max(y) + 1 # figure it out from the data
+            else:
+                depth = self.num_labels
+
+            y = to1hot(y, depth=depth) # use one-hot encoding
+
+        return y
+        

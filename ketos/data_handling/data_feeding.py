@@ -234,6 +234,8 @@ class ActiveLearningBatchGenerator():
                 Seed for random number generator
             equal_rep: bool
                 Ensure that new samples drawn at each iteration have equal representation of 0s and 1s
+            verbosity: bool
+                Print information and warnings
 
         Example:
             >>> import numpy as np
@@ -245,7 +247,7 @@ class ActiveLearningBatchGenerator():
             >>> p = predictions(w)
             >>> c = class_confidences(w)
 
-            >>> sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
+            >>> sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False, verbosity=1)
             positives:  3
             negatives:  3
 
@@ -258,7 +260,10 @@ class ActiveLearningBatchGenerator():
             >>> np.all(x1 == x[2:4])    
             True
     """
-    def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0, seed=None, equal_rep=True):
+    def __init__(self, x, y, randomize=False, num_samples=100, max_keep=0, conf_cut=0, seed=None, equal_rep=True, verbosity=0):
+
+        if type(x) is not np.ndarray:
+            x = np.array(x)
 
         N = x.shape[0]
         self.x = x
@@ -274,8 +279,9 @@ class ActiveLearningBatchGenerator():
         if seed is not None:
             np.random.seed(seed) 
 
-        print('positives: ',  len(self.df[self.df.y == 1]))
-        print('negatives: ',  len(self.df[self.df.y == 0]))
+        if verbosity >= 1:
+            print('positives: ',  len(self.df[self.df.y == 1]))
+            print('negatives: ',  len(self.df[self.df.y == 0]))
 
         self.posfrac = float(len(self.df[self.df.y == 1])) / float(len(self.df))
 
