@@ -32,27 +32,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 today = datetime.datetime.today()
 
-@pytest.mark.test_encode_database
-def test_encode_database_with_one_image_and_one_label(datebase_with_one_image_col_and_one_label_col):
-    db = datebase_with_one_image_col_and_one_label_col
-    dh.encode_database(db, "image", "label")
-    
-@pytest.mark.test_encode_database
-def test_encode_database_throws_exception_if_names_do_not_match(datebase_with_one_image_col_and_one_label_col):
-    db = datebase_with_one_image_col_and_one_label_col
-    with pytest.raises(AssertionError):
-        dh.encode_database(db, "kangaroo", "label")
 
-@pytest.mark.test_encode_database
-def test_encode_database_throws_exception_if_database_does_not_have_a_label_column(datebase_with_one_image_col_and_no_label_col):
-    db = datebase_with_one_image_col_and_no_label_col
-    with pytest.raises(AssertionError):
-        dh.encode_database(db, "image", "label")
-
-@pytest.mark.test_encode_database
-def test_encode_database_can_handle_inputs_with_multiple_columns(datebase_with_two_image_cols_and_one_label_col):
-    db = datebase_with_two_image_cols_and_one_label_col
-    dh.encode_database(db, "image1", "label")
 
 @pytest.mark.test_split_database
 def test_split_database_throws_exception_unless_all_three_keys_are_given(datebase_with_one_image_col_and_one_label_col):
