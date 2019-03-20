@@ -1112,7 +1112,7 @@ class AudioSequenceReader:
                 120000
                 110200
                 120000
-                
+
 
                 
             
@@ -1133,7 +1133,21 @@ class AudioSequenceReader:
             Returns:
                 df: pandas DataFrame
                     Table with file names and time stamps
-            
+
+            Example:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 60 # The sampling rate is 2000Hz, so each batch will be 60s long
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+                >>>
+                >>> seq1 = reader.next(size=size)
+                >>> seq2 = reader.next(size=size)
+                >>> reader.log()
+
         """
         n = len(self.times)
         fnames = [x[0] for x in self.files]
