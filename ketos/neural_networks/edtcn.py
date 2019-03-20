@@ -228,22 +228,6 @@ class EDTCN(DataHandler):
             Returns:
                 history: 
                     Keras training history.
-
-            Example:
-
-                >>> # initialize EDTCN for classifying feature vectors of size 64
-                >>> from ketos.neural_networks.edtcn import EDTCN
-                >>> tcn = EDTCN(num_feat=64)
-                >>> # create network with default architecture
-                >>> tcn.create()
-                >>> # create some training data
-                >>> v0 = np.zeros(shape=(64))
-                >>> v1 = np.ones(shape=(64))
-                >>> x = [v0, v1, v0, v1, v0, v1, v0, v1]
-                >>> y = [0, 1, 0, 1, 0, 1, 0, 1]
-                >>> tcn.set_training_data(x, y)
-                >>> # train the network
-                >>> # hist = tcn.train(batch_size=2, num_epochs=5)
         """
         if batch_size is None:
             batch_size = self.batch_size
@@ -276,13 +260,39 @@ class EDTCN(DataHandler):
             Returns:
                 results: vector
                     A vector containing the predicted labels.                
+
+            Example:
+
+                >>> # initialize EDTCN for binary classification of feature vectors of size 8
+                >>> from ketos.neural_networks.edtcn import EDTCN
+                >>> tcn = EDTCN(num_feat=8, num_labels=2)
+                >>> # create network with default architecture and max memory of 4
+                >>> tcn.create(max_len=4)
+                >>> # create one feature vector
+                >>> v = np.zeros(shape=(8))
+                >>> # get prediction of untrained network
+                >>> p = tcn.get_predictions(v)
+                >>> print(p)
+                0
         """
+        x = np.array(x)
+
+        if np.ndim(x) == 1:
+            x = x[np.newaxis, :]
+
         orig_len = x.shape[0]
+
         x = self._reshape(x)
         results = self.model.predict(x=x)
         results = np.reshape(results, newshape=(results.shape[0]*results.shape[1], results.shape[2]))
+
         results = from1hot(results)
-        return results[:orig_len]
+        results = results[:orig_len]
+
+        if results.shape[0] == 1:
+            results = results[0]
+
+        return results
 
     def get_class_weights(self, x):
         """ Compute classification weights by running the model on x.
@@ -294,8 +304,28 @@ class EDTCN(DataHandler):
             Returns:
                 results: vector
                     A vector containing the classification weights. 
+
+            Example:
+
+                >>> # initialize EDTCN for binary classification of feature vectors of size 8
+                >>> from ketos.neural_networks.edtcn import EDTCN
+                >>> tcn = EDTCN(num_feat=8, num_labels=2)
+                >>> # create network with default architecture and max memory of 4
+                >>> tcn.create(max_len=4)
+                >>> # create one feature vector
+                >>> v = np.zeros(shape=(8))
+                >>> # get prediction of untrained network
+                >>> w = tcn.get_class_weights(v)
+                >>> print(w)
+                [0.5 0.5]
         """
+        x = np.array(x)
+
+        if np.ndim(x) == 1:
+            x = x[np.newaxis, :]
+
         orig_len = x.shape[0]
+
         x = self._reshape(x)        
         w = np.array(self.class_weights_func([x, False]))
         w = np.squeeze(w)
@@ -303,7 +333,12 @@ class EDTCN(DataHandler):
             w = w[np.newaxis,:,:]
             
         w = np.reshape(w, newshape=(w.shape[0]*w.shape[1], w.shape[2]))
-        return w[:orig_len]
+
+        w = w[:orig_len]
+        if w.shape[0] == 1:
+            w = w[0]
+
+        return w
 
     def _reshape(self, a):
         """ Split the data into chunks with size max_len.
@@ -312,7 +347,8 @@ class EDTCN(DataHandler):
                 a: numpy array
                     Array containing the data to be split.
         """
-        a = np.squeeze(a)
+        if np.ndim(a) > 2:
+            a = np.squeeze(a)
 
         n = self.max_len
         orig_len = a.shape[0]
