@@ -942,22 +942,7 @@ class AudioSequenceReader:
         # reset the reader
         self.reset()
 
-    def read_file(self, i):
-        from ketos.audio_processing.audio import TimeStampedAudioSignal
-    
-        assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
-
-        if self.verbose:
-            print(' File {0} of {1}'.format(i+1, len(self.files)), end="\r")
             
-        f = self.files[i]
-        s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
-        
-        if self.rate is not None:
-            s.resample(new_rate=self.rate) # resamples
-
-        return s
-        
     def _read_next_file(self):
         """
             Read next file, increment file counter, and update time.
