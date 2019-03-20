@@ -215,19 +215,35 @@ class EDTCN(DataHandler):
         self.class_weights_func = tf.keras.backend.function([inp, tf.keras.backend.learning_phase()], [output])
 
     def train(self, batch_size=None, num_epochs=None):
-        """Train the neural network on the training set.
+        """ Train the neural network on the training set.
 
-           Devide the training set in batches in orther to train. 
+            Divide the training set in batches of size batch_size. 
 
-        Args:
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            num_epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
+            Args:
+                batch_size: int
+                    Batch size. Overwrites batch size specified at initialization.
+                num_epochs: int
+                    Number of epochs: Overwrites number of epochs specified at initialization.
 
-        Returns:
-            history: 
-                Keras training history.
+            Returns:
+                history: 
+                    Keras training history.
+
+            Example:
+
+                >>> # initialize EDTCN for classifying feature vectors of size 64
+                >>> from ketos.neural_networks.edtcn import EDTCN
+                >>> tcn = EDTCN(num_feat=64)
+                >>> # create network with default architecture
+                >>> tcn.create()
+                >>> # create some training data
+                >>> v0 = np.zeros(shape=(64))
+                >>> v1 = np.ones(shape=(64))
+                >>> x = [v0, v1, v0, v1, v0, v1, v0, v1]
+                >>> y = [0, 1, 0, 1, 0, 1, 0, 1]
+                >>> tcn.set_training_data(x, y)
+                >>> # train the network
+                >>> hist = tcn.train(batch_size=2, num_epochs=5)
         """
         if batch_size is None:
             batch_size = self.batch_size
