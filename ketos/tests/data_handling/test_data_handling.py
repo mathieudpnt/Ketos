@@ -18,7 +18,7 @@ import pandas as pd
 import ketos.data_handling.data_handling as dh
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.spectrogram import MagSpectrogram
-from ketos.data_handling.data_handling import BatchReader
+from ketos.data_handling.data_handling import AudioSequenceReader
 from ketos.audio_processing.audio import AudioSignal
 import datetime
 import shutil
@@ -448,12 +448,12 @@ def test_pad_signal():
 
 
 def test_init_batch_reader_with_single_file(sine_wave_file):
-    reader = BatchReader(source=sine_wave_file)
+    reader = AudioSequenceReader(source=sine_wave_file)
     assert len(reader.files) == 1
     assert reader.files[0][0] == sine_wave_file
 
 def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
     assert len(reader.files) == 2
     assert reader.files[0][0] == sine_wave_file
     assert reader.files[1][0] == sawtooth_wave_file
@@ -482,14 +482,14 @@ def five_time_stamped_wave_files():
 
 def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
-    reader = BatchReader(source=folder)
+    reader = AudioSequenceReader(source=folder)
     assert len(reader.files) == 5
 
 def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
     print(folder)
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
     b = reader.next(700)
     assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=0, microsecond=0)
     b = reader.next(600)
@@ -502,7 +502,7 @@ def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
 def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
     reader.next()
     log = reader.log()
     for i in range(5):
@@ -524,14 +524,14 @@ def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
 
 def test_next_batch_with_single_file(sine_wave_file):
     s = AudioSignal.from_wav(sine_wave_file)
-    reader = BatchReader(source=sine_wave_file)
+    reader = AudioSequenceReader(source=sine_wave_file)
     assert reader.finished() == False
     b = reader.next()
     assert reader.finished() == True
     assert b.duration() == s.duration()
 
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
     b = reader.next()
     s1 = AudioSignal.from_wav(sine_wave_file)
     s2 = AudioSignal.from_wav(sawtooth_wave_file)
@@ -545,7 +545,7 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     n1 = len(s1.data)
     n2 = len(s2.data)
     size = int((n1+n2) / 1.5)
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
     b = reader.next(size)
     assert reader.finished() == False
     assert len(b.data) == size
@@ -562,7 +562,7 @@ def test_next_batch_with_two_very_short_files():
     s2 = AudioSignal.from_wav(short_file_2)
     n1 = len(s1.data)
     n2 = len(s2.data)
-    reader = BatchReader(source=[short_file_1, short_file_2])
+    reader = AudioSequenceReader(source=[short_file_1, short_file_2])
     b = reader.next()
     assert reader.finished() == True
     assert len(b.data) == n1+n2-2
@@ -572,13 +572,13 @@ def test_next_batch_with_empty_file_and_resampling():
     ap.wave.write(empty, rate=4000, data=np.empty(0))
     s = AudioSignal.from_wav(empty)
     n = len(s.data)
-    reader = BatchReader(source=[empty], rate=2000)
+    reader = AudioSequenceReader(source=[empty], rate=2000)
     b = reader.next()
     assert reader.finished() == True
     assert b is None
 
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
     b = reader.next()
     s1 = AudioSignal.from_wav(sine_wave_file)
     s2 = AudioSignal.from_wav(sawtooth_wave_file)
