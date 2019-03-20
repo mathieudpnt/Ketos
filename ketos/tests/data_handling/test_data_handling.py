@@ -295,39 +295,6 @@ def test_parse_seg_name():
     assert id == 'rb001_89'
     assert labels == '[1,2]' 
 
-@pytest.mark.test_open_table
-def test_open_tables():
-    
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-
-    raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_table_description(dimensions=(20,60))
-
-    table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
-    assert '/group_1' in h5
-    assert '/group_1/table_1' in h5
-
-    table_2 = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_2' in h5
-    assert '/group_2/table_1' in h5
-
-    table_3 = dh.open_table(h5, '/group_2/subgroup_1', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_2/subgroup_1' in h5
-    assert '/group_2/subgroup_1/table_1' in h5
-
-    table_4 = dh.open_table(h5, '/group_3/subgroup_1', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_3/subgroup_1' in h5
-    assert '/group_3/subgroup_1/table_1' in h5
-
-
-    #When information about an existing table is given, it should return the table and not create a new one
-    existing_table = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
-
-    assert existing_table == table_2
-    
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-
 
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
