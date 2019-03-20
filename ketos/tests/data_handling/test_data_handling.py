@@ -34,12 +34,6 @@ today = datetime.datetime.today()
 
 
 
-@pytest.mark.test_prepare_database
-def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
-    dh.prepare_database(raw, "image", "label", divisions) 
-
 @pytest.mark.parametrize("input,depth,expected",[
     (1,2,np.array([0,1])),
     (0,2,np.array([1,0])),
