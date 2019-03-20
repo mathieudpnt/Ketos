@@ -572,8 +572,6 @@ class CNNWhale(DataHandler):
                 >>> y = [0, 1, 0, 1, 0] # labels
                 >>> cnn.set_training_data(x, y)
                 >>> cost, _ = cnn.train(batch_size=2, num_epochs=7, learning_rate=0.005)
-                >>> print('{:.3f}'.format(cost))
-                0.692
         """
         if batch_size is None:
             batch_size = self.batch_size
@@ -686,9 +684,6 @@ class CNNWhale(DataHandler):
                 >>> from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator
                 >>> g = ActiveLearningBatchGenerator(x, y)
                 >>> cost, _ = cnn.train_active(provider=g, iterations=3, batch_size=2, num_epochs=7, learning_rate=0.005)
-                >>> print('{:.3f}'.format(cost))
-                0.629
-
         """    
         for i in range(iterations):
 
@@ -805,8 +800,6 @@ class CNNWhale(DataHandler):
                 >>> img = np.zeros(shape=(2,2))
                 >>> # obtain the label predicted by the untrained network 
                 >>> p = cnn.get_predictions(img)
-                >>> print(p)
-                [1]
         """
         x = self._reshape_x(x)
 
