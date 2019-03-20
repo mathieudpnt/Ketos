@@ -377,6 +377,9 @@ class DataHandler():
         if len(x.shape) == 0:
             x = np.array([x])
 
+        if np.ndim(x) == 2:
+            x = x[np.newaxis,:,:,]
+
         if np.ndim(x) == 3:
             x = x[:,:,:,np.newaxis]
 

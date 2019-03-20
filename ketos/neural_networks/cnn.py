@@ -517,6 +517,7 @@ class CNNWhale(DataHandler):
             img_shape = self.image_shape
 
         else:        
+
             img_shape = get_image_size(tr) 
             self.image_shape = img_shape
 
