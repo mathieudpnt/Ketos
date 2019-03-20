@@ -808,7 +808,7 @@ class AudioSequenceReader:
             source: str or list
                 File name, list of file names, or directory name 
             recursive_search: bool
-                Include files from all subdirectories 
+                If True, includes .wav files from all subdirectories 
             rate: float
                 Sampling rate in Hz
             datetime_fmt: str
@@ -816,7 +816,13 @@ class AudioSequenceReader:
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
-                If True, print progress messages during processing 
+                If True, print progress messages during processing
+
+        
+        Raises:
+            AssertionError:
+                If the specified directory does not exist
+                If the specified directory does not have any .wav files
 
         Examples:
         >>> from ketos.data_handling.data_handling import AudioSequenceReader
@@ -859,8 +865,37 @@ class AudioSequenceReader:
             Args:
                 source: str or list
                     File name, list of file names, or directory name 
+                recursive_search: bool
+                    If true, include wav files from all subdirectories
+
                 datetime_fmt: str
                     Format for parsing date-time data from file names
+
+            Raises:
+                AssertionError:
+                    If the specified directory does not exist
+                    If the specified directory does not have any .wav files
+
+            Examples:
+                >>> import os
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # Define a list with the 10 files
+                >>> list_of_files_1 = os.path.listdir(path_to_files)[0:10]
+                >>> # Define another list with 10 different files
+                >>> list_of_files_2 = os.path.listdir(path_to_files)[10:20]
+                >>>
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz
+                
+                >>> # Create an AudioSequenceReader object with the first list of files
+                >>> reader = AudioSequenceReader(source=list_of_files_1, rate=2000)
+                >>> # Load the reader with a new source of files
+                >>> reader.load(source=list_of_files_1)
+
+
         """
         self.files.clear()
 
@@ -907,14 +942,29 @@ class AudioSequenceReader:
         # reset the reader
         self.reset()
 
+    def _read_file(self, i):
+        from ketos.audio_processing.audio import TimeStampedAudioSignal
+    
+        assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
+
+        if self.verbose:
+            print(' File {0} of {1}'.format(i+1, len(self.files)), end="\r")
             
+        f = self.files[i]
+        s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
+        
+        if self.rate is not None:
+            s.resample(new_rate=self.rate) # resamples
+
+        return s
+        
     def _read_next_file(self):
         """
             Read next file, increment file counter, and update time.
         """
         self.index += 1 # increment counter
         if self.index < len(self.files):
-            self.signal = self.read_file(self.index) # read audio file
+            self.signal = self._read_file(self.index) # read audio file
             self.time = self.signal.begin() # start time of this audio file
         else:
             self.signal = None
@@ -1006,6 +1056,8 @@ class AudioSequenceReader:
             Returns: 
                 x: bool
                 True if all data has been process, False otherwise
+
+            
         """
         return self.eof
     
