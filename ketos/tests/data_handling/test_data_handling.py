@@ -329,25 +329,7 @@ def test_open_tables():
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 
-@pytest.mark.test_write_spec_to_table
-def test_write_spec_to_table(sine_audio):
-    
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = "id_ex789_107_l_[1]"
-        
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-    spec_description = dh.spec_table_description(dimensions=(26, 11026))
-    table_1 = dh.open_table(h5, '/group_1', 'table_1', spec_description, sample_rate=44100)
-    
-    dh.write_spec_to_table(table_1, spec)
-    table_1.flush()
 
-    assert pytest.approx(table_1[0]['signal'],spec.image)
-    assert table_1[0]['id'].decode() == 'ex789_107'
-    assert table_1[0]['labels'].decode() == '[1]'
-
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 @pytest.mark.test_write_spec_to_table
 def test_write_spec_to_table_with_optional_args(sine_audio):
