@@ -573,7 +573,7 @@ class CNNWhale(DataHandler):
                 >>> cnn.set_training_data(x, y)
                 >>> cost, _ = cnn.train(batch_size=2, num_epochs=7, learning_rate=0.005)
                 >>> print('{:.3f}'.format(cost))
-                0.693
+                0.692
         """
         if batch_size is None:
             batch_size = self.batch_size
@@ -687,7 +687,7 @@ class CNNWhale(DataHandler):
                 >>> g = ActiveLearningBatchGenerator(x, y)
                 >>> cost, _ = cnn.train_active(provider=g, iterations=3, batch_size=2, num_epochs=7, learning_rate=0.005)
                 >>> print('{:.3f}'.format(cost))
-                0.560
+                0.629
 
         """    
         for i in range(iterations):
@@ -785,13 +785,28 @@ class CNNWhale(DataHandler):
     def get_predictions(self, x):
         """ Predict labels by running the model on x
 
-        Args:
-            x: tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
+            Args:
+                x: tensor
+                    Tensor containing the input data.
+                
+            Returns:
+                results: vector
+                    A vector containing the predicted labels.                
+
+            Example:
+
+                >>> # initialize CNNWhale for binary classification of 2x2 images
+                >>> from ketos.neural_networks.cnn import CNNWhale
+                >>> cnn = CNNWhale(image_shape=(2,2), verbosity=0, seed=1, num_labels=2)
+                >>> # create a small network with one convolutional layers and one dense layer
+                >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> _ = cnn.create(conv_params=[params], dense_size=[4])
+                >>> # create a 2x2 image
+                >>> img = np.zeros(shape=(2,2))
+                >>> # obtain the label predicted by the untrained network 
+                >>> p = cnn.get_predictions(img)
+                >>> print(p)
+                [1]
         """
         x = self._reshape_x(x)
 
@@ -906,6 +921,7 @@ class CNNWhale(DataHandler):
                 print_detailed_report: bool
                     If True, additionally prints all misclassified examples with the
                     correct and predicted labels.
+
             Returns:
                 results: tuple (numpy arrays)
                     Tuple with two DataFrames (report, incorrect). The first contains
