@@ -742,7 +742,7 @@ def segs_from_annotations(annotations, save_to):
             >>>
             >>> # Define the audio file and the destination folder
             >>> audio_file_path = "ketos/tests/assets/2min.wav"
-            >>> save_dir = "ketos/tests/assets/from_annot"
+            >>> save_dir = "ketos/tests/assets/tmp/from_annot"
             >>>
             >>> # Create a dataframe with annotations
             >>> annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
@@ -751,9 +751,9 @@ def segs_from_annotations(annotations, save_to):
             >>>
             >>> # Segemnt the audio file according with the annotations           
             >>> segs_from_annotations(annotations,save_dir)
-            Creating segment...... ketos/tests/assets/from_annot id_2min_0_l_[1].wav
-            Creating segment...... ketos/tests/assets/from_annot id_2min_1_l_[2].wav
-            Creating segment...... ketos/tests/assets/from_annot id_2min_2_l_[1].wav
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_0_l_[1].wav
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_1_l_[2].wav
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_2_l_[1].wav
             
             
 
