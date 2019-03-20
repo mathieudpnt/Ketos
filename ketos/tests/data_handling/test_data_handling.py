@@ -102,9 +102,9 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
     for i in range(len(one_hot)):
         assert (one_hot[i] == expected[i]).all()
 
-@pytest.mark.test_get_wave_files
-def test_get_wave_files():
-    dir = os.path.join(path_to_assets,'test_get_wave_files')
+@pytest.mark.test_find_wave_files
+def test_find_wave_files():
+    dir = os.path.join(path_to_assets,'test_find_wave_files')
     #delete directory and files within
     if os.path.exists(dir):
         shutil.rmtree(dir)
@@ -115,18 +115,18 @@ def test_get_wave_files():
     ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
     ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.get_wave_files(dir, fullpath=False)
+    files = dh.find_wave_files(dir, fullpath=False)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.get_wave_files(dir, fullpath=True)
+    files = dh.find_wave_files(dir, fullpath=True)
     assert len(files) == 2
     assert files[0] == f1
     assert files[1] == f2
     #delete directory and files within
     shutil.rmtree(dir)
 
-def test_get_wave_files_from_multiple_folders():
+def test_find_wave_files_from_multiple_folders():
     folder = path_to_assets + "/sub"
     # create two wave files in separate subfolders
     sub1 = folder + "/sub1"
@@ -145,11 +145,11 @@ def test_get_wave_files_from_multiple_folders():
     ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
     ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.get_wave_files(folder, fullpath=False, subdirs=True)
+    files = dh.find_wave_files(folder, fullpath=False, subdirs=True)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.get_wave_files(folder, fullpath=True, subdirs=True)
+    files = dh.find_wave_files(folder, fullpath=True, subdirs=True)
     assert len(files) == 2
     assert files[0] == f1
     assert files[1] == f2
