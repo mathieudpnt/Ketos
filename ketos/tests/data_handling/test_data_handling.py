@@ -34,18 +34,6 @@ today = datetime.datetime.today()
 
 
 
-@pytest.mark.test_stack_dataset
-def test_stack_dataset_throws_exception_if_column_names_do_not_match(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    with pytest.raises(AssertionError):
-        dh.stack_dataset(raw,(128,128))
-
-@pytest.mark.test_stack_dataset
-def test_stack_dataset_automatically_determines_image_size(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    encoded, img_size = dh.encode_database(raw, "image", "label")
-    stacked = dh.stack_dataset(encoded, img_size)   
-
 @pytest.mark.test_prepare_database
 def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col):
     raw = datebase_with_one_image_col_and_one_label_col
