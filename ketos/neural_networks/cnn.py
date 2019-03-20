@@ -614,7 +614,7 @@ class CNNWhale(DataHandler):
             for i in range(batches):
                 offset = i * batch_size
                 x_i = x[offset:(offset + batch_size), :, :, :]
-                x_i = self.reshape_x(x_i)
+                x_i = self._reshape_x(x_i)
                 y_i = y[offset:(offset + batch_size)]
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
@@ -747,7 +747,7 @@ class CNNWhale(DataHandler):
         if x is None:
             return None
 
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         N = min(x.shape[0], self.max_frames)
         x = x[:N]
@@ -777,7 +777,7 @@ class CNNWhale(DataHandler):
         if x is None:
             return 0
 
-        x = self.reshape_x(x) 
+        x = self._reshape_x(x) 
         y1hot = self._ensure1hot(y)       
         results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
         return results
@@ -793,7 +793,7 @@ class CNNWhale(DataHandler):
             results: vector
                 A vector containing the predicted labels.                
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         x, _ = self._split(x)
         results = list()
@@ -817,7 +817,7 @@ class CNNWhale(DataHandler):
                 results: vector
                     A vector containing the feature values.                
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         graph = tf.get_default_graph()
         f = graph.get_tensor_by_name("{0}:0".format(layer_name)) 
@@ -842,7 +842,7 @@ class CNNWhale(DataHandler):
                 results: vector
                     A vector containing the classification weights. 
         """
-        x = self.reshape_x(x)
+        x = self._reshape_x(x)
 
         fetch = self.class_weights
 
@@ -856,7 +856,7 @@ class CNNWhale(DataHandler):
         results = np.array(results)
         return results
 
-    def reshape_x(self, x):
+    def _reshape_x(self, x):
         """ Reshape input data from a 2d matrix to a 1d vector.
 
             Args:
@@ -915,7 +915,7 @@ class CNNWhale(DataHandler):
         """
         y1hot = self._ensure1hot(y) 
 
-        x_reshaped = self.reshape_x(x)
+        x_reshaped = self._reshape_x(x)
         predicted = self.get_predictions(x_reshaped)
         pred_df = pd.DataFrame({"label":np.array(list(map(from1hot,y1hot))), "pred": predicted})
        
