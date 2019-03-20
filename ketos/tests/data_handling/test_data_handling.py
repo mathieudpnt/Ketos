@@ -278,14 +278,6 @@ def test_parse_datetime_with_non_matching_format():
 
 
 
-@pytest.mark.audio_table_description
-def test_audio_table_description():
-    description = dh.audio_table_description(signal_rate=2000, segment_length=2.5)
-    description_columns = list(description.columns.keys())
-    description_columns.sort()
-    assert description_columns ==  ['boxes','id', 'labels', 'signal']
-    assert description.columns['signal'].shape == (5000,)
-
 @pytest.mark.spec_table_description
 def test_spec_table_description():
     description = dh.spec_table_description(dimensions=(20,64))
