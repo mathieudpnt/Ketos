@@ -260,20 +260,6 @@ class EDTCN(DataHandler):
             Returns:
                 results: vector
                     A vector containing the predicted labels.                
-
-            Example:
-
-                >>> # initialize EDTCN for binary classification of feature vectors of size 8
-                >>> from ketos.neural_networks.edtcn import EDTCN
-                >>> tcn = EDTCN(num_feat=8, num_labels=2)
-                >>> # create network with default architecture and max memory of 4
-                >>> tcn.create(max_len=4)
-                >>> # create one feature vector
-                >>> v = np.zeros(shape=(8))
-                >>> # get prediction of untrained network
-                >>> p = tcn.get_predictions(v)
-                >>> print(p)
-                0
         """
         x = np.array(x)
 
@@ -304,20 +290,6 @@ class EDTCN(DataHandler):
             Returns:
                 results: vector
                     A vector containing the classification weights. 
-
-            Example:
-
-                >>> # initialize EDTCN for binary classification of feature vectors of size 8
-                >>> from ketos.neural_networks.edtcn import EDTCN
-                >>> tcn = EDTCN(num_feat=8, num_labels=2)
-                >>> # create network with default architecture and max memory of 4
-                >>> tcn.create(max_len=4)
-                >>> # create one feature vector
-                >>> v = np.zeros(shape=(8))
-                >>> # get prediction of untrained network
-                >>> w = tcn.get_class_weights(v)
-                >>> print(w)
-                [0.5 0.5]
         """
         x = np.array(x)
 
