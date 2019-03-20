@@ -229,6 +229,21 @@ class EDTCN(DataHandler):
                 history: 
                     Keras training history.
 
+            Example:
+
+                >>> # initialize EDTCN for classifying feature vectors of size 64
+                >>> from ketos.neural_networks.edtcn import EDTCN
+                >>> tcn = EDTCN(num_feat=64)
+                >>> # create network with default architecture
+                >>> tcn.create()
+                >>> # create some training data
+                >>> v0 = np.zeros(shape=(64))
+                >>> v1 = np.ones(shape=(64))
+                >>> x = [v0, v1, v0, v1, v0, v1, v0, v1]
+                >>> y = [0, 1, 0, 1, 0, 1, 0, 1]
+                >>> tcn.set_training_data(x, y)
+                >>> # train the network
+                >>> # hist = tcn.train(batch_size=2, num_epochs=5)
         """
         if batch_size is None:
             batch_size = self.batch_size
