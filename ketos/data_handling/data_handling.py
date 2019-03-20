@@ -67,6 +67,8 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             >>> #This will parse dates in the day/month/year format,
             >>> #separated by '/'. It will also ignore any text after the year,
             >>> # (such as a file extension )
+            >>>
+            >>> from ketos.data_handling.data_handling import parse_datetime           
             >>> fmt = "%d/%m/%Y*"
             >>> result = parse_datetime("10/03/1942.txt", fmt)
             >>> result.year
@@ -76,7 +78,7 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             >>> result.day
             10
             >>>
-            >>> # Now with the time (hour:minute:second) separated from the date by un underscore
+            >>> # Now with the time (hour:minute:second) separated from the date by an underscore
             >>> fmt = "%H:%M:%S_%d/%m/%Y*"
             >>> result = parse_datetime("15:43:03_10/03/1918.wav", fmt)
             >>> result.year
@@ -124,11 +126,13 @@ def find_files(path, substr, fullpath=True, subdirs=False):
                 Alphabetically sorted list of file names
 
         Examples:
+            >>> from ketos.data_handling.data_handling import find_files
+            >>>
             >>> # Find files that contain 'super' in the name;
             >>> # Do not return the relative path
             >>> find_files(path="ketos/tests/assets", substr="super", fullpath=False)
             ['super_short_1.wav', 'super_short_2.wav']
-
+            >>>
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
             >>> find_files(path="ketos/tests/assets", substr=".h5")
@@ -180,6 +184,8 @@ def find_wave_files(path, fullpath=True, subdirs=False):
                 Alphabetically sorted list of file names
 
         Examples:
+            >>> from ketos.data_handling.data_handling import find_wave_files
+            >>>
             >>> find_wave_files(path="ketos/tests/assets", fullpath=False)
             ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
 
@@ -204,6 +210,7 @@ def read_wave(file, channel=0):
                 A 1d array containing the audio data
         
         Examples:
+            >>> from ketos.data_handling.data_handling import read_wave
             >>> rate, data = read_wave("ketos/tests/assets/2min.wav")
             >>> # the function returns the sampling rate (in Hz) as an integer
             >>> type(rate)
@@ -258,12 +265,14 @@ def to1hot(value,depth):
                     for the given value(s).
 
             Example:
+                >>> from ketos.data_handling.data_handling import to1hot
+                >>>
                 >>> # An example with two possible labels (0 or 1)
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=2)
                 array([[1., 0.],
                        [0., 1.]])
-
+                >>>
                 >>> # The same example with 4 possible labels (0,1,2 or 3)
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=4)
@@ -287,6 +296,8 @@ def from1hot(value):
                     array of m ints if values is an n by m array.
 
             Example:
+                >>> from ketos.data_handling.data_handling import from1hot
+                >>>
                 >>> from1hot(np.array([0,0,0,1,0]))
                 3
                 >>> from1hot(np.array([[0,0,0,1,0],
@@ -324,6 +335,7 @@ def check_data_sanity(images, labels):
             True if all checks pass.
 
         Examples:
+            >>> from ketos.data_handling.data_handling import check_data_sanity
             >>> # Load a database with images and integer labels
             >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
             >>> images = data['image']
@@ -382,8 +394,12 @@ def get_image_size(images):
                 Image size
 
         Examples:
+            >>> from ketos.data_handling.data_handling import get_image_size
+            >>> import pandas as pd
+            >>>
             >>> # Load a dataset with images and integer labels
             >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>>
             >>> # Select only the images from the dataset
             >>> images = data['image']
             >>> get_image_size(images)
@@ -414,6 +430,7 @@ def parse_seg_name(seg_name):
             A tuple with the id and label strings.
 
         Examples:
+            >>> from ketos.data_handling.data_handling import parse_seg_name
             >>> seg_name = "id_hydr06_23_l_[2].wav"
             >>> id, label = parse_seg_name(seg_name)
             >>> id
@@ -495,6 +512,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             None   
 
         Examples:
+            >>> from ketos.data_handling.data_handling import divide_audio_into_segs
             >>> from glob import glob
             >>> import os
             >>>
@@ -508,7 +526,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
             ...                    'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
             ...                    'end':[6.0,75.98,110.0]})
-
+            >>>
             >>> # Devide the wav file into 2 seconds segments.
             >>> # Uses the annotations dataframe to determine if each segment
             >>> # includes a label names the segments accordingly
@@ -568,6 +586,7 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             A subset of the annotations DataFrame containing only the entries for the specified file.
             
         Examples:
+            >>> from ketos.data_handling.data_handling import _filter_annotations_by_orig_file
             >>> import pandas as pd
             >>> # Create an annotations dataframe
             >>> annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
@@ -613,6 +632,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
                 specified in 'not_in_annotations' will be used.
 
         Examples:
+            >>> from ketos.data_handling.data_handling import get_labels
             >>> import pandas as pd
             >>> audio_file="2min"
             >>> # Create an annotations dataframe
@@ -674,6 +694,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
         Examples:
             >>> import os
             >>> from ketos.data_handling.data_handling import read_wave
+            >>> from ketos.data_handling.data_handling import seg_from_time_tag
             >>>
             >>> # Define the audio file and the destination folder
             >>> audio_file = "ketos/tests/assets/2min.wav"
@@ -717,6 +738,7 @@ def segs_from_annotations(annotations, save_to):
             >>> import os
             >>> from glob import glob
             >>> import pandas as pd
+            >>> from ketos.data_handling.data_handling import segs_from_annotations
             >>>
             >>> # Define the audio file and the destination folder
             >>> audio_file_path = "ketos/tests/assets/2min.wav"
@@ -765,6 +787,7 @@ def pad_signal(signal,rate, length):
 
         Examples:
             >>> from ketos.data_handling.data_handling import read_wave
+            >>> from ketos.data_handling.data_handling import pad_signal
             >>>
             >>> #Read a very short audio signal
             >>> rate, sig = read_wave("ketos/tests/assets/super_short_1.wav")
@@ -1029,6 +1052,24 @@ class AudioSequenceReader:
             Returns:
                 batch: TimeStampedAudioSignal
                     Merged audio signal
+
+            Examples:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source = path_to_files, rate=2000)
+                >>>
+                >>> seq1 = reader.next(size=size)
+                >>> len(seq1.data)
+                40000
+                >>> seq2 = reader.next(size=size)
+                >>> len(seq2.data)
+                40000
         """
         if self.finished():
             return None
