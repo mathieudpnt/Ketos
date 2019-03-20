@@ -1135,18 +1135,34 @@ class AudioSequenceReader:
                     Table with file names and time stamps
 
             Example:
+                >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # Define a list with the 10 files that start with 'id_2min_1'
+                >>> list_of_files = glob(path_to_files + "/id_2min_1*" )
                 >>> 
                 >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 60 # The sampling rate is 2000Hz, so each batch will be 60s long
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
                 >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+                >>> reader = AudioSequenceReader(source = list_of_files, rate=2000)
                 >>>
                 >>> seq1 = reader.next(size=size)
                 >>> seq2 = reader.next(size=size)
                 >>> reader.log()
+                                      time                                             file
+                0  2019-03-20 00:00:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
+                1  2019-03-20 00:00:01.950  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
+                2  2019-03-20 00:00:03.900  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
+                3  2019-03-20 00:00:05.850  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
+                4  2019-03-20 00:00:07.800  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
+                5  2019-03-20 00:00:09.750  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
+                6  2019-03-20 00:00:11.700  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
+                7  2019-03-20 00:00:13.650  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                8  2019-03-20 00:00:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
+                9  2019-03-20 00:00:17.550  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                10 2019-03-20 00:00:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
 
         """
         n = len(self.times)
