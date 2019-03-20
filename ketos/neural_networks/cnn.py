@@ -53,6 +53,10 @@ filter_shape - Filter shape, e.g. [4,4]'''
 class CNNWhale(DataHandler):
     """ Convolutional Neural Network for classification tasks.
 
+        The network architecture can only be constructed if the shape of the input data is known.
+        Therefore, either image_shape or train_x must be provided.
+        In the latter case, the shape is automatically determined from the input data.
+
         Args:
             image_shape: tuple
                 Shape of input images
