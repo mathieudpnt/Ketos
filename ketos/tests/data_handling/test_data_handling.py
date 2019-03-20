@@ -329,29 +329,6 @@ def test_open_tables():
     os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
 
 
-
-
-@pytest.mark.test_write_spec_to_table
-def test_write_spec_to_table_with_optional_args(sine_audio):
-    
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = "id_ex789_107_l_[1]"
-        
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp2_db.h5'), 'w')
-    spec_description = dh.spec_table_description(dimensions=(26, 11026))
-    table_1 = dh.open_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
-    
-    dh.write_spec_to_table(table_1, spec, id='id123?$', labels=(0,1,3), boxes=((0.1,0.8,40,400.5),(1.2,2.8,0.77,200.0),(7.7,77,40.0,500.5)))
-    table_1.flush()
-
-    assert pytest.approx(table_1[0]['signal'],spec.image)
-    assert table_1[0]['id'].decode() == 'id123?$'
-    assert table_1[0]['labels'].decode() == '[0,1,3]'
-    assert table_1[0]['boxes'].decode() == '[[0.1,0.8,40.0,400.5],[1.2,2.8,0.77,200.0],[7.7,77.0,40.0,500.5]]'
-
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp2_db.h5'))
-
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets+ "/2min.wav"
