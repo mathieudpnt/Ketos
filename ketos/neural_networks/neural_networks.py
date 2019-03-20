@@ -358,6 +358,8 @@ class DataHandler():
     def _ensure4d(self, x):
         """ Adds a 4th empty dimension to the numpy array
 
+            If x is a list, it is converted to a numpy array
+
             Args:
                 x: numpy array
                     Array in which each row holds an image. 
@@ -369,6 +371,12 @@ class DataHandler():
         if x is None:
             return x
 
+        x = np.array(x)
+        x = np.squeeze(x)
+
+        if len(x.shape) == 0:
+            x = np.array([x])
+
         if np.ndim(x) == 3:
             x = x[:,:,:,np.newaxis]
 
@@ -376,6 +384,8 @@ class DataHandler():
 
     def _ensure1hot(self, y):
         """ Ensures that labels are 1-hot encoded
+
+            If y is a list, it is converted to a numpy array
 
             Args:
                 y: numpy array
