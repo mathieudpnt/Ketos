@@ -644,28 +644,51 @@ class CNNWhale(DataHandler):
         return avg_cost, val_acc
 
     def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
-        """Train the neural network in an active manner using a data provider module.
+        """ Train the neural network in an active manner using a data provider module.
 
-        Args:
-            provider: ActiveLearningBatchGenerator
-                ActiveLearningBatchGenerator
-            iterations: int
-                Number of training iterations.
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            num_epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
-            learning_rate: float
-                The learning rate to be using by the optimization algorithm
-            keep_prob: float
-                Float in the range [0,1] specifying the probability of keeping the weights, 
-                i.e., drop-out will be applied if keep_prob < 1.
-            val_acc_goal: float 
-                Terminate training when validation accuracy reaches this value 
+            Args:
+                provider: ActiveLearningBatchGenerator
+                    ActiveLearningBatchGenerator
+                iterations: int
+                    Number of training iterations.
+                batch_size: int
+                    Batch size. Overwrites batch size specified at initialization.
+                num_epochs: int
+                    Number of epochs: Overwrites number of epochs specified at initialization.
+                learning_rate: float
+                    The learning rate to be using by the optimization algorithm
+                keep_prob: float
+                    Float in the range [0,1] specifying the probability of keeping the weights, 
+                    i.e., drop-out will be applied if keep_prob < 1.
+                val_acc_goal: float 
+                    Terminate training when validation accuracy reaches this value 
 
-        Returns:
-            avg_cost: float
-                Average cost of last completed training epoch.
+            Returns:
+                avg_cost: float
+                    Average cost of last completed training epoch.
+                val_acc: float
+                    Accuracy on validation data. Will be 0 if no validation data is provided.
+
+            Example:
+
+                >>> # initialize CNNWhale for classifying 2x2 images
+                >>> from ketos.neural_networks.cnn import CNNWhale
+                >>> cnn = CNNWhale(image_shape=(2,2), verbosity=0, seed=1)
+                >>> # create a small network with one convolutional layers and one dense layer
+                >>> params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+                >>> _ = cnn.create(conv_params=[params], dense_size=[4])
+                >>> # create some training data
+                >>> img0 = np.zeros(shape=(2,2))
+                >>> img1 = np.ones(shape=(2,2))
+                >>> x = [img0, img1, img0, img1, img0, img1, img0] # input data
+                >>> y = [0, 1, 0, 1, 0, 1, 0] # labels
+                >>> # create a data provider
+                >>> from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator
+                >>> g = ActiveLearningBatchGenerator(x, y)
+                >>> cost, _ = cnn.train_active(provider=g, iterations=3, batch_size=2, num_epochs=7, learning_rate=0.005)
+                >>> print('{:.3f}'.format(cost))
+                0.560
+
         """    
         for i in range(iterations):
 
@@ -680,7 +703,7 @@ class CNNWhale(DataHandler):
             self.set_training_data(x=x_train, y=to1hot(y_train,2))
 
             # train
-            _, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
+            avg_cost, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
 
             # update predictions and confidences
             w = self.get_class_weights(x_train)
@@ -690,6 +713,8 @@ class CNNWhale(DataHandler):
 
             if val_acc >= val_acc_goal:
                 break
+
+        return avg_cost, val_acc
 
     def save(self, destination):
         """ Save the model
