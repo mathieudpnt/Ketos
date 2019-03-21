@@ -1,26 +1,50 @@
-""" Encoder-Decoder Temporal Convolutional Network (ED-TDCN).
+""" EDTCN module within the ketos library
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    This module provides utilities to work with Encoder-Decoder Temporal-Convolutional Networks (EDTCN)
+
+    Contents:
+        EDTCN class:
+
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+    Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+    creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-
 import tensorflow as tf
 import numpy as np
-import pandas as pd
 from ketos.data_handling.data_handling import to1hot, from1hot
 from ketos.neural_networks.neural_networks import DataHandler
 
 
 def channel_normalization(x):
     """ Normalize by the highest activation.
+
+        Args:
+            x: tensor
+                Tensor containing output values from layer in neural network
+
+        Returns:
+            out: tensor
+                Values normalized by the highest activation
     """
     max_values = tf.keras.backend.max(tf.keras.backend.abs(x), 2, keepdims=True) + 1e-5
     out = x / max_values
@@ -30,19 +54,27 @@ def channel_normalization(x):
 class EDTCN(DataHandler):
     """ Create an Encoder-Decoder Temporal Convolutional Network (ED-TCN) for classification tasks.
 
+        Implementation adapted from https://github.com/colincsl/TemporalConvolutionalNetworks
+
+        The network architecture can only be constructed if the size of the input data is known.
+        Therefore, either num_feat or train_x must be provided.
+        In the latter case, the size is automatically determined from the input data.
+
         Args:
-            train_x: pandas DataFrame
-                Data Frame in which each row holds one image.
-            train_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            validation_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            validation_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
-            test_x: pandas DataFrame
-                Data Frame in which each row holds one image
-            test_y: pandas DataFrame
-                Data Frame in which each row contains the one hot encoded label
+            num_feat: int
+                Size of input data
+            train_x: numpy array
+                Training data
+            train_y: numpy array
+                Labels for training data. Can be integers or 1-hot encoded
+            validation_x: numpy array
+                Validation data
+            validation_y: numpy array
+                Labels for validation data. Can be integers or 1-hot encoded
+            test_x: numpy array
+                Test data
+            test_y: numpy array
+                Labels for test data. Can be integers or 1-hot encoded
             num_labels: int
                 Number of labels
             max_len: int
@@ -52,10 +84,30 @@ class EDTCN(DataHandler):
                 The number of examples in each batch
             num_epochs: int
                 The number of epochs
+            keep_prob: float
+                Probability of keeping weights during training. Set keep_prob to 1.0 to disable drop-out (default).
+            verbosity: int
+                Verbosity level (0: no messages, 1: warnings only, 2: warnings and diagnostics)
+
+        Attributes:
+            model: tf.keras.models.Model
+                Neural network model
+            class_weights_func: tf.keras.backend.function
+                Function to compute classification weights
+
+        Example:
+
+            >>> # initialize EDTCN for classifying feature vectors of size 64
+            >>> from ketos.neural_networks.edtcn import EDTCN
+            >>> tcn = EDTCN(num_feat=64)
+            >>> print(tcn.num_feat)
+            64
     """
-    def __init__(self, train_x, train_y, validation_x=None, validation_y=None,
+    def __init__(self, num_feat=None, train_x=None, train_y=None, validation_x=None, validation_y=None,
                  test_x=None, test_y=None, num_labels=2, max_len=500, batch_size=4, 
                  num_epochs=100, keep_prob=0.7, verbosity=0):
+
+        assert (num_feat is not None) or (train_x is not None), "num_feat or train_x must be provided"
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -72,8 +124,16 @@ class EDTCN(DataHandler):
                 validation_x=validation_x, validation_y=validation_y,
                 test_x=test_x, test_y=test_y, num_labels=num_labels)
 
+        if num_feat is None:
+            x, _ = self.get_training_data()
+            x = np.squeeze(x)
+            self.num_feat = x.shape[-1]
+        else:
+            self.num_feat = num_feat
+
     def set_verbosity(self, verbosity):
         """Set verbosity level.
+
             0: no messages
             1: warnings only
             2: warnings and diagnostics
@@ -84,7 +144,7 @@ class EDTCN(DataHandler):
         """
         self.verbosity = verbosity
 
-    def create(self, n_nodes=[16, 32], conv_len=16):
+    def create(self, n_nodes=[16, 32], conv_len=16, max_len=None):
         """Create the Neural Network structure.
 
             Args:
@@ -93,21 +153,33 @@ class EDTCN(DataHandler):
                     (The number of convolutional layers is given by the length of n_nodes)
                 conv_len: int
                     Length of the 1D convolution window.
+                max_len: int
+                    The input data will be split into chuncks of size max_len. 
+                    Thus, max_len effectively limits the extent of the memory of the network. 
+
+            Example:
+
+                >>> # initialize EDTCN for classifying feature vectors of size 64
+                >>> from ketos.neural_networks.edtcn import EDTCN
+                >>> tcn = EDTCN(num_feat=64)
+                >>> # create network with default architecture
+                >>> tcn.create()
         """
         dropout_rate = 1.0 - self.keep_prob
 
+        if max_len is not None:
+            self.max_len = max_len
+
         # ensure that max_len is divisible by four (as this seems to be required by keras.layers.Input)
         if self.max_len % 4 > 0:
-            self.max_len -= self.max_len % 4
+            self.max_len += 4 - self.max_len % 4
             if self.verbosity >= 1: 
                 print(' Warning: max_len must be divisible by 4; max_len has been adjust to {0}'.format(self.max_len))
 
-        x, _ = self.get_training_data()
-        x = np.squeeze(x)
-        n_feat = x.shape[-1]
+        n_feat = self.num_feat 
         n_layers = len(n_nodes)
         n_classes = self.num_labels
-
+        
         # --- Input layer ---
         inputs = tf.keras.layers.Input(shape=(self.max_len, n_feat))
         model = inputs
@@ -143,19 +215,19 @@ class EDTCN(DataHandler):
         self.class_weights_func = tf.keras.backend.function([inp, tf.keras.backend.learning_phase()], [output])
 
     def train(self, batch_size=None, num_epochs=None):
-        """Train the neural network on the training set.
+        """ Train the neural network on the training set.
 
-           Devide the training set in batches in orther to train. 
+            Divide the training set in batches of size batch_size. 
 
-        Args:
-            batch_size: int
-                Batch size. Overwrites batch size specified at initialization.
-            num_epochs: int
-                Number of epochs: Overwrites number of epochs specified at initialization.
+            Args:
+                batch_size: int
+                    Batch size. Overwrites batch size specified at initialization.
+                num_epochs: int
+                    Number of epochs: Overwrites number of epochs specified at initialization.
 
-        Returns:
-            history: 
-                Keras training history.
+            Returns:
+                history: 
+                    Keras training history.
         """
         if batch_size is None:
             batch_size = self.batch_size
@@ -181,33 +253,51 @@ class EDTCN(DataHandler):
     def get_predictions(self, x):
         """ Predict labels by running the model on x
 
-        Args:
-            x:tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the predicted labels.                
+            Args:
+                x: tensor
+                    Tensor containing the input data.
+                
+            Returns:
+                results: vector
+                    A vector containing the predicted labels.                
         """
+        x = np.array(x)
+
+        if np.ndim(x) == 1:
+            x = x[np.newaxis, :]
+
         orig_len = x.shape[0]
+
         x = self._reshape(x)
         results = self.model.predict(x=x)
         results = np.reshape(results, newshape=(results.shape[0]*results.shape[1], results.shape[2]))
+
         results = from1hot(results)
-        return results[:orig_len]
+        results = results[:orig_len]
+
+        if results.shape[0] == 1:
+            results = results[0]
+
+        return results
 
     def get_class_weights(self, x):
         """ Compute classification weights by running the model on x.
 
-        Args:
-            x:tensor
-                Tensor containing the input data.
-            
-        Returns:
-            results: vector
-                A vector containing the classification weights. 
+            Args:
+                x: tensor
+                    Tensor containing the input data.
+                
+            Returns:
+                results: vector
+                    A vector containing the classification weights. 
         """
+        x = np.array(x)
+
+        if np.ndim(x) == 1:
+            x = x[np.newaxis, :]
+
         orig_len = x.shape[0]
+
         x = self._reshape(x)        
         w = np.array(self.class_weights_func([x, False]))
         w = np.squeeze(w)
@@ -215,16 +305,22 @@ class EDTCN(DataHandler):
             w = w[np.newaxis,:,:]
             
         w = np.reshape(w, newshape=(w.shape[0]*w.shape[1], w.shape[2]))
-        return w[:orig_len]
+
+        w = w[:orig_len]
+        if w.shape[0] == 1:
+            w = w[0]
+
+        return w
 
     def _reshape(self, a):
-        """Split the data into chunks with size max_len.
+        """ Split the data into chunks with size max_len.
             
             Args:
                 a: numpy array
                     Array containing the data to be split.
         """
-        a = np.squeeze(a)
+        if np.ndim(a) > 2:
+            a = np.squeeze(a)
 
         n = self.max_len
         orig_len = a.shape[0]
