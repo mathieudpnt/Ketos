@@ -943,13 +943,13 @@ class AudioSequenceReader:
                 fnames = [source]
             else:
                 fnames = find_wave_files(path=source, subdirs=recursive_search)
-        
+
+            # sort file names alphabetically
+            fnames = sorted(fnames)
+
         # check that files exist
         for f in fnames:
             assert os.path.exists(f), " Could not find {0}".format(f)
-
-        # sort file names alphabetically
-        fnames = sorted(fnames)
 
         # check that we have at least 1 file
         assert len(fnames) > 0, " No wave files found in {0}".format(source)
