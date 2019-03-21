@@ -1269,7 +1269,7 @@ class AnnotationTableReader():
 
             >>> # create a pandas dataframe with dummy annotations
             >>> import pandas as pd
-            >>> d = {'fname': ['x.wav', 'y.wav'], 'start': [3.0, 4.0], 'end': [17.0, 12.0], 'label': [0, 1]}
+            >>> d = {'file_orig': ['x.wav', 'y.wav'], 'start': [3.0, 4.0], 'end': [17.0, 12.0], 'label': [0, 1]}
             >>> df = pd.DataFrame(data=d)
             >>> # save the dataframe to a csv file
             >>> fname = "ketos/tests/assets/tmp/ann.csv"
