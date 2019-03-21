@@ -673,7 +673,13 @@ def create_spec_database(output, folder, annotations_file=None,\
                 The default values is max_size=100 (100 Mb)
             progress_bar: bool
                 Option to display progress bar.
+
+        Returns: 
+            fnames: list(str)
+                List of output files
     """
+    res = list()
+
     file_counter = 0
     base = output[:output.rfind('.')]
     ext = output[output.rfind('.'):]
@@ -723,6 +729,7 @@ def create_spec_database(output, folder, annotations_file=None,\
         if tot_size > max_size and len(specs) > 1:
             out = base + '_{:03d}'.format(file_counter) + ext
             save_specs(specs[:-1], out)
+            res.append(out)
             file_counter += 1
             specs = [s]
             tot_size = size
@@ -730,6 +737,9 @@ def create_spec_database(output, folder, annotations_file=None,\
     # save remaining spectrograms to file, if any
     out = base + '_{:03d}'.format(file_counter) + ext
     save_specs(specs, out)
+    res.append(out)
+
+    return res
 
 def save_specs(specs, filename, path='/', name='raw'):
     """ Save spectrograms to database file (*.h5)
