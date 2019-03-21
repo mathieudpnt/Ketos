@@ -347,5 +347,68 @@ def test_load_specs_with_index_list():
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
 
-    
     h5file.close()
+
+def test_create_spec_database_with_default_args():
+
+    output = os.path.join(path_to_assets, 'tmp/db_spec.h5')
+    folder = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output=output, folder=folder)
+
+    path = os.path.join(path_to_assets, 'tmp/db_spec_000.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/raw")
+    specs = di.load_specs(tbl)
+
+    assert len(specs) == 2
+    assert specs[0].tres == 0.02
+
+    fil.close()
+
+def test_create_spec_database_with_size_limit():
+
+    output = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
+    folder = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output=output, folder=folder, max_size=5)
+
+    path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/raw")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    fil.close()
+
+    path = os.path.join(path_to_assets, 'tmp/db2_spec_001.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/raw")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    fil.close()
+
+def test_create_spec_database_with_annotations():
+
+    csvfile = os.path.join(path_to_assets, 'tmp/ann.csv')
+    output = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
+    folder = os.path.join(path_to_assets, 'wav_files/')
+
+    # create annotations
+    import pandas as pd
+    d = {'fname': ['w1.wav'], 'start': [0.1], 'end': [0.7], 'label': [1]}
+    df = pd.DataFrame(data=d)
+    df.to_csv(csvfile)
+
+    # create database
+    di.create_spec_database(output=output, folder=folder, annotations_file=csvfile)
+
+    path = os.path.join(path_to_assets, 'tmp/db3_spec_000.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/raw")
+    specs = di.load_specs(tbl)
+
+    assert len(specs) == 2
+    assert len(specs[0].labels) == 1
+    assert specs[0].labels[0] == 1
+
+    fil.close()

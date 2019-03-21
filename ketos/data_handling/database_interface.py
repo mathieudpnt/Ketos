@@ -33,7 +33,8 @@ import math
 import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram
+from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
+from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -640,17 +641,45 @@ def parse_boxes(item):
     
     return boxes
 
-def create_spec_database(output, folder, annotations_file=None, sampling_rate=None, window_size=0.2, step_size=0.02, flow=None, fhigh=None, max_size=100):
+def create_spec_database(output, folder, annotations_file=None,\
+        sampling_rate=None, channel=0, window_size=0.2, step_size=0.02,\
+        flow=None, fhigh=None, max_size=100):
+    """ Create a database with spectrograms from raw audio (*.wav) files
 
-    from ketos.data_handling.data_handling import find_wave_files
-    from ketos.data_handling.data_handling import AnnotationTableReader
-
+        Args:
+            output: str
+                Full path to output database file (*.h5)
+            folder: str
+                Full path to folder containing the input audio files (*.wav)
+            annotations_file: str
+                Full path to file containing annotations (*.csv)
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            window_size: float
+                Window size (seconds) used for computing the spectrogram
+            step_size: float
+                Step size (seconds) used for computing the spectrogram
+            flow: float
+                Lower cut on frequency (Hz)
+            fhigh: float
+                Upper cut on frequency (Hz)
+            max_size: int
+                Maximum approximate size of output database file in Mb.
+                If file exceeds this size, it will be split up into several 
+                files with _xxx extension to the file name.
+                The default values is max_size=100 (100 Mb)
+    """
     file_counter = 0
     base = output[:output.rfind('.')]
     ext = output[output.rfind('.'):]
 
     # extract file names and annotations from table
-    areader = AnnotationTableReader(annotations_file)
+    if annotations_file is None:
+        areader = None
+    else:
+        areader = AnnotationTableReader(annotations_file)
 
     # get all wav files in the folder
     files = find_wave_files(path=folder, fullpath=True)
@@ -666,7 +695,7 @@ def create_spec_database(output, folder, annotations_file=None, sampling_rate=No
             continue
 
         # read audio and resample
-        a = AudioSignal.from_wav(path=f, channel=cha)  
+        a = AudioSignal.from_wav(path=f, channel=channel)  
         if sampling_rate is not None:
             a.resample(new_rate=sampling_rate) 
 
@@ -674,12 +703,11 @@ def create_spec_database(output, folder, annotations_file=None, sampling_rate=No
         s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
         specs.append(s)
 
-        # file name
-        fname = f[f.rfind('/')+1:]
-        labels, boxes = areader.get_annotations(fname)
-
         # add annotations
-        s.annotate(labels, boxes) 
+        if areader is not None:
+            fname = f[f.rfind('/')+1:]
+            labels, boxes = areader.get_annotations(fname)
+            s.annotate(labels, boxes) 
 
         # crop frequencies
         s.crop(flow=flow, fhigh=fhigh) 
@@ -701,9 +729,18 @@ def create_spec_database(output, folder, annotations_file=None, sampling_rate=No
     save_specs(specs, out)
 
 def save_specs(specs, filename, path='/', name='raw'):
+    """ Save spectrograms to database file (*.h5)
 
-    from ketos.audio_processing.spectrogram import ensure_same_length
-
+        Args:
+            specs: list(Spectrogram)
+                Spectrograms to be saved
+            filename: str
+                Full path to output database file (*.h5)
+            path: str
+                Path within database file
+            name: str
+                Group name within database file
+    """
     if len(specs) == 0:
         return
 
