@@ -38,6 +38,8 @@ def test_initialize_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
     y = d["train_y"]
+    print(x.shape)
+    print(y.shape)
     _ = DataHandler(train_x=x, train_y=y)
 
 @pytest.mark.test_DataHandler

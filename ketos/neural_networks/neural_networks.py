@@ -163,7 +163,8 @@ class DataHandler():
                 use: DataUse
                     Data use. Possible options are TRAINING, VALIDATION and TEST
         """
-        check_data_sanity(x, y)
+        if x is not None:
+            check_data_sanity(x, y)
 
         x = self._ensure4d(x)
         y = self._ensure1hot(y)

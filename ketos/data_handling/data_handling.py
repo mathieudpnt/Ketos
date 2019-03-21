@@ -948,6 +948,9 @@ class AudioSequenceReader:
         for f in fnames:
             assert os.path.exists(f), " Could not find {0}".format(f)
 
+        # sort file names alphabetically
+        fnames = sorted(fnames)
+
         # check that we have at least 1 file
         assert len(fnames) > 0, " No wave files found in {0}".format(source)
 
@@ -1215,15 +1218,15 @@ class AudioSequenceReader:
                 >>> reader.log()
                                       time                                             file
                 0  1960-06-10 16:30:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
-                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
-                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
-                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
-                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
-                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
-                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
-                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
+                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
+                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
+                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
+                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
                 8  1960-06-10 16:30:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
-                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
                 10 1960-06-10 16:30:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
 
         """
