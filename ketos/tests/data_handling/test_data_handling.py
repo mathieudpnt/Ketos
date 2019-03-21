@@ -31,7 +31,7 @@ import pandas as pd
 import ketos.data_handling.data_handling as dh
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.spectrogram import MagSpectrogram
-from ketos.data_handling.data_handling import AudioSequenceReader
+from ketos.data_handling.data_handling import AudioSequenceReader, AnnotationTableReader
 from ketos.audio_processing.audio import AudioSignal
 import datetime
 import shutil
@@ -598,3 +598,64 @@ def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, cons
     s3 = AudioSignal.from_wav(const_wave_file)
     assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.n_smooth
     assert reader.finished() == True
+
+def test_init_annotation_table_reader():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    AnnotationTableReader(fname)
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    AnnotationTableReader(fname)
+
+def test_get_annotations_for_file_with_one_annotation():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('x.wav')
+    assert len(l) == 1
+    assert l[0] == 0
+    assert len(b) == 1
+    assert b[0][0] == 1
+    assert b[0][1] == 2
+    assert b[0][2] == 0
+    import math
+    assert b[0][3] == math.inf
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('x.wav')
+    assert len(l) == 1
+    assert l[0] == 0
+    assert len(b) == 1
+    assert b[0][0] == 1
+    assert b[0][1] == 2
+    assert b[0][2] == 0.
+    assert b[0][3] == 300.
+
+def test_get_annotations_for_file_with_two_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('y.wav')
+    assert len(l) == 2
+    assert l[0] == 1
+    assert l[1] == 2
+    assert len(b) == 2
+    assert b[0][0] == 3
+    assert b[0][1] == 4
+    assert b[0][2] == 0
+    import math
+    assert b[0][3] == math.inf
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('y.wav')
+    assert len(l) == 2
+    assert l[0] == 1
+    assert l[1] == 2
+    assert len(b) == 2
+    assert b[0][0] == 3
+    assert b[0][1] == 4
+    assert b[0][2] == 4000.
+    assert b[0][3] == 6000.
+
+def test_get_annotations_for_file_with_no_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('z.wav')
+    assert len(l) == 0
+    assert len(b) == 0

@@ -639,3 +639,92 @@ def parse_boxes(item):
     boxes = boxes.tolist()
     
     return boxes
+
+def create_spec_database(output, folder, annotations_file=None, sampling_rate=None, window_size=0.2, step_size=0.02, flow=None, fhigh=None, max_size=100):
+
+    from ketos.data_handling.data_handling import find_wave_files
+    from ketos.data_handling.data_handling import AnnotationTableReader
+
+    file_counter = 0
+    base = output[:output.rfind('.')]
+    ext = output[output.rfind('.'):]
+
+    # extract file names and annotations from table
+    areader = AnnotationTableReader(annotations_file)
+
+    # get all wav files in the folder
+    files = find_wave_files(path=folder, fullpath=True)
+
+    # read audio files and create spectrograms
+    specs = list()
+    tot_size = 0
+    for f in files:
+    
+        # check if files exists
+        exists = os.path.exists(f)
+        if exists is False:
+            continue
+
+        # read audio and resample
+        a = AudioSignal.from_wav(path=f, channel=cha)  
+        if sampling_rate is not None:
+            a.resample(new_rate=sampling_rate) 
+
+        # compute the spectrogram
+        s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
+        specs.append(s)
+
+        # file name
+        fname = f[f.rfind('/')+1:]
+        labels, boxes = areader.get_annotations(fname)
+
+        # add annotations
+        s.annotate(labels, boxes) 
+
+        # crop frequencies
+        s.crop(flow=flow, fhigh=fhigh) 
+
+        # increment (approximate) total size in MBs
+        size = s.image.shape[0] * s.image.shape[1] * 32.0 / 8.0 / 1.0E6
+        tot_size += size
+
+        # save spectrograms to file
+        if tot_size > max_size and len(specs) > 1:
+            out = base + '_{:03d}'.format(file_counter) + ext
+            save_specs(specs[:-1], out)
+            file_counter += 1
+            specs = [s]
+            tot_size = size
+
+    # save remaining spectrograms to file, if any
+    out = base + '_{:03d}'.format(file_counter) + ext
+    save_specs(specs, out)
+
+def save_specs(specs, filename, path='/', name='raw'):
+
+    from ketos.audio_processing.spectrogram import ensure_same_length
+
+    if len(specs) == 0:
+        return
+
+    # max number of annotations in a single spectrogram
+    max_anns = 0
+    for s in specs:
+        anns = len(s.labels)
+        max_anns = max(anns, max_anns)
+
+    # ensure that spectrograms have same length/duration
+    specs = ensure_same_length(specs) 
+
+    # remove old database file, if any
+    if os.path.exists(filename): 
+        os.remove(filename) 
+
+    # save spectrograms to database file
+    fil = tables.open_file(filename, 'w') # open new database file for writing
+    shape = specs[0].image.shape
+    tbl = create_table(h5file=fil, path=path, name=name, shape=shape, max_annotations=max_anns) # create a table
+    for s in specs:
+        write_spec(tbl, s) # write spectrograms to the table
+
+    fil.close() # close the database file

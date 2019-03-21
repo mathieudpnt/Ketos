@@ -43,7 +43,6 @@ import datetime_glob
 import re
 
 
-
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
        
@@ -918,6 +917,7 @@ class AudioSequenceReader:
                     If the specified directory does not have any .wav files
 
             Examples:
+
                 >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
@@ -1078,6 +1078,7 @@ class AudioSequenceReader:
                     Merged audio signal
 
             Examples:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
                 >>> # Define the folder containing the audio files
@@ -1122,6 +1123,7 @@ class AudioSequenceReader:
                 True if all data has been process, False otherwise
             
             Example:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
@@ -1156,6 +1158,7 @@ class AudioSequenceReader:
             Go back and start reading from the beginning of the first file.
 
             Examples:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
@@ -1200,6 +1203,7 @@ class AudioSequenceReader:
                     Table with file names and time stamps
 
             Example:
+
                 >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
@@ -1240,3 +1244,84 @@ class AudioSequenceReader:
         fnames = [x[0] for x in self.files]
         df = pd.DataFrame(data={'time':self.times,'file':fnames[:n]})
         return df
+
+
+class AnnotationTableReader():
+    """ Reads annotation data from csv file
+
+        The csv file can have either 5 or 7 columns, as follows
+
+        5 columns: index, file_name, start_time, end_time, label 
+        
+        7 columns: index, file_name, start_time, end_time, lower_frequency, upper_frequency, label 
+
+        Args:
+            path: str
+                Full path to annotation csv file
+
+        Example:
+
+            >>> # create a pandas dataframe with dummy annotations
+            >>> import pandas as pd
+            >>> d = {'fname': ['x.wav', 'y.wav'], 'start': [3.0, 4.0], 'end': [17.0, 12.0], 'label': [0, 1]}
+            >>> df = pd.DataFrame(data=d)
+            >>> # save the dataframe to a csv file
+            >>> fname = "ketos/tests/assets/tmp/ann.csv"
+            >>> df.to_csv(fname)
+            >>> # create an annotation reader
+            >>> from ketos.data_handling.data_handling import AnnotationTableReader
+            >>> reader = AnnotationTableReader(fname)
+            >>> # get the annotations for x.wav
+            >>> labels, boxes = reader.get_annotations('x.wav')
+            >>> print(labels, boxes)
+            [0] [[3.0, 17.0, 0.0, inf]]
+    """
+    def __init__(self, path):
+        self.df = pd.read_csv(path)
+        n = len(self.df.columns)
+        assert n == 5 or n == 7, 'table must have 4 or 6 columns, whereas the table provided has {0} columns'.format(n)
+        self.has_freq = (n == 7)
+
+    def get_annotations(self, filename):
+        """ Get annotations associated with the specified file 
+            
+            Args:
+                filename: str
+                    File name
+                    
+            Returns:
+                labels: list(int)
+                    Labels
+                boxes: list(tuple)
+                    Boxes
+        """
+
+        # select rows with matching file name
+        sel = self.df[self.df.iloc[:,1]==filename]
+
+        m = len(sel)
+
+        # get labels
+        labels = sel.iloc[:,-1].values
+
+        # get times
+        start = sel.iloc[:, 2].values
+        stop  = sel.iloc[:, 3].values
+
+        # get frequencies
+        if self.has_freq:
+            flow = sel.iloc[:,4].values
+            fhigh = sel.iloc[:,5].values        
+        else:
+            flow = np.zeros(m)
+            fhigh = np.ones(m) * math.inf
+
+        # construct boxes
+        boxes = list()
+        for t1,t2,f1,f2 in zip(start, stop, flow, fhigh):
+            b = [t1, t2, f1, f2]
+            boxes.append(b)
+
+        return labels, boxes
+
+
