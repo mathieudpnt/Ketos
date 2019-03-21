@@ -817,15 +817,19 @@ def pad_signal(signal,rate, length):
 
 
 class AudioSequenceReader:
-    """ Reads sequences of audio files and serves them as a merged :class:: ketos.audio_processing.audio.AudioSignal.
+    """ Reads sequences of audio files and serves them as a merged :class::ketos.audio_processing.audio.AudioSignal.
 
+        Separate audio files are joined together in a single time series. 
 
-        If the file names do not have date-time information, the files will 
-        be sorted in alphabetical order and smoothly joined to one another.
+        If the source is given as a folder (rather than a list of file names), all wav files from
+        the folder will be read.
+        
+        If the file names have date-time information, the date-time information will be 
+        parsed and used to sort the files chronologically. Any gaps will be filled with zeros.
 
-        Otherwise, the date-time information will be extracted from the file 
-        names and used to sort the files chronologically. Any gaps will be 
-        filled with zeros.
+        If the file names do not contain date-time information, the files will be sorted 
+        alphabetically (if given as a folder name) or in the order provided (if given as a list 
+        of file names).
 
         Args:
             source: str or list
