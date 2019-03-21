@@ -35,6 +35,7 @@ from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader
+from tqdm import tqdm
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -643,7 +644,7 @@ def parse_boxes(item):
 
 def create_spec_database(output, folder, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02,\
-        flow=None, fhigh=None, max_size=100):
+        flow=None, fhigh=None, max_size=100, progress_bar=False):
     """ Create a database with spectrograms from raw audio (*.wav) files
 
         Args:
@@ -670,6 +671,8 @@ def create_spec_database(output, folder, annotations_file=None,\
                 If file exceeds this size, it will be split up into several 
                 files with _xxx extension to the file name.
                 The default values is max_size=100 (100 Mb)
+            progress_bar: bool
+                Option to display progress bar.
     """
     file_counter = 0
     base = output[:output.rfind('.')]
@@ -687,7 +690,7 @@ def create_spec_database(output, folder, annotations_file=None,\
     # read audio files and create spectrograms
     specs = list()
     tot_size = 0
-    for f in files:
+    for f in tqdm(files, disable = not progress_bar):
     
         # check if files exists
         exists = os.path.exists(f)
