@@ -834,8 +834,14 @@ class AudioSequenceReader:
                 If True, includes .wav files from all subdirectories 
             rate: float
                 Sampling rate in Hz
+            datetime_stamp: str
+                A default datetime to be used in case the file names do not contain datetime information.
+                If left to None, the the AudioSequenceReader will try to extract datetime from the filename
+                using the 'datetime_fmt' argument.
             datetime_fmt: str
-                Format for parsing date-time data from file names
+                Format for parsing date-time data from file names. If the file names do not contain
+                datetime information and a 'datetime_stamp' is not provided, the current day will be used
+                a time starting at 00:00:00:000
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
@@ -868,7 +874,7 @@ class AudioSequenceReader:
         40000
 
     """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100, verbose=False):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -879,9 +885,9 @@ class AudioSequenceReader:
         self.time = None
         self.eof = False
         self.verbose = verbose
-        self.load(source=source, recursive_search=recursive_search, datetime_fmt=datetime_fmt)
+        self.load(source=source, recursive_search=recursive_search, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
 
-    def load(self, source, recursive_search=False, datetime_fmt=None):
+    def load(self, source, recursive_search=False, datetime_stamp=None, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
@@ -891,8 +897,15 @@ class AudioSequenceReader:
                 recursive_search: bool
                     If true, include wav files from all subdirectories
 
+                datetime_stamp: str
+                    A default datetime to be used in case the file names do not contain datetime information.
+                    Requires the format to be specified by the 'datetime_fmt' argument.
+                    If left to None, the the AudioSequenceReader will try to extract datetime from the filename
+                    using the 'datetime_fmt'.
                 datetime_fmt: str
-                    Format for parsing date-time data from file names
+                    Format for parsing date-time data from file names. If the file names do not contain
+                    datetime information and a 'datetime_stamp' is not provided, the current day will be used
+                    a time starting at 00:00:00:000
 
             Raises:
                 AssertionError:
@@ -939,8 +952,11 @@ class AudioSequenceReader:
         assert len(fnames) > 0, " No wave files found in {0}".format(source)
 
         # default time stamp
-        t0 = datetime.datetime.today()
-        t0 = datetime.datetime.combine(t0, datetime.datetime.min.time())
+        if datetime_stamp is not None:
+            t0 = datetime.datetime.strptime(datetime_stamp, datetime_fmt)  
+        else:
+            t0 = datetime.datetime.today()
+            t0 = datetime.datetime.combine(t0, datetime.datetime.min.time())
 
         # time stamps
         for f in fnames:
@@ -1186,24 +1202,29 @@ class AudioSequenceReader:
                 >>> 
                 >>> # Define the size (in samples) for each batch.
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
+                >>> # Define a default datetime stamp
+                >>> datetime_stamp = "1960-06-10 16:30:00.000"
+                >>> # Define the datetime format specification
+                >>> datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
+                >>>
                 >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source = list_of_files, rate=2000)
+                >>> reader = AudioSequenceReader(source = list_of_files, rate=2000, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
                 >>>
                 >>> seq1 = reader.next(size=size)
                 >>> seq2 = reader.next(size=size)
                 >>> reader.log()
                                       time                                             file
-                0  2019-03-20 00:00:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
-                1  2019-03-20 00:00:01.950  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
-                2  2019-03-20 00:00:03.900  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
-                3  2019-03-20 00:00:05.850  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
-                4  2019-03-20 00:00:07.800  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
-                5  2019-03-20 00:00:09.750  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
-                6  2019-03-20 00:00:11.700  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
-                7  2019-03-20 00:00:13.650  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
-                8  2019-03-20 00:00:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
-                9  2019-03-20 00:00:17.550  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
-                10 2019-03-20 00:00:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
+                0  1960-06-10 16:30:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
+                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
+                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
+                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
+                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
+                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
+                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
+                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                8  1960-06-10 16:30:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
+                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                10 1960-06-10 16:30:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
 
         """
         n = len(self.times)
