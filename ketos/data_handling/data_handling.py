@@ -858,6 +858,7 @@ class AudioSequenceReader:
                 If the specified directory does not have any .wav files
 
         Examples:
+
         >>> from ketos.data_handling.data_handling import AudioSequenceReader
         >>> # Define the folder containing the audio files
         >>> path_to_files = "ketos/tests/assets/2s_segs"
@@ -929,7 +930,7 @@ class AudioSequenceReader:
                 >>>
                 >>> # Define the size (in samples) for each batch.
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz
-                
+                >>>                
                 >>> # Create an AudioSequenceReader object with the first list of files
                 >>> reader = AudioSequenceReader(source=list_of_files_1, rate=2000)
                 >>> # Load the reader with a new source of files
@@ -1131,7 +1132,7 @@ class AudioSequenceReader:
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz
                 >>> # Create an AudioSequenceReader object
                 >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
-                
+                >>>
                 >>> # Go through the batches, retriving the merged ausio signal
                 >>> # and printing the number of samples in each, until there are no btaches left unprocessed
                 >>> while reader.finished() != True:
