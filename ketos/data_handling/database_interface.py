@@ -643,9 +643,22 @@ def parse_boxes(item):
     return boxes
 
 def create_spec_database(output, folder, annotations_file=None,\
-        sampling_rate=None, channel=0, window_size=0.2, step_size=0.02,\
+        sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
         flow=None, fhigh=None, max_size=100, progress_bar=False):
-    """ Create a database with spectrograms from raw audio (*.wav) files
+    """ Create a database with spectrograms computed from raw audio (*.wav) files
+
+        One spectrogram is created for each audio file.
+
+        All spectrograms will have the same length. 
+        
+        If the audio file is shorter than the specified duration, the spectrogram will 
+        be padded with zeros to achieve the desired duration. 
+        
+        If the wave file is longer than the specified duration, the spectrogram 
+        will be split into segments, each with the desired duration.
+
+        If duration is not specified (default), all shorter spectrograms will be padded 
+        with zeros to match the length of the longest spectrogram.
 
         Args:
             output: str
@@ -662,6 +675,8 @@ def create_spec_database(output, folder, annotations_file=None,\
                 Window size (seconds) used for computing the spectrogram
             step_size: float
                 Step size (seconds) used for computing the spectrogram
+            duration: float
+                Duration in seconds of individual spectrograms.
             flow: float
                 Lower cut on frequency (Hz)
             fhigh: float
@@ -728,7 +743,7 @@ def create_spec_database(output, folder, annotations_file=None,\
         # save spectrograms to file
         if tot_size > max_size and len(specs) > 1:
             out = base + '_{:03d}'.format(file_counter) + ext
-            save_specs(specs[:-1], out)
+            _save_specs(specs[:-1], out)
             res.append(out)
             file_counter += 1
             specs = [s]
@@ -736,12 +751,12 @@ def create_spec_database(output, folder, annotations_file=None,\
 
     # save remaining spectrograms to file, if any
     out = base + '_{:03d}'.format(file_counter) + ext
-    save_specs(specs, out)
+    _save_specs(specs, out)
     res.append(out)
 
     return res
 
-def save_specs(specs, filename, path='/', name='raw'):
+def _save_specs(specs, filename, path='/', name='raw'):
     """ Save spectrograms to database file (*.h5)
 
         Args:
