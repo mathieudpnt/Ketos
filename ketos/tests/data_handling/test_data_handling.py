@@ -1,14 +1,27 @@
-""" Unit tests for the the 'data_handling' module in the 'sound_classification' package
-
+""" Unit tests for the 'data_handling' module within the ketos library
 
     Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca and oliver.kirsebom@dal.ca
-    Organization: MERIDIAN-Institute for Big Data Analytics
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: Package code internally used in projects applying Deep Learning to sound classification
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
@@ -18,7 +31,7 @@ import pandas as pd
 import ketos.data_handling.data_handling as dh
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.spectrogram import MagSpectrogram
-from ketos.data_handling.data_handling import BatchReader
+from ketos.data_handling.data_handling import AudioSequenceReader
 from ketos.audio_processing.audio import AudioSignal
 import datetime
 import shutil
@@ -32,55 +45,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 today = datetime.datetime.today()
 
-@pytest.mark.test_encode_database
-def test_encode_database_with_one_image_and_one_label(datebase_with_one_image_col_and_one_label_col):
-    db = datebase_with_one_image_col_and_one_label_col
-    dh.encode_database(db, "image", "label")
-    
-@pytest.mark.test_encode_database
-def test_encode_database_throws_exception_if_names_do_not_match(datebase_with_one_image_col_and_one_label_col):
-    db = datebase_with_one_image_col_and_one_label_col
-    with pytest.raises(AssertionError):
-        dh.encode_database(db, "kangaroo", "label")
 
-@pytest.mark.test_encode_database
-def test_encode_database_throws_exception_if_database_does_not_have_a_label_column(datebase_with_one_image_col_and_no_label_col):
-    db = datebase_with_one_image_col_and_no_label_col
-    with pytest.raises(AssertionError):
-        dh.encode_database(db, "image", "label")
-
-@pytest.mark.test_encode_database
-def test_encode_database_can_handle_inputs_with_multiple_columns(datebase_with_two_image_cols_and_one_label_col):
-    db = datebase_with_two_image_cols_and_one_label_col
-    dh.encode_database(db, "image1", "label")
-
-@pytest.mark.test_split_database
-def test_split_database_throws_exception_unless_all_three_keys_are_given(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    encoded, img_size = dh.encode_database(raw, "image", "label") 
-    divisions = {"train":(0,100),"validation":(0,100)}
-    with pytest.raises(AssertionError):
-        split = dh.split_database(encoded, divisions)
-    divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
-    split = dh.split_database(encoded, divisions)
-
-@pytest.mark.test_stack_dataset
-def test_stack_dataset_throws_exception_if_column_names_do_not_match(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    with pytest.raises(AssertionError):
-        dh.stack_dataset(raw,(128,128))
-
-@pytest.mark.test_stack_dataset
-def test_stack_dataset_automatically_determines_image_size(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    encoded, img_size = dh.encode_database(raw, "image", "label")
-    stacked = dh.stack_dataset(encoded, img_size)   
-
-@pytest.mark.test_prepare_database
-def test_prepare_database_executes(datebase_with_one_image_col_and_one_label_col):
-    raw = datebase_with_one_image_col_and_one_label_col
-    divisions = {"train":(0,100),"validation":(0,100),"test":(0,100)}
-    dh.prepare_database(raw, "image", "label", divisions) 
 
 @pytest.mark.parametrize("input,depth,expected",[
     (1,2,np.array([0,1])),
@@ -150,9 +115,9 @@ def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
     for i in range(len(one_hot)):
         assert (one_hot[i] == expected[i]).all()
 
-@pytest.mark.test_get_wave_files
-def test_get_wave_files():
-    dir = os.path.join(path_to_assets,'test_get_wave_files')
+@pytest.mark.test_find_wave_files
+def test_find_wave_files():
+    dir = os.path.join(path_to_assets,'test_find_wave_files')
     #delete directory and files within
     if os.path.exists(dir):
         shutil.rmtree(dir)
@@ -163,18 +128,18 @@ def test_get_wave_files():
     ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
     ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.get_wave_files(dir, fullpath=False)
+    files = dh.find_wave_files(dir, fullpath=False)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.get_wave_files(dir, fullpath=True)
+    files = dh.find_wave_files(dir, fullpath=True)
     assert len(files) == 2
     assert files[0] == f1
     assert files[1] == f2
     #delete directory and files within
     shutil.rmtree(dir)
 
-def test_get_wave_files_from_multiple_folders():
+def test_find_wave_files_from_multiple_folders():
     folder = path_to_assets + "/sub"
     # create two wave files in separate subfolders
     sub1 = folder + "/sub1"
@@ -193,11 +158,11 @@ def test_get_wave_files_from_multiple_folders():
     ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
     ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.get_wave_files(folder, fullpath=False, subdirs=True)
+    files = dh.find_wave_files(folder, fullpath=False, subdirs=True)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.get_wave_files(folder, fullpath=True, subdirs=True)
+    files = dh.find_wave_files(folder, fullpath=True, subdirs=True)
     assert len(files) == 2
     assert files[0] == f1
     assert files[1] == f2
@@ -256,7 +221,7 @@ def test_parse_datetime_with_urban_sharks_format():
     full_path = os.path.join(path_to_assets, fname)
     ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt is not None
     assert dt.year == 2084
@@ -272,27 +237,10 @@ def test_parse_datetime_with_non_matching_format():
     full_path = os.path.join(path_to_assets, fname)
     ap.wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    dt = dh.parse_datetime(fname=fname, fmt=fmt)
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt == None
 
-
-
-@pytest.mark.audio_table_description
-def test_audio_table_description():
-    description = dh.audio_table_description(signal_rate=2000, segment_length=2.5)
-    description_columns = list(description.columns.keys())
-    description_columns.sort()
-    assert description_columns ==  ['boxes','id', 'labels', 'signal']
-    assert description.columns['signal'].shape == (5000,)
-
-@pytest.mark.spec_table_description
-def test_spec_table_description():
-    description = dh.spec_table_description(dimensions=(20,64))
-    description_columns = list(description.columns.keys())
-    description_columns.sort()
-    assert description_columns ==  ['boxes','id', 'labels', 'signal']
-    assert description.columns['signal'].shape == (20, 64)
 
 @pytest.mark.parse_seg_name
 def test_parse_seg_name():
@@ -312,126 +260,28 @@ def test_parse_seg_name():
     assert id == 'rb001_89'
     assert labels == '[1,2]' 
 
-@pytest.mark.test_open_table
-def test_open_tables():
-    
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-
-    raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_table_description(dimensions=(20,60))
-
-    table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=2000)
-    assert '/group_1' in h5
-    assert '/group_1/table_1' in h5
-
-    table_2 = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_2' in h5
-    assert '/group_2/table_1' in h5
-
-    table_3 = dh.open_table(h5, '/group_2/subgroup_1', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_2/subgroup_1' in h5
-    assert '/group_2/subgroup_1/table_1' in h5
-
-    table_4 = dh.open_table(h5, '/group_3/subgroup_1', 'table_1',spec_description, sample_rate=2000)
-    assert '/group_3/subgroup_1' in h5
-    assert '/group_3/subgroup_1/table_1' in h5
-
-
-    #When information about an existing table is given, it should return the table and not create a new one
-    existing_table = dh.open_table(h5, '/group_2', 'table_1',spec_description, sample_rate=2000 )
-
-    assert existing_table == table_2
-    
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-
-
-@pytest.mark.test_write_audio_to_table
-def test_write_audio_to_table(sine_wave):
-    
-    rate, sig = sine_wave
-    ap.wave.write(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"),rate, sig)    
-    
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-
-    raw_description = dh.audio_table_description(signal_rate=44100, segment_length=3.0)
-    spec_description = dh.spec_table_description(dimensions=(20,60))
-
-    table_1 = dh.open_table(h5, '/group_1', 'table_1',raw_description, sample_rate=44100)
-    
-    dh.write_audio_to_table(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"), table_1)
-    table_1.flush()
-
-    pytest.approx(table_1[0]['signal'], sig)
-    assert table_1[0]['id'].decode() == 'ex789_107'
-    assert table_1[0]['labels'].decode() == '[1]'
-
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-    os.remove(os.path.join(path_to_tmp,"id_ex789_107_l_[1].wav"))
-
-@pytest.mark.test_write_spec_to_table
-def test_write_spec_to_table(sine_audio):
-    
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = "id_ex789_107_l_[1]"
-        
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-    spec_description = dh.spec_table_description(dimensions=(26, 11026))
-    table_1 = dh.open_table(h5, '/group_1', 'table_1', spec_description, sample_rate=44100)
-    
-    dh.write_spec_to_table(table_1, spec)
-    table_1.flush()
-
-    assert pytest.approx(table_1[0]['signal'],spec.image)
-    assert table_1[0]['id'].decode() == 'ex789_107'
-    assert table_1[0]['labels'].decode() == '[1]'
-
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-
-@pytest.mark.test_write_spec_to_table
-def test_write_spec_to_table_with_optional_args(sine_audio):
-    
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = "id_ex789_107_l_[1]"
-        
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp2_db.h5'), 'w')
-    spec_description = dh.spec_table_description(dimensions=(26, 11026))
-    table_1 = dh.open_table(h5, '/group_1', 'table_1',spec_description, sample_rate=44100)
-    
-    dh.write_spec_to_table(table_1, spec, id='id123?$', labels=(0,1,3), boxes=((0.1,0.8,40,400.5),(1.2,2.8,0.77,200.0),(7.7,77,40.0,500.5)))
-    table_1.flush()
-
-    assert pytest.approx(table_1[0]['signal'],spec.image)
-    assert table_1[0]['id'].decode() == 'id123?$'
-    assert table_1[0]['labels'].decode() == '[0,1,3]'
-    assert table_1[0]['boxes'].decode() == '[[0.1,0.8,40.0,400.5],[1.2,2.8,0.77,200.0],[7.7,77.0,40.0,500.5]]'
-
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp2_db.h5'))
 
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
-    audio_file = path_to_assets+ "/2min.wav"
+    audio_file = path_to_assets + "/2min.wav"
     annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=annotations, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*.wav"))
     assert n_seg == 60
 
 
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_divide_audio_into_segments
@@ -442,19 +292,19 @@ def test_start_end_args():
                                  'end':[6.0,75.98,110.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, start_seg=10, end_seg=19, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, start_seg=10, end_seg=19, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*.wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*.wav"))
     assert n_seg == 10
 
 
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 @pytest.mark.test_divide_audio_into_segments
 def test_seg_labels_are_correct():
@@ -464,23 +314,23 @@ def test_seg_labels_are_correct():
                                  'end':[6.0,73.0,108.0]})
 
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=annotations, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=annotations, save_to=path_to_tmp + "/2s_segs")
     
-    label_0 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]0].wav"))
+    label_0 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]0].wav"))
     assert label_0 == 53
 
-    label_1 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]1].wav"))
+    label_1 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]1].wav"))
     assert label_1 == 5
 
-    label_2 = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]2].wav"))
+    label_2 = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]2].wav"))
     assert label_2 == 2
 
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_divide_audio_into_segments
@@ -488,17 +338,17 @@ def test_creates_segments_without_annotations():
     audio_file = path_to_assets+ "/2min.wav"
     
     try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
+        shutil.rmtree(path_to_tmp + "/2s_segs")
     except FileNotFoundError:
         pass
 
     dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=None, save_to=path_to_assets + "/2s_segs")
+        seg_duration=2.0, annotations=None, save_to=path_to_tmp + "/2s_segs")
     
-    n_seg = len(glob(path_to_assets + "/2s_segs/id_2min*l_[[]NULL].wav"))
+    n_seg = len(glob(path_to_tmp + "/2s_segs/id_2min*l_[[]NULL].wav"))
 
     assert n_seg == 60
-    shutil.rmtree(path_to_assets + "/2s_segs")
+    shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
 @pytest.mark.test_seg_from_time_tag
@@ -608,54 +458,15 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-@pytest.mark.test_create_spec_table_from_audio_table
-def test_create_spec_table_from_audio_table():
-    audio_file = path_to_assets+ "/2min.wav"
-    
-    try:
-        shutil.rmtree(path_to_assets + "/2s_segs")
-    except FileNotFoundError:
-        pass
-
-    dir = path_to_assets + "/2s_segs"
-    dh.divide_audio_into_segs(audio_file=audio_file,
-        seg_duration=2.0, annotations=None, save_to=dir)
-
-    h5 = dh.tables.open_file(os.path.join(path_to_tmp, 'tmp_db.h5'), 'w')
-
-    raw_description = dh.audio_table_description(signal_rate=2000, segment_length=2.0)
-    spec_description = dh.spec_table_description(dimensions=(20,60))
-
-    table_raw = dh.open_table(h5, '/raw', 'seq_2s',raw_description, sample_rate=2000)
-    
-    segs = os.listdir(dir)
-    for seg in segs:
-        dh.write_audio_to_table(os.path.join(dir,seg),table_raw, pad=True, duration=2.0)
-
-    table_raw.flush()
-    
-    dh.create_spec_table_from_audio_table(h5, table_raw, "/features/mag_spectrograms/", "seq_2s", MagSpectrogram, winlen=0.25, winstep=0.05)
-    spec_table = h5.root.features.mag_spectrograms.seq_2s
-
-    assert len(spec_table) == len(segs)
-    assert pytest.approx(spec_table[:]['id'], table_raw[:]['id'])
-    assert pytest.approx(spec_table[:]['labels'], table_raw[:]['labels'])
-    
-    h5.close()
-    os.remove(os.path.join(path_to_tmp, 'tmp_db.h5'))
-
-    shutil.rmtree(path_to_assets + "/2s_segs")
-
-
 
 
 def test_init_batch_reader_with_single_file(sine_wave_file):
-    reader = BatchReader(source=sine_wave_file)
+    reader = AudioSequenceReader(source=sine_wave_file)
     assert len(reader.files) == 1
     assert reader.files[0][0] == sine_wave_file
 
 def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
     assert len(reader.files) == 2
     assert reader.files[0][0] == sine_wave_file
     assert reader.files[1][0] == sawtooth_wave_file
@@ -684,14 +495,14 @@ def five_time_stamped_wave_files():
 
 def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
-    reader = BatchReader(source=folder)
+    reader = AudioSequenceReader(source=folder)
     assert len(reader.files) == 5
 
 def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
     print(folder)
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
     b = reader.next(700)
     assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=0, microsecond=0)
     b = reader.next(600)
@@ -704,7 +515,7 @@ def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
 def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
     folder = five_time_stamped_wave_files
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = BatchReader(source=folder, datetime_fmt=fmt)
+    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
     reader.next()
     log = reader.log()
     for i in range(5):
@@ -726,14 +537,14 @@ def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
 
 def test_next_batch_with_single_file(sine_wave_file):
     s = AudioSignal.from_wav(sine_wave_file)
-    reader = BatchReader(source=sine_wave_file)
+    reader = AudioSequenceReader(source=sine_wave_file)
     assert reader.finished() == False
     b = reader.next()
     assert reader.finished() == True
     assert b.duration() == s.duration()
 
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
     b = reader.next()
     s1 = AudioSignal.from_wav(sine_wave_file)
     s2 = AudioSignal.from_wav(sawtooth_wave_file)
@@ -747,7 +558,7 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     n1 = len(s1.data)
     n2 = len(s2.data)
     size = int((n1+n2) / 1.5)
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
     b = reader.next(size)
     assert reader.finished() == False
     assert len(b.data) == size
@@ -764,7 +575,7 @@ def test_next_batch_with_two_very_short_files():
     s2 = AudioSignal.from_wav(short_file_2)
     n1 = len(s1.data)
     n2 = len(s2.data)
-    reader = BatchReader(source=[short_file_1, short_file_2])
+    reader = AudioSequenceReader(source=[short_file_1, short_file_2])
     b = reader.next()
     assert reader.finished() == True
     assert len(b.data) == n1+n2-2
@@ -774,13 +585,13 @@ def test_next_batch_with_empty_file_and_resampling():
     ap.wave.write(empty, rate=4000, data=np.empty(0))
     s = AudioSignal.from_wav(empty)
     n = len(s.data)
-    reader = BatchReader(source=[empty], rate=2000)
+    reader = AudioSequenceReader(source=[empty], rate=2000)
     b = reader.next()
     assert reader.finished() == True
     assert b is None
 
 def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = BatchReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
     b = reader.next()
     s1 = AudioSignal.from_wav(sine_wave_file)
     s2 = AudioSignal.from_wav(sawtooth_wave_file)

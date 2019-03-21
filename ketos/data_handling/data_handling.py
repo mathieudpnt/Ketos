@@ -1,17 +1,30 @@
-"""Data Handling module within the sound_classification package
+""" Data handling module within the ketos library
 
-This module includes functions useful when preparing data for 
-Deep Neural Networks applied to sound classification within MERIDIAN.
+    This module provides utilities to load and handle data files.
 
-Authors: Fabio Frazao and Oliver Kirsebom
-    contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN
-    Team: Acoustic data Analytics, Dalhousie University
-    Project: packages/sound_classification
-             Project goal: To package code useful for handling data, deriving features and 
-             creating Deep Neural Networks for sound classification projects.
+    
+    Authors: Fabio Frazao and Oliver Kirsebom
+    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
+    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
+    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
+    Project: ketos
+             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
+             creating deep neural networks for sound detection and classification projects.
      
-    License:
+    License: GNU GPLv3
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 import numpy as np
@@ -25,42 +38,69 @@ from subprocess import call
 import scipy.io.wavfile as wave
 import ketos.external.wavfile as wave_bit
 from ketos.utils import tostring
-#from sound_classification.data_handling import get_wave_files, parse_datetime
 import datetime
 import datetime_glob
 import re
 
 
 
-def parse_datetime(fname, fmt=None, replace_spaces='0'):
-    """
-        Parse date-time data from string.
-
-        Uses the datetime_glob package (https://pypi.org/project/datetime-glob/).
-
-        Returns None if parsing fails.
+def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
+    """Parse date-time data from string.
+       
+       Returns None if parsing fails.
         
         Args:
-            fname: str
-                String with date-time data.
-            datetime_fmt: str
-                Date-time format
+            to_parse: str
+                String with date-time data to parse.
+            fmt: str
+                String defining the date-time format. 
+                Example: %d_%m_%Y* would capture "14_3_1999.txt"
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives
+                
             replace_spaces: str
                 If string contains spaces, replaces them with this string
 
         Returns:
-            datetime
-                datetime object
+            datetime: datetime object
+
+        Examples:
+            >>> #This will parse dates in the day/month/year format,
+            >>> #separated by '/'. It will also ignore any text after the year,
+            >>> # (such as a file extension )
+            >>>
+            >>> from ketos.data_handling.data_handling import parse_datetime           
+            >>> fmt = "%d/%m/%Y*"
+            >>> result = parse_datetime("10/03/1942.txt", fmt)
+            >>> result.year
+            1942
+            >>> result.month
+            3
+            >>> result.day
+            10
+            >>>
+            >>> # Now with the time (hour:minute:second) separated from the date by an underscore
+            >>> fmt = "%H:%M:%S_%d/%m/%Y*"
+            >>> result = parse_datetime("15:43:03_10/03/1918.wav", fmt)
+            >>> result.year
+            1918
+            >>> result.month
+            3
+            >>> result.day
+            10
+            >>> result.hour
+            15
+            >>> result.minute
+            43
+            >>> result.second
+            3
     """
 
-    # replace spaces with zeros
-    for i in range(len(fname)):
-        if fname[i] == ' ':
-            fname = fname[:i] + replace_spaces + fname[i+1:]
-
+    # replace spaces
+    to_parse = to_parse.replace(' ', replace_spaces)
+    
     if fmt is not None:
         matcher = datetime_glob.Matcher(pattern=fmt)
-        match = matcher.match(path=fname)
+        match = matcher.match(path=to_parse)
         if match is None:
             return None
         else:
@@ -68,7 +108,7 @@ def parse_datetime(fname, fmt=None, replace_spaces='0'):
 
     return None
 
-def get_files(path, substr, fullpath=True, subdirs=False):
+def find_files(path, substr, fullpath=True, subdirs=False):
     """ Find all files in the specified directory containing the specified substring in their file name
 
         Args:
@@ -77,13 +117,26 @@ def get_files(path, substr, fullpath=True, subdirs=False):
             substr: str
                 Substring contained in file name
             fullpath: bool
-                Return full path to each file or just the file name 
+                If True, return relative path to each file. If false, only return the file names 
             subdirs: bool
-                Also search all subdirectories
+                If True, search all subdirectories
 
         Returns:
             files: list (str)
                 Alphabetically sorted list of file names
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import find_files
+            >>>
+            >>> # Find files that contain 'super' in the name;
+            >>> # Do not return the relative path
+            >>> find_files(path="ketos/tests/assets", substr="super", fullpath=False)
+            ['super_short_1.wav', 'super_short_2.wav']
+            >>>
+            >>> # find all files with '.h5" in the name
+            >>> # Return the relative path
+            >>> find_files(path="ketos/tests/assets", substr=".h5")
+            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()
@@ -117,37 +170,69 @@ def get_files(path, substr, fullpath=True, subdirs=False):
     return files
 
 
-def get_wave_files(path, fullpath=True, subdirs=False):
+def find_wave_files(path, fullpath=True, subdirs=False):
     """ Find all wave files in the specified directory
 
         Args:
             path: str
                 Directory path
             fullpath: bool
-                Return full path to each file or just the file name 
+                Return relative path to each file or just the file name 
 
         Returns:
             wavefiles: list (str)
                 Alphabetically sorted list of file names
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import find_wave_files
+            >>>
+            >>> find_wave_files(path="ketos/tests/assets", fullpath=False)
+            ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
+
     """
-    wavefiles = get_files(path, '.wav', fullpath, subdirs)
+    wavefiles = find_files(path, '.wav', fullpath, subdirs)
     return wavefiles
 
 
 def read_wave(file, channel=0):
-    """ Read wave file in either mono or stereo mode
+    """ Read a wave file in either mono or stereo mode
 
         Args:
             file: str
-                Wave file path
-            channel: bool
+                path to the wave file
+            channel: int
                 Which channel should be used in case of stereo data (0: left, 1: right) 
+
+        Returns: (rate,data)
+            rate: int
+                The sampling rate
+            data: numpy.array (float)
+                A 1d array containing the audio data
+        
+        Examples:
+            >>> from ketos.data_handling.data_handling import read_wave
+            >>> rate, data = read_wave("ketos/tests/assets/2min.wav")
+            >>> # the function returns the sampling rate (in Hz) as an integer
+            >>> type(rate)
+            <class 'int'>
+            >>> rate
+            2000
+            >>> # And the actual audio data is a numpy array
+            >>> type(data)
+            <class 'numpy.ndarray'>
+            >>> len(data)
+            241664
+            >>> # Since each item in the vector is one sample,
+            >>> # The duration of the audio in seconds can be obtained by
+            >>> # dividing the the vector length by the sampling rate
+            >>> len(data)/rate
+            120.832
     """
     try:
         rate, signal, _ = wave_bit.read(file)
     except TypeError:
         rate, signal = wave.read(file)
-        
+           
     if len(signal.shape) == 2:
         data = signal[:, channel]
     else:
@@ -155,35 +240,14 @@ def read_wave(file, channel=0):
     return rate, data
 
 def create_dir(dir):
-    """ Create a new directory only if it does not exist
+    """ Create a new directory if it does not exist
 
+        Will also create any intermediate directories that do not exist
         Args:
             dir: str
-                The path to the new directory
-        Raises:
-                EEXIST (17) if dir already exists
-    """
-    try:
-        os.makedirs(dir)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-def slice_ffmpeg(file,start,end,out_name):
-    """ Creates an audio segment from a longer audio file using ffmpeg package.
-
-        Args:
-            file: str
-                The path to the original file.
-            start: float
-                The start time in seconds.
-            end: float
-                The end time in seconds.
-            out_name: str
-                The path to the output file.
-        
-    """
-    call(["ffmpeg", "-loglevel", "quiet", "-i", file, "-ss", str(start), "-to", str(end), "-y", out_name])
+               The path to the new directory
+     """
+    os.makedirs(dir, exist_ok=True)
 
 def to1hot(value,depth):
     """Converts the binary label to one hot format
@@ -201,10 +265,19 @@ def to1hot(value,depth):
                     for the given value(s).
 
             Example:
+                >>> from ketos.data_handling.data_handling import to1hot
+                >>>
+                >>> # An example with two possible labels (0 or 1)
                 >>> values = np.array([0,1])
                 >>> to1hot(values,depth=2)
                 array([[1., 0.],
                        [0., 1.]])
+                >>>
+                >>> # The same example with 4 possible labels (0,1,2 or 3)
+                >>> values = np.array([0,1])
+                >>> to1hot(values,depth=4)
+                array([[1., 0., 0., 0.],
+                       [0., 1., 0., 0.]])
      """
     value = np.int64(value)
     one_hot = np.eye(depth)[value]
@@ -215,14 +288,16 @@ def from1hot(value):
 
             Args:
                 value: scalar or numpy.array | int or float
-                    The the label to be converted.
+                    The  label to be converted.
             
             Returns:
                 output: int or numpy array (dtype=int64)
                     An int representing the category if 'value' has 1 dimension or an
-                    array of m ints if  input values is an n by m array.
+                    array of m ints if values is an n by m array.
 
             Example:
+                >>> from ketos.data_handling.data_handling import from1hot
+                >>>
                 >>> from1hot(np.array([0,0,0,1,0]))
                 3
                 >>> from1hot(np.array([[0,0,0,1,0],
@@ -239,193 +314,97 @@ def from1hot(value):
 
     return output
 
-def encode_database(database, x_column, y_column):
-    """ Encodes database in a format suitable for machine learning:
-         - the input images are flattened (i.e. matrices converted to row vectors).
-         - the labels are one-hot encoded.
-
-    Args:
-        database: pandas DataFrame
-            A the database containing at least one column of input images
-            and one column of labels
-        x_column: str
-            The name of the column to be used as input
-        y_column: str
-            The name of the column to be used as label.
-            Must be binary (only have 1s or 0s).
-
-        Returns:
-            database: pandas DataFrame
-                The encoded database with two columns: 'x_flatten' containing
-                the flatten input images (as vectors instead of matrices) and
-                'one_hot_encoding' containing the one hot version of the labels.
-            image_shape: tuple (int,int)
-                Tuple specifying the shape of the input images in pixels. Example: (128,128)
-    """
-
-    # assert that columns exist
-    assert x_column in database.columns, "database does not contain image column named '{0}'".format(x_column)   
-    assert y_column in database.columns, "database does not contain label column named '{0}'".format(y_column)
-
-    # check data sanity
-    check_data_sanity(database[x_column], database[y_column])
-
-    # determine image size
-    image_shape = get_image_size(database[x_column])
-
-    depth = database[y_column].max() + 1 #number of classes
-    database["one_hot_encoding"] = database[y_column].apply(to1hot,depth=depth)
-    database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
-
-    return database, image_shape
-
-def split_database(database, divisions):
-    """ Split the database into 3 datasets: train, validation, test.
-
-        Args:
-        database : pandas.DataFrame
-            The database to be split. Must contain at least 2 colummns (x, y).
-            Each row is an example.
-        divisions: dict
-            Dictionary indicating the initial and final rows for each dataset (Obs: final row is *not* included).
-            Keys must be "train", "validation" and "test".
-            values are tuples with initial and final rows.
-            Example: {"train":(0,1000),
-                        "validation": (1000,1200),
-                        "test": (1200:1400)}
-         Returns:
-            datasets : dict
-                Dictionary with "train", "validation" and "test" as keys
-                and the respective datasets (pandas.Dataframes) as values.
-    """
-    assert "train" in divisions, "'divisions' does not contain key 'train'"   
-    assert "validation" in divisions, "'divisions' does not contain key 'validation'"   
-    assert "test" in divisions, "'divisions' does not contain key 'test'"   
-
-    train_data = database[divisions["train"][0]:divisions["train"][1]]
-    validation_data = database[divisions["validation"][0]:divisions["validation"][1]]
-    test_data = database[divisions["test"][0]:divisions["test"][1]]
-
-    datasets = {"train": train_data,
-                "validation": validation_data,
-                "test": test_data}
-
-    return datasets
-
-
-def stack_dataset(dataset, input_shape):
-    """ Stack and reshape a dataset.
-
-     
-        Args:
-            dataset: pandas DataFrame
-                A pandas dataset with two columns:'x_flatten' and
-                'one_hot_encoding' (the output of the 'encode_database' function)
-
-        Results:
-            stacked_dataset: dict (of numpy arrays)
-            A dictionary containing the stacked versions of the input and labels, 
-            respectively under the keys 'x' and 'y'
-    """
-
-    assert "x_flatten" in dataset.columns, "'dataset' does not contain column named 'x_flatten'"   
-    assert "one_hot_encoding" in dataset.columns, "'dataset' does not contain column named 'one_hot_encoding'"
-
-    x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
-    y = np.vstack(dataset.one_hot_encoding)
-
-    stacked_dataset = {'x': x,
-                       'y': y}
-
-    return stacked_dataset
-
-def prepare_database(database, x_column, y_column, divisions):
-    """ Encode data base, split it into training, validation and test sets
-        and stack those sets.
-
-        This function is a wrap around the 'encode_database', 'split_databases'
-        and 'stack_datasets'
-
-        Args:
-            database: pandas DataFrame
-                A database containing at least one column of input images
-                and one column of labels
-            x_column: str
-                The name of the column to be used as input
-            y_column: str
-                The name of the column to be used as label.
-                Must be binary (only have 1s or 0s).
-            divisions: dict
-                Dictionary indicating the initial and final rows for each dataset.
-                Keys must be "train", "validation" and "test".
-                values are tuples with initial and final rows.
-                Example: {"train":(0,1000),
-                            "validation": (1000,1200),
-                            "test": (1200:1400)}
-
-        Returns:
-            stacked_datasets: dict
-                A dictionary containing the stacked datasets.
-                Keys are: train_x, train_y, validation_x, validation_y
-                          test_x and test_y. Values are the respective
-                                             stacked datasets (numpy arrays)
-    """
-
-    encoded_data, input_shape = encode_database(database=database, x_column=x_column, y_column=y_column)
-    datasets = split_database(database=encoded_data, divisions=divisions)
-    
-    stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
-    stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
-    stacked_test = stack_dataset(dataset=datasets["test"], input_shape=input_shape)
-    
-    stacked_datasets = {"train_x": stacked_train["x"],
-                        "train_y": stacked_train["y"],
-                        "validation_x": stacked_validation["x"],
-                        "validation_y": stacked_validation["y"],
-                        "test_x": stacked_test["x"],
-                        "test_y": stacked_test["y"]}
-
-    return stacked_datasets
 
 def check_data_sanity(images, labels):
     """ Check that all images have same size, all labels have values, 
         and number of images and labels match.
      
         Args:
-            images: numpy array
+            images: numpy array or pandas series
                 Images
-            labels: numpy array
+            labels: numpy array or pandas series
                 Labels
+        Raises:
+            ValueError:
+                If no images or labels are passed;
+                If the number of images and labels is different;
+                If images have different shapes;
+                If any labels are NaN.
 
-        Results:
-            image_size: tuple (int,int)
-                Image size
+       Returns:
+            True if all checks pass.
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import check_data_sanity
+            >>> # Load a database with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>> images = data['image']
+            >>> labels = data['label']
+            >>> # When all the images and labels  pass all the quality checks,
+            >>> # The function returns True            
+            >>> check_data_sanity(images, labels)
+            True
+            >>> # If something is wrong, like if the number of labels
+            >>> # is different from the number of images, and exeption is raised
+            >>> labels = data['label'][:10] 
+            >>> check_data_sanity(images, labels=labels)
+            Traceback (most recent call last):
+                File "/usr/lib/python3.6/doctest.py", line 1330, in __run
+                    compileflags, 1), test.globs)
+                File "<doctest data_handling.check_data_sanity[5]>", line 1, in <module>
+                    check_data_sanity(images, labels=labels)
+                File "ketos/data_handling/data_handling.py", line 599, in check_data_sanity
+                    raise ValueError("Image and label columns have different lengths")
+            ValueError: Image and label columns have different lengths
+
+
+
     """
-    if images is None and labels is None:
-        return True
+    checks = True
+    if images is None or labels is None:
+        raise ValueError(" Images and labels cannot be None")
+        
 
     # check that number of images matches numbers of labels
-    assert len(images) == len(labels), "Image and label columns have different lengths"
+    if len(images) != len(labels):
+        raise ValueError("Image and label columns have different lengths")
 
     # determine image size and check that all images have same size
     image_shape = images[0].shape
-    assert all(x.shape == image_shape for x in images), "Images do not all have the same size"
+    if not all(x.shape == image_shape for x in images):
+        raise ValueError("Images do not all have the same size")
 
     # check that all labels have values
     b = np.isnan(labels)    
     n = np.count_nonzero(b)
-    assert n == 0, "Some labels are NaN"
+    if n != 0:
+        raise ValueError("Some labels are NaN")
+    
+    return checks
 
 def get_image_size(images):
     """ Get image size and check that all images have same size.
      
         Args:
-            images: numpy array
+            images: numpy array or pandas series
                 Images
 
         Results:
             image_size: tuple (int,int)
                 Image size
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import get_image_size
+            >>> import pandas as pd
+            >>>
+            >>> # Load a dataset with images and integer labels
+            >>> data = pd.read_pickle("ketos/tests/assets/pd_img_db.pickle")
+            >>>
+            >>> # Select only the images from the dataset
+            >>> images = data['image']
+            >>> get_image_size(images)
+            (20, 20)
+
     """
     # determine image size and check that all images have same size
     image_shape = images[0].shape
@@ -433,54 +412,6 @@ def get_image_size(images):
 
     return image_shape
 
-def audio_table_description(signal_rate, segment_length):
-    """ Create the class that describes the raw signal table structure for the HDF5 database.
-     
-        Args:
-            signal_rate: int
-                The sampling rate of the signals to be stored in this table
-            segment_length: float
-                The duration of each segment (in seconds) that will be stored in this table.
-                All segments must have the same length
-
-        Results:
-            TableDescription: class (tables.IsDescription)
-                The class describing the table structure. To be used when creating tables 
-                in the HDF5 database.
-    """
-
-
-    signal_length = int(np.ceil(signal_rate * segment_length))
-
-    class TableDescription(tables.IsDescription):
-            id = tables.StringCol(25)
-            labels = tables.StringCol(100)
-            signal = tables.Float32Col(shape=(signal_length))
-            boxes = tables.StringCol(100)
-
-    
-    return TableDescription
-
-def spec_table_description(dimensions):
-    """ Create the class that describes an image (e.g.: a spectrogram) table structure for the HDF5 database.
-             
-        Args:
-            dimension : tuple (ints)
-            A tuple with ints describing the number of rows and number of collumns of each 
-            image to be stored in the table (n_rows,n_cols). Optionally, a third integer 
-            can be added if the image has multiple channels (n_rows, n_cols, n_channels)
-        Results:
-            TableDescription: class (tables.IsDescription)
-                The class describing the table structure to be used when creating tables that 
-                will store images in the HDF5 database.
-    """
-    class TableDescription(tables.IsDescription):
-            id = tables.StringCol(25)
-            labels = tables.StringCol(100)
-            signal = tables.Float32Col(shape=dimensions)
-            boxes = tables.StringCol(100) 
-    
-    return TableDescription
 
 def parse_seg_name(seg_name):
     """ Retrieves the segment id and label from the segment name
@@ -491,163 +422,61 @@ def parse_seg_name(seg_name):
             followed by base name of the audio file from which the segment was extracted, '_',
             and a sequence number. The 'l' is followed by any number of characters describing the label(s).
 
+        Raise:
+            ValueError
+            If seg_name is empty or in wrong format
         Returns:
             (id,label) : tuple (str,str)
             A tuple with the id and label strings.
 
+        Examples:
+            >>> from ketos.data_handling.data_handling import parse_seg_name
+            >>> seg_name = "id_hydr06_23_l_[2].wav"
+            >>> id, label = parse_seg_name(seg_name)
+            >>> id
+            'hydr06_23'
+            >>> label
+            '[2]'
+            >>>
+            >>> seg_name = "id_hydr05_279_l_[2,1].mp3"
+            >>> id, label = parse_seg_name(seg_name)
+            >>> id
+            'hydr05_279'
+            >>> label
+            '[2,1]'
+
     """
     id, labels = None, None
-    if seg_name != '':
+    pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
+    if not pattern.match(seg_name):
+       raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
-        splits = seg_name.split("_")
-        if len(splits) >= 5:
-            id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
-            tmp = seg_name.split("_")[4]
-            labels = tmp.split(".")[0]
 
+    splits = seg_name.split("_")
+    if len(splits) >= 5:
+        id = seg_name.split("_")[1] + "_" + seg_name.split("_")[2]
+        tmp = seg_name.split("_")[4]
+        labels = tmp.split(".")[0]
+    
     return (id,labels)
 
-def write_audio_to_table(seg_file_name, table, pad=False, duration=None ):
-    """ Write data form .wav files containing segments into the h5 database.
 
-        Args:
-            seg_file: str
-                .wav file name (including path).
-                Expected to follow the format:format id_*_l_*.wav,
-                where * denotes 'any number of characters'.
-            table: tables.Table
-                Table in which the segment will be stored
-                (described by audio_table_description()).
-            pad: bool
-                True if signal should be padded with zeros until it's duration
-                 is equal to the 'duration' argument. Flase if signal should be
-                 written as it is.
-            duration: float
-                Desired duration for the padded signal in seconds. 
-        Returns:
-            None.
-    """
 
-    rate, seg_data = read_wave(seg_file_name)
-    id, labels = parse_seg_name(os.path.basename(seg_file_name))
-
-    if pad:
-        seg_data = pad_signal(seg_data, rate, duration)
-    seg_r = table.row
-    seg_r["id"] = id
-    seg_r["labels"] = labels
-    seg_r["signal"] = seg_data
-    seg_r.append()
-
-def write_spec_to_table(table, spectrogram, id=None, labels=None, boxes=None):
-    """ Write data from spectrogram object into the h5 database.
-
-        Note: the spectrogram object is expected to have the id and label information in it's 
-        .tag attribute, following the format id_*_[l]_*.
-        Example: spec.tag="id_78536_l_1"
-
-        Args:
-            table: tables.Table
-                Table in which the spectrogram will be stored
-                (described by spec_table_description()).
-
-            spectrogram: instance of :class:`spectrogram.MagSpectrogram', \
-            :class:`spectrogram.PowerSpectrogram' or :class:`spectrogram.MelSpectrogram'.
-                Spectrogram object.
-
-            id: str
-                Spectrogram id (overwrites the id parsed from the spectrogram tag).
-
-            labels: tuple(int)
-                Labels (overwrites the labels parsed from the spectrogram tag).
-
-            boxes: tuple(tuple(int))
-                Boxes confining the regions of interest in time-frequency space
-
-        Returns:
-            None.
-    """
-    id_parsed, labels_parsed = parse_seg_name(spectrogram.tag)
-
-    if id is None:
-        id_str = id_parsed
-    else:
-        id_str = id
-
-    if labels is None:
-        labels_str = labels_parsed
-    else:
-        labels_str = tostring(labels)
-
-    boxes_str = tostring(boxes)
-
-    # check that number of labels match number of boxes
-    if labels is not None and boxes is not None:
-        assert len(labels) == len(boxes), 'Number of labels and number of boxes do not match'
-
-    seg_r = table.row
-    seg_r["signal"] = spectrogram.image
-    seg_r["id"] = id_str
-    seg_r["labels"] = labels_str
-    seg_r["boxes"] = boxes_str
-    seg_r.append()
-
-def open_table(h5, where, table_name, table_description, sample_rate, chunkshape=None):
-    """ Open the specified table or creates it if it does not exist.
-
-        Args:
-            h5: tables.file.File object
-                HDF5 file handler for the database where the table is/will be located
-            where: str
-                The group in which the table is/will be located. Ex: '/features/spectrograms'
-            table_name: str
-                The name of the table. This name will be part of the table's path.
-                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
-            table_description: tables.IsDescription object
-                The descriptor class. See :func:`audio_table_description` and :func:spec_table_description
-            sample_rate: int
-                The sample rate of the signals to be stored in this table. The inforation is added as metadata to this table.
-            chunkshape: tuple
-                The chunk shape to be used for compression
-
-        Returns:
-            table: table.Table object
-            The opened/created table.    
-    """
-    try:
-       group = h5.get_node(where)
-    
-    except tables.NoSuchNodeError:
-        print("group '{0}' not found. Creating it now...".format(where))
-        if where.endswith('/'): 
-             where = where[:-1]
-        name=os.path.basename(where)
-        path=where.split(name)[0]
-        if path.endswith('/'): 
-             path = path[:-1]
-        group = h5.create_group(path, name, createparents=True)
+def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None, verbose=False):
+    """ Divide a large .wav file into a sequence of smaller segments with the same duration.
         
-    try:
-       table = h5.get_node("{0}/{1}".format(where,table_name))
-    
-    except tables.NoSuchNodeError:    
-        filters = tables.Filters(complevel=1, fletcher32=True)
-        table = h5.create_table(group,"{0}".format(table_name),table_description,filters=filters,chunkshape=chunkshape)
 
-    table.attrs.sample_rate = sample_rate
-    return table
-
-def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, start_seg=None, end_seg=None):
-    """ Divides a large .wav file into a sequence of smaller segments with the same duration.
-        Names the resulting segments sequentially and save them as .wav files in the specified directory.
-
+        Name the resulting segments sequentially and save them as .wav files in the specified directory.
+        If annotations are provided, this function will check if the segment created emcompasses any labels. If so,
+        the label information will be added to the segment name.
+        
         Note: segments will be saved following the name pattern "id_*_*_l_*.wav",
             where 'id_' is followed by the name of the original file, underscore ('_') 
             and the a sequence name. 'l_' is followed by the label(s) associated with that segment.
             Ex: 'id_rec03_87_l_[1,3]', 'id_rec03_88_l_[0]
 
             The start_seg and end_seg arguments can be used to segment only part of audio files,
-            which is usefule when processing large files in parallel.
+            which is useful when processing large files in parallel.
             
         Args:
             audio_file:str
@@ -676,9 +505,38 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
                 Indicates the number of the segment where the segmentation will stop.
                 A value of 6 would indicate the 3rd segment in a sequence(if 'seg_duration' is set to 2.0,
                 that would correspond to 12.0 seconds from the beginning of the file'
+            verbose:bool
+                If True, print "Creating segment .... name_of_segment" for each segment.
                         
          Returns:
             None   
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import divide_audio_into_segs
+            >>> from glob import glob
+            >>> import os
+            >>>
+            >>> # Define the paths to the audio file that will be segmented
+            >>> # And the folder where the segments will be saved
+            >>> audio_file = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/tmp/divided_segs"
+            >>> # Create that folder (if it does not exist)
+            >>> os.makedirs(save_dir, exist_ok=True)
+            >>> # Difine an annotations dataframe
+            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            ...                    'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
+            ...                    'end':[6.0,75.98,110.0]})
+            >>>
+            >>> # Devide the wav file into 2 seconds segments.
+            >>> # Uses the annotations dataframe to determine if each segment
+            >>> # includes a label names the segments accordingly
+            >>> divide_audio_into_segs(audio_file=audio_file,
+            ... seg_duration=2.0, annotations=annotations, save_to=save_dir)
+            >>> # Count all files have been created in the destination folder
+            >>> n_seg = len(glob(save_dir + "/id_2min*.wav"))
+            >>> #60 files have been created
+            >>> n_seg
+            60
     """
     create_dir(save_to)
     orig_audio_duration = librosa.get_duration(filename=audio_file)
@@ -703,7 +561,8 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         out_name = "id_" + prefix + "_" + str(s) + "_l_" + label + ".wav"
         path_to_seg = os.path.join(save_to, out_name)    
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
-        print("Creating segment......", path_to_seg)
+        if verbose:
+            print("Creating segment......", path_to_seg)
         librosa.output.write_wav(path_to_seg, sig, rate)
 
 def _filter_annotations_by_orig_file(annotations, orig_file_name):
@@ -726,6 +585,20 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             filtered annotations: pandas.DataFrame
             A subset of the annotations DataFrame containing only the entries for the specified file.
             
+        Examples:
+            >>> from ketos.data_handling.data_handling import _filter_annotations_by_orig_file
+            >>> import pandas as pd
+            >>> # Create an annotations dataframe
+            >>> annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
+            ...                     'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
+            ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
+            >>> # Filter the annotations associated with file "2min_01"
+            >>> annot_01 = _filter_annotations_by_orig_file(annotations,'2min_01')
+            >>> annot_01
+                 orig_file  label  start    end
+            0  2min_01.wav      1    5.0    6.0
+            1  2min_01.wav      2  100.5  103.0
+                                 
 
     """
     filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name)
@@ -758,6 +631,24 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
                 if the interval is not in the annotations, the value 
                 specified in 'not_in_annotations' will be used.
 
+        Examples:
+            >>> from ketos.data_handling.data_handling import get_labels
+            >>> import pandas as pd
+            >>> audio_file="2min"
+            >>> # Create an annotations dataframe
+            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            ...                            'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
+            ...                            'end':[6.0,103.0,108.0]})
+            >>> # Find all labels between time 4.0 seconds and time 5.0 seconds.
+            >>> get_labels(file='2min',start=4.0, end=5.5,
+            ...                        annotations=annotations, not_in_annotations=0)
+            '[1]'
+            >>>
+            >>> # Find all labels between time 99.0 seconds and time 110.0 seconds.
+            >>> get_labels(file='2min',start=99.0, end=110.0,
+            ...                        annotations=annotations, not_in_annotations=0)
+            '[2, 1]'
+
     """
     interval_start = start
     interval_end = end
@@ -777,7 +668,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
 
 
 def seg_from_time_tag(audio_file, start, end, name, save_to):
-    """ Extracts a segment from the audio_file according to the start and end tags.
+    """ Extract a segment from the audio_file according to the start and end tags.
 
         Args:
             audio_file:str
@@ -796,9 +687,29 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
             Name of segment file name (including '.wav')
             
 
-         Returns:
+        Returns:
 
-            None   
+            None
+
+        Examples:
+            >>> import os
+            >>> from ketos.data_handling.data_handling import read_wave
+            >>> from ketos.data_handling.data_handling import seg_from_time_tag
+            >>>
+            >>> # Define the audio file and the destination folder
+            >>> audio_file = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/tmp/segs_from_tags"
+            >>> # Create the folder
+            >>> os.makedirs(save_dir, exist_ok=True)
+            >>>
+            >>> # Create a segmet starting at 0.5 seconds and ending at 2.5 seconds
+            >>> seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=save_dir )
+            >>>
+            >>> # Read the created segment and check its duration
+            >>> rate, sig  = read_wave(os.path.join(save_dir, "seg_1.wav"))
+            >>> duration = len(sig)/rate
+            >>> duration
+            2.0
 
     """
     out_seg = os.path.join(save_to, name)
@@ -820,8 +731,31 @@ def segs_from_annotations(annotations, save_to):
             path to the directory where segments will be saved.
             
             
-         Returns:
-            None   
+        Returns:
+            None
+            
+        Examples:
+            >>> import os
+            >>> from glob import glob
+            >>> import pandas as pd
+            >>> from ketos.data_handling.data_handling import segs_from_annotations
+            >>>
+            >>> # Define the audio file and the destination folder
+            >>> audio_file_path = "ketos/tests/assets/2min.wav"
+            >>> save_dir = "ketos/tests/assets/tmp/from_annot"
+            >>>
+            >>> # Create a dataframe with annotations
+            >>> annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
+            ...                            'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
+            ...                            'end':[6.0,73.0,108.0]})
+            >>>
+            >>> # Segemnt the audio file according with the annotations           
+            >>> segs_from_annotations(annotations,save_dir)
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_0_l_[1].wav
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_1_l_[2].wav
+            Creating segment...... ketos/tests/assets/tmp/from_annot id_2min_2_l_[1].wav
+            
+            
 
     """ 
     create_dir(save_to)
@@ -851,6 +785,21 @@ def pad_signal(signal,rate, length):
             padded_signal: numpy.array
             Array with the original signal padded with zeros.
 
+        Examples:
+            >>> from ketos.data_handling.data_handling import read_wave
+            >>> from ketos.data_handling.data_handling import pad_signal
+            >>>
+            >>> #Read a very short audio signal
+            >>> rate, sig = read_wave("ketos/tests/assets/super_short_1.wav")
+            >>> # Calculate its duration (in seconds)
+            >>> len(sig)/rate
+            0.00075
+            >>>
+            >>> # Pad the signal
+            >>> padded_signal = pad_signal(signal=sig, rate=rate, length=0.5)
+            >>> # Now the duration is equal to the 0.5 seconds specified by the 'length' argument
+            >>> len(padded_signal)/rate
+            0.5
         
     """
     length = length * rate
@@ -867,84 +816,70 @@ def pad_signal(signal,rate, length):
     return padded_signal
 
 
+class AudioSequenceReader:
+    """ Reads sequences of audio files and serves them as a merged :class::ketos.audio_processing.audio.AudioSignal.
 
+        Separate audio files are joined together in a single time series. 
 
-def create_spec_table_from_audio_table(h5, raw_sig_table, where, spec_table_name,  spec_class, **kwargs):
-    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
-    #TODO: Reorganize modules to prevent circular dependency
-    from ketos.audio_processing.audio import AudioSignal
-    """ Creates a table with spectrograms correspondent to the signal in 'raw_sig_table'.
-             
-        Args:
-            h5: tables.File
-                Reference to HDF5 database
-            raw_sig_table: tables.Table
-                Table containing raw signals
-            where: str
-                The group in which the table is/will be located. Ex: '/features/spectrograms'
-            spec_table_name: str
-                The name of the table. This name will be part of the table's path.
-                Ex: 'table_a' passed along with where="/group_1/subgroup_1" would result in "/group_1/subgroup_1/table_a"
-            spec_class: subclass of :class:`spectrogram.Spectrogram`
-                One of :class:`spectrogram.MagSpectrogram`, :class:`spectrogram.PowerSpectrogram` or
-                :class:`spectrogram.MelSpectrogram`.
-            kwargs:
-                any keyword arguments to be passed to the sec_class
-    
-        Returns:
-            None
-    """
+        If the source is given as a folder (rather than a list of file names), all wav files from
+        the folder will be read.
+        
+        If the file names have date-time information, the date-time information will be 
+        parsed and used to sort the files chronologically. Any gaps will be filled with zeros.
 
-    #WARNING: Moving this import to to the top of the module will cause an ImportError due to circular dependency
-    #TODO: Reorganize modules to prevent circular dependency
-    from ketos.audio_processing.audio import AudioSignal
-
-
-    rate=raw_sig_table.attrs.sample_rate
-    ex_audio = AudioSignal(rate,raw_sig_table[0]['signal'])
-    ex_spec = spec_class(audio_signal=ex_audio, **kwargs)
-
-    spec_description = spec_table_description(dimensions=ex_spec.image.shape)
-    spec_table = open_table(h5, where, spec_table_name, spec_description, None)
-
-
-    for segment in raw_sig_table.iterrows():
-        signal = segment['signal']
-        audio = AudioSignal(rate,signal)
-        spec = spec_class(audio_signal=audio, **kwargs)
-        spec.tag = "id_" + segment['id'].decode() + "_l_" + segment['labels'].decode()
-        write_spec_to_table(spec_table, spec)
-
-    spec_table.flush()
-
-
-
-
-class BatchReader:
-    """ Reads audio file(s) and serves them in batches of specified size.
-
-        If the file names do not have date-time information, the files will 
-        be sorted in alphabetical order and smoothly joined to one another.
-
-        Otherwise, the date-time information will be extracted from the file 
-        names and used to sort the files chronologically. Any gaps will be 
-        filled with zeros.
+        If the file names do not contain date-time information, the files will be sorted 
+        alphabetically (if given as a folder name) or in the order provided (if given as a list 
+        of file names).
 
         Args:
             source: str or list
                 File name, list of file names, or directory name 
             recursive_search: bool
-                Include files from all subdirectories 
+                If True, includes .wav files from all subdirectories 
             rate: float
                 Sampling rate in Hz
+            datetime_stamp: str
+                A default datetime to be used in case the file names do not contain datetime information.
+                If left to None, the the AudioSequenceReader will try to extract datetime from the filename
+                using the 'datetime_fmt' argument.
             datetime_fmt: str
-                Format for parsing date-time data from file names
+                Format for parsing date-time data from file names. If the file names do not contain
+                datetime information and a 'datetime_stamp' is not provided, the current day will be used
+                a time starting at 00:00:00:000
             n_smooth: int
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
-                Print progress messages during processing 
+                If True, print progress messages during processing
+
+        
+        Raises:
+            AssertionError:
+                If the specified directory does not exist
+                If the specified directory does not have any .wav files
+
+        Examples:
+
+        >>> from ketos.data_handling.data_handling import AudioSequenceReader
+        >>> # Define the folder containing the audio files
+        >>> path_to_files = "ketos/tests/assets/2s_segs"
+        >>> # This folder contains 60 files (of 2 seconds each) 
+        >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
+        >>> 
+        >>> # Define the size (in samples) for each batch.
+        >>> size = 2000 * 20 # The sampling rate is 2000Hz
+        >>> # Create an AudioSequenceReader object
+        >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+        >>> # get the first audio signal
+        >>> seq_1 = reader.next(size=size)
+        >>> # The length the same as the specified size
+        >>> len(seq_1.data)
+        40000
+        >>> seq_2 = reader.next(size=size)
+        >>> len(seq_2.data)
+        40000
+
     """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_fmt=None, n_smooth=100, verbose=False):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -955,17 +890,52 @@ class BatchReader:
         self.time = None
         self.eof = False
         self.verbose = verbose
-        self.load(source=source, recursive_search=recursive_search, datetime_fmt=datetime_fmt)
+        self.load(source=source, recursive_search=recursive_search, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
 
-    def load(self, source, recursive_search=False, datetime_fmt=None):
+    def load(self, source, recursive_search=False, datetime_stamp=None, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
             Args:
                 source: str or list
                     File name, list of file names, or directory name 
+                recursive_search: bool
+                    If true, include wav files from all subdirectories
+
+                datetime_stamp: str
+                    A default datetime to be used in case the file names do not contain datetime information.
+                    Requires the format to be specified by the 'datetime_fmt' argument.
+                    If left to None, the the AudioSequenceReader will try to extract datetime from the filename
+                    using the 'datetime_fmt'.
                 datetime_fmt: str
-                    Format for parsing date-time data from file names
+                    Format for parsing date-time data from file names. If the file names do not contain
+                    datetime information and a 'datetime_stamp' is not provided, the current day will be used
+                    a time starting at 00:00:00:000
+
+            Raises:
+                AssertionError:
+                    If the specified directory does not exist
+                    If the specified directory does not have any .wav files
+
+            Examples:
+                >>> from glob import glob
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # Define a list with the 10 files
+                >>> list_of_files_1 = glob(path_to_files + "/*" )[0:10]
+                >>> # Define another list with 10 different files
+                >>> list_of_files_2 = glob(path_to_files + "/*" )[10:20]
+                >>>
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz
+                >>>                
+                >>> # Create an AudioSequenceReader object with the first list of files
+                >>> reader = AudioSequenceReader(source=list_of_files_1, rate=2000)
+                >>> # Load the reader with a new source of files
+                >>> reader.load(source=list_of_files_1)
+
         """
         self.files.clear()
 
@@ -977,8 +947,11 @@ class BatchReader:
             if source[-4:] == '.wav':
                 fnames = [source]
             else:
-                fnames = get_wave_files(path=source, subdirs=recursive_search)
-        
+                fnames = find_wave_files(path=source, subdirs=recursive_search)
+
+            # sort file names alphabetically
+            fnames = sorted(fnames)
+
         # check that files exist
         for f in fnames:
             assert os.path.exists(f), " Could not find {0}".format(f)
@@ -987,8 +960,11 @@ class BatchReader:
         assert len(fnames) > 0, " No wave files found in {0}".format(source)
 
         # default time stamp
-        t0 = datetime.datetime.today()
-        t0 = datetime.datetime.combine(t0, datetime.datetime.min.time())
+        if datetime_stamp is not None:
+            t0 = datetime.datetime.strptime(datetime_stamp, datetime_fmt)  
+        else:
+            t0 = datetime.datetime.today()
+            t0 = datetime.datetime.combine(t0, datetime.datetime.min.time())
 
         # time stamps
         for f in fnames:
@@ -1012,7 +988,7 @@ class BatchReader:
         # reset the reader
         self.reset()
 
-    def read_file(self, i):
+    def _read_file(self, i):
         from ketos.audio_processing.audio import TimeStampedAudioSignal
     
         assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
@@ -1034,7 +1010,7 @@ class BatchReader:
         """
         self.index += 1 # increment counter
         if self.index < len(self.files):
-            self.signal = self.read_file(self.index) # read audio file
+            self.signal = self._read_file(self.index) # read audio file
             self.time = self.signal.begin() # start time of this audio file
         else:
             self.signal = None
@@ -1100,6 +1076,24 @@ class BatchReader:
             Returns:
                 batch: TimeStampedAudioSignal
                     Merged audio signal
+
+            Examples:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source = path_to_files, rate=2000)
+                >>>
+                >>> seq1 = reader.next(size=size)
+                >>> len(seq1.data)
+                40000
+                >>> seq2 = reader.next(size=size)
+                >>> len(seq2.data)
+                40000
         """
         if self.finished():
             return None
@@ -1126,12 +1120,66 @@ class BatchReader:
             Returns: 
                 x: bool
                 True if all data has been process, False otherwise
+            
+            Example:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # This folder contains 60 files (of 2 seconds each) 
+                >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+                >>>
+                >>> # Go through the batches, retriving the merged ausio signal
+                >>> # and printing the number of samples in each, until there are no btaches left unprocessed
+                >>> while reader.finished() != True:
+                ...     seq = reader.next(size=size)
+                ...     print(len(seq.data))
+                40000
+                40000
+                40000
+                40000
+                40000
+                30300
+                >>> # The last batch generated a signal with 30300 samples only, because there were not 
+                >>> # enough files to create a 40000 samples signal as specified by the 'size' argument
+
+            
         """
         return self.eof
     
     def reset(self):
         """
             Go back and start reading from the beginning of the first file.
+
+            Examples:
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 60 # The sampling rate is 2000Hz, so each batch will be 60s long
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
+                
+                >>> # Here we want 5 signals, even it it means they'll come from repeated batches.
+                >>> 
+                >>> for i in range(5):
+                ...    seq = reader.next(size=size)
+                ...    print(len(seq.data))
+                ...    if reader.finished(): #When there are no batches left, reset the reader
+                ...        reader.reset()
+                120000
+                110200
+                120000
+                110200
+                120000
+
+
+                
             
         """
         # reset 
@@ -1150,7 +1198,43 @@ class BatchReader:
             Returns:
                 df: pandas DataFrame
                     Table with file names and time stamps
-            
+
+            Example:
+                >>> from glob import glob
+                >>> from ketos.data_handling.data_handling import AudioSequenceReader
+                >>>
+                >>> # Define the folder containing the audio files
+                >>> path_to_files = "ketos/tests/assets/2s_segs"
+                >>> # Define a list with the 10 files that start with 'id_2min_1'
+                >>> list_of_files = glob(path_to_files + "/id_2min_1*" )
+                >>> list_of_files.sort()
+                >>> 
+                >>> # Define the size (in samples) for each batch.
+                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
+                >>> # Define a default datetime stamp
+                >>> datetime_stamp = "1960-06-10 16:30:00.000"
+                >>> # Define the datetime format specification
+                >>> datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
+                >>>
+                >>> # Create an AudioSequenceReader object
+                >>> reader = AudioSequenceReader(source = list_of_files, rate=2000, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
+                >>>
+                >>> seq1 = reader.next(size=size)
+                >>> seq2 = reader.next(size=size)
+                >>> reader.log()
+                                      time                                             file
+                0  1960-06-10 16:30:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
+                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
+                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
+                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
+                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
+                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
+                8  1960-06-10 16:30:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
+                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
+                10 1960-06-10 16:30:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
+
         """
         n = len(self.times)
         fnames = [x[0] for x in self.files]

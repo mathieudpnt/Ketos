@@ -5,14 +5,12 @@ import numpy as np
 import scipy.signal as sg
 import pandas as pd
 import ketos.audio_processing.audio_processing as ap
-import ketos.data_handling.data_handling as dh
 from ketos.neural_networks.cnn import BasicCNN
+from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
 from tensorflow import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
-
-
 
 
 @pytest.fixture
@@ -191,7 +189,7 @@ def database_prepared_for_NN(image_2x2):
     d = {'image': [image_2x2, image_2x2, image_2x2, image_2x2, image_2x2, image_2x2], 'label': [0,0,0,0,0,0]}
     df = pd.DataFrame(data=d)
     divisions = {"train":(0,3),"validation":(3,4),"test":(4,6)}
-    prepared = dh.prepare_database(df, "image", "label", divisions)     
+    prepared = prepare_database(df, "image", "label", divisions)     
     return prepared
 
 @pytest.fixture
@@ -210,7 +208,7 @@ def database_prepared_for_NN_2_classes():
     divisions= {"train":(0,12),
                 "validation":(12,18),
                 "test":(18,len(database))}
-    prepared = dh.prepare_database(database=database,x_column="image",y_column="label",
+    prepared = prepare_database(database=database,x_column="image",y_column="label",
                                 divisions=divisions)    
     return prepared
 
@@ -270,3 +268,41 @@ def data_for_TCN():
     x_test = np.array([fv0, fv1, fv0, fv1])
     y_test = np.array([0, 1, 0, 1])
     return x_train, y_train, x_val, y_val, x_test, y_test
+    
+
+def encode_database(database, x_column, y_column):
+    image_shape = database[x_column][0].shape
+    depth = database[y_column].max() + 1 #number of classes
+    database["one_hot_encoding"] = database[y_column].apply(to1hot,depth=depth)
+    database["x_flatten"] = database[x_column].apply(lambda x: x.flatten())
+    return database, image_shape
+
+def split_database(database, divisions):
+    train_data = database[divisions["train"][0]:divisions["train"][1]]
+    validation_data = database[divisions["validation"][0]:divisions["validation"][1]]
+    test_data = database[divisions["test"][0]:divisions["test"][1]]
+    datasets = {"train": train_data,
+                "validation": validation_data,
+                "test": test_data}
+    return datasets
+
+def stack_dataset(dataset, input_shape):
+    x = np.vstack(dataset.x_flatten).reshape(dataset.shape[0], input_shape[0], input_shape[1],1).astype(np.float32)
+    y = np.vstack(dataset.one_hot_encoding)
+    stacked_dataset = {'x': x,
+                       'y': y}
+    return stacked_dataset
+
+def prepare_database(database, x_column, y_column, divisions):
+    encoded_data, input_shape = encode_database(database=database, x_column=x_column, y_column=y_column)
+    datasets = split_database(database=encoded_data, divisions=divisions)
+    stacked_train = stack_dataset(dataset=datasets["train"], input_shape=input_shape)
+    stacked_validation = stack_dataset(dataset=datasets["validation"], input_shape=input_shape)
+    stacked_test = stack_dataset(dataset=datasets["test"], input_shape=input_shape)
+    stacked_datasets = {"train_x": stacked_train["x"],
+                        "train_y": stacked_train["y"],
+                        "validation_x": stacked_validation["x"],
+                        "validation_y": stacked_validation["y"],
+                        "test_x": stacked_test["x"],
+                        "test_y": stacked_test["y"]}
+    return stacked_datasets
