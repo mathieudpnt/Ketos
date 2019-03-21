@@ -395,7 +395,7 @@ def test_create_spec_database_with_annotations():
 
     # create annotations
     import pandas as pd
-    d = {'fname': ['w1.wav'], 'start': [0.1], 'end': [0.7], 'label': [1]}
+    d = {'orig_file': ['w1.wav'], 'start': [0.1], 'end': [0.7], 'label': [1]}
     df = pd.DataFrame(data=d)
     df.to_csv(csvfile)
 

@@ -1249,11 +1249,17 @@ class AudioSequenceReader:
 class AnnotationTableReader():
     """ Reads annotation data from csv file
 
-        The csv file can have either 5 or 7 columns, as follows
+        The csv file should have at least the following columns:
 
-        5 columns: index, file_name, start_time, end_time, label 
-        
-        7 columns: index, file_name, start_time, end_time, lower_frequency, upper_frequency, label 
+            "orig_file": file name
+            "label": label value (0, 1, 2, ...)
+            "start": start time in seconds measured from the beginning of the audio file
+            "end": end time in seconds
+
+        In addition, it can the following two optional columns:
+
+            "flow": frequency lower boundary in Hz
+            "fhigh": frequency upper boundary in Hz
 
         Args:
             path: str
@@ -1277,10 +1283,13 @@ class AnnotationTableReader():
             [0] [[3.0, 17.0, 0.0, inf]]
     """
     def __init__(self, path):
+
         self.df = pd.read_csv(path)
-        n = len(self.df.columns)
-        assert n == 5 or n == 7, 'table must have 4 or 6 columns, whereas the table provided has {0} columns'.format(n)
-        self.has_freq = (n == 7)
+
+        required_cols = ['orig_file', 'start', 'end', 'label']
+
+        for r in required_cols:
+            assert r in self.df.columns, 'column {0} is missing'.format(r)
 
     def get_annotations(self, filename):
         """ Get annotations associated with the specified file 
@@ -1297,23 +1306,25 @@ class AnnotationTableReader():
         """
 
         # select rows with matching file name
-        sel = self.df[self.df.iloc[:,1]==filename]
+        sel = self.df[self.df['orig_file']==filename]
 
         m = len(sel)
 
         # get labels
-        labels = sel.iloc[:,-1].values
+        labels = sel['label'].values
 
         # get times
-        start = sel.iloc[:, 2].values
-        stop  = sel.iloc[:, 3].values
+        start = sel['start'].values
+        stop  = sel['end'].values
 
         # get frequencies
-        if self.has_freq:
-            flow = sel.iloc[:,4].values
-            fhigh = sel.iloc[:,5].values        
+        if 'flow' in sel.columns:
+            flow = sel['flow'].values
         else:
             flow = np.zeros(m)
+        if 'fhigh' in sel.columns:
+            fhigh = sel['fhigh'].values        
+        else:
             fhigh = np.ones(m) * math.inf
 
         # construct boxes

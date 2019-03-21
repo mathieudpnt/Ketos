@@ -1,4 +1,4 @@
-,name,t1,t2,l
+,orig_file,start,end,label
 0,x.wav,1,2,0
 1,y.wav,3,4,1
 2,y.wav,5,6,2
