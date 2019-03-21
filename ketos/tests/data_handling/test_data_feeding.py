@@ -282,9 +282,10 @@ def test_refresh_on_epoch_end():
                      'epoch_3': ([11, 6, 2, 0, 10, 14],[8, 9, 1, 7, 13, 12],[4, 3, 5])}
                      
 
-    for epoch in expected_ids.keys():
+    for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
         #batch 0
         ids, X, _ = next(train_generator)
+        print(epoch)
         assert ids == expected_ids[epoch][0]
         #batch 1
         ids, X, _ = next(train_generator)
