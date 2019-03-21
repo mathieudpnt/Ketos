@@ -1202,6 +1202,7 @@ class AudioSequenceReader:
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
                 >>> # Define a list with the 10 files that start with 'id_2min_1'
                 >>> list_of_files = glob(path_to_files + "/id_2min_1*" )
+                >>> list_of_files.sort()
                 >>> 
                 >>> # Define the size (in samples) for each batch.
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
