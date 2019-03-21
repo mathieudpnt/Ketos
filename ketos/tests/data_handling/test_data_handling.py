@@ -477,7 +477,7 @@ def five_time_stamped_wave_files():
     files = list()
     N = 5
 
-    folder = path_to_tmp
+    folder = path_to_tmp + '/five_time_stamped_wave_files/'
     if not os.path.exists(folder):
         os.makedirs(folder)
 
