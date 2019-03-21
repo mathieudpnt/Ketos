@@ -1199,6 +1199,7 @@ class AudioSequenceReader:
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
                 >>> # Define a list with the 10 files that start with 'id_2min_1'
                 >>> list_of_files = glob(path_to_files + "/id_2min_1*" )
+                >>> list_of_files.sort()
                 >>> 
                 >>> # Define the size (in samples) for each batch.
                 >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
@@ -1215,15 +1216,15 @@ class AudioSequenceReader:
                 >>> reader.log()
                                       time                                             file
                 0  1960-06-10 16:30:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
-                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
-                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
-                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
-                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
-                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
-                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
-                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
+                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
+                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
+                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
+                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
+                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
                 8  1960-06-10 16:30:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
-                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
+                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
                 10 1960-06-10 16:30:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
 
         """
