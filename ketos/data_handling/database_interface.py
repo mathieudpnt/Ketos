@@ -651,14 +651,14 @@ def create_spec_database(output, folder, annotations_file=None,\
 
         All spectrograms will have the same length. 
         
-        If the audio file is shorter than the specified duration, the spectrogram will 
+        If a spectrogram is shorter than the specified duration, the spectrogram will 
         be padded with zeros to achieve the desired duration. 
         
-        If the wave file is longer than the specified duration, the spectrogram 
+        If the spectrogram is longer than the specified duration, the spectrogram 
         will be split into segments, each with the desired duration.
 
-        If duration is not specified (default), all shorter spectrograms will be padded 
-        with zeros to match the length of the longest spectrogram.
+        If duration is not specified (default), it will be set equal to the duration 
+        of the first spectrogram that is processed.
 
         Args:
             output: str
@@ -682,7 +682,7 @@ def create_spec_database(output, folder, annotations_file=None,\
             fhigh: float
                 Upper cut on frequency (Hz)
             max_size: int
-                Maximum approximate size of output database file in Mb.
+                Maximum size of output database file in Mb.
                 If file exceeds this size, it will be split up into several 
                 files with _xxx extension to the file name.
                 The default values is max_size=100 (100 Mb)
@@ -793,3 +793,54 @@ def _save_specs(specs, filename, path='/', name='raw'):
         write_spec(tbl, s) # write spectrograms to the table
 
     fil.close() # close the database file
+
+
+class SpecWriter():
+
+    def __init__(self, base, max_size=1e6):
+        
+        self.base = base
+        self.file = None
+        self.counter = 0
+        self.ext = ".h5"
+        self.max_annotations = 100
+        self.max_file_size = max_size
+
+    def write(self, spec, path, name):
+        
+        # ensure a file is open
+        self._open_file() 
+
+        # open/create table
+        tbl = self._open_table(path=path, name=name, shape=spec.image.shape) 
+
+        # write spectrogram to table
+        write_spec(tbl, spec)
+
+        # close file if size reaches limit
+        siz = self.file.get_file_size()
+        if siz > self.max_file_size:
+            self.close()
+
+    def close(self):
+        
+        if self.file is not None:
+            self.file.close()
+            self.file = None
+
+    def _open_table(self, path, name, shape):
+
+        if path+name in self.file:
+            tbl = self.file.get_node(path, name)
+        else:
+            tbl = create_table(h5file=self.file, path=path, name=name, shape=shape, max_annotations=self.max_annotations)
+
+        return tbl
+
+    def _open_file(self):
+        
+        # create file if none is open
+        if self.file is None:
+            fname = self.base + '_{:03d}'.format(self.counter) + self.ext
+            self.file = tables.open_file(fname, 'w')
+            self.counter += 1
