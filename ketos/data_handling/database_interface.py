@@ -833,8 +833,32 @@ class SpecWriter():
                 Print relevant information during execution such as files written to disk
 
             Example:
-    """
 
+                >>> # create a few cosine wave forms
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> cos7 = AudioSignal.cosine(rate=1000, frequency=7.0, duration=1.0)
+                >>> cos8 = AudioSignal.cosine(rate=1000, frequency=8.0, duration=1.0)
+                >>> cos21 = AudioSignal.cosine(rate=1000, frequency=21.0, duration=1.0)
+                >>> # compute spectrograms
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> s7 = MagSpectrogram(cos7, winlen=0.2, winstep=0.02)
+                >>> s8 = MagSpectrogram(cos8, winlen=0.2, winstep=0.02)
+                >>> s21 = MagSpectrogram(cos21, winlen=0.2, winstep=0.02)
+                >>> # save the spectrograms to a database file
+                >>> from ketos.data_handling.database_interface import SpecWriter
+                >>> fname = "ketos/tests/assets/tmp/db_harm.h5"
+                >>> writer = SpecWriter(output_file=fname)
+                >>> writer.write(s7)
+                >>> writer.write(s8)
+                >>> writer.write(s21)
+                >>> writer.close()
+                3 spectrograms saved to ketos/tests/assets/tmp/db_harm.h5
+                >>> # inspect the contacts of the database file
+                >>> import tables
+                >>> f = tables.open_file(fname, 'r')
+                >>> print(f.root.spec)
+                /spec (Table(3,), fletcher32, shuffle, zlib(1)) ''
+    """
     def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100):
         
         self.base = output_file[:output_file.rfind('.')]
