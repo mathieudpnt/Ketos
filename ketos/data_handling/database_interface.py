@@ -749,7 +749,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         subfolders.append(sf)
 
     # loop over files
-    for i in tqdm(range(files), disable = not progress_bar):
+    for i in tqdm(range(len(files)), disable = not progress_bar):
     
         f = files[i]
         sf = subfolders[i]
