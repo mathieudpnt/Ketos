@@ -108,12 +108,12 @@ def test_find_bins():
     b = spec._find_tbin(t=[-0.5, 4.5, 99])
     assert b[0] == -1
     assert b[1] == 4
-    assert b[2] == img.shape[0]
+    assert b[2] == 99 #img.shape[0]
     b = spec._find_fbin(f=[30, 61.2])
-    assert b[0] == -1
+    assert b[0] == int((30-60.5)/0.5)-1 #-1
     assert b[1] == 1
     b = spec._find_fbin(f=[200])
-    assert b[0] == img.shape[1]
+    assert b[0] == int((200-60.5)/0.5) #img.shape[1]
 
 def test_find_bins_with_truncation():    
     img = np.ones(shape=(20,30))
