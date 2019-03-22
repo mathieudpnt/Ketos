@@ -1158,7 +1158,7 @@ class Spectrogram(AnnotationHandler):
             bins = int(f(spec.tbins() / number)) - 1
             dt = bins * spec.tres
         
-        elif length is not None:
+        elif length is not None and length < self.duration():
             bins = int(np.ceil(spec.tbins() * length / spec.duration())) - 1
             number = int(f(spec.tbins() / bins))
             dt = bins * spec.tres

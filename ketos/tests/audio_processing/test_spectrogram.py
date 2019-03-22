@@ -474,7 +474,7 @@ def test_select_boxes():
     assert len(boxes) == 1
     assert boxes[0] == [1.0, 2.0, 0, 2]
 
-@pytest.mark.test_segment_using_number
+@pytest.mark.test_segment
 def test_segment_using_number():
     img = np.zeros((101,31))
     spec = Spectrogram(image=img)
@@ -483,7 +483,7 @@ def test_segment_using_number():
     assert segs[0].image.shape[0] == 33
     assert segs[0].image.shape[1] == 31
 
-@pytest.mark.test_segment_using_length
+@pytest.mark.test_segment
 def test_segment_using_length():
     img = np.zeros((101,31))
     spec = Spectrogram(image=img)
@@ -495,6 +495,16 @@ def test_segment_using_length():
     assert segs[0].image.shape[1] == 31
     assert segs[1].image.shape[0] == 40
     assert segs[1].image.shape[1] == 31
+
+@pytest.mark.test_segment
+def test_segment_using_same_length_as_spectrogram_has_no_effect():
+    img = np.zeros((101,31))
+    spec = Spectrogram(image=img)
+    spec.tres = 0.1
+    assert spec.duration() == pytest.approx(10.1, abs=1E-6)
+    segs = spec.segment(length=10.1)
+    assert len(segs) == 1
+    assert segs[0].image.shape[0] == 101
 
 @pytest.mark.test_copy_spectrogram
 def test_copy_spectrogram():

@@ -659,3 +659,9 @@ def test_get_annotations_for_file_with_no_annotations():
     l, b = a.get_annotations('z.wav')
     assert len(l) == 0
     assert len(b) == 0
+
+def test_get_maximum_number_of_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    m = a.get_max_annotations()
+    assert m == 2

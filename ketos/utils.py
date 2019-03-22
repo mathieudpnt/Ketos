@@ -30,6 +30,19 @@
 import os
 import numpy as np
 
+def ensure_dir(file_path):
+    """ Ensure that destination directory exists.
+
+        If the directory does not exist, it is created.
+        If it already exists, nothing happens.
+        
+        Args:
+            file_path: str
+                Full path to destination
+    """
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 def random_floats(size=1, low=0, high=1, seed=1):
     """ Returns a random number or numpy array of randum numbers uniformly distributed in the half-open interval [low, high)
@@ -75,7 +88,6 @@ def random_floats(size=1, low=0, high=1, seed=1):
 
     return res
 
-
 def ndim(a):
     """ Returns the number of dimensions of a list/tuple/array.
         
@@ -103,7 +115,6 @@ def ndim(a):
     n = 1 + ndim(a[0])
     return n
 
-    
 def tostring(box, decimals=None):
     """ Convert an array, tuple or list into a string.
 

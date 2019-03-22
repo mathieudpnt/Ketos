@@ -1291,6 +1291,20 @@ class AnnotationTableReader():
         for r in required_cols:
             assert r in self.df.columns, 'column {0} is missing'.format(r)
 
+        self.max_ann = None
+        
+    def get_max_annotations(self):
+        
+        if self.max_ann is not None:
+            m = self.max_ann
+        else:
+            x = self.df['orig_file'].values
+            _, counts = np.unique(x, return_counts=True)
+            m = np.max(counts)
+            self.max_ann = m
+
+        return m
+
     def get_annotations(self, filename):
         """ Get annotations associated with the specified file 
             
@@ -1304,7 +1318,6 @@ class AnnotationTableReader():
                 boxes: list(tuple)
                     Boxes
         """
-
         # select rows with matching file name
         sel = self.df[self.df['orig_file']==filename]
 
