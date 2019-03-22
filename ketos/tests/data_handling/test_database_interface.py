@@ -356,12 +356,12 @@ def test_create_spec_database_with_default_args():
 
     di.create_spec_database(output=output, folder=folder)
 
-    path = os.path.join(path_to_assets, 'tmp/db_spec_000.h5')
+    path = os.path.join(path_to_assets, 'tmp/db_spec.h5')
     fil = tables.open_file(path, 'r')
-    tbl = di.open_table(fil, "/raw")
+    tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
 
-    assert len(specs) == 2
+    assert len(specs) == 3
     assert specs[0].tres == 0.02
 
     fil.close()
@@ -371,18 +371,18 @@ def test_create_spec_database_with_size_limit():
     output = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
     folder = os.path.join(path_to_assets, 'wav_files/')
 
-    di.create_spec_database(output=output, folder=folder, max_size=5)
+    di.create_spec_database(output=output, folder=folder, max_size=5E6)
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
     fil = tables.open_file(path, 'r')
-    tbl = di.open_table(fil, "/raw")
+    tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
-    assert len(specs) == 1
+    assert len(specs) == 2
     fil.close()
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_001.h5')
     fil = tables.open_file(path, 'r')
-    tbl = di.open_table(fil, "/raw")
+    tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 1
     fil.close()
@@ -402,12 +402,12 @@ def test_create_spec_database_with_annotations():
     # create database
     di.create_spec_database(output=output, folder=folder, annotations_file=csvfile)
 
-    path = os.path.join(path_to_assets, 'tmp/db3_spec_000.h5')
+    path = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
     fil = tables.open_file(path, 'r')
-    tbl = di.open_table(fil, "/raw")
+    tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
 
-    assert len(specs) == 2
+    assert len(specs) == 3
     assert len(specs[0].labels) == 1
     assert specs[0].labels[0] == 1
 

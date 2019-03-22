@@ -644,7 +644,7 @@ def parse_boxes(item):
 
 def create_spec_database(output, folder, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=100, progress_bar=False):
+        flow=None, fhigh=None, max_size=1E9, progress_bar=False):
     """ Create a database with spectrograms computed from raw audio (*.wav) files
 
         One spectrogram is created for each audio file.
@@ -688,16 +688,9 @@ def create_spec_database(output, folder, annotations_file=None,\
                 The default values is max_size=100 (100 Mb)
             progress_bar: bool
                 Option to display progress bar.
-
-        Returns: 
-            fnames: list(str)
-                List of output files
     """
-    res = list()
-
-    file_counter = 0
-    base = output[:output.rfind('.')]
-    ext = output[output.rfind('.'):]
+    # spectrogram writer
+    swriter = SpecWriter(output=output, max_size=max_size)
 
     # extract file names and annotations from table
     if annotations_file is None:
@@ -708,9 +701,7 @@ def create_spec_database(output, folder, annotations_file=None,\
     # get all wav files in the folder
     files = find_wave_files(path=folder, fullpath=True)
 
-    # read audio files and create spectrograms
-    specs = list()
-    tot_size = 0
+    # loop over files
     for f in tqdm(files, disable = not progress_bar):
     
         # check if files exists
@@ -725,7 +716,6 @@ def create_spec_database(output, folder, annotations_file=None,\
 
         # compute the spectrogram
         s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
-        specs.append(s)
 
         # add annotations
         if areader is not None:
@@ -736,25 +726,11 @@ def create_spec_database(output, folder, annotations_file=None,\
         # crop frequencies
         s.crop(flow=flow, fhigh=fhigh) 
 
-        # increment (approximate) total size in MBs
-        size = s.image.shape[0] * s.image.shape[1] * 32.0 / 8.0 / 1.0E6
-        tot_size += size
+        # save spectrogram to file
+        swriter.cd('/spec')
+        swriter.write(s)
 
-        # save spectrograms to file
-        if tot_size > max_size and len(specs) > 1:
-            out = base + '_{:03d}'.format(file_counter) + ext
-            _save_specs(specs[:-1], out)
-            res.append(out)
-            file_counter += 1
-            specs = [s]
-            tot_size = size
-
-    # save remaining spectrograms to file, if any
-    out = base + '_{:03d}'.format(file_counter) + ext
-    _save_specs(specs, out)
-    res.append(out)
-
-    return res
+    swriter.close()
 
 def _save_specs(specs, filename, path='/', name='raw'):
     """ Save spectrograms to database file (*.h5)
