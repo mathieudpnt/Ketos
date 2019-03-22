@@ -749,8 +749,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         subfolders.append(sf)
 
     # loop over files
-    for f, sf in tqdm(zip(files, subfolders), disable = not progress_bar):
+    for i in tqdm(range(files), disable = not progress_bar):
     
+        f = files[i]
+        sf = subfolders[i]
+
         # check if files exists
         exists = os.path.exists(f)
         if exists is False:
