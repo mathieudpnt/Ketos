@@ -802,7 +802,7 @@ class SpecWriter():
         self.base = output[:output.rfind('.')]
         self.ext = output[output.rfind('.'):]
         self.file = None
-        self.counter = 0
+        self.file_counter = 0
         self.max_annotations = 100
         self.max_file_size = max_size
         self.path = '/'
@@ -834,18 +834,26 @@ class SpecWriter():
         # close file if size reaches limit
         siz = self.file.get_filesize()
         if siz > self.max_file_size:
-            self.close()
+            self.close(final=False)
 
-    def close(self):
+    def close(self, final=True):
         
         if self.file is not None:
 
-            if self.verbose:
-                plural = ['', 's']
-                print('{0} spectrogram{1} saved to {2}'.format(self.spec_counter, plural[self.spec_counter > 1], self.file.filename))
-
+            actual_fname = self.file.filename
             self.file.close()
             self.file = None
+
+            if final and self.file_counter == 1:
+                fname = self.base + self.ext
+                os.rename(actual_fname, fname)
+            else:
+                fname = actual_fname
+
+            if self.verbose:
+                plural = ['', 's']
+                print('{0} spectrogram{1} saved to {2}'.format(self.spec_counter, plural[self.spec_counter > 1], fname))
+
             self.spec_counter = 0
 
     def _open_table(self, path, name, shape):
@@ -863,6 +871,6 @@ class SpecWriter():
         
         # create file if none is open
         if self.file is None:
-            fname = self.base + '_{:03d}'.format(self.counter) + self.ext
+            fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
             self.file = tables.open_file(fname, 'w')
-            self.counter += 1
+            self.file_counter += 1

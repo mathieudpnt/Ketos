@@ -423,7 +423,7 @@ def test_spec_writer_can_write_one_spec(sine_audio):
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     writer.write(spec=spec)
     writer.close()
-    fname = os.path.join(path_to_assets, 'tmp/db5_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db5.h5')
     fil = tables.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
@@ -436,7 +436,7 @@ def test_spec_writer_can_write_two_specs_to_same_node(sine_audio):
     writer.write(spec=spec)
     writer.write(spec=spec)
     writer.close()
-    fname = os.path.join(path_to_assets, 'tmp/db6_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db6.h5')
     fil = tables.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
@@ -452,7 +452,7 @@ def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
     writer.write(spec=spec, path='/second', name='temp')
     writer.write(spec=spec, path='/second', name='temp')
     writer.close()
-    fname = os.path.join(path_to_assets, 'tmp/db7_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db7.h5')
     fil = tables.open_file(fname, 'r')
     assert '/first/test' in fil
     assert '/second/temp' in fil
@@ -494,7 +494,7 @@ def test_spec_writer_change_directory(sine_audio):
     writer.write(spec=spec)
     writer.write(spec=spec)
     writer.close()
-    fname = os.path.join(path_to_assets, 'tmp/db9_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db9.h5')
     fil = tables.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
