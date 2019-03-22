@@ -462,7 +462,7 @@ def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
     assert len(specs) == 3
 
 def test_spec_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
-    out = os.path.join(path_to_assets, 'tmp/db7.h5')
+    out = os.path.join(path_to_assets, 'tmp/db8.h5')
     writer = di.SpecWriter(output=out, max_size=1E6) # max size: 1 Mbyte
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     writer.write(spec=spec)
@@ -470,20 +470,20 @@ def test_spec_writer_splits_into_several_files_when_max_size_is_reached(sine_aud
     writer.write(spec=spec)
     writer.close()
 
-    fname = os.path.join(path_to_assets, 'tmp/db7_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
     fil = tables.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 2
 
-    fname = os.path.join(path_to_assets, 'tmp/db7_001.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = tables.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 1
 
 def test_spec_writer_change_directory(sine_audio):
-    out = os.path.join(path_to_assets, 'tmp/db8.h5')
+    out = os.path.join(path_to_assets, 'tmp/db9.h5')
     writer = di.SpecWriter(output=out)
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
     writer.cd('/home/fish')
@@ -494,7 +494,7 @@ def test_spec_writer_change_directory(sine_audio):
     writer.write(spec=spec)
     writer.write(spec=spec)
     writer.close()
-    fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
+    fname = os.path.join(path_to_assets, 'tmp/db9_000.h5')
     fil = tables.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
