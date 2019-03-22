@@ -660,7 +660,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
 
         Thus, all saved spectrograms will have the same duration.
 
-        If the combined size of the spectrograms exceed max_size (1 GB by default), the output database 
+        If the combined size of the spectrograms exceeds max_size (1 GB by default), the output database 
         file will be split into several files, with _000, _001, etc, appended to the filename.
 
         The internal file structure of the database file will mirror the structure of the 
@@ -690,7 +690,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
             max_size: int
                 Maximum size of output database file in bytes
                 If file exceeds this size, it will be split up into several 
-                files with _xxx extension to the file name.
+                files with _000, _001, etc, appended to the filename.
                 The default values is max_size=1E9 (1 Gbyte)
             progress_bar: bool
                 Option to display progress bar.
@@ -720,6 +720,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 /spec (Table(2,), fletcher32, shuffle, zlib(1)) ''
                 >>> print(f.root.highfreq.spec)
                 /highfreq/spec (Table(1,), fletcher32, shuffle, zlib(1)) ''
+                >>> f.close()
     """
     # annotation reader
     if annotations_file is None:
@@ -788,6 +789,51 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
     swriter.close()
 
 class SpecWriter():
+    """ Saves spectrograms to a database file (*.h5).
+
+        If the combined size of the spectrograms exceeds max_size (1 GB by default), the output database 
+        file will be split into several files, with _000, _001, etc, appended to the filename.
+
+        Args:
+            output_file: str
+                Full path to output database file (*.h5)
+            max_annotations: int
+                Maximum number of annotations allowed for any spectrogram
+            max_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+            verbose: bool
+                Print relevant information during execution such as files written to disk
+
+        Attributes:
+            base: str
+                Output filename base
+            ext: str
+                Output filename extension (*.h5)
+            file: tables.File
+                Database file
+            file_counter: int
+                Keeps track of how many files have been written to disk
+            spec_counter: int
+                Keeps track of how many spectrograms have been written to files
+            path: str
+                Path to table within database filesystem
+            name: str
+                Name of table 
+            max_annotations: int
+                Maximum number of annotations allowed for any spectrogram
+            max_file_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+            verbose: bool
+                Print relevant information during execution such as files written to disk
+
+            Example:
+    """
 
     def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100):
         
@@ -803,11 +849,29 @@ class SpecWriter():
         self.spec_counter = 0
 
     def cd(self, fullpath='/'):
+        """ Change the current directory within the database file system
+
+            Args:
+                fullpath: str
+                    Full path to the table. For example, /data/spec
+        """
         self.path = fullpath[:fullpath.rfind('/')+1]
         self.name = fullpath[fullpath.rfind('/')+1:]
 
     def write(self, spec, path=None, name=None):
+        """ Write spectrogram to a table in the database file
 
+            If path and name are not specified, the spectrogram will be 
+            saved to the current directory (as set with the cd() method).
+
+            Args:
+                spec: Spectrogram
+                    Spectrogram to be saved
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
+        """
         if path is None:
             path = self.path
         if name is None:
@@ -829,7 +893,12 @@ class SpecWriter():
             self.close(final=False)
 
     def close(self, final=True):
-        
+        """ Close the currently open database file, if any
+
+            Args:
+                final: bool
+                    If True, this instance of SpecWriter will not be able to save more spectrograms to file
+        """        
         if self.file is not None:
 
             actual_fname = self.file.filename
@@ -849,6 +918,22 @@ class SpecWriter():
             self.spec_counter = 0
 
     def _open_table(self, path, name, shape):
+        """ Open the specified table.
+
+            If the table does not exist, create it.
+
+            Args:
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
+                shape: tuple
+                    Shape of spectrogram image
+
+            Returns:
+                tbl: tables.Table
+                    Table
+        """        
 
         if path == '/':
             x = path + name
@@ -866,8 +951,8 @@ class SpecWriter():
         return tbl
 
     def _open_file(self):
-        
-        # create file if none is open
+        """ Open a new database file, if none is open
+        """                
         if self.file is None:
             fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
             self.file = tables.open_file(fname, 'w')
