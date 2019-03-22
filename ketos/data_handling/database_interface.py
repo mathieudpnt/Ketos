@@ -797,16 +797,29 @@ def _save_specs(specs, filename, path='/', name='raw'):
 
 class SpecWriter():
 
-    def __init__(self, base, max_size=1e6):
+    def __init__(self, output, max_size=1E9, verbose=True):
         
-        self.base = base
+        self.base = output[:output.rfind('.')]
+        self.ext = output[output.rfind('.'):]
         self.file = None
         self.counter = 0
-        self.ext = ".h5"
         self.max_annotations = 100
         self.max_file_size = max_size
+        self.path = '/'
+        self.name = 'spec'
+        self.verbose = verbose
+        self.spec_counter = 0
 
-    def write(self, spec, path, name):
+    def cd(self, fullpath='/'):
+        self.path = fullpath[:fullpath.rfind('/')+1]
+        self.name = fullpath[fullpath.rfind('/')+1:]
+
+    def write(self, spec, path=None, name=None):
+
+        if path is None:
+            path = self.path
+        if name is None:
+            name = self.name
         
         # ensure a file is open
         self._open_file() 
@@ -816,21 +829,30 @@ class SpecWriter():
 
         # write spectrogram to table
         write_spec(tbl, spec)
+        self.spec_counter += 1
 
         # close file if size reaches limit
-        siz = self.file.get_file_size()
+        siz = self.file.get_filesize()
         if siz > self.max_file_size:
             self.close()
 
     def close(self):
         
         if self.file is not None:
+
+            if self.verbose:
+                plural = ['', 's']
+                print('{0} spectrogram{1} saved to {2}'.format(self.spec_counter, plural[self.spec_counter > 1], self.file.filename))
+
             self.file.close()
             self.file = None
+            self.spec_counter = 0
 
     def _open_table(self, path, name, shape):
 
-        if path+name in self.file:
+        x = path + '/' + name
+
+        if x in self.file:
             tbl = self.file.get_node(path, name)
         else:
             tbl = create_table(h5file=self.file, path=path, name=name, shape=shape, max_annotations=self.max_annotations)
