@@ -549,13 +549,13 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
 
     return extracted, complements
 
-def parse_labels(item):
+def parse_labels(label):
     """ Parse the 'labels' field from an item in a hdf5 spectrogram table 
         
 
         Args:
-            item: tables.tableextension.Row
-            A table item (a row from a hdf5 spectrogram table).
+            label: bytes str
+            The bytes string containing the label (e.g.:b'[1]', b'[1,2]')
 
         Returns:
             labels: list(int)
@@ -576,20 +576,21 @@ def parse_labels(item):
             >>> table[0]['labels']
             b'[1]'
             >>>
-            >>> label = parse_labels(table[0])
-            >>> type(label)
+            >>> label =table[0]['labels']
+            >>> parsed_label = parse_labels(label)
+            >>> type(parsed_label)
             <class 'list'>
             >>> # After parsing, they are lists of integers and can be used as such
-            >>> label
+            >>> parsed_label
             [1]
             >>>
             >>> h5file.close()
   
     """
-    labels_str = item['labels'].decode()
-    labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
-    labels = list(labels)
-    return labels
+    labels_str = label.decode()
+    parsed_labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
+    parsed_labels = list(parsed_labels)
+    return parsed_labels
 
 def parse_boxes(item):
     """ Parse the 'boxes' field from an item in a hdf5 spectrogram table
