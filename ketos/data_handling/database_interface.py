@@ -365,7 +365,8 @@ def filter_by_label(table, label):
     matching_rows = []
 
     for i,row in enumerate(table.iterrows()):
-        r_labels = parse_labels(row)
+        r_labels = row['labels']
+        r_labels = parse_labels(r_labels)
 
         if any([l in label for l in r_labels]):
             matching_rows.append(i)
@@ -420,8 +421,10 @@ def load_specs(table, index_list=None):
 
         it = table[idx]
         # parse labels and boxes
-        labels = parse_labels(it)
-        boxes = parse_boxes(it)
+        labels = it['labels']
+        labels = parse_labels(labels)
+        boxes = it['boxes']
+        boxes = parse_boxes(boxes)
         
         # get the spectrogram data
         data = it['data']
@@ -549,16 +552,16 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
 
     return extracted, complements
 
-def parse_labels(item):
+def parse_labels(label):
     """ Parse the 'labels' field from an item in a hdf5 spectrogram table 
         
 
         Args:
-            item: tables.tableextension.Row
-            A table item (a row from a hdf5 spectrogram table).
+            label: bytes str
+            The bytes string containing the label (e.g.:b'[1]', b'[1,2]')
 
         Returns:
-            labels: list(int)
+            parsed_labels: list(int)
             List of labels
 
         Example:
@@ -576,27 +579,28 @@ def parse_labels(item):
             >>> table[0]['labels']
             b'[1]'
             >>>
-            >>> label = parse_labels(table[0])
-            >>> type(label)
+            >>> label =table[0]['labels']
+            >>> parsed_label = parse_labels(label)
+            >>> type(parsed_label)
             <class 'list'>
             >>> # After parsing, they are lists of integers and can be used as such
-            >>> label
+            >>> parsed_label
             [1]
             >>>
             >>> h5file.close()
   
     """
-    labels_str = item['labels'].decode()
-    labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
-    labels = list(labels)
-    return labels
+    labels_str = label.decode()
+    parsed_labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
+    parsed_labels = list(parsed_labels)
+    return parsed_labels
 
-def parse_boxes(item):
+def parse_boxes(boxes):
     """ Parse the 'boxes' field from an item in a hdf5 spectrogram table
 
         Args:
-            item: tables.tableextension.Row
-            A table item (a row from a hdf5 spectrogram table).
+            boxex: bytes str
+            The bytes string containing the label (e.g.:b'[[105, 107, 200,400]]', b'[[105,107,200,400], [230,238,220,400]]')
         Returns:
             labels: list(tuple)
                 List of boxes
@@ -609,33 +613,34 @@ def parse_boxes(item):
             >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
-             >>> #The boxes are stored as byte strings in the table
-            >>> type(table[0]['boxes'])
+            >>> #The boxes are stored as byte strings in the table
+            >>> boxes = table[0]['boxes']
+            >>> type(boxes)
             <class 'numpy.bytes_'>
-            >>> table[0]['boxes']
+            >>> boxes
             b'[[10,15,200,400]]'
             >>>
-            >>> box = parse_boxes(table[0])
-            >>> type(box)
+            >>> parsed_box = parse_boxes(boxes)
+            >>> type(parsed_box)
             <class 'list'>
             >>> # After parsing, the all of boxes becomes a list, which
             >>> # has each box as a list of integers
-            >>> box
+            >>> parsed_box
             [[10, 15, 200, 400]]
             >>>
             >>> h5file.close()
     """
     
-    boxes_str = item['boxes'].decode()
+    boxes_str = boxes.decode()
     boxes_str = boxes_str.replace("inf", "-99")
     try:
         boxes_str = ast.literal_eval(boxes_str)
     except:
-        boxes = []
+        parsed_boxes = []
 
-    boxes = np.array(boxes_str)
-    if (boxes == -99).any():
-         boxes[boxes == -99] = math.inf
-    boxes = boxes.tolist()
+    parsed_boxes = np.array(boxes_str)
+    if (parsed_boxes == -99).any():
+         parsed_boxes[parsed_boxes == -99] = math.inf
+    parsed_boxes = parsed_boxes.tolist()
     
-    return boxes
+    return parsed_boxes
