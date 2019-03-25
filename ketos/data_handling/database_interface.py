@@ -558,7 +558,7 @@ def parse_labels(label):
             The bytes string containing the label (e.g.:b'[1]', b'[1,2]')
 
         Returns:
-            labels: list(int)
+            parsed_labels: list(int)
             List of labels
 
         Example:
@@ -592,12 +592,12 @@ def parse_labels(label):
     parsed_labels = list(parsed_labels)
     return parsed_labels
 
-def parse_boxes(item):
+def parse_boxes(boxes):
     """ Parse the 'boxes' field from an item in a hdf5 spectrogram table
 
         Args:
-            item: tables.tableextension.Row
-            A table item (a row from a hdf5 spectrogram table).
+            boxex: bytes str
+            The bytes string containing the label (e.g.:b'[[105, 107, 200,400]]', b'[[105,107,200,400], [230,238,220,400]]')
         Returns:
             labels: list(tuple)
                 List of boxes
@@ -610,33 +610,34 @@ def parse_boxes(item):
             >>> # Open the species1 table in the train group
             >>> table = open_table(h5file, "/train/species1")
             >>>
-             >>> #The boxes are stored as byte strings in the table
-            >>> type(table[0]['boxes'])
+            >>> #The boxes are stored as byte strings in the table
+            >>> boxes = table[0]['boxes']
+            >>> type(box)
             <class 'numpy.bytes_'>
-            >>> table[0]['boxes']
+            >>> boxes
             b'[[10,15,200,400]]'
             >>>
-            >>> box = parse_boxes(table[0])
-            >>> type(box)
+            >>> parsed_box = parse_boxes(boxes)
+            >>> type(parsed_box)
             <class 'list'>
             >>> # After parsing, the all of boxes becomes a list, which
             >>> # has each box as a list of integers
-            >>> box
+            >>> parsed_box
             [[10, 15, 200, 400]]
             >>>
             >>> h5file.close()
     """
     
-    boxes_str = item['boxes'].decode()
+    boxes_str = boxes.decode()
     boxes_str = boxes_str.replace("inf", "-99")
     try:
         boxes_str = ast.literal_eval(boxes_str)
     except:
-        boxes = []
+        parsed_boxes = []
 
-    boxes = np.array(boxes_str)
-    if (boxes == -99).any():
-         boxes[boxes == -99] = math.inf
-    boxes = boxes.tolist()
+    parsed_boxes = np.array(boxes_str)
+    if (parsed_boxes == -99).any():
+         parsed_boxes[parsed_boxes == -99] = math.inf
+    parsed_boxes = parsed_boxes.tolist()
     
-    return boxes
+    return parsed_boxes
