@@ -365,7 +365,8 @@ def filter_by_label(table, label):
     matching_rows = []
 
     for i,row in enumerate(table.iterrows()):
-        r_labels = parse_labels(row)
+        r_labels = row['labels']
+        r_labels = parse_labels(r_labels)
 
         if any([l in label for l in r_labels]):
             matching_rows.append(i)
@@ -420,8 +421,10 @@ def load_specs(table, index_list=None):
 
         it = table[idx]
         # parse labels and boxes
-        labels = parse_labels(it)
-        boxes = parse_boxes(it)
+        labels = it['labels']
+        labels = parse_labels(labels)
+        boxes = it['boxes']
+        boxes = parse_boxes(boxes)
         
         # get the spectrogram data
         data = it['data']
@@ -612,7 +615,7 @@ def parse_boxes(boxes):
             >>>
             >>> #The boxes are stored as byte strings in the table
             >>> boxes = table[0]['boxes']
-            >>> type(box)
+            >>> type(boxes)
             <class 'numpy.bytes_'>
             >>> boxes
             b'[[10,15,200,400]]'
