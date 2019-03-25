@@ -947,7 +947,7 @@ class Spectrogram(AnnotationHandler):
 
         return img, t1, f1r
 
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False, keep_time=True, make_copy=False):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False, keep_time=True, make_copy=False, **kwargs):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
@@ -1012,6 +1012,16 @@ class Spectrogram(AnnotationHandler):
             spec = self.copy()
         else:
             spec = self
+
+        # if padding exceeds 'tpadmax' return None
+        if tpad and 'tpadmax' in kwargs.keys():
+            tmax = spec.duration() + spec.tmin
+            pad_high = max(thigh - tmax, 0)
+            pad_low = max(spec.tmin - spec.tmin, 0)
+            padding = (pad_low + pad_high) / (thigh - tlow)
+            if padding > kwargs['tpadmax']:
+                spec = None
+                return spec
 
         # crop labels and boxes
         spec.labels, spec.boxes = spec.get_cropped_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
@@ -1127,7 +1137,7 @@ class Spectrogram(AnnotationHandler):
         
         return res
 
-    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False):
+    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -1209,7 +1219,7 @@ class Spectrogram(AnnotationHandler):
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fmax()+0.5*spec.fres)
 
-        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad)
+        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, **kwargs)
         
         return segs
 
@@ -1278,7 +1288,7 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False):
+    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, **kwargs):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -1322,8 +1332,9 @@ class Spectrogram(AnnotationHandler):
         # loop over boxes
         specs = list()
         for i in range(N):
-            spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i], tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True)
-            specs.append(spec)
+            spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i], tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True, **kwargs)
+            if spec is not None:
+                specs.append(spec)
 
         # convert from time to bin numbers
         t1 = self._find_tbin(tlow, truncate=True) 

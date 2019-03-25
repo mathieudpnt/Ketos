@@ -644,7 +644,7 @@ def parse_boxes(item):
 
 def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True):
+        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, **kwargs):
     """ Create a database with spectrograms computed from raw audio (*.wav) files
 
         One spectrogram is created for each audio file.
@@ -781,7 +781,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
             duration = s.duration()
         
         # ensure desired duration 
-        specs = s.segment(length=duration, pad=True)
+        specs = s.segment(length=duration, pad=True, **kwargs)
 
         # save spectrogram(s) to file        
         path = sf + 'spec'
