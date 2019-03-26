@@ -610,9 +610,11 @@ class BasicCNN(DataHandler):
         if self.epoch_counter == 0:
             sess.run(self.init_op)
 
-        batches = int(y.shape[0] / batch_size)
+       
         if train_batch_gen is not None:
             batches = train_batch_gen.n_batches
+        else:
+            batches = int(y.shape[0] / batch_size)
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
