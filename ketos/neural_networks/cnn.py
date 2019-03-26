@@ -623,11 +623,11 @@ class BasicCNN(DataHandler):
                 if train_batch_gen is None:
                     offset = i * batch_size
                     x_i = x[offset:(offset + batch_size), :, :, :]
-                    x_i = self._reshape_x(x_i)
+                   
                     y_i = y[offset:(offset + batch_size)]
                 else:
                     x_i, y_i = next(train_batch_gen)
-                
+                x_i = self._reshape_x(x_i)
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
                 _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
