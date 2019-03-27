@@ -26,11 +26,18 @@
 """
 
 import pytest
+import os
+import tables
 import numpy as np
 import ketos.data_handling.data_handling as dh
+import ketos.data_handling.database_interface as di
+from ketos.data_handling.data_feeding import BatchGenerator
 from ketos.neural_networks.cnn import BasicCNN
 from tensorflow import reset_default_graph
 
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.mark.test_BasicCNN
 def test_initialize_BasicCNN_with_default_constructor_and_default_args(database_prepared_for_NN):
@@ -66,6 +73,36 @@ def test_train_BasicCNN_with_default_args2(database_prepared_for_NN_2_classes):
     network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_train_batch_generator(database_prepared_for_NN_2_classes):
+    """ Test if batch generator returns labels instead of boxes
+    """
+    h5 = tables.open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
+    train_data = di.open_table(h5, "/train/species1")
+    val_data = di.open_table(h5, "/validation/species1")
+    
+    image_shape = train_data[0]['data'].shape
+    def parse_y(y):
+        labels=list(map(lambda l: dh.to1hot(di.parse_labels(l)[0], depth=2), y ))
+        return np.array(labels)
+
+
+    def apply_to_batch(X,Y):
+        Y = parse_y(Y)
+        return (X,Y)
+    
+    validation_x = val_data[:5]['data']
+    validation_y = parse_y(val_data[:5]['labels'])
+
+    train_generator = BatchGenerator(hdf5_table=train_data, y_field='labels', batch_size=5, return_batch_ids=False, instance_function=apply_to_batch) 
+    
+   
+    
+    network = BasicCNN(image_shape=image_shape, validation_x=validation_x, validation_y=validation_y, num_epochs=2, num_labels=2, verbosity=0)
+    _ = network.create()
+    network.train(train_batch_gen=train_generator)
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
