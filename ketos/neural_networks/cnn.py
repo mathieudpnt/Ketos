@@ -532,9 +532,10 @@ class BasicCNN(DataHandler):
     def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
         """ Train the neural network on the training set.
 
-            Train on the batches of training data provided through ``train_batch_gen``. 
-            If generators are not provided, divide the training data stored in the ``images``
-            attribute in batches of ``batch_size`` in orther to train.
+            Train on the batches of training data provided by the generator ``train_batch_gen``. 
+
+            If a generator is not provided, train on the data stored in the ``images``
+            attribute, dividing these data into batches of size ``batch_size``.
 
             Once training is done, check the accuracy on the validation set.
             
