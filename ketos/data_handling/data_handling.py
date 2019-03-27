@@ -136,7 +136,7 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
             >>> find_files(path="ketos/tests/assets", substr=".h5")
-            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/morlet.h5']
+            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()

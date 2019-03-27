@@ -529,16 +529,23 @@ class BasicCNN(DataHandler):
 
         return img_shape
 
-    def train(self, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
         """ Train the neural network on the training set.
 
-            Devide the training set in batches in orther to train.
+            Train on the batches of training data provided by the generator ``train_batch_gen``. 
+
+            If a generator is not provided, train on the data stored in the ``images``
+            attribute, dividing these data into batches of size ``batch_size``.
 
             Once training is done, check the accuracy on the validation set.
             
             Record summary statics during training. 
 
+
             Args:
+                train_batch_gen:
+                    A generator that provides (X,Y) tuples, whereeach tuple is
+                    a batch of training data (X) and the corresponding labels (Y).
                 batch_size: int
                     Batch size. Overwrites batch size specified at initialization.
                 num_epochs: int
@@ -595,7 +602,7 @@ class BasicCNN(DataHandler):
         if self.verbosity >= 2:
             if self.epoch_counter == 0: 
                 print("\nTraining  started")
-            header = '\nEpoch  Cost  Test acc.  Val acc.'
+            header = '\nEpoch  Cost  Train acc.  Val acc.'
             line   = '----------------------------------'
             print(header)
             print(line)
@@ -604,16 +611,24 @@ class BasicCNN(DataHandler):
         if self.epoch_counter == 0:
             sess.run(self.init_op)
 
-        batches = int(y.shape[0] / batch_size)
+       
+        if train_batch_gen is not None:
+            batches = train_batch_gen.n_batches
+        else:
+            batches = int(y.shape[0] / batch_size)
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
             val_acc = 0
             for i in range(batches):
-                offset = i * batch_size
-                x_i = x[offset:(offset + batch_size), :, :, :]
+                if train_batch_gen is None:
+                    offset = i * batch_size
+                    x_i = x[offset:(offset + batch_size), :, :, :]
+                   
+                    y_i = y[offset:(offset + batch_size)]
+                else:
+                    x_i, y_i = next(train_batch_gen)
                 x_i = self._reshape_x(x_i)
-                y_i = y[offset:(offset + batch_size)]
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
                 _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
