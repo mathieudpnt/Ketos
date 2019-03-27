@@ -33,7 +33,9 @@ import math
 import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram
+from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
+from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader
+from tqdm import tqdm
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -142,14 +144,14 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
             path = path[:-1]
 
         group_name = os.path.basename(path)
-        path = path.split(group_name)[0]
-        if path.endswith('/'): 
-             path = path[:-1]
+        path_to_group = path.split(group_name)[0]
+        if path_to_group.endswith('/'): 
+            path_to_group = path_to_group[:-1]
         
-        group = h5file.create_group(path, group_name, createparents=True)
+        group = h5file.create_group(path_to_group, group_name, createparents=True)
         
     try:
-       table = h5file.get_node("{0}/{1}".format(path, name))
+        table = h5file.get_node("{0}/{1}".format(path, name))
     
     except tables.NoSuchNodeError:    
         filters = tables.Filters(complevel=1, fletcher32=True)
@@ -644,3 +646,346 @@ def parse_boxes(boxes):
     parsed_boxes = parsed_boxes.tolist()
     
     return parsed_boxes
+
+def create_spec_database(output_file, input_dir, annotations_file=None,\
+        sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
+        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, **kwargs):
+    """ Create a database with spectrograms computed from raw audio (*.wav) files
+
+        One spectrogram is created for each audio file.
+        
+        However, if the spectrogram is longer than the specified duration, the spectrogram 
+        will be split into segments, each with the desired duration.
+
+        On the other hand, if a spectrogram is shorter than the specified duration, the spectrogram will 
+        be padded with zeros to achieve the desired duration. 
+
+        If duration is not specified (default), it will be set equal to the duration 
+        of the first spectrogram that is processed.
+
+        Thus, all saved spectrograms will have the same duration.
+
+        If the combined size of the spectrograms exceeds max_size (1 GB by default), the output database 
+        file will be split into several files, with _000, _001, etc, appended to the filename.
+
+        The internal file structure of the database file will mirror the structure of the 
+        data directory where the audio data is stored. See the example below.
+
+        Args:
+            output_file: str
+                Full path to output database file (*.h5)
+            input_dir: str
+                Full path to folder containing the input audio files (*.wav)
+            annotations_file: str
+                Full path to file containing annotations (*.csv)
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            window_size: float
+                Window size (seconds) used for computing the spectrogram
+            step_size: float
+                Step size (seconds) used for computing the spectrogram
+            duration: float
+                Duration in seconds of individual spectrograms.
+            flow: float
+                Lower cut on frequency (Hz)
+            fhigh: float
+                Upper cut on frequency (Hz)
+            max_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+            progress_bar: bool
+                Option to display progress bar.
+            verbose: bool
+                Print relevant information during execution such as files written to disk
+
+            Example:
+
+                >>> # create a few audio files and save them as *.wav files
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> cos7 = AudioSignal.cosine(rate=1000, frequency=7.0, duration=1.0)
+                >>> cos8 = AudioSignal.cosine(rate=1000, frequency=8.0, duration=1.0)
+                >>> cos21 = AudioSignal.cosine(rate=1000, frequency=21.0, duration=1.0)
+                >>> folder = "ketos/tests/assets/tmp/harmonic/"
+                >>> cos7.to_wav(folder+'cos7.wav')
+                >>> cos8.to_wav(folder+'cos8.wav')
+                >>> cos21.to_wav(folder+'highfreq/cos21.wav')
+                >>> # now create a database of spectrograms from these audio files
+                >>> from ketos.data_handling.database_interface import create_spec_database
+                >>> fout = folder + 'harmonic.h5'
+                >>> create_spec_database(output_file=fout, input_dir=folder)
+                3 spectrograms saved to ketos/tests/assets/tmp/harmonic/harmonic.h5
+                >>> # inspect the contacts of the database file
+                >>> import tables
+                >>> f = tables.open_file(fout, 'r')
+                >>> print(f.root.spec)
+                /spec (Table(2,), fletcher32, shuffle, zlib(1)) ''
+                >>> print(f.root.highfreq.spec)
+                /highfreq/spec (Table(1,), fletcher32, shuffle, zlib(1)) ''
+                >>> f.close()
+    """
+    # annotation reader
+    if annotations_file is None:
+        areader = None
+        max_ann = 1
+    else:
+        areader = AnnotationTableReader(annotations_file)
+        max_ann = areader.get_max_annotations()
+
+    # spectrogram writer
+    swriter = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_ann, verbose=verbose)
+
+    # get all wav files in the folder
+    files = find_wave_files(path=input_dir, fullpath=True, subdirs=True)
+
+    # subfolder structure
+    subfolders = list()
+    for f in files:
+        p1 = f.find(input_dir) + len(input_dir) 
+        p2 = f.rfind('/')
+        sf = f[p1:p2]
+        if len(sf) > 0: 
+            sf = '/' + sf + '/'
+        else:
+            sf = '/'
+        subfolders.append(sf)
+
+    # loop over files
+    for i in tqdm(range(len(files)), disable = not progress_bar):
+    
+        f = files[i]
+        sf = subfolders[i]
+
+        # check if files exists
+        exists = os.path.exists(f)
+        if exists is False:
+            continue
+
+        # read audio and resample
+        a = AudioSignal.from_wav(path=f, channel=channel)  
+        if sampling_rate is not None:
+            a.resample(new_rate=sampling_rate) 
+
+        # compute the spectrogram
+        s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
+
+        # add annotations
+        if areader is not None:
+            fname = f[f.rfind('/')+1:]
+            labels, boxes = areader.get_annotations(fname)
+            s.annotate(labels, boxes) 
+
+        # crop frequencies
+        s.crop(flow=flow, fhigh=fhigh) 
+
+        # if duration is not specified, use duration of first spectrogram
+        if duration is None: 
+            duration = s.duration()
+        
+        # ensure desired duration 
+        specs = s.segment(length=duration, pad=True, **kwargs)
+
+        # save spectrogram(s) to file        
+        path = sf + 'spec'
+        swriter.cd(path)
+        for spec in specs:
+            swriter.write(spec)
+
+    swriter.close()
+
+class SpecWriter():
+    """ Saves spectrograms to a database file (*.h5).
+
+        If the combined size of the spectrograms exceeds max_size (1 GB by default), the output database 
+        file will be split into several files, with _000, _001, etc, appended to the filename.
+
+        Args:
+            output_file: str
+                Full path to output database file (*.h5)
+            max_annotations: int
+                Maximum number of annotations allowed for any spectrogram
+            max_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+            verbose: bool
+                Print relevant information during execution such as files written to disk
+
+        Attributes:
+            base: str
+                Output filename base
+            ext: str
+                Output filename extension (*.h5)
+            file: tables.File
+                Database file
+            file_counter: int
+                Keeps track of how many files have been written to disk
+            spec_counter: int
+                Keeps track of how many spectrograms have been written to files
+            path: str
+                Path to table within database filesystem
+            name: str
+                Name of table 
+            max_annotations: int
+                Maximum number of annotations allowed for any spectrogram
+            max_file_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+            verbose: bool
+                Print relevant information during execution such as files written to disk
+
+            Example:
+
+                >>> # create a few cosine wave forms
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> cos7 = AudioSignal.cosine(rate=1000, frequency=7.0, duration=1.0)
+                >>> cos8 = AudioSignal.cosine(rate=1000, frequency=8.0, duration=1.0)
+                >>> cos21 = AudioSignal.cosine(rate=1000, frequency=21.0, duration=1.0)
+                >>> # compute spectrograms
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> s7 = MagSpectrogram(cos7, winlen=0.2, winstep=0.02)
+                >>> s8 = MagSpectrogram(cos8, winlen=0.2, winstep=0.02)
+                >>> s21 = MagSpectrogram(cos21, winlen=0.2, winstep=0.02)
+                >>> # save the spectrograms to a database file
+                >>> from ketos.data_handling.database_interface import SpecWriter
+                >>> fname = "ketos/tests/assets/tmp/db_harm.h5"
+                >>> writer = SpecWriter(output_file=fname)
+                >>> writer.write(s7)
+                >>> writer.write(s8)
+                >>> writer.write(s21)
+                >>> writer.close()
+                3 spectrograms saved to ketos/tests/assets/tmp/db_harm.h5
+                >>> # inspect the contacts of the database file
+                >>> import tables
+                >>> f = tables.open_file(fname, 'r')
+                >>> print(f.root.spec)
+                /spec (Table(3,), fletcher32, shuffle, zlib(1)) ''
+    """
+    def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100):
+        
+        self.base = output_file[:output_file.rfind('.')]
+        self.ext = output_file[output_file.rfind('.'):]
+        self.file = None
+        self.file_counter = 0
+        self.max_annotations = max_annotations
+        self.max_file_size = max_size
+        self.path = '/'
+        self.name = 'spec'
+        self.verbose = verbose
+        self.spec_counter = 0
+
+    def cd(self, fullpath='/'):
+        """ Change the current directory within the database file system
+
+            Args:
+                fullpath: str
+                    Full path to the table. For example, /data/spec
+        """
+        self.path = fullpath[:fullpath.rfind('/')+1]
+        self.name = fullpath[fullpath.rfind('/')+1:]
+
+    def write(self, spec, path=None, name=None):
+        """ Write spectrogram to a table in the database file
+
+            If path and name are not specified, the spectrogram will be 
+            saved to the current directory (as set with the cd() method).
+
+            Args:
+                spec: Spectrogram
+                    Spectrogram to be saved
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
+        """
+        if path is None:
+            path = self.path
+        if name is None:
+            name = self.name
+
+        # ensure a file is open
+        self._open_file() 
+
+        # open/create table
+        tbl = self._open_table(path=path, name=name, shape=spec.image.shape) 
+
+        # write spectrogram to table
+        write_spec(tbl, spec)
+        self.spec_counter += 1
+
+        # close file if size reaches limit
+        siz = self.file.get_filesize()
+        if siz > self.max_file_size:
+            self.close(final=False)
+
+    def close(self, final=True):
+        """ Close the currently open database file, if any
+
+            Args:
+                final: bool
+                    If True, this instance of SpecWriter will not be able to save more spectrograms to file
+        """        
+        if self.file is not None:
+
+            actual_fname = self.file.filename
+            self.file.close()
+            self.file = None
+
+            if final and self.file_counter == 1:
+                fname = self.base + self.ext
+                os.rename(actual_fname, fname)
+            else:
+                fname = actual_fname
+
+            if self.verbose:
+                plural = ['', 's']
+                print('{0} spectrogram{1} saved to {2}'.format(self.spec_counter, plural[self.spec_counter > 1], fname))
+
+            self.spec_counter = 0
+
+    def _open_table(self, path, name, shape):
+        """ Open the specified table.
+
+            If the table does not exist, create it.
+
+            Args:
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
+                shape: tuple
+                    Shape of spectrogram image
+
+            Returns:
+                tbl: tables.Table
+                    Table
+        """        
+
+        if path == '/':
+            x = path + name
+        elif path[-1] == '/':
+            x = path + name
+            path = path[:-1]
+        else:
+            x = path + '/' + name
+
+        if x in self.file:
+            tbl = self.file.get_node(path, name)
+        else:
+            tbl = create_table(h5file=self.file, path=path, name=name, shape=shape, max_annotations=self.max_annotations)
+
+        return tbl
+
+    def _open_file(self):
+        """ Open a new database file, if none is open
+        """                
+        if self.file is None:
+            fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
+            self.file = tables.open_file(fname, 'w')
+            self.file_counter += 1

@@ -351,5 +351,167 @@ def test_load_specs_with_index_list():
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
 
-    
     h5file.close()
+
+def test_create_spec_database_with_default_args():
+
+    output_file = os.path.join(path_to_assets, 'tmp/db_spec.h5')
+    input_dir = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output_file=output_file, input_dir=input_dir)
+
+    path = os.path.join(path_to_assets, 'tmp/db_spec.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert specs[0].tres == 0.02
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert specs[0].tres == 0.02
+
+    fil.close()
+
+def test_create_spec_database_with_size_limit():
+
+    output_file = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
+    input_dir = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=5E6)
+
+    path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    fil.close()
+
+    path = os.path.join(path_to_assets, 'tmp/db2_spec_001.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    fil.close()
+
+def test_create_spec_database_with_annotations():
+
+    csvfile = os.path.join(path_to_assets, 'tmp/ann.csv')
+    output_file = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
+    input_dir = os.path.join(path_to_assets, 'wav_files/')
+
+    # create annotations
+    import pandas as pd
+    d = {'filename': ['w1.wav'], 'start': [0.1], 'end': [0.7], 'label': [1]}
+    df = pd.DataFrame(data=d)
+    df.to_csv(csvfile)
+
+    # create database
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile)
+
+    path = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert len(specs[0].labels) == 1
+    assert specs[0].labels[0] == 1
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert len(specs[0].labels) == 0
+
+    fil.close()
+
+def test_init_spec_writer():
+    out = os.path.join(path_to_assets, 'tmp/db4.h5')
+    di.SpecWriter(output_file=out)
+
+def test_spec_writer_can_write_one_spec(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db5.h5')
+    writer = di.SpecWriter(output_file=out)
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer.write(spec=spec)
+    writer.close()
+    fname = os.path.join(path_to_assets, 'tmp/db5.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/spec' in fil
+    specs = di.load_specs(fil.root.spec)
+    assert len(specs) == 1
+
+def test_spec_writer_can_write_two_specs_to_same_node(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db6.h5')
+    writer = di.SpecWriter(output_file=out)
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.close()
+    fname = os.path.join(path_to_assets, 'tmp/db6.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/spec' in fil
+    specs = di.load_specs(fil.root.spec)
+    assert len(specs) == 2
+
+def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db7.h5')
+    writer = di.SpecWriter(output_file=out)
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer.write(spec=spec, path='/first', name='test')
+    writer.write(spec=spec, path='/first', name='test')
+    writer.write(spec=spec, path='/second', name='temp')
+    writer.write(spec=spec, path='/second', name='temp')
+    writer.write(spec=spec, path='/second', name='temp')
+    writer.close()
+    fname = os.path.join(path_to_assets, 'tmp/db7.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/first/test' in fil
+    assert '/second/temp' in fil
+    specs = di.load_specs(fil.root.first.test)
+    assert len(specs) == 2
+    specs = di.load_specs(fil.root.second.temp)
+    assert len(specs) == 3
+
+def test_spec_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db8.h5')
+    writer = di.SpecWriter(output_file=out, max_size=1E6) # max size: 1 Mbyte
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.close()
+
+    fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/spec' in fil
+    specs = di.load_specs(fil.root.spec)
+    assert len(specs) == 2
+
+    fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/spec' in fil
+    specs = di.load_specs(fil.root.spec)
+    assert len(specs) == 1
+
+def test_spec_writer_change_directory(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db9.h5')
+    writer = di.SpecWriter(output_file=out)
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer.cd('/home/fish')
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.cd('/home/whale')
+    writer.write(spec=spec)
+    writer.write(spec=spec)
+    writer.close()
+    fname = os.path.join(path_to_assets, 'tmp/db9.h5')
+    fil = tables.open_file(fname, 'r')
+    assert '/home/fish' in fil
+    assert '/home/whale' in fil
+    specs = di.load_specs(fil.root.home.fish)
+    assert len(specs) == 3
+    specs = di.load_specs(fil.root.home.whale)
+    assert len(specs) == 2
