@@ -204,11 +204,13 @@ def test_parse_labels(sine_audio):
     di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
     di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
     #parse labels
-    labels = di.parse_labels(item=tbl[0])
+    labels = tbl[0]['labels']
+    labels = di.parse_labels(labels)
     assert type(labels) == list
     assert labels == [1]
 
-    labels = di.parse_labels(item=tbl[1])
+    labels = tbl[1]['labels']
+    labels = di.parse_labels(labels)
     assert type(labels) == list
     assert labels == [1,2]
 
@@ -234,11 +236,13 @@ def test_parse_boxes(sine_audio):
     di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
     di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
     # parse boxes
-    boxes = di.parse_boxes(item=tbl[0])
+    boxes = tbl[0]['boxes']
+    boxes = di.parse_boxes(boxes)
     assert type(boxes) == list
     assert boxes == [[1.001, 1.401, 50, 300]]
 
-    boxes = di.parse_boxes(item=tbl[1])
+    boxes = tbl[1]['boxes']
+    boxes = di.parse_boxes(boxes)
     assert type(boxes) == list
     assert boxes == [[1.1, 1.5, 0.0, 22050.0], [1.6, 1.7, 0.0, 22050.0]]
 
