@@ -32,7 +32,7 @@ import numpy as np
 import ketos.data_handling.data_handling as dh
 import ketos.data_handling.database_interface as di
 from ketos.data_handling.data_feeding import BatchGenerator
-from ketos.neural_networks.cnn import BasicCNN
+from ketos.neural_networks.cnn import BasicCNN, ConvParams
 from tensorflow import reset_default_graph
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -79,9 +79,10 @@ def test_train_BasicCNN_with_default_args2(database_prepared_for_NN_2_classes):
 def test_train_BasicCNN_with_train_batch_generator(database_prepared_for_NN_2_classes):
     """ Test if batch generator returns labels instead of boxes
     """
-    h5 = tables.open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
-    train_data = di.open_table(h5, "/train/species1")
-    val_data = di.open_table(h5, "/validation/species1")
+    database = tables.open_file(os.path.join(path_to_assets,"humpback.h5"), 'r')
+    train_data = di.open_table(database, "/train/mel_specs" )
+    val_data = di.open_table(database, "/validation/mel_specs" )
+    test_data = di.open_table(database, "/test/mel_specs")
     
     image_shape = train_data[0]['data'].shape
     def parse_y(y):
@@ -95,14 +96,18 @@ def test_train_BasicCNN_with_train_batch_generator(database_prepared_for_NN_2_cl
     
     validation_x = val_data[:5]['data']
     validation_y = parse_y(val_data[:5]['labels'])
-
+    
     train_generator = BatchGenerator(hdf5_table=train_data, y_field='labels', batch_size=5, return_batch_ids=False, instance_function=apply_to_batch) 
     
-   
-    
-    network = BasicCNN(image_shape=image_shape, validation_x=validation_x, validation_y=validation_y, num_epochs=2, num_labels=2, verbosity=0)
-    _ = network.create()
+       
+    network = BasicCNN(image_shape=image_shape, validation_x=validation_x, validation_y=validation_y, num_epochs=2, num_labels=2, seed=123, batch_size=5, verbosity=0 )
+
+    conv_params = [ConvParams(name='conv_1', n_filters=32, filter_shape=[2,8]),
+         ConvParams(name='conv_2', n_filters=64, filter_shape=[30,8])]
+
+    _ = network.create(conv_params=conv_params, dense_size=[512])
     network.train(train_batch_gen=train_generator)
+    # network.train()
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
