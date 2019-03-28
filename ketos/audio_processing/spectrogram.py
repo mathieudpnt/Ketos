@@ -129,7 +129,8 @@ def ensure_same_length(specs, pad=False):
 
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
-            scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1, validation_function=None):
+            scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
+            validation_function=None, progress_bar=False):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -168,6 +169,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                 Seed for numpy's random number generator
             validation_function:
                 This function is applied to each new spectrogram. The function must accept 'spec1', 'spec2', and 'new_spec'; returns True or False. If True, the new spectrogram is accepted; if False, it gets discarded.
+            progress_bar: bool
+                Option to display progress bar.
 
         Returns:   
             specs: Spectrogram or list of Spectrograms
@@ -235,6 +238,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             return True
         validation_function = always_true
 
+    if progress_bar:
+        import sys
+        nprog = max(1, int(num / 100.))
+
     specs = list()
     while len(specs) < num:
         
@@ -256,7 +263,11 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             sf = [sf]
 
         for i in range(N):
-            
+
+            if progress_bar:
+                if len(specs) % nprog == 0:
+                    sys.stdout.write('{0:.0f}% \r'.format(len(specs)/num*100.))
+
             s1 = _specs1[i]
             s2 = _specs2[i]
 
@@ -286,6 +297,9 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
             if len(specs) >= num:
                 break
+
+    if progress_bar:
+        print('100%')
 
     # if list has length 1, return the element rather than the list
     if len(specs) == 1:
