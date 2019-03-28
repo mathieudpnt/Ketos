@@ -171,8 +171,8 @@ def test_extract(sine_audio):
     assert selection[0].image.shape == (41,51)
     assert complements[0].image.shape[0] == (spec1.image.shape[0] - selection[0].image.shape[0])
 
-    assert selection[1].image.shape == (41,4411)
-    assert complements[1].image.shape[0] == (spec2.image.shape[0] - selection[0].image.shape[0])
+    assert selection[1].image.shape == (40,4411)
+    assert complements[1].image.shape[0] == (spec2.image.shape[0] - selection[1].image.shape[0])
 
     tshape = int(0.8 / spec1.tres) + 1
     assert selection[0].image.shape[0] == tshape
