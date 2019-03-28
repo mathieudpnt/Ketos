@@ -671,19 +671,25 @@ class Spectrogram(AnnotationHandler):
 
         x = np.array(x)
         dx = (x_max - x_min) / bins
+
+        dx_int = int(dx)
+        if abs(dx - dx_int) < epsilon:
+            dx = dx_int
+
         b = (x - x_min) / dx
 
-        if not roundup:
-            b[b % 1 == 0.0] -= epsilon
+        idx = np.logical_or(abs(b%1)<epsilon, abs(b%1-1)<epsilon)
+
+        if roundup:
+            b[idx] += epsilon
+        else:
+            b[idx] -= epsilon
 
         if truncate:
             b[b < 0] = 0
             b[b >= bins] = bins - 1
         else:
             b[b < 0] = b[b < 0] - 1
-
-#            b[b < 0] = -1
-#            b[b >= bins] = bins
 
         b = b.astype(dtype=int, copy=False)
 
@@ -1201,19 +1207,20 @@ class Spectrogram(AnnotationHandler):
             f = np.floor
 
         if number > 1:
-            bins = int(f(spec.tbins() / number)) - 1
+            bins = int(f(spec.tbins() / number))
             dt = bins * spec.tres
         
         elif length is not None and length != self.duration():
-            bins = int(np.ceil(spec.tbins() * length / spec.duration())) - 1
+#            bins = int(np.ceil(spec.tbins() * length / spec.duration())) - 1
+            bins = int(np.ceil(length / spec.tres))
             number = int(f(spec.tbins() / bins))
             dt = bins * spec.tres
 
         elif length == self.duration():
             return [spec]
 
-        t1 = np.arange(number) * dt + epsilon
-        t2 = (np.arange(number) + 1) * dt + epsilon
+        t1 = np.arange(number) * dt# + epsilon
+        t2 = (np.arange(number) + 1) * dt# + epsilon
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)

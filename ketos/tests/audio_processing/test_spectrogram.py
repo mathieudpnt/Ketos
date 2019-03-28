@@ -110,7 +110,7 @@ def test_find_bins():
     assert b[1] == 4
     assert b[2] == 99 #img.shape[0]
     b = spec._find_fbin(f=[30, 61.2])
-    assert b[0] == int((30-60.5)/0.5)-1 #-1
+    assert b[0] == int((30-60.5)/0.5)
     assert b[1] == 1
     b = spec._find_fbin(f=[200])
     assert b[0] == int((200-60.5)/0.5) #img.shape[1]

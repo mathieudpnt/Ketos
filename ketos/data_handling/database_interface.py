@@ -784,7 +784,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         # if duration is not specified, use duration of first spectrogram
         if duration is None: 
             duration = s.duration()
-        
+
         # ensure desired duration 
         specs = s.segment(length=duration, pad=True, **kwargs)
 
