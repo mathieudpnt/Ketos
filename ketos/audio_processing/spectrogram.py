@@ -59,6 +59,7 @@ from ketos.audio_processing.audio_processing import make_frames, to_decibel
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
+from tqdm import tqdm
 
 
 def ensure_same_length(specs, pad=False):
@@ -396,7 +397,7 @@ class Spectrogram(AnnotationHandler):
         file_dict = {0: tag}
         return file_dict, file_vector, time_vector
 
-    def _crop_tracking_data(self, tlow=None, thigh=None, tpad=False):
+    def _crop_tracking_data(self, tlow=None, thigh=None, tpad=False, bin_no=False):
         """ Update tracking data in response to a cropping operation
 
             Args:
@@ -404,6 +405,9 @@ class Spectrogram(AnnotationHandler):
                     Lower limit of time cut, measured in duration from the beginning of the spectrogram
                 thigh: float
                     Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
+                bin_no: bool
+                    Indicate if time cuts (tlow, thigh) are given in physical units (default) or 
+                    bin numbers. 
 
             Returns:
                 new_file_dict: dict
@@ -416,8 +420,16 @@ class Spectrogram(AnnotationHandler):
         tbin1 = 0
         tbin2 = self.tbins()
 
-        if tlow is not None: tbin1 = self._find_tbin(tlow, truncate=False)
-        if thigh is not None: tbin2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
+        if tlow is not None: 
+            if bin_no:
+                tbin1 = tlow
+            else:
+                tbin1 = self._find_tbin(tlow, truncate=False)
+        if thigh is not None: 
+            if bin_no:
+                tbin2 = thigh
+            else:
+                tbin2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
         
         N = len(self.time_vector)
         tbin1r = max(0, tbin1)
@@ -875,7 +887,7 @@ class Spectrogram(AnnotationHandler):
         self.image = self.image - np.min(self.image)
         self.image = self.image / np.max(self.image)
 
-    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False):
+    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False, bin_no=False):
         """ Crop image along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
@@ -900,6 +912,9 @@ class Spectrogram(AnnotationHandler):
                     If necessary, pad with zeros along the frequency axis to ensure that 
                     the extracted spectrogram had the same frequency range as the source 
                     spectrogram.
+                bin_no: bool
+                    Indicate if time and frequency cuts (tlow, thigh, flow, fhigh) are given in physical units (default) or 
+                    bin numbers. 
 
             Returns:
                 img: 2d numpy array
@@ -917,10 +932,26 @@ class Spectrogram(AnnotationHandler):
         f1 = 0
         f2 = Nf
 
-        if tlow is not None: t1 = self._find_tbin(tlow, truncate=False)
-        if thigh is not None: t2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-        if flow is not None: f1 = self._find_fbin(flow, truncate=False)
-        if fhigh is not None: f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
+        if tlow is not None: 
+            if bin_no:
+                t1 = tlow
+            else:
+                t1 = self._find_tbin(tlow, truncate=False)
+        if thigh is not None: 
+            if bin_no:
+                t2 = thigh
+            else:
+                t2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
+        if flow is not None: 
+            if bin_no:
+                f1 = flow
+            else:            
+                f1 = self._find_fbin(flow, truncate=False)
+        if fhigh is not None: 
+            if bin_no:
+                f2 = fhigh
+            else:                        
+                f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
             
         if t2 <= t1:
             img = None
@@ -941,7 +972,7 @@ class Spectrogram(AnnotationHandler):
 
             t1r = max(t1, 0)
             t2r = min(t2, Nt)
-            t1_crop = max(-t1, 0)
+            t1_crop = max(-1*t1, 0)
             t2_crop = t1_crop + t2r - t1r
 
             f1r = max(f1, 0)
@@ -953,7 +984,8 @@ class Spectrogram(AnnotationHandler):
 
         return img, t1, f1r
 
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False, keep_time=True, make_copy=False, **kwargs):
+    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None,\
+        tpad=False, fpad=False, keep_time=True, make_copy=False, bin_no=False, **kwargs):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             If the cropping box extends beyond the boarders of the spectrogram, 
@@ -983,6 +1015,9 @@ class Spectrogram(AnnotationHandler):
                     the first bin of the cropped spectrogram.
                 make_copy: bool
                     Do not modify the present instance, but make a copy instead and applying the cropping operation to this copy
+                bin_no: bool
+                    Indicate if time and frequency cuts (tlow, thigh, flow, fhigh) are given in physical units (default) or 
+                    bin numbers. 
 
             Returns:
                 spec: Spectrogram
@@ -1029,14 +1064,25 @@ class Spectrogram(AnnotationHandler):
                 spec = None
                 return spec
 
+        if bin_no:
+            t1 = self._tbin_low(tlow)
+            t2 = self._tbin_low(thigh) + 1
+            f1 = self._fbin_low(flow)
+            f2 = self._fbin_low(fhigh) + 1
+        else:
+            t1 = tlow
+            t2 = thigh
+            f1 = flow
+            f2 = fhigh
+
         # crop labels and boxes
-        spec.labels, spec.boxes = spec.get_cropped_annotations(t1=tlow, t2=thigh, f1=flow, f2=fhigh)
+        spec.labels, spec.boxes = spec.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
 
         # handle time vector, file vector and file dict
-        spec.time_vector, spec.file_vector, spec.file_dict = spec._crop_tracking_data(tlow, thigh, tpad=tpad)
+        spec.time_vector, spec.file_vector, spec.file_dict = spec._crop_tracking_data(tlow, thigh, tpad=tpad, bin_no=bin_no)
 
         # crop image
-        spec.image, tbin1, fbin1 = spec._crop_image(tlow, thigh, flow, fhigh, tpad=tpad, fpad=fpad)
+        spec.image, tbin1, fbin1 = spec._crop_image(tlow, thigh, flow, fhigh, tpad=tpad, fpad=fpad, bin_no=bin_no)
 
         # update frequency axis
         if not fpad:
@@ -1143,7 +1189,7 @@ class Spectrogram(AnnotationHandler):
         
         return res
 
-    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, **kwargs):
+    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -1160,6 +1206,8 @@ class Spectrogram(AnnotationHandler):
                     If False, the time axis of each extracted segment starts at t=0
                 make_copy: bool
                     If true, the present instance is unaffected by the extraction operation.
+                progress_bar: bool
+                    Option to display progress bar. Default is False.
 
             Returns:
                 segs: list
@@ -1194,8 +1242,6 @@ class Spectrogram(AnnotationHandler):
                     :width: 180px
                     :align: left
         """
-        epsilon = 1E-12
-
         if make_copy:
             spec = self.copy()
         else:
@@ -1211,7 +1257,6 @@ class Spectrogram(AnnotationHandler):
             dt = bins * spec.tres
         
         elif length is not None and length != self.duration():
-#            bins = int(np.ceil(spec.tbins() * length / spec.duration())) - 1
             bins = int(np.ceil(length / spec.tres))
             number = int(f(spec.tbins() / bins))
             dt = bins * spec.tres
@@ -1219,14 +1264,14 @@ class Spectrogram(AnnotationHandler):
         elif length == self.duration():
             return [spec]
 
-        t1 = np.arange(number) * dt# + epsilon
-        t2 = (np.arange(number) + 1) * dt# + epsilon
+        t1 = np.arange(number, dtype=int) * bins
+        t2 = (np.arange(number, dtype=int) + 1) * bins
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
-        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fmax()+0.5*spec.fres)
+        boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fbins())
 
-        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, **kwargs)
+        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, bin_no=True, progress_bar=progress_bar, **kwargs)
         
         return segs
 
@@ -1295,7 +1340,7 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, **kwargs):
+    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, bin_no=False, progress_bar=False, **kwargs):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -1314,6 +1359,11 @@ class Spectrogram(AnnotationHandler):
                 keep_time: bool
                     If True, the extracted segments keep the time from the present instance. 
                     If False, the time axis of each extracted segment starts at t=0
+                bin_no: bool
+                    Indicate if boxes are given in physical units (default) or 
+                    bin numbers. 
+                progress_bar: bool
+                    Option to display progress bar. Default is False.
 
             Returns:
                 specs: list(Spectrogram)
@@ -1338,14 +1388,21 @@ class Spectrogram(AnnotationHandler):
 
         # loop over boxes
         specs = list()
-        for i in range(N):
-            spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i], tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True, **kwargs)
+        for i in tqdm(range(N), disable = not progress_bar):
+            
+            spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i],\
+                tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True, bin_no=bin_no, **kwargs)
+            
             if spec is not None:
                 specs.append(spec)
 
         # convert from time to bin numbers
-        t1 = self._find_tbin(tlow, truncate=True) 
-        t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
+        if bin_no:
+            t1 = tlow
+            t2 = thigh
+        else:
+            t1 = self._find_tbin(tlow, truncate=True) 
+            t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
 
         # complement
         t2 = np.insert(t2, 0, 0)
