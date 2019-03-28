@@ -43,7 +43,6 @@ import datetime_glob
 import re
 
 
-
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
        
@@ -136,7 +135,7 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
             >>> find_files(path="ketos/tests/assets", substr=".h5")
-            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/morlet.h5']
+            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()
@@ -487,7 +486,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
 
             annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
-                "orig_file": the file name. Must be the the same as audio_file
+                "filename": the file name. Must be the the same as audio_file
                 "label": the label value for each annotaded event
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file. 
@@ -523,7 +522,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             >>> # Create that folder (if it does not exist)
             >>> os.makedirs(save_dir, exist_ok=True)
             >>> # Difine an annotations dataframe
-            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            >>> annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
             ...                    'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
             ...                    'end':[6.0,75.98,110.0]})
             >>>
@@ -565,18 +564,18 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
             print("Creating segment......", path_to_seg)
         librosa.output.write_wav(path_to_seg, sig, rate)
 
-def _filter_annotations_by_orig_file(annotations, orig_file_name):
+def _filter_annotations_by_filename(annotations, filename):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
 
         Args:
         file: str
            The original audio file name without path or extensions.
-           Ex: 'file_1' will match the entry './data/sample_a/file_1.wav" in the orig_file
+           Ex: 'file_1' will match the entry './data/sample_a/file_1.wav" in the filename
            column of the annotations DataFrame.
 
         annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
-                "orig_file": the file name. Must be the the same as audio_file
+                "filename": the file name. Must be the the same as audio_file
                 "label": the label value for each annotaded event
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file.
@@ -586,22 +585,22 @@ def _filter_annotations_by_orig_file(annotations, orig_file_name):
             A subset of the annotations DataFrame containing only the entries for the specified file.
             
         Examples:
-            >>> from ketos.data_handling.data_handling import _filter_annotations_by_orig_file
+            >>> from ketos.data_handling.data_handling import _filter_annotations_by_filename
             >>> import pandas as pd
             >>> # Create an annotations dataframe
-            >>> annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
+            >>> annotations = pd.DataFrame({'filename':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
             ...                     'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
             ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
             >>> # Filter the annotations associated with file "2min_01"
-            >>> annot_01 = _filter_annotations_by_orig_file(annotations,'2min_01')
+            >>> annot_01 = _filter_annotations_by_filename(annotations,'2min_01')
             >>> annot_01
-                 orig_file  label  start    end
+                  filename  label  start    end
             0  2min_01.wav      1    5.0    6.0
             1  2min_01.wav      2  100.5  103.0
                                  
 
     """
-    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.orig_file).split(".wav")[0] == orig_file_name)
+    filtered_indices = annotations.apply(axis=1, func= lambda row: os.path.basename(row.filename).split(".wav")[0] == filename)
     filtered_annotations = annotations[filtered_indices]
     return filtered_annotations
 
@@ -610,14 +609,14 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
     
         Args:
         file: str
-           The base name (without paths or extensions) for the original audio file. Will be used to match the 'orig_file' field
+           The base name (without paths or extensions) for the original audio file. Will be used to match the 'filename' field
            in the annotations Dataframe. Important: The name of the files must be
            unique within the annotations, even if the path is different.
            Ex: '/data/sample_a/file_1.wav' and '/data/sample_b/file_1.wav'
 
         annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
-                "orig_file": the file name. Must be the the same as audio_file
+                "filename": the file name. Must be the the same as audio_file
                 "label": the label value for each annotaded event
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file.
@@ -636,7 +635,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
             >>> import pandas as pd
             >>> audio_file="2min"
             >>> # Create an annotations dataframe
-            >>> annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+            >>> annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
             ...                            'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
             ...                            'end':[6.0,103.0,108.0]})
             >>> # Find all labels between time 4.0 seconds and time 5.0 seconds.
@@ -653,7 +652,7 @@ def get_labels(file, start, end, annotations, not_in_annotations=0):
     interval_start = start
     interval_end = end
 
-    data = _filter_annotations_by_orig_file(annotations, file)
+    data = _filter_annotations_by_filename(annotations, file)
     query_results = data.query("(@interval_start >= start & @interval_start <= end) | (@interval_end >= start & @interval_end <= end) | (@interval_start <= start & @interval_end >= end)")
     #print(query_results)
     
@@ -723,7 +722,7 @@ def segs_from_annotations(annotations, save_to):
         Args:
             annotations: pandas.DataFrame
             DataFrame with the the annotations. At least the following columns are expected:
-                "orig_file": the file name. Must be the the same as audio_file
+                "filename": the file name. Must be the the same as audio_file
                 "label": the label value for each annotaded event
                 "start": the start time relative to the beginning of the audio_file.
                 "end": the end time relative to the beginning of the file.
@@ -745,7 +744,7 @@ def segs_from_annotations(annotations, save_to):
             >>> save_dir = "ketos/tests/assets/tmp/from_annot"
             >>>
             >>> # Create a dataframe with annotations
-            >>> annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
+            >>> annotations = pd.DataFrame({'filename':[audio_file_path,audio_file_path,audio_file_path],
             ...                            'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
             ...                            'end':[6.0,73.0,108.0]})
             >>>
@@ -762,9 +761,9 @@ def segs_from_annotations(annotations, save_to):
     for i, row in annotations.iterrows():
         start = row.start
         end= row.end
-        base_name = os.path.basename(row.orig_file).split(".wav")[0]
+        base_name = os.path.basename(row.filename).split(".wav")[0]
         seg_name = "id_" + base_name + "_" + str(i) + "_l_[" + str(row.label) + "].wav"
-        seg_from_time_tag(row.orig_file, row.start, row.end, seg_name, save_to)
+        seg_from_time_tag(row.filename, row.start, row.end, seg_name, save_to)
         print("Creating segment......", save_to, seg_name)
 
 def pad_signal(signal,rate, length):
@@ -918,6 +917,7 @@ class AudioSequenceReader:
                     If the specified directory does not have any .wav files
 
             Examples:
+
                 >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
@@ -1078,6 +1078,7 @@ class AudioSequenceReader:
                     Merged audio signal
 
             Examples:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
                 >>> # Define the folder containing the audio files
@@ -1122,6 +1123,7 @@ class AudioSequenceReader:
                 True if all data has been process, False otherwise
             
             Example:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
@@ -1156,6 +1158,7 @@ class AudioSequenceReader:
             Go back and start reading from the beginning of the first file.
 
             Examples:
+
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>> # Define the folder containing the audio files
                 >>> path_to_files = "ketos/tests/assets/2s_segs"
@@ -1200,6 +1203,7 @@ class AudioSequenceReader:
                     Table with file names and time stamps
 
             Example:
+
                 >>> from glob import glob
                 >>> from ketos.data_handling.data_handling import AudioSequenceReader
                 >>>
@@ -1240,3 +1244,108 @@ class AudioSequenceReader:
         fnames = [x[0] for x in self.files]
         df = pd.DataFrame(data={'time':self.times,'file':fnames[:n]})
         return df
+
+
+class AnnotationTableReader():
+    """ Reads annotation data from csv file
+
+        The csv file should have at least the following columns:
+
+            "filename": file name
+            "label": label value (0, 1, 2, ...)
+            "start": start time in seconds measured from the beginning of the audio file
+            "end": end time in seconds
+
+        In addition, it can the following two optional columns:
+
+            "flow": frequency lower boundary in Hz
+            "fhigh": frequency upper boundary in Hz
+
+        Args:
+            path: str
+                Full path to annotation csv file
+
+        Example:
+
+            >>> # create a pandas dataframe with dummy annotations
+            >>> import pandas as pd
+            >>> d = {'filename': ['x.wav', 'y.wav'], 'start': [3.0, 4.0], 'end': [17.0, 12.0], 'label': [0, 1]}
+            >>> df = pd.DataFrame(data=d)
+            >>> # save the dataframe to a csv file
+            >>> fname = "ketos/tests/assets/tmp/ann.csv"
+            >>> df.to_csv(fname)
+            >>> # create an annotation reader
+            >>> from ketos.data_handling.data_handling import AnnotationTableReader
+            >>> reader = AnnotationTableReader(fname)
+            >>> # get the annotations for x.wav
+            >>> labels, boxes = reader.get_annotations('x.wav')
+            >>> print(labels, boxes)
+            [0] [[3.0, 17.0, 0.0, inf]]
+    """
+    def __init__(self, path):
+
+        self.df = pd.read_csv(path)
+
+        required_cols = ['filename', 'start', 'end', 'label']
+
+        for r in required_cols:
+            assert r in self.df.columns, 'column {0} is missing'.format(r)
+
+        self.max_ann = None
+        
+    def get_max_annotations(self):
+        
+        if self.max_ann is not None:
+            m = self.max_ann
+        else:
+            x = self.df['filename'].values
+            _, counts = np.unique(x, return_counts=True)
+            m = np.max(counts)
+            self.max_ann = m
+
+        return m
+
+    def get_annotations(self, filename):
+        """ Get annotations associated with the specified file 
+            
+            Args:
+                filename: str
+                    File name
+                    
+            Returns:
+                labels: list(int)
+                    Labels
+                boxes: list(tuple)
+                    Boxes
+        """
+        # select rows with matching file name
+        sel = self.df[self.df['filename']==filename]
+
+        m = len(sel)
+
+        # get labels
+        labels = sel['label'].values
+
+        # get times
+        start = sel['start'].values
+        stop  = sel['end'].values
+
+        # get frequencies
+        if 'flow' in sel.columns:
+            flow = sel['flow'].values
+        else:
+            flow = np.zeros(m)
+        if 'fhigh' in sel.columns:
+            fhigh = sel['fhigh'].values        
+        else:
+            fhigh = np.ones(m) * math.inf
+
+        # construct boxes
+        boxes = list()
+        for t1,t2,f1,f2 in zip(start, stop, flow, fhigh):
+            b = [t1, t2, f1, f2]
+            boxes.append(b)
+
+        return labels, boxes
+
+

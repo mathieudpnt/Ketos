@@ -44,6 +44,7 @@ from scipy.stats import norm
 from tqdm import tqdm
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.data_handling.data_handling import read_wave
+from ketos.utils import ensure_dir
 
 
 class AudioSignal(AnnotationHandler):
@@ -360,6 +361,7 @@ class AudioSignal(AnnotationHandler):
                 path: str
                     Path to output wave file
         """        
+        ensure_dir(path)
         wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
 
     def empty(self):

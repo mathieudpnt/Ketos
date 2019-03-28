@@ -12,6 +12,7 @@ Contents
 
    introduction
    installation
+   Tutorials <tutorials/index>
    Modules <modules/index>
    contribution_guidelines
 

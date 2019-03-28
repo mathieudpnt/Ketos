@@ -31,7 +31,7 @@ import pandas as pd
 import ketos.data_handling.data_handling as dh
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.spectrogram import MagSpectrogram
-from ketos.data_handling.data_handling import AudioSequenceReader
+from ketos.data_handling.data_handling import AudioSequenceReader, AnnotationTableReader
 from ketos.audio_processing.audio import AudioSignal
 import datetime
 import shutil
@@ -264,7 +264,7 @@ def test_parse_seg_name():
 @pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets + "/2min.wav"
-    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+    annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
@@ -287,7 +287,7 @@ def test_creates_correct_number_of_segments():
 @pytest.mark.test_divide_audio_into_segments
 def test_start_end_args():
     audio_file = path_to_assets+ "/2min.wav"
-    _= pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+    _= pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.34, 105.8],
                                  'end':[6.0,75.98,110.0]})
 
@@ -309,7 +309,7 @@ def test_start_end_args():
 @pytest.mark.test_divide_audio_into_segments
 def test_seg_labels_are_correct():
     audio_file = path_to_assets+ "/2min.wav"
-    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+    annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
                                  'end':[6.0,73.0,108.0]})
 
@@ -375,7 +375,7 @@ def test_seg_from_time_tag():
 @pytest.mark.test_seg_from_annotations
 def test_segs_from_annotations():
     audio_file_path = os.path.join(path_to_assets,'2min.wav')
-    annotations = pd.DataFrame({'orig_file':[audio_file_path,audio_file_path,audio_file_path],
+    annotations = pd.DataFrame({'filename':[audio_file_path,audio_file_path,audio_file_path],
                                  'label':[1,2,1], 'start':[5.0, 70.5, 105.0],
                                  'end':[6.0,73.0,108.0]})
 
@@ -411,7 +411,7 @@ def test_segs_from_annotations():
 @pytest.mark.test_get_labels
 def test_get_correct_labels(start,end,expected_label):
     audio_file="2min"
-    annotations = pd.DataFrame({'orig_file':['2min.wav','2min.wav','2min.wav'],
+    annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
                                  'label':[1,2,1], 'start':[5.0, 100.5, 105.0],
                                  'end':[6.0,103.0,108.0]})
     
@@ -420,23 +420,23 @@ def test_get_correct_labels(start,end,expected_label):
     print(label)
     assert label == expected_label
     
-@pytest.mark.test_filter_annotations_by_orig_file
-def test_filter_annotations_by_orig_file():
-     annotations = pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
+@pytest.mark.test_filter_annotations_by_filename
+def test_filter_annotations_by_filename():
+     annotations = pd.DataFrame({'filename':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
                                  'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
                                  'end':[6.0,103.0,108.0, 87.0, 94.0]})
 
-     annot_01 = dh._filter_annotations_by_orig_file(annotations,'2min_01')
-     assert annot_01.equals(pd.DataFrame({'orig_file':['2min_01.wav','2min_01.wav'],
+     annot_01 = dh._filter_annotations_by_filename(annotations,'2min_01')
+     assert annot_01.equals(pd.DataFrame({'filename':['2min_01.wav','2min_01.wav'],
                                  'label':[1,2], 'start':[5.0, 100.5],
                                  'end':[6.0,103.0]}))
                                  
-     annot_02 = dh._filter_annotations_by_orig_file(annotations,'2min_02')
-     assert annot_02.equals(pd.DataFrame({'orig_file':['2min_02.wav','2min_02.wav','2min_02.wav'],
+     annot_02 = dh._filter_annotations_by_filename(annotations,'2min_02')
+     assert annot_02.equals(pd.DataFrame({'filename':['2min_02.wav','2min_02.wav','2min_02.wav'],
                                  'label':[1,1,1], 'start':[105.0, 80.0, 90.0],
                                  'end':[108.0, 87.0, 94.0]}, index=[2,3,4]))
  
-     annot_03 = dh._filter_annotations_by_orig_file(annotations,'2min_03')               
+     annot_03 = dh._filter_annotations_by_filename(annotations,'2min_03')               
      assert annot_03.empty
  
 @pytest.mark.test_pad_signal
@@ -477,7 +477,7 @@ def five_time_stamped_wave_files():
     files = list()
     N = 5
 
-    folder = path_to_tmp
+    folder = path_to_tmp + '/five_time_stamped_wave_files/'
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -598,3 +598,70 @@ def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, cons
     s3 = AudioSignal.from_wav(const_wave_file)
     assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.n_smooth
     assert reader.finished() == True
+
+def test_init_annotation_table_reader():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    AnnotationTableReader(fname)
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    AnnotationTableReader(fname)
+
+def test_get_annotations_for_file_with_one_annotation():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('x.wav')
+    assert len(l) == 1
+    assert l[0] == 0
+    assert len(b) == 1
+    assert b[0][0] == 1
+    assert b[0][1] == 2
+    assert b[0][2] == 0
+    import math
+    assert b[0][3] == math.inf
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('x.wav')
+    assert len(l) == 1
+    assert l[0] == 0
+    assert len(b) == 1
+    assert b[0][0] == 1
+    assert b[0][1] == 2
+    assert b[0][2] == 0.
+    assert b[0][3] == 300.
+
+def test_get_annotations_for_file_with_two_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('y.wav')
+    assert len(l) == 2
+    assert l[0] == 1
+    assert l[1] == 2
+    assert len(b) == 2
+    assert b[0][0] == 3
+    assert b[0][1] == 4
+    assert b[0][2] == 0
+    import math
+    assert b[0][3] == math.inf
+    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('y.wav')
+    assert len(l) == 2
+    assert l[0] == 1
+    assert l[1] == 2
+    assert len(b) == 2
+    assert b[0][0] == 3
+    assert b[0][1] == 4
+    assert b[0][2] == 4000.
+    assert b[0][3] == 6000.
+
+def test_get_annotations_for_file_with_no_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    l, b = a.get_annotations('z.wav')
+    assert len(l) == 0
+    assert len(b) == 0
+
+def test_get_maximum_number_of_annotations():
+    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
+    a = AnnotationTableReader(fname)
+    m = a.get_max_annotations()
+    assert m == 2
