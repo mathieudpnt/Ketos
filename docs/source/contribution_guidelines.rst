@@ -67,6 +67,7 @@ To run all tests go to the base of your directory
 
     cd ketos-clone
     ls
+    
     docker  docs  ketos  ketos.egg-info  LICENSE  requirements.txt  setup.py
 
 
