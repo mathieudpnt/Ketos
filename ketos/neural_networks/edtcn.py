@@ -214,7 +214,7 @@ class EDTCN(DataHandler):
         output = self.model.layers[-1].output
         self.class_weights_func = tf.keras.backend.function([inp, tf.keras.backend.learning_phase()], [output])
 
-    def train(self, batch_size=None, num_epochs=None):
+    def train(self, batch_size=None, num_epochs=None, equal_weighting=False):
         """ Train the neural network on the training set.
 
             Divide the training set in batches of size batch_size. 
@@ -224,6 +224,10 @@ class EDTCN(DataHandler):
                     Batch size. Overwrites batch size specified at initialization.
                 num_epochs: int
                     Number of epochs: Overwrites number of epochs specified at initialization.
+                equal_weighting: bool
+                    Correct for any imbalance in the occurrence of class examples in the training data, so 
+                    that all classes are weighted equally in calculation of the loss function. 
+                    Obs: only implemeted for binary classification! 
 
             Returns:
                 history: 
@@ -237,6 +241,22 @@ class EDTCN(DataHandler):
         x, y = self.get_training_data()
         x_val, y_val = self.get_validation_data()
 
+        # ensure equal weighting of 0s and 1s
+        if equal_weighting:
+
+            y1 = from1hot(y)
+            assert np.max(y) == 1, 'Equal weighting has only been implemented for binary classification'
+
+            n0 = np.sum(y1==0)
+            n = y1.shape[0]
+            w0 = float(n - n0) / float(n)
+            sample_weight = y1 * (1. - w0) - (y1 - 1) * w0
+            sample_weight = self._reshape(sample_weight[:, np.newaxis])
+            sample_weight = np.squeeze(sample_weight)            
+        
+        else:
+            sample_weight = None
+
         if x_val is not None and y_val is not None:
             x_val = self._reshape(x_val)
             y_val = self._reshape(y_val)
@@ -247,7 +267,8 @@ class EDTCN(DataHandler):
         x = self._reshape(x)
         y = self._reshape(y)
 
-        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs, verbose=self.verbosity, validation_data=val_data)   
+        history = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=num_epochs,\
+                    verbose=self.verbosity, validation_data=val_data, sample_weight=sample_weight)   
         return history     
 
     def get_predictions(self, x):

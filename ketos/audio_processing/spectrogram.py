@@ -2048,7 +2048,7 @@ class Spectrogram(AnnotationHandler):
             idx = np.squeeze(idx)
             x = feat[:,idx]
             x = x / np.max(x, axis=0)
-            img_plot = ax[row].imshow(x.T, aselft='auto', origin='lower', extent=(t1, t2, 0, 1))
+            img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(t1, t2, 0, 1))
             ax[row].set_ylabel('feature #')
             fig.colorbar(img_plot, ax=ax[row])
             row -= 1
