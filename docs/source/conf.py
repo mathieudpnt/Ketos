@@ -20,13 +20,13 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'ketos'
-copyright = '2018, Fabio Frazao, Oliver Kirsebom'
+copyright = '2018 MERIDIAN'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
-version = '1.0'
+version = '0.1'
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -87,13 +87,13 @@ pygments_style = 'sphinx'
 #
 html_theme = 'sphinx_rtd_theme'
 
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {
-    "collapse_navigation" : False
-}
+html_theme_options = {'collapse_navigation': False, 'logo_only': True}
+using_rtd_theme = True
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -101,6 +101,14 @@ html_theme_options = {
 html_static_path = ['_static']
 
 html_logo = '_static/logo.png'
+html_logo = '_static/MERIDIAN_Col_Logo.png'
+html_context = {
+    'css_files': ['custom.css'],
+}
+def setup(app):
+    app.add_stylesheet('custom.css')
+
+
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
