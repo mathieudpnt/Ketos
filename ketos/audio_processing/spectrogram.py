@@ -1068,26 +1068,26 @@ class Spectrogram(AnnotationHandler):
         else:
             spec = self
 
-        # if padding exceeds 'tpadmax' return None
-        if tpad and 'tpadmax' in kwargs.keys():
-            tmax = spec.duration() + spec.tmin
-            pad_high = max(thigh - tmax, 0)
-            pad_low = max(spec.tmin - spec.tmin, 0)
-            padding = (pad_low + pad_high) / (thigh - tlow)
-            if padding > kwargs['tpadmax']:
-                spec = None
-                return spec
-
         if bin_no:
             t1 = self._tbin_low(tlow)
-            t2 = self._tbin_low(thigh) + 1
+            t2 = self._tbin_low(thigh) + self.tres
             f1 = self._fbin_low(flow)
-            f2 = self._fbin_low(fhigh) + 1
+            f2 = self._fbin_low(fhigh) + self.fres
         else:
             t1 = tlow
             t2 = thigh
             f1 = flow
             f2 = fhigh
+
+        # if padding exceeds 'tpadmax' return None
+        if tpad and 'tpadmax' in kwargs.keys():
+            tmax = spec.duration() + spec.tmin
+            pad_high = max(t2 - tmax, 0)
+            pad_low = max(spec.tmin - t1, 0)
+            padding = (pad_low + pad_high) / (t2 - t1)
+            if padding > kwargs['tpadmax']:
+                spec = None
+                return spec
 
         # crop labels and boxes
         spec.labels, spec.boxes = spec.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
@@ -1501,7 +1501,7 @@ class Spectrogram(AnnotationHandler):
 
         else:
             print('Invalid tonal noise reduction method:',method)
-            print('Available options are: MEDIAN, RUNNIN_MEAN')
+            print('Available options are: MEDIAN, RUNNING_MEAN')
             print('Spectrogram is unchanged')
 
     def _tonal_noise_reduction_running_mean(self, time_constant):
