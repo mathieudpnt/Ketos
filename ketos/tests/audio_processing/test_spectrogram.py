@@ -553,6 +553,13 @@ def test_interbreed_spectrograms_with_validation_function():
         m = np.max(s.image)
         assert m > m1 + 0.5 * m2
 
+@pytest.mark.test_interbreed
+def test_interbreed_spectrograms_with_min_peak_diff():
+    s1 = Spectrogram(image=np.ones((100,100)))
+    s2 = s1.copy()
+    specs = interbreed(specs1=[s1], specs2=[s2], num=9, scale=(2,3), seed=1, min_peak_diff=0.5)
+    assert len(specs) == 9
+
 @pytest.mark.test_ensure_same_length
 def test_ensure_same_length():
     s1 = Spectrogram(image=np.ones((99,100)))

@@ -55,7 +55,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel
+from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
@@ -130,7 +130,7 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
-            validation_function=None, progress_bar=False):
+            validation_function=None, progress_bar=False, min_peak_diff=None):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -168,9 +168,15 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             seed: int
                 Seed for numpy's random number generator
             validation_function:
-                This function is applied to each new spectrogram. The function must accept 'spec1', 'spec2', and 'new_spec'; returns True or False. If True, the new spectrogram is accepted; if False, it gets discarded.
+                This function is applied to each new spectrogram. 
+                The function must accept 'spec1', 'spec2', and 'new_spec'. 
+                Returns True or False. If True, the new spectrogram is accepted; 
+                if False, it gets discarded.
             progress_bar: bool
                 Option to display progress bar.
+            min_peak_diff: float
+                If specified, the following validation criterion is used:
+                max(spec2) > max(spec1) + min_peak_diff
 
         Returns:   
             specs: Spectrogram or list of Spectrograms
@@ -233,9 +239,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
     np.random.seed(seed)
 
     # default validation function always returns True
-    if validation_function is None:
+    if validation_function is None:        
         def always_true(spec1, spec2, new_spec):
             return True
+
         validation_function = always_true
 
     if progress_bar:
@@ -288,10 +295,15 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
             spec = spec_long.copy() # make a copy
 
+            if min_peak_diff is not None:
+                diff = sf[i] * np.max(spec_short.image) - np.max(spec_long.image)
+                if diff < min_peak_diff:
+                    continue
+
             # add the two spectrograms
             spec.add(spec=spec_short, delay=delay, scale=sf[i], make_copy=True,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
-            
+
             if validation_function(spec_long, spec_short, spec):
                 specs.append(spec)
 
@@ -1070,9 +1082,9 @@ class Spectrogram(AnnotationHandler):
 
         if bin_no:
             t1 = self._tbin_low(tlow)
-            t2 = self._tbin_low(thigh) + self.tres
+            t2 = self._tbin_low(thigh)
             f1 = self._fbin_low(flow)
-            f2 = self._fbin_low(fhigh) + self.fres
+            f2 = self._fbin_low(fhigh)
         else:
             t1 = tlow
             t2 = thigh
@@ -1268,12 +1280,10 @@ class Spectrogram(AnnotationHandler):
 
         if number > 1:
             bins = int(f(spec.tbins() / number))
-            dt = bins * spec.tres
         
         elif length is not None and length != self.duration():
             bins = int(np.ceil(length / spec.tres))
             number = int(f(spec.tbins() / bins))
-            dt = bins * spec.tres
 
         elif length == self.duration():
             return [spec]
@@ -1348,6 +1358,10 @@ class Spectrogram(AnnotationHandler):
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
+
+                t1 = self.tmin + np.floor((t1-self.tmin)/self.tres) * self.tres                
+                t2 = self.tmin + np.floor((t2-self.tmin)/self.tres) * self.tres                
+
             b[0] = t1
             b[1] = t2
             res.append(b)
@@ -1403,7 +1417,6 @@ class Spectrogram(AnnotationHandler):
         # loop over boxes
         specs = list()
         for i in tqdm(range(N), disable = not progress_bar):
-            
             spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i],\
                 tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True, bin_no=bin_no, **kwargs)
             
@@ -1647,6 +1660,25 @@ class Spectrogram(AnnotationHandler):
         sigmaY = fsigma / self.fres
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
+
+    def enhance(self, img, a=1, b=1):
+        """ Enhance regions of high intensity while suppressing regions of low intensity.
+
+            See :func:`utils.morlet_func`
+
+            Args:
+                img : numpy array
+                    Image to be processed. 
+                a: float
+                    Parameter determining which regions of the image will be considered "high intensity" 
+                    and which regions will be considered "low intensity".
+                b: float
+                    Parameter determining how sharpen the transition from "low intensity" to "high intensity" is.
+
+            Example:
+
+        """
+        self.image = enhance_image(self.image, a=a, b=b)
     
     def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, keep_time=False, t_scale=1, f_scale=1, **kwargs):
         """ Add another spectrogram on top of this spectrogram.
