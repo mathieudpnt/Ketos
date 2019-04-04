@@ -350,8 +350,12 @@ def make_frames(x, winlen, winstep, zero_padding=False):
     if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
         n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-        z = np.zeros(n_zeros)
-        padded_signal = np.append(x, z)
+        if np.ndim(x) == 1:
+            z_shape = n_zeros
+        else:
+            z_shape = (n_zeros, x.shape[1])
+        z = np.zeros(shape=z_shape)
+        padded_signal = np.concatenate((x, z))
     else:
         padded_signal = x
         if winlen > totlen:
