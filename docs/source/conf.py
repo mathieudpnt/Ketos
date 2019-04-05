@@ -103,10 +103,10 @@ html_static_path = ['_static']
 html_logo = '_static/logo.png'
 html_logo = '_static/MERIDIAN_Col_Logo.png'
 html_context = {
-    'css_files': ['custom.css'],
+    'css_files': ['_static/custom.css'],
 }
 def setup(app):
-    app.add_stylesheet('custom.css')
+    app.add_stylesheet('_static/custom.css')
 
 
 
