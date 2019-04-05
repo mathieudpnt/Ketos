@@ -1234,6 +1234,10 @@ class Spectrogram(AnnotationHandler):
                     If true, the present instance is unaffected by the extraction operation.
                 progress_bar: bool
                     Option to display progress bar. Default is False.
+                overlap: float [0,1]
+                    This parameter can be used to create overlapping segments. Its value gives the 
+                    fractional overlap of segments. E.g. overlap=0.8 will result in segments having 
+                    80% overlap. Only applicable if 'length' is specified. 
 
             Returns:
                 segs: list
@@ -1382,6 +1386,7 @@ class Spectrogram(AnnotationHandler):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
+            See, however, the argument make_copy.
 
             Args:
                 boxes: numpy array
@@ -1402,6 +1407,8 @@ class Spectrogram(AnnotationHandler):
                     bin numbers. 
                 progress_bar: bool
                     Option to display progress bar. Default is False.
+                make_copy: bool
+                    If True, this instance is unaffected by the clipping.
 
             Returns:
                 specs: list(Spectrogram)
