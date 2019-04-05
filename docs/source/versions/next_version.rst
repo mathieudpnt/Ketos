@@ -1,2 +1,2 @@
-Feature for the next version
-============================
+Feature list for the next version
+=================================
