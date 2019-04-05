@@ -350,8 +350,12 @@ def make_frames(x, winlen, winstep, zero_padding=False):
     if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
         n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-        z = np.zeros(n_zeros)
-        padded_signal = np.append(x, z)
+        if np.ndim(x) == 1:
+            z_shape = n_zeros
+        else:
+            z_shape = (n_zeros, x.shape[1])
+        z = np.zeros(shape=z_shape)
+        padded_signal = np.concatenate((x, z))
     else:
         padded_signal = x
         if winlen > totlen:
@@ -529,3 +533,42 @@ def apply_preemphasis(sig, coeff=0.97):
     emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
     
     return emphasized_signal
+
+
+def enhance_image(img, a=1, b=1):
+    """ Enhance regions of high intensity while suppressing regions of low intensity.
+
+        Multiplies each pixel value by the factor,
+
+            s(x) = 1 / (exp(-(x-x0)/w) + 1)
+
+        where x is the pixel value, x0 = a * std(img), and w = b * std(img).
+
+        Some observations:
+          
+         * s(x) is a smoothly increasing function from 0 to 1.
+         * s(x0) = 0.5 (i.e. x0 demarks the transition from "low intensity" to "high intensity")
+         * The smaller the value of w, the faster the transition from 0 to 1.
+
+        Args:
+            img : numpy array
+                Image to be processed. 
+            a: float
+                Parameter determining which regions of the image will be considered "high intensity" 
+                and which regions will be considered "low intensity".
+            b: float
+                Parameter determining how sharpen the transition from "low intensity" to "high intensity" is.
+
+        Returns:
+            enhanced_img: numpy array
+                Enhanced image.
+
+        Example:
+
+    """
+    std = np.std(img)
+    half = a * std
+    wid = b * std
+    scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
+    enhanced_img = img * scaling
+    return enhanced_img
