@@ -641,8 +641,10 @@ def parse_boxes(boxes):
         parsed_boxes = []
 
     parsed_boxes = np.array(boxes_str)
+
     if (parsed_boxes == -99).any():
          parsed_boxes[parsed_boxes == -99] = math.inf
+
     parsed_boxes = parsed_boxes.tolist()
     
     return parsed_boxes

@@ -55,7 +55,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel
+from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
@@ -130,7 +130,7 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
-            validation_function=None, progress_bar=False):
+            validation_function=None, progress_bar=False, min_peak_diff=None):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -168,9 +168,15 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             seed: int
                 Seed for numpy's random number generator
             validation_function:
-                This function is applied to each new spectrogram. The function must accept 'spec1', 'spec2', and 'new_spec'; returns True or False. If True, the new spectrogram is accepted; if False, it gets discarded.
+                This function is applied to each new spectrogram. 
+                The function must accept 'spec1', 'spec2', and 'new_spec'. 
+                Returns True or False. If True, the new spectrogram is accepted; 
+                if False, it gets discarded.
             progress_bar: bool
                 Option to display progress bar.
+            min_peak_diff: float
+                If specified, the following validation criterion is used:
+                max(spec2) > max(spec1) + min_peak_diff
 
         Returns:   
             specs: Spectrogram or list of Spectrograms
@@ -233,9 +239,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
     np.random.seed(seed)
 
     # default validation function always returns True
-    if validation_function is None:
+    if validation_function is None:        
         def always_true(spec1, spec2, new_spec):
             return True
+
         validation_function = always_true
 
     if progress_bar:
@@ -288,10 +295,15 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
             spec = spec_long.copy() # make a copy
 
+            if min_peak_diff is not None:
+                diff = sf[i] * np.max(spec_short.image) - np.max(spec_long.image)
+                if diff < min_peak_diff:
+                    continue
+
             # add the two spectrograms
             spec.add(spec=spec_short, delay=delay, scale=sf[i], make_copy=True,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
-            
+
             if validation_function(spec_long, spec_short, spec):
                 specs.append(spec)
 
@@ -1068,26 +1080,26 @@ class Spectrogram(AnnotationHandler):
         else:
             spec = self
 
-        # if padding exceeds 'tpadmax' return None
-        if tpad and 'tpadmax' in kwargs.keys():
-            tmax = spec.duration() + spec.tmin
-            pad_high = max(thigh - tmax, 0)
-            pad_low = max(spec.tmin - spec.tmin, 0)
-            padding = (pad_low + pad_high) / (thigh - tlow)
-            if padding > kwargs['tpadmax']:
-                spec = None
-                return spec
-
         if bin_no:
             t1 = self._tbin_low(tlow)
-            t2 = self._tbin_low(thigh) + 1
+            t2 = self._tbin_low(thigh)
             f1 = self._fbin_low(flow)
-            f2 = self._fbin_low(fhigh) + 1
+            f2 = self._fbin_low(fhigh)
         else:
             t1 = tlow
             t2 = thigh
             f1 = flow
             f2 = fhigh
+
+        # if padding exceeds 'tpadmax' return None
+        if tpad and 'tpadmax' in kwargs.keys():
+            tmax = spec.duration() + spec.tmin
+            pad_high = max(t2 - tmax, 0)
+            pad_low = max(spec.tmin - t1, 0)
+            padding = (pad_low + pad_high) / (t2 - t1)
+            if padding > kwargs['tpadmax']:
+                spec = None
+                return spec
 
         # crop labels and boxes
         spec.labels, spec.boxes = spec.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
@@ -1203,7 +1215,7 @@ class Spectrogram(AnnotationHandler):
         
         return res
 
-    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, **kwargs):
+    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, overlap=None, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -1222,6 +1234,10 @@ class Spectrogram(AnnotationHandler):
                     If true, the present instance is unaffected by the extraction operation.
                 progress_bar: bool
                     Option to display progress bar. Default is False.
+                overlap: float [0,1]
+                    This parameter can be used to create overlapping segments. Its value gives the 
+                    fractional overlap of segments. E.g. overlap=0.8 will result in segments having 
+                    80% overlap. Only applicable if 'length' is specified. 
 
             Returns:
                 segs: list
@@ -1256,6 +1272,8 @@ class Spectrogram(AnnotationHandler):
                     :width: 180px
                     :align: left
         """
+        do_overlap = False
+
         if make_copy:
             spec = self.copy()
         else:
@@ -1268,24 +1286,30 @@ class Spectrogram(AnnotationHandler):
 
         if number > 1:
             bins = int(f(spec.tbins() / number))
-            dt = bins * spec.tres
+            bins1 = bins
         
         elif length is not None and length != self.duration():
             bins = int(np.ceil(length / spec.tres))
             number = int(f(spec.tbins() / bins))
-            dt = bins * spec.tres
+            bins1 = bins
+
+            if overlap is not None and pad is False:
+                winstep = int((1-overlap) * bins)
+                number = int(np.floor((spec.tbins()-bins) / winstep)) + 1
+                bins1 = winstep
+                do_overlap = True
 
         elif length == self.duration():
             return [spec]
 
-        t1 = np.arange(number, dtype=int) * bins
-        t2 = (np.arange(number, dtype=int) + 1) * bins
+        t1 = np.arange(number, dtype=int) * bins1
+        t2 = t1 + bins
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fbins())
 
-        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, bin_no=True, progress_bar=progress_bar, **kwargs)
+        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, bin_no=True, make_copy=do_overlap, progress_bar=progress_bar, **kwargs)
         
         return segs
 
@@ -1340,7 +1364,7 @@ class Spectrogram(AnnotationHandler):
             dt = min_length - (t2 - t1)
             if dt > 0:
                 if center:
-                    r = 0.5
+                    r = 0.5001
                 else:
                     r = np.random.random_sample()
                 t1 -= r * dt
@@ -1348,16 +1372,21 @@ class Spectrogram(AnnotationHandler):
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
+
+                t1 = self.tmin + np.floor((t1-self.tmin)/self.tres) * self.tres                
+                t2 = self.tmin + np.floor((t2-self.tmin)/self.tres) * self.tres                
+
             b[0] = t1
             b[1] = t2
             res.append(b)
 
         return res
 
-    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, bin_no=False, progress_bar=False, **kwargs):
+    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, bin_no=False, progress_bar=False, make_copy=False, **kwargs):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
+            See, however, the argument make_copy.
 
             Args:
                 boxes: numpy array
@@ -1378,6 +1407,8 @@ class Spectrogram(AnnotationHandler):
                     bin numbers. 
                 progress_bar: bool
                     Option to display progress bar. Default is False.
+                make_copy: bool
+                    If True, this instance is unaffected by the clipping.
 
             Returns:
                 specs: list(Spectrogram)
@@ -1403,45 +1434,46 @@ class Spectrogram(AnnotationHandler):
         # loop over boxes
         specs = list()
         for i in tqdm(range(N), disable = not progress_bar):
-            
             spec = self.crop(tlow=tlow[i], thigh=thigh[i], flow=flow[i], fhigh=fhigh[i],\
                 tpad=tpad, fpad=fpad, keep_time=keep_time, make_copy=True, bin_no=bin_no, **kwargs)
             
             if spec is not None:
                 specs.append(spec)
 
-        # convert from time to bin numbers
-        if bin_no:
-            t1 = tlow
-            t2 = thigh
-        else:
-            t1 = self._find_tbin(tlow, truncate=True) 
-            t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
+        if not make_copy:
 
-        # complement
-        t2 = np.insert(t2, 0, 0)
-        t1 = np.append(t1, self.tbins())
-        t2max = 0
-        for i in range(len(t1)):
-            t2max = max(t2[i], t2max)
+            # convert from time to bin numbers
+            if bin_no:
+                t1 = tlow
+                t2 = thigh
+            else:
+                t1 = self._find_tbin(tlow, truncate=True) 
+                t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
 
-            if t2max <= t1[i]:
-                if t2max == 0:
-                    img_c = self.image[t2max:t1[i]]
-                    time_vector = self.time_vector[t2max:t1[i]]
-                    file_vector = self.file_vector[t2max:t1[i]]
-                else:
-                    img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
-                    time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
-                    file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
+            # complement
+            t2 = np.insert(t2, 0, 0)
+            t1 = np.append(t1, self.tbins())
+            t2max = 0
+            for i in range(len(t1)):
+                t2max = max(t2[i], t2max)
 
-        if img_c.shape[0] == 0:
-            img_c = None
+                if t2max <= t1[i]:
+                    if t2max == 0:
+                        img_c = self.image[t2max:t1[i]]
+                        time_vector = self.time_vector[t2max:t1[i]]
+                        file_vector = self.file_vector[t2max:t1[i]]
+                    else:
+                        img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
+                        time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
+                        file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
 
-        self.image = img_c
-        self.time_vector = time_vector
-        self.file_vector = file_vector
-        self.tmin = 0
+            if img_c.shape[0] == 0:
+                img_c = None
+
+            self.image = img_c
+            self.time_vector = time_vector
+            self.file_vector = file_vector
+            self.tmin = 0
 
         return specs
 
@@ -1501,7 +1533,7 @@ class Spectrogram(AnnotationHandler):
 
         else:
             print('Invalid tonal noise reduction method:',method)
-            print('Available options are: MEDIAN, RUNNIN_MEAN')
+            print('Available options are: MEDIAN, RUNNING_MEAN')
             print('Spectrogram is unchanged')
 
     def _tonal_noise_reduction_running_mean(self, time_constant):
@@ -1647,6 +1679,25 @@ class Spectrogram(AnnotationHandler):
         sigmaY = fsigma / self.fres
         
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
+
+    def enhance(self, img, a=1, b=1):
+        """ Enhance regions of high intensity while suppressing regions of low intensity.
+
+            See :func:`utils.morlet_func`
+
+            Args:
+                img : numpy array
+                    Image to be processed. 
+                a: float
+                    Parameter determining which regions of the image will be considered "high intensity" 
+                    and which regions will be considered "low intensity".
+                b: float
+                    Parameter determining how sharpen the transition from "low intensity" to "high intensity" is.
+
+            Example:
+
+        """
+        self.image = enhance_image(self.image, a=a, b=b)
     
     def add(self, spec, delay=0, scale=1, make_copy=False, smooth=False, keep_time=False, t_scale=1, f_scale=1, **kwargs):
         """ Add another spectrogram on top of this spectrogram.
