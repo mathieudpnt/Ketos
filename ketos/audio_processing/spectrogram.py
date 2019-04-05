@@ -1215,7 +1215,7 @@ class Spectrogram(AnnotationHandler):
         
         return res
 
-    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, **kwargs):
+    def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, overlap=None, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
             either by specifying number of segments or segment duration.
 
@@ -1268,6 +1268,8 @@ class Spectrogram(AnnotationHandler):
                     :width: 180px
                     :align: left
         """
+        do_overlap = False
+
         if make_copy:
             spec = self.copy()
         else:
@@ -1280,22 +1282,30 @@ class Spectrogram(AnnotationHandler):
 
         if number > 1:
             bins = int(f(spec.tbins() / number))
+            bins1 = bins
         
         elif length is not None and length != self.duration():
             bins = int(np.ceil(length / spec.tres))
             number = int(f(spec.tbins() / bins))
+            bins1 = bins
+
+            if overlap is not None and pad is False:
+                winstep = int((1-overlap) * bins)
+                number = int(np.floor((spec.tbins()-bins) / winstep)) + 1
+                bins1 = winstep
+                do_overlap = True
 
         elif length == self.duration():
             return [spec]
 
-        t1 = np.arange(number, dtype=int) * bins
-        t2 = (np.arange(number, dtype=int) + 1) * bins
+        t1 = np.arange(number, dtype=int) * bins1
+        t2 = t1 + bins
         boxes = np.array([t1,t2])
         boxes = np.swapaxes(boxes, 0, 1)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=0)
         boxes = np.pad(boxes, ((0,0),(0,1)), mode='constant', constant_values=spec.fbins())
 
-        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, bin_no=True, progress_bar=progress_bar, **kwargs)
+        segs = spec._clip(boxes=boxes, keep_time=keep_time, tpad=pad, bin_no=True, make_copy=do_overlap, progress_bar=progress_bar, **kwargs)
         
         return segs
 
@@ -1350,7 +1360,7 @@ class Spectrogram(AnnotationHandler):
             dt = min_length - (t2 - t1)
             if dt > 0:
                 if center:
-                    r = 0.5
+                    r = 0.5001
                 else:
                     r = np.random.random_sample()
                 t1 -= r * dt
@@ -1368,7 +1378,7 @@ class Spectrogram(AnnotationHandler):
 
         return res
 
-    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, bin_no=False, progress_bar=False, **kwargs):
+    def _clip(self, boxes, tpad=False, fpad=False, keep_time=False, bin_no=False, progress_bar=False, make_copy=False, **kwargs):
         """ Extract boxed areas from spectrogram.
 
             After clipping, this instance contains the remaining part of the spectrogram.
@@ -1423,38 +1433,40 @@ class Spectrogram(AnnotationHandler):
             if spec is not None:
                 specs.append(spec)
 
-        # convert from time to bin numbers
-        if bin_no:
-            t1 = tlow
-            t2 = thigh
-        else:
-            t1 = self._find_tbin(tlow, truncate=True) 
-            t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
+        if not make_copy:
 
-        # complement
-        t2 = np.insert(t2, 0, 0)
-        t1 = np.append(t1, self.tbins())
-        t2max = 0
-        for i in range(len(t1)):
-            t2max = max(t2[i], t2max)
+            # convert from time to bin numbers
+            if bin_no:
+                t1 = tlow
+                t2 = thigh
+            else:
+                t1 = self._find_tbin(tlow, truncate=True) 
+                t2 = self._find_tbin(thigh, truncate=True, roundup=False) + 1 # when cropping, include upper bin
 
-            if t2max <= t1[i]:
-                if t2max == 0:
-                    img_c = self.image[t2max:t1[i]]
-                    time_vector = self.time_vector[t2max:t1[i]]
-                    file_vector = self.file_vector[t2max:t1[i]]
-                else:
-                    img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
-                    time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
-                    file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
+            # complement
+            t2 = np.insert(t2, 0, 0)
+            t1 = np.append(t1, self.tbins())
+            t2max = 0
+            for i in range(len(t1)):
+                t2max = max(t2[i], t2max)
 
-        if img_c.shape[0] == 0:
-            img_c = None
+                if t2max <= t1[i]:
+                    if t2max == 0:
+                        img_c = self.image[t2max:t1[i]]
+                        time_vector = self.time_vector[t2max:t1[i]]
+                        file_vector = self.file_vector[t2max:t1[i]]
+                    else:
+                        img_c = np.append(img_c, self.image[t2max:t1[i]], axis=0)
+                        time_vector = np.append(time_vector, self.time_vector[t2max:t1[i]])
+                        file_vector = np.append(file_vector, self.file_vector[t2max:t1[i]])
 
-        self.image = img_c
-        self.time_vector = time_vector
-        self.file_vector = file_vector
-        self.tmin = 0
+            if img_c.shape[0] == 0:
+                img_c = None
+
+            self.image = img_c
+            self.time_vector = time_vector
+            self.file_vector = file_vector
+            self.tmin = 0
 
         return specs
 
