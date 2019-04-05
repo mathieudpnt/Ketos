@@ -1668,7 +1668,7 @@ class Spectrogram(AnnotationHandler):
                 :align: left
             .. image:: ../../_static/morlet_spectrogram_blurred.png
                 :width: 300px
-                :align: right
+                :align: left
         """
         assert tsigma > 0, "tsigma must be strictly positive"
 
