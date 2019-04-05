@@ -1758,11 +1758,11 @@ class Spectrogram(AnnotationHandler):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
                     :width: 250px
-                    :align: left
+                    :align: center
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_added.png
                     :width: 250px
-                    :align: left
+                    :align: center
 
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
