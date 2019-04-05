@@ -27,3 +27,8 @@ ketos/tests/assets
 
 # Docker
 docker/create/ketos
+
+# Arctic cod tutorial
+docs/source/tutorials/.ipynb_checkpoints
+docs/source/tutorials/arctic_cod_tutorial/.ipynb_checkpoints/
+docs/source/tutorials/arctic_cod_tutorial/*.h5
