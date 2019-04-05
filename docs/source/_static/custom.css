@@ -1,0 +1,130 @@
+/* TOC background */
+.wy-side-nav-search, .wy-nav-side, .wy-side-scroll {
+	background-color: white;
+	border-right: solid 2px orange;
+}
+.wy-side-nav-search input[type="text"]{
+	border-radius: 0px;
+	border-color: #eeeeee;
+	box-shadow: 5px 5px 5px grey;
+	background: #eeeeee;
+}
+/* Main body background */
+.wy-nav-content-wrap {
+	background-color: #eeeeee;
+	background: rgba(238,238,238,1)
+}
+
+/*Lets the main body go full width */
+.wy-nav-content {
+    max-width: none;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6, .toctree-wrapper p span {
+	font-family: 'Open Sans Condensed', sans-serif;
+	color: #333333;
+	font-weight: normal;
+	font-size: 28px;
+}
+/* Links and body text */
+p, a, li, form, div.search, div.wy-menu, div.section>p, div.section>ul>li, footer {
+	font-family: 'Old Standard TT', serif;
+	font-size:18px;
+}
+.wy-menu-vertical a, input[type="text"]{
+	font-family: 'Open Sans Condensed', sans-serif;
+	font-size:20px;
+}
+/*Tables */
+.wy-table td, .rst-content table.docutils td, .rst-content table.field-list td, .wy-table th, .rst-content table.docutils th, .rst-content table.field-list th {
+	font-family: 'Old Standard TT', serif;
+	font-size:16px;
+}
+/* Table of contents text*/
+div.wy-menu>p.caption {
+	font-family: 'Open Sans Condensed', sans-serif;
+	color: #555555;
+	font-size:24px;
+	font-weight: normal;
+}
+p.CFIinfo{
+	color: #555555;
+	font-size:12px;
+}
+/*For the main body/everything else*/
+a {color: #f2852a;}
+a:visited {color: #d1a568;}
+a:hover {color: #e35302;}
+/*For the logo text*/
+a.icon {color: black;}
+a.icon:visited {color: #3A5059;}
+a.icon:hover {color:#e36502;}
+/* For the TOC links*/
+li[class^="toctree-"] a, div.wy-menu-vertical > ul > li.toctree-l1 > a {color: #3A5059;}
+li[class^="toctree-"] a:visited, div.wy-menu-vertical > ul > li.toctree-l1 > a:visited { color: #516670;}
+li[class^="toctree-"] a:hover, div.wy-menu-vertical > ul > li.toctree-l1 > a:hover { color: #e36502;}
+
+.wy-menu-vertical li[class^="toctree-"] li[class^="toctree-"]{
+	
+}
+/* 2+ level hover, not selected */
+.wy-menu-vertical li.toctree-l1 a:hover, .wy-menu-vertical li.current li:not(.current) > a:hover,  .wy-menu-vertical li.current li.current li:not(.current) >a:hover {
+	background: white;
+}
+
+/* 2+ level not selected */
+.wy-menu-vertical li.current li:not(.current) > a, .wy-menu-vertical li.current li.current li:not(.current) >a {
+	background: white;
+}
+
+/* Selected level hover */
+.wy-menu-vertical li.on a:hover, .wy-menu-vertical li.current > a:hover, .wy-menu-vertical li.current li.current > a:hover {
+	background: white;
+}
+
+/* Selected level */
+.wy-menu-vertical li.on a, .wy-menu-vertical li.current > a, .wy-menu-vertical li.current li.current > a{
+	background: white !important;
+	border: none;
+	border-bottom: solid 2px #c9c9c9;
+	border-top: solid 2px #c9c9c9;
+	font-weight: normal;
+}
+/* Influences the little + signs next to the active element */
+.wy-menu-vertical li.on a:hover span.toctree-expand, .wy-menu-vertical li.current > a:hover span.toctree-expand{
+	
+}
+
+div#notebook{
+	overflow: scroll !important;
+}
+
+div#notebook p{
+
+	text-align: justify;
+	font-family: 'Old Standard TT', serif; 	
+
+}
+
+/* Code snippets */
+div.highlight{
+	background-color: #3892a87a;
+}
+
+/* Method/function names
+.rst-content dl:not(.docutils) dl dt{
+	background: #ffa50066;
+
+} */
+
+/* .rst-content dl:not(.docutils) dl dt {
+	background: red;
+
+}
+
+.first.last.docutils + dt {
+	background: green; */
+
+}
+
