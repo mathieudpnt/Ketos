@@ -76,12 +76,8 @@ def append_specs(specs):
                 >>> fig.savefig("ketos/tests/assets/tmp/grunt1_append_to_itself.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
-                    :width: 250px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_append_to_itself.png
-                    :width: 250px
-                    :align: left
 
     """
     s = specs[0].copy()
@@ -153,8 +149,6 @@ class FrameMakerForBinaryCNN():
             >>> fig.savefig("ketos/tests/assets/tmp/cod_w_label.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/cod_w_label.png
-                :width: 550px
-                :align: center
 
     """
     def __init__(self, specs, label, frame_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
