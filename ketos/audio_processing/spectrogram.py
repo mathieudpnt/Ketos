@@ -204,16 +204,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             >>> fig.savefig("ketos/tests/assets/tmp/new_spec.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/spec1.png
-                :width: 300px
-                :align: left
 
             .. image:: ../../../../ketos/tests/assets/tmp/spec2.png
-                :width: 300px
-                :align: left
 
             .. image:: ../../../../ketos/tests/assets/tmp/new_spec.png
-                :width: 300px
-                :align: center
 
             >>> # Interbreed the two spectrograms to make 3 new spectrograms.
             >>> # Apply a random scaling factor between 0.0 and 5.0 to the spectrogram 
@@ -232,8 +226,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             >>> fig.savefig("ketos/tests/assets/tmp/new_spec_x.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/new_spec_x.png
-                :width: 300px
-                :align: left
+
     """
     # set random seed
     np.random.seed(seed)
@@ -665,8 +658,7 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_label1.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_label1.png
-                    :width: 550px
-                    :align: center
+
         """
         super().annotate(labels, boxes)
         for b in self.boxes:
@@ -1063,8 +1055,6 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
                 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
-                    :width: 550px
-                    :align: center
                 
                 >>> # now crop the spectrogram in time and frequency and display the result
                 >>> spec.crop(tlow=2.1, thigh=5.6, flow=275, fhigh=406, keep_time=True)
@@ -1072,8 +1062,7 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
-                    :width: 550px
-                    :align: center
+
         """
         if make_copy:
             spec = self.copy()
@@ -1176,8 +1165,6 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
                 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
-                    :width: 550px
-                    :align: center
                 
                 >>> # extract the annotated region of the spectrogram
                 >>> roi = spec.extract(label=1, keep_time=True)
@@ -1188,12 +1175,8 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_left.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_extracted.png
-                    :width: 280px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_left.png
-                    :width: 280px
-                    :align: right
 
         """
         if make_copy:
@@ -1261,16 +1244,11 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/segs_3.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/segs_1.png
-                    :width: 180px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/segs_2.png
-                    :width: 180px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/segs_3.png
-                    :width: 180px
-                    :align: left
+
         """
         do_overlap = False
 
@@ -1516,12 +1494,8 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
-                    :width: 250px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
-                    :width: 250px
-                    :align: left
 
         """
         if method is 'MEDIAN':
@@ -1664,11 +1638,9 @@ class Spectrogram(AnnotationHandler):
             >>> plt.show()
             
             .. image:: ../../_static/morlet_spectrogram.png
-                :width: 300px
-                :align: left
+
             .. image:: ../../_static/morlet_spectrogram_blurred.png
-                :width: 300px
-                :align: right
+
         """
         assert tsigma > 0, "tsigma must be strictly positive"
 
@@ -1757,12 +1729,8 @@ class Spectrogram(AnnotationHandler):
                 >>> fig.savefig("ketos/tests/assets/tmp/grunt1_added.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
-                    :width: 250px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_added.png
-                    :width: 250px
-                    :align: left
 
         """
         assert self.tres == spec.tres, 'It is not possible to add spectrograms with different time resolutions'
