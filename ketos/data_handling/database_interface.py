@@ -523,8 +523,7 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
             >>> spec_1_fig.savefig("ketos/tests/assets/tmp/extract_spec_1.png")
               
             .. image:: ../../../../ketos/tests/assets/tmp/extract_spec_1.png
-               
-            
+                           
             >>> # Plot the portion without any annotations
             >>> comp_1_fig = spec_complements[0].plot()
             >>> comp_1_fig.savefig("ketos/tests/assets/tmp/extract_comp_1.png")
