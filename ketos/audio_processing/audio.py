@@ -117,8 +117,7 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
-                :width: 500px
-                :align: center
+
         """        
         rate, data = read_wave(file=path, channel=channel)
         return cls(rate, data, path[path.rfind('/')+1:])
@@ -151,8 +150,7 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
-                :width: 500px
-                :align: center
+
         """        
         assert sigma > 0, "sigma must be strictly positive"
 
@@ -204,8 +202,6 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
-                :width: 500px
-                :align: center
 
             >>> # create another wavelet, but with frequency increasing linearly with time
             >>> wavelet2 = AudioSignal.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
@@ -214,8 +210,7 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
-                :width: 500px
-                :align: center
+
         """        
         if samples is None:
             samples = int(6 * width * rate)
@@ -267,8 +262,7 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
-                :width: 500px
-                :align: center
+
         """        
         N = int(duration * rate)
 
@@ -450,8 +444,7 @@ class AudioSignal(AnnotationHandler):
             >>> fig = a.plot()
 
             .. image:: ../../_static/morlet.png
-                :width: 500px
-                :align: center
+
         """
         fig, ax = plt.subplots(nrows=1)
         start = 0.5 / self.rate
@@ -540,12 +533,9 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/audio_cropped.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_orig.png
-                :width: 300px
-                :align: left
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_cropped.png
-                :width: 300px
-                :align: left
+
         """ 
         if make_copy:
             x = self.copy()
@@ -587,16 +577,11 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/audio_clip_2.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_whats_left.png
-                :width: 500px
-                :align: center
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_1.png
-                :width: 300px
-                :align: left
 
             .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_2.png
-                :width: 300px
-                :align: left
+
         """ 
 
         if np.ndim(boxes) == 1:
@@ -696,8 +681,6 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
-                :width: 500px
-                :align: center
 
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
@@ -850,12 +833,8 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
-                :width: 300px
-                :align: left
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
-                :width: 300px
-                :align: left
 
         """
         noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
@@ -895,8 +874,6 @@ class AudioSignal(AnnotationHandler):
             >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
-                :width: 500px
-                :align: center
 
         """
         assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
