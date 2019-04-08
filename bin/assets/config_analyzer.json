@@ -1,0 +1,48 @@
+{
+    "date_time_format": "HMS_%H_%M_%S__DMY_%d_%m_%y",
+    "batch_size": "5E6",
+    "filters": ["FREQUENCY", "MEDIAN", "MEDIAN_SUBTRACTION"],
+    "frequency_config": [
+        {
+            "name": "31.2Hz", 
+            "range": ["22.1Hz", "44.2Hz"]
+        },
+        {
+            "name": "62.5Hz",
+            "range": ["44.2Hz", "88.4Hz"]
+        },
+        {
+            "name": "125Hz",
+            "range": ["88.4Hz", "176.8Hz"]
+        },
+        {
+            "name": "250Hz",
+            "range": ["176.8Hz", "353.6Hz"]
+        },
+        {
+            "name": "500Hz",
+            "range": ["353.6Hz", "707.1Hz"]
+        },
+        {
+            "name": "1kHz",
+            "range": ["707.1Hz", "1414.2Hz"]
+        },
+        {
+            "name": "2kHz",
+            "range": ["1414.2Hz", "2828.4Hz"]
+        }
+    ],
+    "median_config": {
+        "window_size": "1 min",
+        "step_size": "1 min"
+    },
+    "median_subtraction_config": {
+        "window_size": "1 hour"
+    },
+    "spectrogram": {
+        "rate": "4000 Hz",
+        "window_size": "0.1 s",
+        "step_size": "0.025 s",
+        "window_function": "HAMMING"
+    }
+}

@@ -1,4 +1,3 @@
-import scipy.io.wavfile as wave
 import datetime
 import numpy as np
 import pandas as pd
@@ -23,7 +22,6 @@ from collections import namedtuple
 from pint import UnitRegistry # SI units
 from enum import Enum
 import math
-from tqdm import tqdm
 
 batch_no = 0
 
@@ -152,7 +150,7 @@ def make_spec(signal, config):
     # make spectrogram
     spec = MagSpectrogram(audio_signal=signal, winlen=config.window_size, winstep=config.step_size,\
             hamming=hamming, timestamp=signal.begin(), decibel=True)
-    
+
     return spec
 
 def apply_filters(spec, filters):
@@ -163,8 +161,8 @@ def apply_filters(spec, filters):
         f.apply(spec)
 
     # dataframe for output data
-    t = spec.taxis()
-    f = spec.faxis()
+    t = spec.time_labels()
+    f = spec.frequency_labels()
     df = pd.DataFrame({'time': t})
     for i in range(len(f)):
         df[f[i]] = spec.image[:,i]
@@ -185,7 +183,7 @@ def process(signal, config, filters):
 
     # apply filters
     filtered_data = apply_filters(spec=spec, filters=filters)
-    
+
     return filtered_data
 
 def parse_args():

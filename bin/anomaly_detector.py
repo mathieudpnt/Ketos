@@ -198,7 +198,7 @@ def main():
     if Detector.PEAK_FINDING in detectors:
         cfg = configs['peak_finding_config']
         time_res = extract_time_res(X)
-        dist = max(1, int(cf.gseparation / time_res))
+        dist = max(1, int(cfg.separation / time_res))
         df['Peak Finding'] = detect_peaks(X, distance=dist, prominence=cfg.size, multiplicity=cfg.multiplicity)
 
 
@@ -287,7 +287,7 @@ def main():
 
     # save detections file
     df_out.to_csv(output_file)
-    print(' Detected {0} anomalies detected'.format(len(times)))
+    print(' {0} anomalies detected'.format(len(times)))
     print(' Detection report saved to: {0}'.format(output_file))
     print('')
 

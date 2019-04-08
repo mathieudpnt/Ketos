@@ -136,7 +136,7 @@ class FrequencyFilter():
         nt = spec.tbins()
         nf = len(self.bands)
 
-        new_img = np.zeros(shape=(nt,nf))
+        new_img = np.ma.zeros(shape=(nt,nf))
 
         for i in range(nf):
             b = self.bands[i]
@@ -205,14 +205,13 @@ class WindowFilter():
         for i in range(n):
             i1 = i * step
             i2 = min(nt-1, i1 + window)
-
             new_img[i,:] = self.filter_func(img[i1:i2+1,:], axis=0)  # ignore entries with value=0
 
         # mask zeros
         new_img = np.ma.masked_values(new_img, 0)    
 
         spec.image = new_img
-        spec.tres = step*spec.tres
+        spec.tres = step * spec.tres
 
 
 class WindowSubtractionFilter():
