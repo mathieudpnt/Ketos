@@ -26,6 +26,6 @@ setup(name='ketos',
           ],
       setup_requires=['pytest-runner', ],
       tests_require=['pytest', ],
-      entry_points = {"console_scritps": ["bla=bin.bla_script:main"]},
+      entry_points = {"console_scritps": ["bla=bin.bla_script:main", "ketos-audio-filterer=bin.audio_filterer:main", "ketos-anomaly-detector=bin.anomaly_detector:main"]},
       include_package_data=True,
       zip_safe=False)
