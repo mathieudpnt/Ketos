@@ -1,3 +1,29 @@
+# ================================================================================ #
+#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
+#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
+#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
+#   Team: Data Analytics                                                           #
+#   Project: ketos                                                                 #
+#   Project goal: The ketos library provides functionalities for handling          #
+#   and processing acoustic data and applying deep neural networks to sound        #
+#   detection and classification tasks.                                            #
+#                                                                                  #
+#   License: GNU GPLv3                                                             #
+#                                                                                  #
+#       This program is free software: you can redistribute it and/or modify       #
+#       it under the terms of the GNU General Public License as published by       #
+#       the Free Software Foundation, either version 3 of the License, or          #
+#       (at your option) any later version.                                        #
+#                                                                                  #
+#       This program is distributed in the hope that it will be useful,            #
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#       GNU General Public License for more details.                               # 
+#                                                                                  #
+#       You should have received a copy of the GNU General Public License          #
+#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
+# ================================================================================ #
+
 """ Audio processing module within the ketos library
 
     This module provides utilities to perform various types of 
@@ -5,30 +31,6 @@
 
     Contents:
         FrameMakerForBinaryCNN class: 
-
-    Authors: Fabio Frazao and Oliver Kirsebom
-    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
-    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
-    Project: ketos
-             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
-             creating deep neural networks for sound detection and classification projects.
-     
-    License: GNU GPLv3
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 import numpy as np
 import pandas as pd
@@ -76,12 +78,8 @@ def append_specs(specs):
                 >>> fig.savefig("ketos/tests/assets/tmp/grunt1_append_to_itself.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
-                    :width: 250px
-                    :align: left
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_append_to_itself.png
-                    :width: 250px
-                    :align: left
 
     """
     s = specs[0].copy()
@@ -153,8 +151,6 @@ class FrameMakerForBinaryCNN():
             >>> fig.savefig("ketos/tests/assets/tmp/cod_w_label.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/cod_w_label.png
-                :width: 550px
-                :align: center
 
     """
     def __init__(self, specs, label, frame_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):

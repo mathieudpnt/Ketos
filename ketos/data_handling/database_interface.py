@@ -1,31 +1,34 @@
+# ================================================================================ #
+#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
+#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
+#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
+#   Team: Data Analytics                                                           #
+#   Project: ketos                                                                 #
+#   Project goal: The ketos library provides functionalities for handling          #
+#   and processing acoustic data and applying deep neural networks to sound        #
+#   detection and classification tasks.                                            #
+#                                                                                  #
+#   License: GNU GPLv3                                                             #
+#                                                                                  #
+#       This program is free software: you can redistribute it and/or modify       #
+#       it under the terms of the GNU General Public License as published by       #
+#       the Free Software Foundation, either version 3 of the License, or          #
+#       (at your option) any later version.                                        #
+#                                                                                  #
+#       This program is distributed in the hope that it will be useful,            #
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#       GNU General Public License for more details.                               # 
+#                                                                                  #
+#       You should have received a copy of the GNU General Public License          #
+#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
+# ================================================================================ #
+
 """ database_interface module within the ketos library
 
     This module provides functions to create and use HDF5 databases as storage for acoustic data. 
-
-    Authors: Fabio Frazao and Oliver Kirsebom
-    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
-    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
-    Project: ketos
-             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
-             creating deep neural networks for sound detection and classification projects.
-     
-    License: GNU GPLv3
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
+
 import tables
 import os
 import ast
@@ -523,8 +526,7 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
             >>> spec_1_fig.savefig("ketos/tests/assets/tmp/extract_spec_1.png")
               
             .. image:: ../../../../ketos/tests/assets/tmp/extract_spec_1.png
-               
-            
+                           
             >>> # Plot the portion without any annotations
             >>> comp_1_fig = spec_complements[0].plot()
             >>> comp_1_fig.savefig("ketos/tests/assets/tmp/extract_comp_1.png")

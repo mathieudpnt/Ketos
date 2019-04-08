@@ -1,3 +1,29 @@
+# ================================================================================ #
+#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
+#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
+#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
+#   Team: Data Analytics                                                           #
+#   Project: ketos                                                                 #
+#   Project goal: The ketos library provides functionalities for handling          #
+#   and processing acoustic data and applying deep neural networks to sound        #
+#   detection and classification tasks.                                            #
+#                                                                                  #
+#   License: GNU GPLv3                                                             #
+#                                                                                  #
+#       This program is free software: you can redistribute it and/or modify       #
+#       it under the terms of the GNU General Public License as published by       #
+#       the Free Software Foundation, either version 3 of the License, or          #
+#       (at your option) any later version.                                        #
+#                                                                                  #
+#       This program is distributed in the hope that it will be useful,            #
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#       GNU General Public License for more details.                               # 
+#                                                                                  #
+#       You should have received a copy of the GNU General Public License          #
+#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
+# ================================================================================ #
+
 """ Data feeding module within the ketos library
 
     This module provides utilities to load data and feed it to models.
@@ -5,30 +31,6 @@
     Contents:
         BatchGenerator class
         TrainiDataProvider class
-
-    Authors: Fabio Frazao and Oliver Kirsebom
-    Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca
-    Organization: MERIDIAN (https://meridian.cs.dal.ca/)
-    Team: Acoustic data analytics, Institute for Big Data Analytics, Dalhousie University
-    Project: ketos
-             Project goal: The ketos library provides functionalities for handling data, processing audio signals and
-             creating deep neural networks for sound detection and classification projects.
-     
-    License: GNU GPLv3
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 """
 
 import numpy as np
@@ -77,13 +79,10 @@ class BatchGenerator():
             Examples:
                 >>> from tables import open_file
                 >>> from ketos.data_handling.database_interface import open_table
-                  
                 >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
                 >>> train_data = open_table(h5, "/train/species1")
-
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
-                
-                #Run 2 epochs. 
+                >>> #Run 2 epochs. 
                 >>> n_epochs = 2    
                 >>> for e in range(n_epochs):
                 ...    for batch_num in range(train_generator.n_batches):
@@ -99,29 +98,23 @@ class BatchGenerator():
                 epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
                 epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
                 epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-
-                #Applying a custom function to the batch
-                #Takes the mean of each instance in X; leaves Y untouched
+                >>> #Applying a custom function to the batch
+                >>> #Takes the mean of each instance in X; leaves Y untouched
                 >>> def apply_to_batch(X,Y):
                 ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
                 ...    return (X,Y)
-
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
-                >>> X,Y = next(train_generator)
-                
-                #Now each X instance is one single number, instead of a (2413,201) matrix
-                #A batch of size 3 is an array of the 3 means
+                >>> X,Y = next(train_generator)                
+                >>> #Now each X instance is one single number, instead of a (2413,201) matrix
+                >>> #A batch of size 3 is an array of the 3 means
                 >>> X.shape
                 (3,)
-
-                #Here is how one X instance looks like
+                >>> #Here is how one X instance looks like
                 >>> X[0]
                 7694.1147
-
-                #Y is the same as before 
+                >>> #Y is the same as before 
                 >>> Y.shape
                 (3,)
-
                 >>> h5.close()
 
     """
