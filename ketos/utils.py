@@ -31,6 +31,8 @@
 
 import os
 import numpy as np
+import pandas as pd
+from scipy.signal import find_peaks
 
 def ensure_dir(file_path):
     """ Ensure that destination directory exists.
@@ -283,3 +285,123 @@ def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
         y *= (s * np.sqrt(np.pi) * (1 + np.exp(-w**2) - 2*np.exp(-0.75*w**2)) )**-0.5
 
     return np.real(y)
+
+
+def nearest_values(x, i, n):
+    """ Returns the n values nearest to index i from the array x.
+
+        Args:
+            x: numpy array
+                Input values
+            i: int
+                Index
+            n: int
+                Number of neighboring values
+
+        Returns:
+            y: numpy array
+                n values nearest to index i from the array x 
+
+        Example:
+            >>> from ketos.utils import nearest_values
+            >>> 
+            >>> x = np.array([1.0, 4.0, 5.1, 6.0, 0.2, 0.3, 10.0])
+            >>> y = nearest_values(x=x, i=3, n=3)
+            >>> print(y)
+            [5.1 6.  0.2]
+    """
+    if n >= x.shape[0]:
+        return x
+
+    if n%2 == 0:
+        i1 = int(i - n/2)
+        i2 = int(i + n/2 - 1)
+    else:
+        i1 = int(i - (n-1)/2)
+        i2 = int(i + (n-1)/2)
+
+    if i1 >= 0 and i2 < x.shape[0]:
+        return x[i1:i2+1]
+
+    v = list()
+    v.append(x[i])
+    k = 1
+    while len(v) < n:
+        d = int(k/2)
+        j = int(i + np.power(-1,k) * d)
+        if j >= 0 and j < x.shape[0]:
+            v.append(x[j])
+        k += 1
+    v = np.array(v)
+    return v
+
+
+def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, threshold=None):
+    """ Detect peaks in time-series data.
+
+        The time-series data is provided in the form of a Pandas DataFrame object, where 
+        each column contains a different time series.
+
+        This is essentially a wrapper around a SciPy's find_peaks method:
+
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html
+
+        Args:
+            df: Pandas DataFrame
+                Data frame containing the input data.
+            distance: int
+                Minimum distance between adjacent peaks
+            multiplicity: int
+                Number of time series in which peaks must appear to be counted.
+            prominence: float
+                Required prominence of the peaks.
+            height: float
+                Required absolute height of the peaks.
+            threshold: float
+                Required threshold of peaks (the vertical distance to its neighbouring samples).
+
+        Returns:
+            y: Pandas DataFrame 
+                Data frame containing the detected peaks
+
+        Example:
+            >>> from ketos.utils import detect_peaks
+            >>> import pandas as pd
+            >>>
+            >>> # create a two time series, where only the first contains a peak
+            >>> d = {'series1' : pd.Series([1.0, 2.3, 22.0, 2.2, 1.5]), 'series2': pd.Series([1.0, 2.3, 1.8, 2.2, 1.5])}
+            >>> df = pd.DataFrame(d)
+            >>> 
+            >>> # detect peaks with multiplicity 1 and prominence of at least 2.0
+            >>> peaks = detect_peaks(df=df, multiplicity=1, prominence=2.0)
+            >>> print(peaks)
+            [0 0 1 0 0]
+            >>> 
+            >>> # try again, but this time require multiplicity 2
+            >>> peaks = detect_peaks(df=df, multiplicity=2, prominence=2.0)
+            >>> print(peaks)
+            [0 0 0 0 0]
+    """
+
+
+    peaks = pd.DataFrame(index=df.index)
+
+    for column in df:
+        x = df[column]
+        m = np.median(np.abs(x - np.median(x)))
+        min_prominence = m * prominence
+        positions, _ = find_peaks(x, height=height, threshold=threshold, distance=distance, prominence=(min_prominence,None))
+        y = np.zeros(len(x))
+        y[positions] = 1
+        peaks[column] = y
+
+    # sum across each row
+    peaks = peaks.sum(axis=1) 
+
+    # create column of FALSEs (no detection) and TRUES (detection)
+    detections = pd.DataFrame((peaks >= multiplicity)) 
+
+    # convert to 0s and 1s and extract numpy array
+    res = detections[detections.columns[0]].astype(int).values 
+
+    return res
