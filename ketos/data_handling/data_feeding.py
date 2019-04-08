@@ -77,13 +77,10 @@ class BatchGenerator():
             Examples:
                 >>> from tables import open_file
                 >>> from ketos.data_handling.database_interface import open_table
-                  
                 >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
                 >>> train_data = open_table(h5, "/train/species1")
-
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
-                
-                #Run 2 epochs. 
+                >>> #Run 2 epochs. 
                 >>> n_epochs = 2    
                 >>> for e in range(n_epochs):
                 ...    for batch_num in range(train_generator.n_batches):
@@ -99,29 +96,23 @@ class BatchGenerator():
                 epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
                 epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
                 epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-
-                #Applying a custom function to the batch
-                #Takes the mean of each instance in X; leaves Y untouched
+                >>> #Applying a custom function to the batch
+                >>> #Takes the mean of each instance in X; leaves Y untouched
                 >>> def apply_to_batch(X,Y):
                 ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
                 ...    return (X,Y)
-
                 >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
-                >>> X,Y = next(train_generator)
-                
-                #Now each X instance is one single number, instead of a (2413,201) matrix
-                #A batch of size 3 is an array of the 3 means
+                >>> X,Y = next(train_generator)                
+                >>> #Now each X instance is one single number, instead of a (2413,201) matrix
+                >>> #A batch of size 3 is an array of the 3 means
                 >>> X.shape
                 (3,)
-
-                #Here is how one X instance looks like
+                >>> #Here is how one X instance looks like
                 >>> X[0]
                 7694.1147
-
-                #Y is the same as before 
+                >>> #Y is the same as before 
                 >>> Y.shape
                 (3,)
-
                 >>> h5.close()
 
     """
