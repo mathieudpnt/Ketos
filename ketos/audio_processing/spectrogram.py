@@ -990,6 +990,7 @@ class Spectrogram(AnnotationHandler):
             
             if Nt_crop <= 0 or Nf_crop <= 0:
                 img = None
+                f1r = max(f1, 0)
             else:
                 if np.ma.is_masked(self.image):
                     img = np.ma.zeros(shape=(Nt_crop, Nf_crop))
@@ -1008,7 +1009,7 @@ class Spectrogram(AnnotationHandler):
 
                 img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
 
-        return img, t1, f1
+        return img, t1, f1r
 
     def crop(self, tlow=None, thigh=None, flow=None, fhigh=None,\
         tpad=False, fpad=False, keep_time=True, make_copy=False, bin_no=False, **kwargs):
