@@ -382,8 +382,6 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
             >>> print(peaks)
             [0 0 0 0 0]
     """
-
-
     peaks = pd.DataFrame(index=df.index)
 
     for column in df:
@@ -405,3 +403,26 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
     res = detections[detections.columns[0]].astype(int).values 
 
     return res
+
+
+def get_member(cls, member_name):
+    """ Query class member by name.
+
+        Returns ValueError if class does not contain a member by that name.
+
+        Args:
+            cls: Class
+                Class
+            member_name: str
+                Member name
+
+        Returns:
+            member: 
+                The class member
+    """
+    for name, member in cls.__members__.items():
+        if member_name == name:
+            return member
+
+    s = ", ".join(name for name, _ in cls.__members__.items())
+    raise ValueError("Unknown value \'{0}\'. Select between: {1}".format(member_name, s))
