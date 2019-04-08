@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='ketos',
-      version='1.0.0',
+      version='0.1.0',
       description="Python package for developing  deep-learning-based models for the detection and classification of underwater sounds",
       # TODO: define a function readme() that reads the contents of a readme file
       # long_description=readme(),
@@ -26,7 +26,5 @@ setup(name='ketos',
           ],
       setup_requires=['pytest-runner', ],
       tests_require=['pytest', ],
-      entry_points = {"console_scritps": ["dummy_script=ketos.dummy_script:main"]},
-#      scripts=['bin/dummy_script.py'],
       include_package_data=True,
       zip_safe=False)

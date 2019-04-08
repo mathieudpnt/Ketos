@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'ketos'
-copyright = '2018 MERIDIAN'
+copyright = '2019 MERIDIAN'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
