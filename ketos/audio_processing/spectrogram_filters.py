@@ -197,7 +197,7 @@ class WindowFilter():
         nt = spec.tbins()
         nf = spec.fbins()
         
-        n = int(nt/step) + 1
+        n = int(np.ceil(nt/step))
 
         img = spec.image
         new_img = np.zeros(shape=(n,nf))

@@ -327,7 +327,10 @@ def nearest_values(x, i, n):
     v.append(x[i])
     k = 1
     while len(v) < n:
-        d = int(k/2)
+        if k%2 == 0:
+            d = k/2
+        else:
+            d = (k+1)/2
         j = int(i + np.power(-1,k) * d)
         if j >= 0 and j < x.shape[0]:
             v.append(x[j])

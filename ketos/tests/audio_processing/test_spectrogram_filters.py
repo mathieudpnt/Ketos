@@ -24,71 +24,65 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the 'utils' module within the ketos library
+""" Unit tests for the 'spectrogram_filters' module within the ketos library
 """
 
 import pytest
 import numpy as np
-from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values
+from ketos.audio_processing.spectrogram import MagSpectrogram
+import ketos.audio_processing.spectrogram_filters as filters
+from ketos.data_handling.parsing import Interval
+import matplotlib.pyplot  as plt
 
+def test_harmonic_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.image[:,::10] = 1
+    f = filters.HarmonicFilter()
+    f.apply(spec)
+    x = np.argmax(spec.image, axis=1)
+    assert np.all(x == 9)
 
-@pytest.mark.test_tostring
-def test_tostring():
-    box = (1,2,3)
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = [1,2,3]
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = np.array([1,2,3])
-    s = tostring(box)
-    assert s == '[1,2,3]'
-    box = [[1,2,3],[1,2]]
-    s = tostring(box)
-    assert s == '[[1,2,3],[1,2]]'
+def test_cropping_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.fres = 0.2
+    spec.image[:,51] = 1
+    f = filters.CroppingFilter(flow=10.0, fhigh=18.1)
+    f.apply(spec)
+    assert spec.image.shape[1] == 41
+    assert np.any(spec.image[:,1] == 1)
 
-@pytest.mark.test_octave_bands
-def test_octave_bands():
-    fc, fmin, fmax = octave_bands(1, 3)
-    assert fc[0] == 62.5
-    assert fc[1] == 125.
-    assert fc[2] == 250.
+def test_frequency_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.fres = 20.0
+    spec.image[:,6] = np.arange(spec.image.shape[0])
+    avg = np.average(spec.image[:,5:15], axis=1)
+    names = ['band_A', 'band_B']
+    bands = [Interval(100,300), Interval(1000,1400)]
+    f = filters.FrequencyFilter(bands=bands, names=names)
+    f.apply(spec)
+    assert spec.image.shape[1] == len(bands)
+    assert spec.flabels[0] == 'band_A'
+    assert spec.flabels[1] == 'band_B'
+    assert np.all(spec.image[:,0] == avg)
 
-@pytest.mark.test_morlet_func
-def test_morlet_func_single_time():
-    time = 0.5
-    f = morlet_func(time=time, frequency=10, width=3, displacement=0)
-    assert f == pytest.approx(0.42768108, abs=1E-5) 
+def test_window_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.image[:,6] = np.arange(spec.image.shape[0])
+    f = filters.WindowFilter(window_size=10, step_size=3)
+    f.apply(spec)
+    assert spec.image.shape[0] == 34
+    assert spec.image[0,6] == 5
+    assert spec.image[1,6] == 8
 
-@pytest.mark.test_morlet_func
-def test_morlet_func_multiple_times():
-    time = np.array([-1., 0., 0.5])
-    f = morlet_func(time=time, frequency=10, width=3, displacement=0)
-    assert f[0] == pytest.approx(0.41022718, abs=1E-5) 
-    assert f[1] == pytest.approx(0.43366254, abs=1E-5) 
-    assert f[2] == pytest.approx(0.42768108, abs=1E-5) 
-
-@pytest.mark.test_morlet_func
-def test_morlet_func_with_dfdt_nonzero():
-    time = 0.5
-    f = morlet_func(time=time, frequency=10, width=3, displacement=0, dfdt=0.5)
-    assert f == pytest.approx(0.302416, abs=1E-5) 
-
-@pytest.mark.test_random_floats
-def test_random_floats():
-    x = random_floats(3, 0.4, 7.2)
-    assert x[0] == pytest.approx(3.23574963, abs=1e-5)
-    assert x[1] == pytest.approx(5.29820656, abs=1e-5)
-    assert x[2] == pytest.approx(0.40077775, abs=1e-5)
-
-@pytest.mark.test_nearest_values
-def test_nearest_values():
-    x = np.array([1.0, 4.0, 5.1, 6.0, 0.2, 0.3, 10.0])
-    y = nearest_values(x=x, i=3, n=3)
-    assert np.all(y == [5.1, 6.0, 0.2])
-    y = nearest_values(x=x, i=0, n=3)
-    assert np.all(y == [1.0, 4.0, 5.1])
-    y = nearest_values(x=x, i=0, n=4)
-    assert np.all(y == [1.0, 4.0, 5.1, 6.0])
-    y = nearest_values(x=x, i=6, n=4)
-    assert np.all(y == [10.0, 0.3, 0.2, 6.0])
+def test_window_subtraction_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.image[:,6] = np.arange(spec.image.shape[0])
+    f = filters.WindowSubtractionFilter(window_size=10)
+    f.apply(spec)
+    assert spec.image[0,6] == -5
+    assert spec.image[1,6] == -4
