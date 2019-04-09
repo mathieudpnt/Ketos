@@ -290,6 +290,9 @@ def morlet_func(time, frequency, width, displacement, norm=True, dfdt=0):
 def nearest_values(x, i, n):
     """ Returns the n values nearest to index i from the array x.
 
+        Here, nearest refers to the position in the array, not 
+        the value.
+
         Args:
             x: numpy array
                 Input values
@@ -357,7 +360,10 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
             multiplicity: int
                 Number of time series in which peaks must appear to be counted.
             prominence: float
-                Required prominence of the peaks.
+                Required prominence of the peaks. The prominence of a peak measures how much a peak 
+                stands out from the surrounding baseline of the signal and is defined as the vertical 
+                distance between the peak and its lowest contour line. See also 
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.peak_prominences.html#scipy.signal.peak_prominences
             height: float
                 Required absolute height of the peaks.
             threshold: float
