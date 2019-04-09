@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(name='ketos',
-      version='1.0.0',
-      description="Python package for developing  deep-learning-based models for the detection and classification of underwater sounds",
+      version='0.1.4',
+      description="Python package for developing deep-learning-based models for the detection and classification of underwater sounds",
       # TODO: define a function readme() that reads the contents of a readme file
       # long_description=readme(),
       url='https://gitlab.meridian.cs.dal.ca/data_analytics_dal/packages/ketos',
@@ -26,6 +26,5 @@ setup(name='ketos',
           ],
       setup_requires=['pytest-runner', ],
       tests_require=['pytest', ],
-      entry_points = {"console_scritps": ["bla=bin.bla_script:main", "ketos-audio-filterer=bin.audio_filterer:main", "ketos-anomaly-detector=bin.anomaly_detector:main"]},
       include_package_data=True,
       zip_safe=False)
