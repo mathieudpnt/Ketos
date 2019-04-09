@@ -1,5 +1,12 @@
 from setuptools import setup, find_packages
 
+#
+# create distribution and upload to pypi.org with:
+#  
+#   $ python setup.py sdist bdist_wheel
+#   $ twine upload dist/*
+#
+
 setup(name='ketos',
       version='0.1.4',
       description="Python package for developing deep-learning-based models for the detection and classification of underwater sounds",
