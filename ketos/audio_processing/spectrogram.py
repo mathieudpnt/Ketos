@@ -988,19 +988,26 @@ class Spectrogram(AnnotationHandler):
             else:
                 Nf_crop = min(f2, Nf) - max(f1, 0)
             
-            img = np.zeros(shape=(Nt_crop, Nf_crop))
+            if Nt_crop <= 0 or Nf_crop <= 0:
+                img = None
+                f1r = max(f1, 0)
+            else:
+                if np.ma.is_masked(self.image):
+                    img = np.ma.zeros(shape=(Nt_crop, Nf_crop))
+                else:
+                    img = np.zeros(shape=(Nt_crop, Nf_crop))
 
-            t1r = max(t1, 0)
-            t2r = min(t2, Nt)
-            t1_crop = max(-1*t1, 0)
-            t2_crop = t1_crop + t2r - t1r
+                t1r = max(t1, 0)
+                t2r = min(t2, Nt)
+                t1_crop = max(-1*t1, 0)
+                t2_crop = t1_crop + t2r - t1r
 
-            f1r = max(f1, 0)
-            f2r = min(f2, Nf)
-            f1_crop = 0
-            f2_crop = f2r - f1r
+                f1r = max(f1, 0)
+                f2r = min(f2, Nf)
+                f1_crop = 0
+                f2_crop = f2r - f1r
 
-            img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
+                img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
 
         return img, t1, f1r
 
@@ -1566,7 +1573,10 @@ class Spectrogram(AnnotationHandler):
         if m is None or m.size == 0: 
             return np.nan
 
-        avg = np.average(m, axis=axis)
+        if np.ma.is_masked(m):
+            avg = np.ma.average(m, axis=axis)
+        else:
+            avg = np.average(m, axis=axis)
 
         return avg
 
@@ -1599,7 +1609,10 @@ class Spectrogram(AnnotationHandler):
         if m is None or m.size == 0: 
             return np.nan
 
-        med = np.median(m, axis=axis)
+        if np.ma.is_masked(m):
+            med = np.ma.median(m, axis=axis)
+        else:
+            med = np.median(m, axis=axis)
 
         return med
             

@@ -181,3 +181,19 @@ def parse_frequency_bands(data):
         freq_intv.append(intv)
 
     return name, freq_intv
+
+
+def str2bool(v):
+    """ Convert most common answers to yes/no questions to boolean
+
+    Args:
+        v : str
+            Answer 
+    
+    Returns:
+        res : bool
+            Answer converted to boolean 
+    """
+    res = v.lower() in ("yes", "YES", "Yes", "true", "True", "TRUE", "on", "ON", "t", "T", "1")
+    return res
+
