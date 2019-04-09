@@ -1295,7 +1295,12 @@ class AnnotationTableReader():
         self.max_ann = None
         
     def get_max_annotations(self):
-        
+        """ Returns the maximum number of annotations attached to any single audio file.
+            
+            Returns:
+                m: int
+                    Number of annotations
+        """        
         if self.max_ann is not None:
             m = self.max_ann
         else:
