@@ -29,7 +29,8 @@
 
 import pytest
 import numpy as np
-from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values
+import pandas as pd
+from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values, detect_peaks
 
 
 @pytest.mark.test_tostring
@@ -92,3 +93,14 @@ def test_nearest_values():
     assert np.all(y == [1.0, 4.0, 5.1, 6.0])
     y = nearest_values(x=x, i=6, n=4)
     assert np.all(y == [10.0, 0.3, 0.2, 6.0])
+
+def test_detect_peaks():
+    # create a two time series, where only the first contains a peak
+    d = {'series1' : pd.Series([1.0, 2.3, 22.0, 2.2, 1.5]), 'series2': pd.Series([1.0, 2.3, 1.8, 2.2, 1.5])}
+    df = pd.DataFrame(d)
+    # detect peaks with multiplicity 1 and prominence of at least 2.0
+    peaks = detect_peaks(df=df, multiplicity=1, prominence=2.0)
+    assert np.all(peaks == [0, 0, 1, 0, 0])
+    # try again, but this time require multiplicity 2
+    peaks = detect_peaks(df=df, multiplicity=2, prominence=2.0)
+    assert np.all(peaks == [0, 0, 0, 0, 0])
