@@ -60,8 +60,10 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.data_handling.database_interface import SpecWriter
 from ketos.utils import random_floats
 from tqdm import tqdm
+
 
 
 def ensure_same_length(specs, pad=False):
@@ -132,7 +134,8 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
-            validation_function=None, progress_bar=False, min_peak_diff=None):
+            validation_function=None, progress_bar=False, min_peak_diff=None,\
+            output_file=None, max_size=1E9, max_annotations=10):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -179,10 +182,23 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             min_peak_diff: float
                 If specified, the following validation criterion is used:
                 max(spec2) > max(spec1) + min_peak_diff
-
+            output_file: str
+                Full path to output database file (*.h5). If no output file is 
+                provided (default), the spectrograms created are kept in memory 
+                and passed as return argument; If an output file is provided, 
+                the spectrograms are saved to disk.
+            max_annotations: int
+                Maximum number of annotations allowed for any spectrogram. 
+                Only applicable if output_file is specified.
+            max_size: int
+                Maximum size of output database file in bytes
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte)
+                Only applicable if output_file is specified.
         Returns:   
             specs: Spectrogram or list of Spectrograms
-                Created spectrogram(s)
+                Created spectrogram(s). Returns None if output_file is specified.
 
         Examples:
             >>> # extract saved spectrograms from database file
@@ -230,6 +246,9 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             .. image:: ../../../../ketos/tests/assets/tmp/new_spec_x.png
 
     """
+    if output_file:
+        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_ann)
+
     # set random seed
     np.random.seed(seed)
 
@@ -244,10 +263,12 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
         import sys
         nprog = max(1, int(num / 100.))
 
+    specs_counter = 0
     specs = list()
     while len(specs) < num:
         
         N = num - len(specs)
+        N = num - specs_counter
 
         # randomly select spectrograms
         _specs1 = np.random.choice(specs1, N, replace=True)
@@ -267,8 +288,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
         for i in range(N):
 
             if progress_bar:
-                if len(specs) % nprog == 0:
-                    sys.stdout.write('{0:.0f}% \r'.format(len(specs)/num*100.))
+                if len(specs_counter) % nprog == 0:
+                    sys.stdout.write('{0:.0f}% \r'.format(specs_counter / num * 100.))
 
             s1 = _specs1[i]
             s2 = _specs2[i]
@@ -293,19 +314,30 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
 
             if validation_function(s1, s2, spec):
-                specs.append(spec)
+                if output_file:
+                    writer.cd('spec')
+                    writer.write(spec)
+                else:                    
+                    specs.append(spec)
+                
+                specs_counter += 1
 
-            if len(specs) >= num:
+            if specs_counter >= num:
                 break
 
     if progress_bar:
         print('100%')
 
-    # if list has length 1, return the element rather than the list
-    if len(specs) == 1:
-        specs = specs[0]
+    if output_file:
+        writer.close()
+        return None
 
-    return specs
+    else:
+        # if list has length 1, return the element rather than the list
+        if len(specs) == 1:
+            specs = specs[0]
+
+        return specs
 
 
 class Spectrogram(AnnotationHandler):
