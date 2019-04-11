@@ -281,25 +281,18 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             else:
                 delay = 0
 
-            if dt >= 0:
-                spec_long = s1
-                spec_short = s2
-            else:
-                spec_short = s1
-                spec_long = s2
-
-            spec = spec_long.copy() # make a copy
+            spec = s1.copy() # make a copy
 
             if min_peak_diff is not None:
-                diff = sf[i] * np.max(spec_short.image) - np.max(spec_long.image)
+                diff = sf[i] * np.max(s2.image) - np.max(s1.image)
                 if diff < min_peak_diff:
                     continue
 
             # add the two spectrograms
-            spec.add(spec=spec_short, delay=delay, scale=sf[i], make_copy=True,\
+            spec.add(spec=s2, delay=delay, scale=sf[i], make_copy=True,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
 
-            if validation_function(spec_long, spec_short, spec):
+            if validation_function(s1, s2, spec):
                 specs.append(spec)
 
             if len(specs) >= num:
