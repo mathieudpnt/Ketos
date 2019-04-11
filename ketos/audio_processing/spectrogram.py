@@ -60,7 +60,6 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.data_handling.database_interface import SpecWriter
 from ketos.utils import random_floats
 from tqdm import tqdm
 
@@ -247,7 +246,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
     """
     if output_file:
-        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_ann)
+        from ketos.data_handling.database_interface import SpecWriter
+        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_annotations)
 
     # set random seed
     np.random.seed(seed)
@@ -265,7 +265,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
     specs_counter = 0
     specs = list()
-    while len(specs) < num:
+    while specs_counter < num:
         
         N = num - len(specs)
         N = num - specs_counter
@@ -315,7 +315,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
 
             if validation_function(s1, s2, spec):
                 if output_file:
-                    writer.cd('spec')
+                    writer.cd('/spec')
                     writer.write(spec)
                 else:                    
                     specs.append(spec)
