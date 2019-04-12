@@ -11,7 +11,6 @@ You can help by:
 * Reporting/fixing bugs
 * Suggesting new features
 
-We use GitLab as a repository, so the best way to submit suggestions/requests is through the `issues system <https://gitlab.meridian.cs.dal.ca/data_analytics_dal/packages/ketos/issues>`_.
 
 
 How to Report Issues
@@ -25,6 +24,8 @@ When reporting issues, please include as many of the the following details as po
 * A minimum example that reproduces the issue
 * What result you got
 * What you were expecting
+
+We use GitLab as a repository, so the best way to submit issues is through the `issues system <https://gitlab.meridian.cs.dal.ca/public_projects/ketos/issues>`_.
 
 Workflow for Merge Requests
 ----------------------------

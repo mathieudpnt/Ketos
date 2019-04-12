@@ -2,13 +2,14 @@
 Welcome to Ketos's documentation!
 =================================
 
---------
-Contents
---------
+
+
+.. include:: introduction.rst
 
 .. toctree::
    :maxdepth: 3
    :glob:
+   :hidden:
 
    introduction
    installation
