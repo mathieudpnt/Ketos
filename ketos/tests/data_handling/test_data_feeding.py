@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
-from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator
+from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator, ActiveLearningBatchGenerator2
 from ketos.neural_networks.neural_networks import class_confidences, predictions
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -314,5 +314,30 @@ def test_instance_function():
     assert X[0] == pytest.approx(7694.1147, 0.1)
     assert Y.shape == (5,)
     
+    h5.close()
+
+
+@pytest.mark.test_ActiveLearningBatchGenerator2
+def test_active_learning_batch_generator_max_keep_0():
+    """ Test can start first training session
+    """
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r')  
+    data = open_table(h5, "/train/species1")
+
+    specs = data[:12]['data']
+    labels = data[:12]['labels']
+
+    a = ActiveLearningBatchGenerator2(table=data, session_size=6, batch_size=2, return_indices=True)
+
+    # get 1st batch generator
+    generator = next(a)
+
+    # get 1st batch
+    ids, X, Y = next(generator)
+    assert ids == [0,1]
+    assert X.shape == (2, 2413, 201)
+    np.testing.assert_array_equal(X, specs[:2])
+    assert Y.shape == (2,)
+    np.testing.assert_array_equal(Y, labels[:2])
 
     h5.close()
