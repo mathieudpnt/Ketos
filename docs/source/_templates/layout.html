@@ -7,36 +7,10 @@
 <link href="https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700" rel="stylesheet"/> 
 <link href="https://fonts.googleapis.com/css?family=Old+Standard+TT" rel="stylesheet"/>
 {% endblock %}
-{% block sidebartitle %}
-          {% if logo and theme_logo_only %}
-            <a href="{{ pathto(master_doc) }}">
-          {% else %}
-            <a href="{{ pathto(master_doc) }}" class="icon icon-home"> {{ project }}
-          {% endif %}
 
-          {% if logo %}
-            {# Not strictly valid HTML, but it's the only way to display/scale
-               it properly, without weird scripting or heaps of work
-            #}
-            <img src="{{ pathto('_static/' + logo, 1) }}" class="logo" alt="Logo"/>
-          {% endif %}
-          </a>
+{% block projectdetails  %}
 
-          <h2> Ketos</h2>
-          <p class="CFIinfo">Underwater acoustic detection and classification with deep neural networks</p>
-      
-          {% if theme_display_version %}
-            {%- set nav_version = version %}
-            {% if READTHEDOCS and current_version %}
-              {%- set nav_version = current_version %}
-            {% endif %}
-            {% if nav_version %}
-              <div class="version">
-                {{ nav_version }}
-              </div>
-            {% endif %}
-          {% endif %}
-		  
+  <div class="version">Underwater acoustic detection and classification with deep neural networks</div>
+  <img id="ketos-logo" src="{{ pathto('_static/' + 'ketos_logo_gray.png', 1) }}" alt="Ketos logo"/>
 
-{% include "searchbox.html" %}
 {% endblock %}

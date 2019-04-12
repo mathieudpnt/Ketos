@@ -14,3 +14,14 @@ div.highlight{
 	background-color: #3892a87a;
 }
 
+
+/* ketos logo */
+
+img#ketos-logo{
+	border-radius: 0%;
+	background-color: white;
+	height: 60%;
+	width: 60%;
+	
+
+}

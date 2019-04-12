@@ -92,7 +92,7 @@ html_theme = 'sphinx_mer_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {'collapse_navigation': False, 'logo_only': True}
+html_theme_options = {'collapse_navigation': False, 'logo_only': False}
 using_rtd_theme = True
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -100,8 +100,8 @@ using_rtd_theme = True
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_logo = '_static/logo.png'
-html_logo = '_static/MERIDIAN_Col_Logo.png'
+#html_logo = '_static/logo.png'
+#html_logo = '_static/MERIDIAN_Col_Logo.png'
 html_context = {
     'css_files': ['_static/custom.css'],
 }
