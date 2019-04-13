@@ -309,7 +309,7 @@ def test_instance_function():
         return (X, Y)
 
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=5, return_batch_ids=True, instance_function=apply_to_batch) #create a batch generator 
-    ids, X, Y = next(train_generator)
+    _, X, Y = next(train_generator)
     assert X.shape == (5,)
     assert X[0] == pytest.approx(7694.1147, 0.1)
     assert Y.shape == (5,)
@@ -337,16 +337,16 @@ def test_active_learning_batch_generator_max_keep_zero():
     assert ids == [0,1]
     assert X.shape == (2, 2413, 201)
     np.testing.assert_array_equal(X, specs[:2])
-    assert Y.shape == (2,)
-    np.testing.assert_array_equal(Y, labels[:2])
+    assert len(Y) == 2
+    assert Y == [1,1]
 
     # get 2nd batch
     ids, X, Y = next(generator)
     assert ids == [2,3]
     assert X.shape == (2, 2413, 201)
     np.testing.assert_array_equal(X, specs[2:4])
-    assert Y.shape == (2,)
-    np.testing.assert_array_equal(Y, labels[2:4])
+    assert len(Y) == 2
+    assert Y == [1,1]
 
     # get 3rd and 4th batch
     ids, _, _ = next(generator) 

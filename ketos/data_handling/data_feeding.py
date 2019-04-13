@@ -131,10 +131,14 @@ class BatchGenerator():
         self.return_batch_ids = return_batch_ids
         self.indices = indices
 
-        self.entry_indices = self.__update_indices__()
+        if self.indices is None:
+            self.n_instances = self.data.nrows
+        else:
+            self.n_instances = len(self.indices)
 
-        self.n_instances = len(self.entry_indices)
         self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+
+        self.entry_indices = self.__update_indices__()
 
         self.batch_indices = self.__get_batch_indices__()
 
