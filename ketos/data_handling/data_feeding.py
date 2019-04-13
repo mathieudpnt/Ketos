@@ -529,11 +529,14 @@ class ActiveLearningBatchGenerator2():
         if seed is not None:
             np.random.seed(seed) 
 
-        self.poor_indices = np.array([], dtype=int)
-        self.session_indices = np.array([-1], dtype=int)
-
+        self.poor_indices = self.__refresh_poor_indices__()
         self.indices = self.__refresh_indices__()
-    
+
+        self.session_indices = np.array([-1], dtype=int)
+ 
+    def __refresh_poor_indices__(self):
+        return np.array([], dtype=int)
+
     def __refresh_indices__(self):
         """Updates the indices used to divide the instances into batches.
 
@@ -562,8 +565,11 @@ class ActiveLearningBatchGenerator2():
                     A list of tuple, each containing two integer values: the start and end of the batch. These positions refer to the list stored in self.entry_indices.                
         
         """
+        # number of instances from previous session with poor performace 
+        num_poor = len(self.poor_indices)
+
         # number of examples kept from previous session
-        num_keep = int(min(len(self.poor_indices), self.max_keep * self.session_size))
+        num_keep = int(min(num_poor, self.max_keep * self.session_size))
 
         # number of new examples
         num_new = self.session_size - num_keep
@@ -580,7 +586,7 @@ class ActiveLearningBatchGenerator2():
 
         # select randomly from poorly predicted examples in previous session
         if num_keep > 0:
-            new_session = np.concatenate((new_session, np.random.choice(self.poor_indices, num_keep, replace=False)))
+            new_session = np.concatenate((new_session, np.random.choice(np.unique(self.poor_indices), num_keep, replace=False)))
 
         # refresh at end of data set
         epoch_end = (i2 == self.data_size or dn > 0)
@@ -601,10 +607,13 @@ class ActiveLearningBatchGenerator2():
             Return: tuple
             A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
         """
-
+        # get indices for new session
         self.session_indices = self.__get_session_indices__()
 
-        # batch normalization
+        # refresh is_poor array
+        self.poor_indices = self.__refresh_poor_indices__()
+
+        # instance function
         if self.instance_function is None:
             f1 = func_identity
         else:
@@ -633,8 +642,8 @@ class ActiveLearningBatchGenerator2():
 
         return generator
 
-    def performance_on_batch(self, predictions, confidences=None):
-        """Inform the generator about how well the neural network performed on the most recent batch.
+    def update_performance(self, indices, predictions, confidences=None):
+        """Inform the generator about how well the neural network performed on a set of examples.
 
             Args:
                 pred: numpy.array
@@ -647,25 +656,26 @@ class ActiveLearningBatchGenerator2():
         if confidences is None:
             confidences = np.ones(len(predictions))
             
+        assert len(indices) == len(predictions), 'length of indices and predictions arrays do not match'
         assert len(predictions) == len(confidences), 'length of prediction and confidence arrays do not match'
 
-        assert len(predictions) == self.session_size, 'length of prediction and confidence arrays do not match the number of samples drawn in the last iteration'
+        if type(indices) != np.ndarray:
+            indices = np.array(indices, dtype=int)
 
         if type(predictions) != np.ndarray:
-            predictions = np.array(predictions)
+            predictions = np.array(predictions, dtype=int)
 
         if type(confidences) != np.ndarray:
-            confidences = np.array(confidences)
+            confidences = np.array(confidences, dtype=float)
 
-        Y = self.data[self.session_indices][self.y_field]
+        Y = self.data[indices][self.y_field]
         if self.y_field == 'labels':
             _, Y = func_parse_labels(None, Y)
 
         poor = np.logical_or(predictions != Y, confidences < self.conf_cut)
         poor = np.argwhere(poor == True)
         poor = np.squeeze(poor)
+        if np.ndim(poor) == 0:
+            poor = np.array([poor], dtype=int)
 
-        self.poor_indices = self.session_indices[poor]
-
-        if np.ndim(self.poor_indices) == 0:
-            self.poor_indices = np.array([self.poor_indices], dtype=int)
+        self.poor_indices = np.concatenate((self.poor_indices, indices[poor]))

@@ -404,29 +404,35 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     ids, _, Y = next(generator)
     assert ids == [7,8,9]
     assert Y == [1,1,1]
+    a.update_performance(indices=[7,8,9], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
+
     ids, _, Y = next(generator)
     assert ids == [10,11,12]
     assert Y == [1,1,1]
+    a.update_performance(indices=[10,11,12], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
+
     ids, _, Y = next(generator)
     assert ids == [13]
     assert Y == 1
-
-    # performance on latest session (only one wrong prediction)
-    a.performance_on_batch(predictions=[1,1,1,1,1,1,0], confidences=[1.0,1.0,1.0,1.0,1.0,1.0,1.0])
+    a.update_performance(indices=[13], predictions=[0], confidences=[1.0])
 
     generator = next(a)
 
     ids1, _, Y = next(generator)
     assert Y == [1,1,1]
+    a.update_performance(indices=ids1, predictions=[1,0,0])
+
     ids2, _, Y = next(generator)
     assert Y == [1,1,1]
+    a.update_performance(indices=ids2, predictions=[0,0,0])
+
     ids3, _, Y = next(generator)
     assert Y == 1
+    a.update_performance(indices=ids3, predictions=[1])
+
     ids = np.concatenate((ids1, ids2, ids3))
     assert 13 in ids
 
-    # performance on latest session (five wrong predictions)
-    a.performance_on_batch(predictions=[1,0,0,0,0,0,1])
     wrong_ids = [ids1[1], ids1[2], ids2[0], ids2[1], ids2[2]]
 
     generator = next(a)
