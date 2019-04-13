@@ -633,7 +633,7 @@ class ActiveLearningBatchGenerator2():
 
         return generator
 
-    def performance_on_batch(self, predictions, confidences):
+    def performance_on_batch(self, predictions, confidences=None):
         """Inform the generator about how well the neural network performed on the most recent batch.
 
             Args:
@@ -644,6 +644,9 @@ class ActiveLearningBatchGenerator2():
                     Array containing the confidences for the predictions on the last batch.
                     Created with ketos.neural_networks.neural_networks.class_confidences.    
         """
+        if confidences is None:
+            confidences = np.ones(len(predictions))
+            
         assert len(predictions) == len(confidences), 'length of prediction and confidence arrays do not match'
 
         assert len(predictions) == self.session_size, 'length of prediction and confidence arrays do not match the number of samples drawn in the last iteration'

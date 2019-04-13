@@ -426,7 +426,7 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     assert 13 in ids
 
     # performance on latest session (five wrong predictions)
-    a.performance_on_batch(predictions=[1,0,0,0,0,0,1], confidences=[1.0,1.0,1.0,1.0,1.0,1.0,1.0])
+    a.performance_on_batch(predictions=[1,0,0,0,0,0,1])
     wrong_ids = [ids1[1], ids1[2], ids2[0], ids2[1], ids2[2]]
 
     generator = next(a)
