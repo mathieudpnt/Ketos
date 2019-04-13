@@ -36,7 +36,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
-
+from ketos.data_handling.database_interface import parse_labels
 
 
 class BatchGenerator():
@@ -124,8 +124,6 @@ class BatchGenerator():
         self.batch_size = batch_size
         self.x_field = x_field
         self.y_field = y_field
-        self.n_instances = self.data.nrows
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
         self.shuffle = shuffle
         self.instance_function = instance_function
         self.batch_count = 0
@@ -134,6 +132,10 @@ class BatchGenerator():
         self.indices = indices
 
         self.entry_indices = self.__update_indices__()
+
+        self.n_instances = len(self.entry_indices)
+        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+
         self.batch_indices = self.__get_batch_indices__()
 
     
@@ -478,11 +480,32 @@ class ActiveLearningBatchGenerator():
 
         return idx
 
+def func_identity(X,Y):
+    return X,Y 
+
+def func_normalize_X(X,Y):
+    X = (X - np.mean(X)) / np.std(X)
+    return X,Y 
+
+def func_parse_labels(X,Y):
+    YY = list()
+    for _y in Y:
+        _y = parse_labels(_y)
+        if len(_y) == 1:
+            _y = _y[0]
+
+        YY.append(_y)
+
+    if len(YY) == 1:
+        YY = YY[0]
+
+    return X,YY
+
 
 class ActiveLearningBatchGenerator2():
 
     def __init__(self, table, session_size, batch_size, shuffle=False, refresh=False, return_indices=False,\
-                    max_keep=0, conf_cut=0, seed=None, batch_norm=False):
+                    max_keep=0, conf_cut=0, seed=None, batch_norm=False, instance_function=None, x_field='data', y_field='labels'):
 
         self.data = table
         self.session_size = session_size
@@ -495,12 +518,15 @@ class ActiveLearningBatchGenerator2():
         self.conf_cut = conf_cut
         self.batch_norm = batch_norm
         self.seed = seed
+        self.x_field = x_field
+        self.y_field = y_field
+        self.instance_function = instance_function
 
         if seed is not None:
             np.random.seed(seed) 
 
-        self.poor_indices = np.empty(shape=(), dtype=int)
-        self.session_indices = np.empty(shape=(), dtype=int)
+        self.poor_indices = np.array([], dtype=int)
+        self.session_indices = np.array([-1], dtype=int)
 
         self.indices = self.__refresh_indices__()
     
@@ -533,13 +559,10 @@ class ActiveLearningBatchGenerator2():
         
         """
         # number of examples kept from previous session
-        num_keep = int(min(self.poor_indices.shape[0], self.max_keep * self.session_size))
+        num_keep = int(min(len(self.poor_indices), self.max_keep * self.session_size))
 
         # number of new examples
         num_new = self.session_size - num_keep
-
-        # select randomly from poorly predicted examples in previous session
-        new_session = np.random.choice(self.poor_indices, num_keep, replace=False)
 
         # select new examples
         i1 = self.session_indices[-1] + 1
@@ -547,9 +570,13 @@ class ActiveLearningBatchGenerator2():
         new_session = self.indices[i1:i2]
 
         # if necessary, go back to beginning to complete batch
-        dn = self.session_size - new_session.shape[0]
+        dn = num_new - new_session.shape[0]
         if dn > 0:
             new_session = np.concatenate((new_session, self.indices[:dn]))
+
+        # select randomly from poorly predicted examples in previous session
+        if num_keep > 0:
+            new_session = np.concatenate((new_session, np.random.choice(self.poor_indices, num_keep, replace=False)))
 
         # refresh at end of data set
         epoch_end = (i2 == self.data_size or dn > 0)
@@ -574,17 +601,30 @@ class ActiveLearningBatchGenerator2():
         self.session_indices = self.__get_session_indices__()
 
         # batch normalization
-        if self.batch_norm:
-            def fnorm(X,Y):
-                X = (X - np.mean(X)) / np.std(X)
-                return X,Y 
-            func = fnorm               
+        if self.instance_function is None:
+            f1 = func_identity
         else:
-            func = None
+            f1 = self.instance_function
+
+        if self.batch_norm:
+            f2 = func_normalize_X
+        else:
+            f2 = func_identity
+
+        if self.y_field == 'labels':
+            f3 = func_parse_labels
+        else:
+            f3 = func_identity
+
+        def func(X,Y):
+            X,Y = f1(X,Y)
+            X,Y = f2(X,Y)
+            X,Y = f3(X,Y)
+            return X,Y
 
         # create batch generator
         generator = BatchGenerator(hdf5_table=self.data, batch_size=self.batch_size, indices=self.session_indices,\
-                    instance_function=func, x_field='data', y_field='labels',\
+                    instance_function=func, x_field=self.x_field, y_field=self.y_field,\
                     shuffle=self.shuffle, refresh_on_epoch_end=self.refresh, return_batch_ids=self.return_indices)
 
         return generator
@@ -604,9 +644,21 @@ class ActiveLearningBatchGenerator2():
 
         assert len(predictions) == self.session_size, 'length of prediction and confidence arrays do not match the number of samples drawn in the last iteration'
 
-        Y = self.data[self.session_indices]['label']
+        if type(predictions) != np.ndarray:
+            predictions = np.array(predictions)
 
-        poor = (predictions != Y) or (confidences < self.conf_cut)
-        poor = poor[poor is True]
+        if type(confidences) != np.ndarray:
+            confidences = np.array(confidences)
+
+        Y = self.data[self.session_indices][self.y_field]
+        if self.y_field == 'labels':
+            _, Y = func_parse_labels(None, Y)
+
+        poor = np.logical_or(predictions != Y, confidences < self.conf_cut)
+        poor = np.argwhere(poor == True)
+        poor = np.squeeze(poor)
 
         self.poor_indices = self.session_indices[poor]
+
+        if np.ndim(self.poor_indices) == 0:
+            self.poor_indices = np.array([self.poor_indices], dtype=int)
