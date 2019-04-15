@@ -1,4 +1,4 @@
-image: oliskir/ketos:test1
+image: oliskir/ketos:v1.0.1
 
 stages:
 - build
@@ -31,12 +31,12 @@ create-package:
  type: deploy
  script:
   - python setup.py sdist
-  - pip install dist/ketos-1.0.0.tar.gz
+  - pip install dist/ketos-*.tar.gz
  only:
   - master
  artifacts:
   paths:
-   - dist/ketos-1.0.0.tar.gz
+   - dist/ketos-*.tar.gz
 
 
 #  Trig dependant projects
