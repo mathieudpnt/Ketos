@@ -613,11 +613,11 @@ class BasicCNN(DataHandler):
         if self.epoch_counter == 0:
             sess.run(self.init_op)
 
-       
         if train_batch_gen is not None:
             batches = train_batch_gen.n_batches
         else:
             batches = int(y.shape[0] / batch_size)
+
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
@@ -630,6 +630,7 @@ class BasicCNN(DataHandler):
                     y_i = y[offset:(offset + batch_size)]
                 else:
                     x_i, y_i = next(train_batch_gen)
+
                 x_i = self._reshape_x(x_i)
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
@@ -658,13 +659,13 @@ class BasicCNN(DataHandler):
 
         return avg_cost, val_acc
 
-    def train_active(self, provider, iterations=1, batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train_active(self, provider, num_sessions=1, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
         """ Train the neural network in an active manner using a data provider module.
 
             Args:
                 provider: ActiveLearningBatchGenerator
                     ActiveLearningBatchGenerator
-                iterations: int
+                sessions: int
                     Number of training iterations.
                 batch_size: int
                     Batch size. Overwrites batch size specified at initialization.
@@ -699,29 +700,32 @@ class BasicCNN(DataHandler):
                 >>> y = [0, 1, 0, 1, 0, 1, 0] # labels
                 >>> # create a data provider
                 >>> from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator
-                >>> g = ActiveLearningBatchGenerator(x, y)
-                >>> cost, _ = cnn.train_active(provider=g, iterations=3, batch_size=2, num_epochs=7, learning_rate=0.005)
+                >>> g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
+                >>> cost, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
         """    
-        for i in range(iterations):
-
-            # get data from provider
-            x_train, y_train, keep_frac = provider.get_samples()    
+        for i in range(num_sessions):
 
             if self.verbosity >= 2:
-                print('\nIteration: {0}/{1}'.format(i+1, iterations))
-                print('Keep frac: {0:.1f}%'.format(100.*keep_frac))
+                print('\nSession: {0}/{1}'.format(i+1, num_sessions))
 
-            # feed data to neural net
-            self.set_training_data(x=x_train, y=to1hot(y_train,2))
+            # batch generator
+            provider.return_indices = False    
+            provider.convert_to_one_hot = True        
+            gen = next(provider)
 
             # train
-            avg_cost, val_acc = self.train(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
+            avg_cost, val_acc = self.train(train_batch_gen=gen, num_epochs=num_epochs,\
+                    learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
 
             # update predictions and confidences
-            w = self.get_class_weights(x_train)
-            pred = predictions(w)
-            conf = class_confidences(w)
-            provider.update_prediction_confidence(pred=pred, conf=conf)
+            num_batches = gen.n_batches
+            gen.return_batch_ids = True
+            for _ in range(num_batches):
+                i, x, _ = next(gen)
+                w = self.get_class_weights(x)
+                pred = predictions(w)
+                conf = class_confidences(w)
+                provider.update_performance(indices=i, predictions=pred, confidences=conf)
 
             if val_acc >= val_acc_goal:
                 break

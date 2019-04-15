@@ -588,7 +588,7 @@ def test_interbreed_spectrograms_with_min_peak_diff():
 def test_interbreed_save_to_file():
     s1 = Spectrogram(image=np.ones((100,100)))
     s2 = s1.copy()
-    outf = path_to_tmp + 'interbreed.h5'
+    outf = path_to_tmp + '/interbreed.h5'
     interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf)
     # check that spectrograms were saved to file
     fil = tables.open_file(outf, 'r')

@@ -33,90 +33,12 @@ import numpy as np
 import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
-from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator, ActiveLearningBatchGenerator2
+from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator
 from ketos.neural_networks.neural_networks import class_confidences, predictions
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
-
-
-@pytest.mark.test_ActiveLearningBatchGenerator
-def test_get_samples(data_classified_by_nn):
-    x, y, w = data_classified_by_nn
-    p = predictions(w)
-    c = class_confidences(w)
-
-    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=False, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #0,1
-    assert np.all(x1 == x[0:2])    
-    sampler.update_prediction_confidence(pred=p[:2], conf=c[:2])
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #2,3
-    assert np.all(x1 == x[2:4])    
-    sampler.update_prediction_confidence(pred=p[2:4], conf=c[2:4])
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #3,4 (keeps one from previous iteration)
-    assert np.all(x1 == x[3:5])    
-    sampler.update_prediction_confidence(pred=[y1[0],p[4]], conf=[1.,c[4]])  # pretend network has learned #3
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #4,5 (keeps one from previous iteration)
-    assert np.all(x1 == x[4:6])    
-    sampler.update_prediction_confidence(pred=[y1[0],p[5]], conf=[1.,c[5]])  # pretend network has learned #4
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #0,5 (keeps one from previous iteration)
-    assert np.all(x1 == [x[0],x[5]])    
-    sampler.update_prediction_confidence(pred=[p[0],y1[1]], conf=[c[0],1.])  # pretend network has learned #5
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #1,2
-    assert np.all(x1 == [x[1],x[2]])    
-    sampler.update_prediction_confidence(pred=p[1:3], conf=c[1:3])
-
-
-
-@pytest.mark.test_ActiveLearningBatchGenerator
-def test_get_samples_randomize(data_classified_by_nn):
-    x, y, w = data_classified_by_nn
-    p = predictions(w)
-    c = class_confidences(w)
-
-    
-    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=True, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #3,2
-    assert np.all(x1 == np.array([3,2]))    
-    sampler.update_prediction_confidence(pred=p[[3,2]], conf=c[[3,2]])
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #1,2
-    assert np.all(x1 == np.array([1,2]))    
-    sampler.update_prediction_confidence(pred=p[[3,2]], conf=c[[3,2]])
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #2,5 (keeps one from previous iteration)
-    assert np.all(x1 ==np.array([2,5]))    
-    sampler.update_prediction_confidence(pred=[y1[0],p[4]], conf=[1.,c[4]])  # pretend network has learned #2
-
-    x1, y1, _ = sampler.get_samples(num_samples=2) #4,5 (keeps one from previous iteration)
-    assert np.all(x1 ==np.array([4,5]))    
-    sampler.update_prediction_confidence(pred=[y1[0],p[5]], conf=[1.,c[5]])  # pretend network has learned #4
-
-    
-@pytest.mark.test_ActiveLearningBatchGenerator
-def test_get_samples_equal_rep(data_classified_by_nn):
-    x, y, w = data_classified_by_nn
-    p = predictions(w)
-    c = class_confidences(w)
-
-
-    #Without equal representation: 1 positive, 3 negatives
-    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=True, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=False)
-    _, y1, _ = sampler.get_samples(num_samples=4) #3,2
-    assert np.all(y1 == np.array([0,1,0,0]))
-
-    #With equal representation: 2 positives, 2 negatives
-    sampler = ActiveLearningBatchGenerator(x=x, y=y, randomize=True, max_keep=0.5, conf_cut=0.5, seed=1, equal_rep=True)
-    _, y1, _ = sampler.get_samples(num_samples=4) #3,2
-    assert np.all(y1 == np.array([1,1,0,0]))
 
 
 @pytest.mark.test_BatchGenerator
@@ -205,7 +127,6 @@ def test_use_only_subset_of_data():
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
-    ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(hdf5_table=train_data, indices=[1,3,5,7,9,11,13], batch_size=4, return_batch_ids=True) #create a batch generator 
     #First batch
     ids, X, _ = next(train_generator)
@@ -286,7 +207,6 @@ def test_shuffle():
     np.random.seed(100)
     
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True) #create a batch generator 
-    
 
     for epoch in range(5):
         #batch 0
@@ -301,7 +221,6 @@ def test_shuffle():
         ids, X, _ = next(train_generator)
         assert ids ==  [3, 14, 8]
         assert X.shape == (3, 2413, 201)
-        
     
     h5.close()
 
@@ -313,7 +232,6 @@ def test_refresh_on_epoch_end():
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
-
     ids_in_db = train_data[:]['id']
     np.random.seed(100)
     
@@ -323,7 +241,6 @@ def test_refresh_on_epoch_end():
                      'epoch_2': ([0, 2, 1, 14, 10, 3],[13, 12, 5, 8, 11, 7],[6, 4, 9]),    
                      'epoch_3': ([7, 13, 1, 0, 11, 9],[5, 8, 2, 12, 4, 6],[10, 14, 3])}
                      
-
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
         #batch 0
         ids, X, _ = next(train_generator)
@@ -358,7 +275,7 @@ def test_instance_function():
     h5.close()
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator2
+@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_max_keep_zero():
     """ Test can start first training session
     """
@@ -368,7 +285,7 @@ def test_active_learning_batch_generator_max_keep_zero():
     specs = data[:]['data']
     labels = data[:]['labels']
 
-    a = ActiveLearningBatchGenerator2(table=data, session_size=6, batch_size=2, return_indices=True)
+    a = ActiveLearningBatchGenerator(table=data, session_size=6, batch_size=2, return_indices=True)
 
     # get 1st batch generator
     generator = next(a)
@@ -422,14 +339,14 @@ def test_active_learning_batch_generator_max_keep_zero():
     h5.close()
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator2
+@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_max_keep_nonzero():
     """ Test can start first training session
     """
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r')  
     data = open_table(h5, "/train/species1")
 
-    a = ActiveLearningBatchGenerator2(table=data, session_size=7, batch_size=3, max_keep=0.3, return_indices=True)
+    a = ActiveLearningBatchGenerator(table=data, session_size=7, batch_size=3, max_keep=0.3, return_indices=True)
 
     generator = next(a)
 
@@ -492,3 +409,27 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     assert num_keep == 2
 
     h5.close()
+
+
+@pytest.mark.test_ActiveLearningBatchGenerator
+def test_active_learning_batch_generator_load_from_memory():
+    """ Test can start first and second training session
+    """
+    x = np.ones(shape=(15,32,16))
+    y = np.zeros(shape=(15))
+
+    a = ActiveLearningBatchGenerator(x=x, y=y, session_size=7, batch_size=3, return_indices=True)
+
+    generator = next(a)
+
+    ids, _, _ = next(generator)
+    assert ids == [0,1,2]
+    ids, _, _ = next(generator)
+    assert ids == [3,4,5]
+    ids, _, _ = next(generator)
+    assert ids == [6]
+
+    generator = next(a)
+
+    ids, _, _ = next(generator)
+    assert ids == [7,8,9]
