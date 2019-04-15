@@ -37,19 +37,34 @@ import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
 from ketos.data_handling.database_interface import parse_labels
+from ketos.data_handling.data_handling import check_data_sanity
 
 
 class BatchGenerator():
     """ Creates batches to be fed to a model
 
-        Instances of this class are python generators. They will load one batch at a time from a HDF5 database, which is particularly useful when working with larger than memory datasets.
-        Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where mx,nx are the shape of on instance of X in the database. Similarly, Y is an np.array of shape[0]=batch_size with the corresponding labels.
+        Instances of this class are python generators. They will load one batch at 
+        a time from a HDF5 database, which is particularly useful when working with 
+        larger than memory datasets. Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' 
+        is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where 
+        mx,nx are the shape of on instance of X in the database. Similarly, Y is an 
+        np.array of shape[0]=batch_size with the corresponding labels.
+
+        It is also possible to load the entire data set into memory and provide it 
+        to the BatchGenerator via the arguments x and y. This can be convenient when 
+        working with smaller data sets.
 
         Args:
-            hdf5_table: pytables table (instance of table.Table()) 
-                The HDF5 table containing the data
             batch_size: int
                 The number of instances in each batch. The last batch of an epoch might have fewer examples, depending on the number of instances in the hdf5_table.
+            hdf5_table: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            x: numpy array
+                Array containing the data images.
+            y: numpy array
+                Array containing the data labels.
+            indices: list of ints
+                Indices of those instances that will retrieved from the HDF5 table by the BatchGenerator. By default all instances are retrieved.
             instance_function: function
                 A function to be applied to the batch, transforming the instances. Must accept 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             x_field: str
@@ -75,7 +90,9 @@ class BatchGenerator():
                     A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
                 batch_count: int
                     The current batch within the epoch
-        
+                from_memory: bool
+                    True if the data are loaded from memory rather than an HDF5 table.
+
             Examples:
                 >>> from tables import open_file
                 >>> from ketos.data_handling.database_interface import open_table
@@ -118,23 +135,35 @@ class BatchGenerator():
                 >>> h5.close()
 
     """
-    def __init__(self, hdf5_table, batch_size, indices=None, instance_function=None, x_field='data', y_field='boxes',\
+    def __init__(self, batch_size, hdf5_table=None, x=None, y=None, indices=None, instance_function=None, x_field='data', y_field='boxes',\
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
-        self.data = hdf5_table
+
+        self.from_memory = x is not None and y is not None
+
+        if self.from_memory:
+            check_data_sanity(x, y)
+            self.x = x
+            self.y = y
+            self.n_instances = len(x)
+            self.indices = np.arange(self.n_instances) 
+        else:
+            assert hdf5_table is not None, 'hdf5_table or x,y must be specified'
+            self.data = hdf5_table
+            self.x_field = x_field
+            self.y_field = y_field
+            if indices is None:
+                self.n_instances = self.data.nrows
+                self.indices = np.arange(self.n_instances)
+            else:
+                self.n_instances = len(indices)
+                self.indices = indices
+
         self.batch_size = batch_size
-        self.x_field = x_field
-        self.y_field = y_field
         self.shuffle = shuffle
         self.instance_function = instance_function
         self.batch_count = 0
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
-        self.indices = indices
-
-        if self.indices is None:
-            self.n_instances = self.data.nrows
-        else:
-            self.n_instances = len(self.indices)
 
         self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
 
@@ -154,10 +183,7 @@ class BatchGenerator():
                 indices: list of ints
                     The list of instance indices
         """
-        if self.indices is None:
-            indices = np.arange(self.n_instances)        
-        else:
-            indices = self.indices
+        indices = self.indices
 
         if self.shuffle:
             np.random.shuffle(indices)
@@ -175,7 +201,7 @@ class BatchGenerator():
         
         """
         ids = self.entry_indices
-        n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
+        n_complete_batches = int(self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
         last_batch_size = self.n_instances % n_complete_batches
     
         list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(self.n_batches)]
@@ -195,8 +221,13 @@ class BatchGenerator():
         """
 
         batch_ids = self.batch_indices[self.batch_count]
-        X = self.data[batch_ids][self.x_field]
-        Y = self.data[batch_ids][self.y_field]
+
+        if self.from_memory:
+            X = self.x[batch_ids]
+            Y = self.y[batch_ids]
+        else:
+            X = self.data[batch_ids][self.x_field]
+            Y = self.data[batch_ids][self.y_field]
 
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):

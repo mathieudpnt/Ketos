@@ -156,14 +156,12 @@ def test_labels_as_Y():
     h5.close()
     
 
-
 @pytest.mark.test_BatchGenerator
 def test_batch_sequence_same_as_db():
     """ Test if batches are generated with instances in the same order as they appear in the database
     """
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
-
 
     ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(hdf5_table=train_data, x_field='id', batch_size=3, return_batch_ids=True) #create a batch generator 
@@ -183,7 +181,6 @@ def test_last_batch():
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
-
     ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True) #create a batch generator 
     #First batch
@@ -202,12 +199,29 @@ def test_last_batch():
     h5.close()
 
 @pytest.mark.test_BatchGenerator
+def test_use_only_subset_of_data():
+    """ Test that only the indices specified are used
+    """
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
+    train_data = open_table(h5, "/train/species1")
+
+    ids_in_db = train_data[:]['id']
+    train_generator = BatchGenerator(hdf5_table=train_data, indices=[1,3,5,7,9,11,13], batch_size=4, return_batch_ids=True) #create a batch generator 
+    #First batch
+    ids, X, _ = next(train_generator)
+    assert ids == [1,3,5,7]
+    #Second batch
+    ids, X, _ = next(train_generator)
+    assert ids == [9,11,13]
+
+    h5.close()
+
+@pytest.mark.test_BatchGenerator
 def test_multiple_epochs():
     """ Test if batches are as expected after the first epoch
     """
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
-
 
     ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True) #create a batch generator 
@@ -230,6 +244,33 @@ def test_multiple_epochs():
     assert X.shape == (6, 2413, 201)
 
     h5.close()
+
+@pytest.mark.test_BatchGenerator
+def test_load_from_memory():
+    """ Test if batch generator can work with data loaded from memory
+    """
+    x = np.ones(shape=(15,32,16))
+    y = np.zeros(shape=(15))
+
+    generator = BatchGenerator(x=x, y=y, batch_size=6, return_batch_ids=True) #create a batch generator 
+
+    #Epoch 0, batch 0
+    ids, X, _ = next(generator)
+    assert ids == [0,1,2,3,4,5]
+    assert X.shape == (6, 32, 16)
+    #Epoch 0, batch 1
+    ids, X, _ = next(generator)
+    assert ids == [6,7,8,9,10,11]
+    assert X.shape == (6, 32, 16)
+    #Epoch 0 batch2
+    ids, X, _ = next(generator)
+    assert ids == [12,13,14]
+    assert X.shape == (3, 32, 16)
+
+    #Epoch 1, batch 0
+    ids, X, _ = next(generator)
+    assert ids == [0,1,2,3,4,5]
+    assert X.shape == (6, 32, 16)
 
 @pytest.mark.test_BatchGenerator
 def test_shuffle():
@@ -279,8 +320,8 @@ def test_refresh_on_epoch_end():
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
 
     expected_ids = {'epoch_1':([9, 1, 12, 13, 6, 10],[5, 2, 4, 0, 11, 7],[3, 14, 8]),
-                     'epoch_2': ( [9, 7, 1, 13, 5, 12],[3, 2, 6, 14, 10, 11],[4, 8, 0]),    
-                     'epoch_3': ([11, 6, 2, 0, 10, 14],[8, 9, 1, 7, 13, 12],[4, 3, 5])}
+                     'epoch_2': ([0, 2, 1, 14, 10, 3],[13, 12, 5, 8, 11, 7],[6, 4, 9]),    
+                     'epoch_3': ([7, 13, 1, 0, 11, 9],[5, 8, 2, 12, 4, 6],[10, 14, 3])}
                      
 
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
