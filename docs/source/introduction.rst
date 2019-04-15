@@ -12,7 +12,7 @@ The project is hosted on GitLab at
 Ketos was developed by the `MERIDIAN <http://meridian.cs.dal.ca/>`_ Data Analytics Team at the 
 `Institute for Big Data Analytics <https://bigdata.cs.dal.ca/>`_ at Dalhousie University. 
 We are greatful to Amalis Riera and Francis Juanes at the University of Victoria, 
-Kim Davies and Chris Taggert at Dalhousie University, and Kristen Kanes at Ocean Networks Canada 
+Kim Davies and Chris Taggart at Dalhousie University, and Kristen Kanes at Ocean Networks Canada 
 for providing us with annotated acoustic data sets, which played a key role in the development work.
 The first version of Ketos was released in April 2019. 
 
