@@ -6,6 +6,12 @@ It is licensed under the [GNU GPLv3 licens](https://www.gnu.org/licenses/) and h
 The project is hosted on GitLab at 
 [gitlab.meridian.cs.dal.ca/public_projects/ketos](https://gitlab.meridian.cs.dal.ca/public_projects/ketos).
 
+You can install the latest version of Ketos from the Python Package Index (PyPI) repository with
+```terminal
+pip install ketos
+```
+For more information, please consult [Ketos' Documentation Page](https://docs.meridian.cs.dal.ca/ketos/).
+
 Ketos was developed by the [MERIDIAN](http://meridian.cs.dal.ca/) Data Analytics Team at the 
 [Institute for Big Data Analytics](https://bigdata.cs.dal.ca/) at Dalhousie University. 
 We are greatful to Amalis Riera and Francis Juanes at the University of Victoria, 
