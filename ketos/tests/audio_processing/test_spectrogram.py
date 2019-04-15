@@ -32,8 +32,17 @@ import numpy as np
 from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
 from ketos.data_handling.parsing import Interval
 from ketos.audio_processing.audio import AudioSignal
+import ketos.data_handling.database_interface as di
 import datetime
 import math
+import os
+import tables
+
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
+
 
 def test_init_mag_spectrogram_from_sine_wave(sine_audio):
     
@@ -574,6 +583,18 @@ def test_interbreed_spectrograms_with_min_peak_diff():
     s2 = s1.copy()
     specs = interbreed(specs1=[s1], specs2=[s2], num=9, scale=(2,3), seed=1, min_peak_diff=0.5)
     assert len(specs) == 9
+
+@pytest.mark.test_interbreed
+def test_interbreed_save_to_file():
+    s1 = Spectrogram(image=np.ones((100,100)))
+    s2 = s1.copy()
+    outf = path_to_tmp + 'interbreed.h5'
+    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf)
+    # check that spectrograms were saved to file
+    fil = tables.open_file(outf, 'r')
+    assert '/spec' in fil
+    specs = di.load_specs(fil.root.spec)
+    assert len(specs) == 9   
 
 @pytest.mark.test_ensure_same_length
 def test_ensure_same_length():

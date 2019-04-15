@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
-from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator
+from ketos.data_handling.data_feeding import ActiveLearningBatchGenerator, BatchGenerator, ActiveLearningBatchGenerator2
 from ketos.neural_networks.neural_networks import class_confidences, predictions
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -309,10 +309,145 @@ def test_instance_function():
         return (X, Y)
 
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=5, return_batch_ids=True, instance_function=apply_to_batch) #create a batch generator 
-    ids, X, Y = next(train_generator)
+    _, X, Y = next(train_generator)
     assert X.shape == (5,)
     assert X[0] == pytest.approx(7694.1147, 0.1)
     assert Y.shape == (5,)
     
+    h5.close()
+
+
+@pytest.mark.test_ActiveLearningBatchGenerator2
+def test_active_learning_batch_generator_max_keep_zero():
+    """ Test can start first training session
+    """
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r')  
+    data = open_table(h5, "/train/species1")
+
+    specs = data[:]['data']
+    labels = data[:]['labels']
+
+    a = ActiveLearningBatchGenerator2(table=data, session_size=6, batch_size=2, return_indices=True)
+
+    # get 1st batch generator
+    generator = next(a)
+
+    # get 1st batch
+    ids, X, Y = next(generator)
+    assert ids == [0,1]
+    assert X.shape == (2, 2413, 201)
+    np.testing.assert_array_equal(X, specs[:2])
+    assert len(Y) == 2
+    assert Y == [1,1]
+
+    # get 2nd batch
+    ids, X, Y = next(generator)
+    assert ids == [2,3]
+    assert X.shape == (2, 2413, 201)
+    np.testing.assert_array_equal(X, specs[2:4])
+    assert len(Y) == 2
+    assert Y == [1,1]
+
+    # get 3rd and 4th batch
+    ids, _, _ = next(generator) 
+    assert ids == [4,5]
+    ids, _, _ = next(generator) 
+    assert ids == [0,1]
+
+    # get 2nd batch generator
+    generator = next(a)
+
+    # get batches
+    ids, _, _ = next(generator) 
+    assert ids == [6,7]
+    ids, _, _ = next(generator) 
+    assert ids == [8,9]
+    ids, _, _ = next(generator) 
+    assert ids == [10,11]
+    ids, _, _ = next(generator) 
+    assert ids == [6,7]
+
+    # get 3rd batch generator
+    generator = next(a)
+
+    # get batches
+    ids, _, _ = next(generator) 
+    assert ids == [12,13]
+    ids, _, _ = next(generator) 
+    assert ids == [14,0]
+    ids, _, _ = next(generator) 
+    assert ids == [1,2]
+
+    h5.close()
+
+
+@pytest.mark.test_ActiveLearningBatchGenerator2
+def test_active_learning_batch_generator_max_keep_nonzero():
+    """ Test can start first training session
+    """
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r')  
+    data = open_table(h5, "/train/species1")
+
+    a = ActiveLearningBatchGenerator2(table=data, session_size=7, batch_size=3, max_keep=0.3, return_indices=True)
+
+    generator = next(a)
+
+    ids, _, _ = next(generator)
+    assert ids == [0,1,2]
+    ids, _, _ = next(generator)
+    assert ids == [3,4,5]
+    ids, _, _ = next(generator)
+    assert ids == [6]
+
+    generator = next(a)
+
+    ids, _, Y = next(generator)
+    assert ids == [7,8,9]
+    assert Y == [1,1,1]
+    a.update_performance(indices=[7,8,9], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
+
+    ids, _, Y = next(generator)
+    assert ids == [10,11,12]
+    assert Y == [1,1,1]
+    a.update_performance(indices=[10,11,12], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
+
+    ids, _, Y = next(generator)
+    assert ids == [13]
+    assert Y == 1
+    a.update_performance(indices=[13], predictions=[0], confidences=[1.0])
+
+    generator = next(a)
+
+    ids1, _, Y = next(generator)
+    assert Y == [1,1,1]
+    a.update_performance(indices=ids1, predictions=[1,0,0])
+
+    ids2, _, Y = next(generator)
+    assert Y == [1,1,1]
+    a.update_performance(indices=ids2, predictions=[0,0,0])
+
+    ids3, _, Y = next(generator)
+    assert Y == 1
+    a.update_performance(indices=ids3, predictions=[1])
+
+    ids = np.concatenate((ids1, ids2, ids3))
+    assert 13 in ids
+
+    wrong_ids = [ids1[1], ids1[2], ids2[0], ids2[1], ids2[2]]
+
+    generator = next(a)
+
+    ids1, _, _ = next(generator)
+    ids2, _, _ = next(generator)
+    ids3, _, _ = next(generator)
+    ids = np.concatenate((ids1, ids2, ids3))
+
+    # check how many of the wrong predictiosn were kept
+    # since max_keep = 0.3 and session_size = 7, it should be int(0.3*7) = 2
+    num_keep = 0
+    for id in wrong_ids:
+        num_keep += (id in ids)
+
+    assert num_keep == 2
 
     h5.close()
