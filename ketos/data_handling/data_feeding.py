@@ -36,7 +36,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
-
+from ketos.data_handling.database_interface import parse_labels
 
 
 class BatchGenerator():
@@ -62,7 +62,7 @@ class BatchGenerator():
                 If True, and shuffle is also True, resampling is performed at the end of each epoch resulting in different batches for every epoch. If False, the same batches are used in all epochs.
                 Has no effect if shuffle is False.
             return_batch_ids: bool
-                If False, each batch will consist of X and Y. If True, the instance indeces (as they are in the hdf5_table) will be included ((ids, X, Y)).
+                If False, each batch will consist of X and Y. If True, the instance indices (as they are in the hdf5_table) will be included ((ids, X, Y)).
 
             Attr:
                 n_instances: int
@@ -118,20 +118,29 @@ class BatchGenerator():
                 >>> h5.close()
 
     """
-    def __init__(self, hdf5_table, batch_size, instance_function=None, x_field='data', y_field='boxes', shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+    def __init__(self, hdf5_table, batch_size, indices=None, instance_function=None, x_field='data', y_field='boxes',\
+                    shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
         self.batch_size = batch_size
         self.x_field = x_field
         self.y_field = y_field
-        self.n_instances = self.data.nrows
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
         self.shuffle = shuffle
         self.instance_function = instance_function
-        self.entry_indices = self.__update_indices__()
-        self.batch_indices = self.__get_batch_indices__()
         self.batch_count = 0
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
+        self.indices = indices
+
+        if self.indices is None:
+            self.n_instances = self.data.nrows
+        else:
+            self.n_instances = len(self.indices)
+
+        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+
+        self.entry_indices = self.__update_indices__()
+
+        self.batch_indices = self.__get_batch_indices__()
 
     
     def __update_indices__(self):
@@ -145,9 +154,14 @@ class BatchGenerator():
                 indices: list of ints
                     The list of instance indices
         """
-        indices = np.arange(self.n_instances)
+        if self.indices is None:
+            indices = np.arange(self.n_instances)        
+        else:
+            indices = self.indices
+
         if self.shuffle:
             np.random.shuffle(indices)
+
         return indices
 
     def __get_batch_indices__(self):
@@ -177,7 +191,7 @@ class BatchGenerator():
     def __next__(self):
         """         
             Return: tuple
-            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indeces (ids, X, Y) 
+            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
         """
 
         batch_ids = self.batch_indices[self.batch_count]
@@ -469,3 +483,199 @@ class ActiveLearningBatchGenerator():
             self.current_pos = stop
 
         return idx
+
+def func_identity(X,Y):
+    return X,Y 
+
+def func_normalize_X(X,Y):
+    X = (X - np.mean(X)) / np.std(X)
+    return X,Y 
+
+def func_parse_labels(X,Y):
+    YY = list()
+    for _y in Y:
+        _y = parse_labels(_y)
+        if len(_y) == 1:
+            _y = _y[0]
+
+        YY.append(_y)
+
+    if len(YY) == 1:
+        YY = YY[0]
+
+    return X,YY
+
+
+class ActiveLearningBatchGenerator2():
+
+    def __init__(self, table, session_size, batch_size, shuffle=False, refresh=False, return_indices=False,\
+                    max_keep=0, conf_cut=0, seed=None, batch_norm=False, instance_function=None, x_field='data', y_field='labels'):
+
+        self.data = table
+        self.session_size = session_size
+        self.batch_size = batch_size
+        self.data_size = self.data.nrows
+        self.shuffle = shuffle
+        self.refresh = refresh
+        self.return_indices = return_indices
+        self.max_keep = max_keep
+        self.conf_cut = conf_cut
+        self.batch_norm = batch_norm
+        self.seed = seed
+        self.x_field = x_field
+        self.y_field = y_field
+        self.instance_function = instance_function
+
+        if seed is not None:
+            np.random.seed(seed) 
+
+        self.poor_indices = self.__refresh_poor_indices__()
+        self.indices = self.__refresh_indices__()
+
+        self.session_indices = np.array([-1], dtype=int)
+ 
+    def __refresh_poor_indices__(self):
+        return np.array([], dtype=int)
+
+    def __refresh_indices__(self):
+        """Updates the indices used to divide the instances into batches.
+
+            A list of indices is kept in the self.entry_indices attribute.
+            The order of the indices determines which instances will be placed in each batch.
+            If the self.shuffle is True, the indices are randomly reorganized, resulting in batches with randomly selected instances.
+
+            Returns
+                indices: list of ints
+                    The list of instance indices
+        """
+        indices = np.arange(self.data_size)
+
+        if self.shuffle:
+            np.random.shuffle(indices)
+
+        return indices
+
+    def __get_session_indices__(self):
+        """Selects the indices for the next session
+
+            Divides the instances into batchs of self.batch_size, based on the list generated by __update_indices__()
+
+            Returns:
+                list_of_indices: list of tuples
+                    A list of tuple, each containing two integer values: the start and end of the batch. These positions refer to the list stored in self.entry_indices.                
+        
+        """
+        # number of instances from previous session with poor performace 
+        num_poor = len(self.poor_indices)
+
+        # number of examples kept from previous session
+        num_keep = int(min(num_poor, self.max_keep * self.session_size))
+
+        # number of new examples
+        num_new = self.session_size - num_keep
+
+        # select new examples
+        i1 = self.session_indices[-1] + 1
+        i2 = min(i1 + num_new, self.data_size)
+        new_session = self.indices[i1:i2]
+
+        # if necessary, go back to beginning to complete batch
+        dn = num_new - new_session.shape[0]
+        if dn > 0:
+            new_session = np.concatenate((new_session, self.indices[:dn]))
+
+        # select randomly from poorly predicted examples in previous session
+        if num_keep > 0:
+            new_session = np.concatenate((new_session, np.random.choice(np.unique(self.poor_indices), num_keep, replace=False)))
+
+        # refresh at end of data set
+        epoch_end = (i2 == self.data_size or dn > 0)
+        if self.refresh and epoch_end:
+            self.indices = self.__refresh_indices__()
+
+        # shuffle new session, if it contains examples from previous session
+        if num_keep > 0:
+            np.random.shuffle(new_session)
+
+        return new_session
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """         
+            Return: tuple
+            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
+        """
+        # get indices for new session
+        self.session_indices = self.__get_session_indices__()
+
+        # refresh is_poor array
+        self.poor_indices = self.__refresh_poor_indices__()
+
+        # instance function
+        if self.instance_function is None:
+            f1 = func_identity
+        else:
+            f1 = self.instance_function
+
+        if self.batch_norm:
+            f2 = func_normalize_X
+        else:
+            f2 = func_identity
+
+        if self.y_field == 'labels':
+            f3 = func_parse_labels
+        else:
+            f3 = func_identity
+
+        def func(X,Y):
+            X,Y = f1(X,Y)
+            X,Y = f2(X,Y)
+            X,Y = f3(X,Y)
+            return X,Y
+
+        # create batch generator
+        generator = BatchGenerator(hdf5_table=self.data, batch_size=self.batch_size, indices=self.session_indices,\
+                    instance_function=func, x_field=self.x_field, y_field=self.y_field,\
+                    shuffle=self.shuffle, refresh_on_epoch_end=self.refresh, return_batch_ids=self.return_indices)
+
+        return generator
+
+    def update_performance(self, indices, predictions, confidences=None):
+        """Inform the generator about how well the neural network performed on a set of examples.
+
+            Args:
+                pred: numpy.array
+                    Array containing the predictions on the last batch.
+                    Created with ketos.neural_networks.neural_networks.predictions.
+                conf: numpy.array
+                    Array containing the confidences for the predictions on the last batch.
+                    Created with ketos.neural_networks.neural_networks.class_confidences.    
+        """
+        if confidences is None:
+            confidences = np.ones(len(predictions))
+            
+        assert len(indices) == len(predictions), 'length of indices and predictions arrays do not match'
+        assert len(predictions) == len(confidences), 'length of prediction and confidence arrays do not match'
+
+        if type(indices) != np.ndarray:
+            indices = np.array(indices, dtype=int)
+
+        if type(predictions) != np.ndarray:
+            predictions = np.array(predictions, dtype=int)
+
+        if type(confidences) != np.ndarray:
+            confidences = np.array(confidences, dtype=float)
+
+        Y = self.data[indices][self.y_field]
+        if self.y_field == 'labels':
+            _, Y = func_parse_labels(None, Y)
+
+        poor = np.logical_or(predictions != Y, confidences < self.conf_cut)
+        poor = np.argwhere(poor == True)
+        poor = np.squeeze(poor)
+        if np.ndim(poor) == 0:
+            poor = np.array([poor], dtype=int)
+
+        self.poor_indices = np.concatenate((self.poor_indices, indices[poor]))
