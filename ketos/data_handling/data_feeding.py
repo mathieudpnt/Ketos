@@ -358,6 +358,7 @@ class ActiveLearningBatchGenerator():
             session:1, epoch:1, batch:1 | instance: [6, 2, 9], X shape: (3, 2413, 201), Y length: 3
             session:1, epoch:2, batch:0 | instance: [5, 8, 7], X shape: (3, 2413, 201), Y length: 3
             session:1, epoch:2, batch:1 | instance: [6, 2, 9], X shape: (3, 2413, 201), Y length: 3
+            >>> h5.close()
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
                     max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True, convert_to_one_hot=False):
