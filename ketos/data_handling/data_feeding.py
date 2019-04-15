@@ -257,28 +257,6 @@ class BatchGenerator():
         else:
             return (X, Y)
 
-def func_identity(X,Y):
-    return X,Y 
-
-def func_normalize_X(X,Y):
-    X = (X - np.mean(X)) / np.std(X)
-    return X,Y 
-
-def func_parse_labels(X,Y):
-    YY = list()
-    for _y in Y:
-        _y = parse_labels(_y)
-        if len(_y) == 1:
-            _y = _y[0]
-
-        YY.append(_y)
-
-    if len(YY) == 1:
-        YY = YY[0]
-
-    return X,YY
-
-
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
 
@@ -330,6 +308,10 @@ class ActiveLearningBatchGenerator():
                 (all wrong predictions are also kept)
             seed: int
                 Seed for random number generator
+            parse_labels: bool
+                Parse labels field. Only applicable if y_field is 'labels' and instance_function is None.
+            convert_to_one_hot: bool
+                Convert labels to 1-hot representation. Only applicable if instance_function is None.
 
             Attr:
                 data: pytables table (instance of table.Table()) 
@@ -349,7 +331,7 @@ class ActiveLearningBatchGenerator():
         Example:
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
-                    max_keep=0, conf_cut=0, seed=None, batch_norm=False, instance_function=None, x_field='data', y_field='labels', convert_to_one_hot=False):
+                    max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True, convert_to_one_hot=False):
 
         self.from_memory = x is not None and y is not None
 
@@ -377,11 +359,11 @@ class ActiveLearningBatchGenerator():
         self.return_indices = return_indices
         self.max_keep = max_keep
         self.conf_cut = conf_cut
-        self.batch_norm = batch_norm
         self.seed = seed
         self.instance_function = instance_function
         self.num_labels = num_labels
         self.convert_to_one_hot = convert_to_one_hot
+        self.parse_labels = parse_labels
 
         if seed is not None:
             np.random.seed(seed) 
@@ -466,27 +448,25 @@ class ActiveLearningBatchGenerator():
         self.poor_indices = np.array([], dtype=int)
 
         # instance function
-        if self.instance_function is None:
-            f1 = func_identity
-        else:
+        if self.instance_function is not None:
             f1 = self.instance_function
-
-        if self.batch_norm:
-            f2 = func_normalize_X
+            f2 = self.__identity__
+            f3 = self.__identity__
         else:
-            f2 = func_identity
-
-        if self.y_field == 'labels':
-            f3 = func_parse_labels
-        else:
-            f3 = func_identity
+            f1 = self.__identity__
+            if self.parse_labels and self.y_field == 'labels':
+                f2 = self.__parse_labels__
+            else:
+                f2 = self.__identity__
+            if self.convert_to_one_hot:
+                f3 = self.__convert_to_one_hot__
+            else:
+                f3 = self.__identity__
 
         def func(X,Y):
             X,Y = f1(X,Y)
             X,Y = f2(X,Y)
             X,Y = f3(X,Y)
-            if self.convert_to_one_hot:
-                Y = to1hot(Y, self.num_labels)
             return X,Y
 
         # create batch generator
@@ -529,8 +509,8 @@ class ActiveLearningBatchGenerator():
         else:
             Y = self.data[indices][self.y_field]
 
-        if self.y_field == 'labels':
-            _, Y = func_parse_labels(None, Y)
+        if self.parse_labels and self.y_field == 'labels':
+            _, Y = self.__parse_labels__(None, Y)
 
         poor = np.logical_or(predictions != Y, confidences < self.conf_cut)
         poor = np.argwhere(poor == True)
@@ -539,3 +519,31 @@ class ActiveLearningBatchGenerator():
             poor = np.array([poor], dtype=int)
 
         self.poor_indices = np.concatenate((self.poor_indices, indices[poor]))
+
+    def __identity__(self,X,Y):
+        """Identity function.
+        """
+        return X,Y 
+
+    def __parse_labels__(self,X,Y):
+        """Parse labels extracted from hdf5 database.
+        """
+        YY = list()
+        for _y in Y:
+            _y = parse_labels(_y)
+            if len(_y) == 1:
+                _y = _y[0]
+
+            YY.append(_y)
+
+        if len(YY) == 1:
+            YY = YY[0]
+
+        return X,YY
+
+    def __convert_to_one_hot__(self,X,Y):
+        """Convert labels to 1-hot encoding
+        """
+        Y = to1hot(Y, self.num_labels)
+        return X,Y
+

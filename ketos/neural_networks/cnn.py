@@ -709,8 +709,8 @@ class BasicCNN(DataHandler):
                 print('\nSession: {0}/{1}'.format(i+1, num_sessions))
 
             # batch generator
-            provider.return_indices = False    
-            provider.convert_to_one_hot = True        
+            provider.return_indices = False # ensure that the batch generator only returns x,y
+            provider.convert_to_one_hot = True 
             gen = next(provider)
 
             # train
