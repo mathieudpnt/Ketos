@@ -4,7 +4,7 @@ Ketos is written in Python and utilizes a number of powerful software packages
 including NumPy, HDF5, and Tensorflow.
 It is licensed under the [GNU GPLv3 licens](https://www.gnu.org/licenses/) and hence freely available for anyone to use and modify.
 The project is hosted on GitLab at 
-[gitlab.meridian.cs.dal.ca/public_projects/ketos)[https://gitlab.meridian.cs.dal.ca/public_projects/ketos).
+[gitlab.meridian.cs.dal.ca/public_projects/ketos](https://gitlab.meridian.cs.dal.ca/public_projects/ketos).
 
 Ketos was developed by the [MERIDIAN](http://meridian.cs.dal.ca/) Data Analytics Team at the 
 [Institute for Big Data Analytics](https://bigdata.cs.dal.ca/) at Dalhousie University. 
