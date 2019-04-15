@@ -329,6 +329,35 @@ class ActiveLearningBatchGenerator():
                     True if the data are loaded from memory rather than an HDF5 table.
 
         Example:
+            >>> from tables import open_file
+            >>> from ketos.data_handling.database_interface import open_table
+            >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # open the database file 
+            >>> table = open_table(h5, "/train/species1") # access the table of interest
+            >>> # create an active learning module with session_size of 6, batch_size of 3 and max_keep of 0.4
+            >>> active_learning = ActiveLearningBatchGenerator(session_size=6, batch_size=3, table=table, max_keep=0.4, seed=1, return_indices=True) 
+            >>> # run 2 sessions, and 3 epochs for each session
+            >>> num_sessions = 2
+            >>> num_epochs = 3  
+            >>> for s in range(num_sessions): # loop over sessions
+            ...    generator = next(active_learning)
+            ...    for e in range(num_epochs): # loop over epochs
+            ...       for b in range(generator.n_batches): # loop over batches
+            ...          idx, X, Y = next(generator)
+            ...          # pretend that neural network makes predictions [1 1 0]
+            ...          active_learning.update_performance(idx, predictions=[1, 1, 0])  
+            ...          print("session:{0}, epoch:{1}, batch:{2} | instance: {3}, X shape: {4}, Y length: {5}".format(s, e, b, idx, X.shape, len(Y)))
+            session:0, epoch:0, batch:0 | instance: [0, 1, 2], X shape: (3, 2413, 201), Y length: 3
+            session:0, epoch:0, batch:1 | instance: [3, 4, 5], X shape: (3, 2413, 201), Y length: 3
+            session:0, epoch:1, batch:0 | instance: [0, 1, 2], X shape: (3, 2413, 201), Y length: 3
+            session:0, epoch:1, batch:1 | instance: [3, 4, 5], X shape: (3, 2413, 201), Y length: 3
+            session:0, epoch:2, batch:0 | instance: [0, 1, 2], X shape: (3, 2413, 201), Y length: 3
+            session:0, epoch:2, batch:1 | instance: [3, 4, 5], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:0, batch:0 | instance: [5, 8, 7], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:0, batch:1 | instance: [6, 2, 9], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:1, batch:0 | instance: [5, 8, 7], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:1, batch:1 | instance: [6, 2, 9], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:2, batch:0 | instance: [5, 8, 7], X shape: (3, 2413, 201), Y length: 3
+            session:1, epoch:2, batch:1 | instance: [6, 2, 9], X shape: (3, 2413, 201), Y length: 3
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
                     max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True, convert_to_one_hot=False):
