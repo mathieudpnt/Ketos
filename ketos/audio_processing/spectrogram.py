@@ -288,7 +288,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
         for i in range(N):
 
             if progress_bar:
-                if len(specs_counter) % nprog == 0:
+                if specs_counter % nprog == 0:
                     sys.stdout.write('{0:.0f}% \r'.format(specs_counter / num * 100.))
 
             s1 = _specs1[i]
