@@ -601,7 +601,7 @@ def test_interbreed_save_to_file():
     s2 = s1.copy()
     s2.annotate(labels=1, boxes=[30,40])
     outf = path_to_tmp + '/interbreed.h5'
-    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf)
+    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf, mode='w')
     # check that spectrograms were saved to file
     fil = tables.open_file(outf, 'r')
     assert '/spec' in fil

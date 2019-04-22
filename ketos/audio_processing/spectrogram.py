@@ -568,8 +568,8 @@ class Spectrogram(AnnotationHandler):
         spec.fmin = self.fmin
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
-        spec.time_vector = self.time_vector.copy()
-        spec.file_vector = self.file_vector.copy()
+        spec.time_vector = np.copy(self.time_vector)
+        spec.file_vector = np.copy(self.file_vector)
         spec.file_dict = self.file_dict.copy()
         spec.labels = self.labels.copy()
         spec.boxes = list()
@@ -1969,9 +1969,14 @@ class Spectrogram(AnnotationHandler):
 
         assert np.all(self.image.shape[1] == spec.image.shape[1]), 'It is not possible to add spectrograms with different frequency range'
 
+        # shift annotations  
+        _labels = np.copy(spec.labels)
+        _boxes = np.copy(spec.boxes)
+        annotations = AnnotationHandler(labels=_labels, boxes=_boxes)
+        annotations._shift_annotations(delay=self.duration())
+
         # add annotations
-        spec._shift_annotations(delay=self.duration())
-        self.annotate(labels=spec.labels, boxes=spec.boxes)
+        self.annotate(labels=annotations.labels, boxes=annotations.boxes)
 
         # add time and file info
         self.time_vector = np.append(self.time_vector, spec.time_vector)
