@@ -559,6 +559,17 @@ def test_interbreed_spectrograms_with_default_args():
     assert specs[0].duration() == 100
 
 @pytest.mark.test_interbreed
+def test_interbreed_spectrograms_preserves_annotations():
+    s1 = Spectrogram(image=np.ones((100,100)))
+    s2 = s1.copy()
+    s2.annotate(labels=1, boxes=[30, 50])
+    specs = interbreed(specs1=[s1], specs2=[s2], num=9)
+    assert len(specs) == 9
+    assert specs[0].duration() == 100
+    assert specs[0].labels == [1]
+    assert specs[1].labels == [1]
+
+@pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_validation_function():
     s1 = Spectrogram(image=np.ones((100,100)))
     s2 = s1.copy()
@@ -588,13 +599,15 @@ def test_interbreed_spectrograms_with_min_peak_diff():
 def test_interbreed_save_to_file():
     s1 = Spectrogram(image=np.ones((100,100)))
     s2 = s1.copy()
-    outf = path_to_tmp + 'interbreed.h5'
-    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf)
+    s2.annotate(labels=1, boxes=[30,40])
+    outf = path_to_tmp + '/interbreed.h5'
+    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf, mode='w')
     # check that spectrograms were saved to file
     fil = tables.open_file(outf, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 9   
+    assert specs[0].labels == [1]
 
 @pytest.mark.test_ensure_same_length
 def test_ensure_same_length():

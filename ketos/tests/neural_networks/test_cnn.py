@@ -33,7 +33,7 @@ import tables
 import numpy as np
 import ketos.data_handling.data_handling as dh
 import ketos.data_handling.database_interface as di
-from ketos.data_handling.data_feeding import BatchGenerator
+from ketos.data_handling.data_feeding import BatchGenerator, ActiveLearningBatchGenerator
 from ketos.neural_networks.cnn import BasicCNN, ConvParams
 from tensorflow import reset_default_graph
 
@@ -154,3 +154,20 @@ def test_compute_features_with_BasicCNN(database_prepared_for_NN_2_classes):
     f = result[0]
     assert f.shape == (512,)
     reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_active_learning():
+    # initialize BasicCNN for classifying 2x2 images
+    cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
+    # create a small network with one convolutional layers and one dense layer
+    params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+    _ = cnn.create(conv_params=[params], dense_size=[4])
+    # create some training data
+    img0 = np.zeros(shape=(2,2))
+    img1 = np.ones(shape=(2,2))
+    x = [img0, img1, img0, img1, img0, img1, img0] # input data
+    y = [0, 1, 0, 1, 0, 1, 0] # labels
+    # create a data provider
+    g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
+    # train it
+    _, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)

@@ -843,6 +843,12 @@ class SpecWriter():
                 The default values is max_size=1E9 (1 Gbyte)
             verbose: bool
                 Print relevant information during execution such as files written to disk
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’r’: Read-only; no data can be modified.
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted).
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
 
             Example:
 
@@ -871,7 +877,7 @@ class SpecWriter():
                 >>> print(f.root.spec)
                 /spec (Table(3,), fletcher32, shuffle, zlib(1)) ''
     """
-    def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100):
+    def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100, mode='w'):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -883,6 +889,7 @@ class SpecWriter():
         self.name = 'spec'
         self.verbose = verbose
         self.spec_counter = 0
+        self.mode = mode
 
     def cd(self, fullpath='/'):
         """ Change the current directory within the database file system
@@ -990,6 +997,10 @@ class SpecWriter():
         """ Open a new database file, if none is open
         """                
         if self.file is None:
-            fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
-            self.file = tables.open_file(fname, 'w')
+            if self.mode == 'a':
+                fname = self.base + self.ext
+            else:
+                fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
+
+            self.file = tables.open_file(fname, self.mode)
             self.file_counter += 1
