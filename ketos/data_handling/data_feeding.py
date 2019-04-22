@@ -361,7 +361,8 @@ class ActiveLearningBatchGenerator():
             >>> h5.close()
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
-                    max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True, convert_to_one_hot=False):
+                    max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True,\
+                    convert_to_one_hot=False, val_frac=0.0):
 
         self.from_memory = x is not None and y is not None
 
@@ -394,15 +395,56 @@ class ActiveLearningBatchGenerator():
         self.num_labels = num_labels
         self.convert_to_one_hot = convert_to_one_hot
         self.parse_labels = parse_labels
+        self.instance_function = instance_function
 
         if seed is not None:
             np.random.seed(seed) 
 
         self.poor_indices = np.array([], dtype=int)
         self.indices = np.arange(self.data_size, dtype=int) 
+
+        # reserve for validation
+        self.val_indices = []
+        if val_frac > 0:
+            num_val = max(1, int(val_frac * self.data_size))
+            self.val_indices = np.random.choice(self.indices, num_val, replace=False)
+            self.indices = np.delete(self.indices, self.val_indices)
+
         self.indices = self.__refresh_indices__()
 
-        self.session_indices = np.array([-1], dtype=int)
+        self.counter = 0
+
+
+    def __instance_function__(self):
+        """Creates the instance function for the batch generator
+
+            Returns:
+                func: function
+                    The instance function               
+        
+        """
+        if self.instance_function:
+            self.__f1__ = self.instance_function
+            self.__f2__ = self.__identity__
+            self.__f3__ = self.__identity__
+        else:
+            self.__f1__ = self.__identity__
+            if self.parse_labels and self.y_field == 'labels':
+                self.__f2__ = self.__parse_labels__
+            else:
+                self.__f2__ = self.__identity__
+            if self.convert_to_one_hot:
+                self.__f3__ = self.__convert_to_one_hot__
+            else:
+                self.__f3__ = self.__identity__
+
+        def func(X,Y):
+            X,Y = self.__f1__(X,Y)
+            X,Y = self.__f2__(X,Y)
+            X,Y = self.__f3__(X,Y)
+            return X,Y
+
+        return func
 
     def __refresh_indices__(self):
         """Updates the indices used to divide the data into sessions
@@ -439,14 +481,16 @@ class ActiveLearningBatchGenerator():
         num_new = self.session_size - num_keep
 
         # select new examples
-        i1 = self.session_indices[-1] + 1
+        i1 = self.counter
         i2 = min(i1 + num_new, self.data_size)
         new_session = self.indices[i1:i2]
+        self.counter = i2
 
         # if necessary, go back to beginning to complete batch
         dn = num_new - new_session.shape[0]
         if dn > 0:
             new_session = np.concatenate((new_session, self.indices[:dn]))
+            self.counter = dn
 
         # select randomly from poorly predicted examples in previous session
         if num_keep > 0:
@@ -472,39 +516,41 @@ class ActiveLearningBatchGenerator():
                 Batch generator for the next session.
         """
         # get indices for new session
-        self.session_indices = self.__get_session_indices__()
+        session_indices = self.__get_session_indices__()
 
         # refresh is_poor array
         self.poor_indices = np.array([], dtype=int)
 
-        # instance function
-        if self.instance_function is not None:
-            f1 = self.instance_function
-            f2 = self.__identity__
-            f3 = self.__identity__
-        else:
-            f1 = self.__identity__
-            if self.parse_labels and self.y_field == 'labels':
-                f2 = self.__parse_labels__
-            else:
-                f2 = self.__identity__
-            if self.convert_to_one_hot:
-                f3 = self.__convert_to_one_hot__
-            else:
-                f3 = self.__identity__
-
-        def func(X,Y):
-            X,Y = f1(X,Y)
-            X,Y = f2(X,Y)
-            X,Y = f3(X,Y)
-            return X,Y
-
         # create batch generator
-        generator = BatchGenerator(hdf5_table=self.data, x=self.x, y=self.y, batch_size=self.batch_size, indices=self.session_indices,\
-                    instance_function=func, x_field=self.x_field, y_field=self.y_field,\
+        generator = BatchGenerator(hdf5_table=self.data, x=self.x, y=self.y, batch_size=self.batch_size, indices=session_indices,\
+                    instance_function=self.__instance_function__(), x_field=self.x_field, y_field=self.y_field,\
                     shuffle=self.shuffle, refresh_on_epoch_end=self.refresh, return_batch_ids=self.return_indices)
 
         return generator
+
+    def get_validation_data(self):
+        """ Get validation data.
+
+                Returns: tuple
+                    Instances (X,Y) or, if 'return_indices" is True, instances accompanied by their indices (ids, X, Y) 
+        """
+        if len(self.val_indices) == 0:
+            X, Y = [], []
+    
+        else:
+            if self.from_memory:
+                X = np.take(self.x, self.val_indices, axis=0)
+                Y = np.take(self.y, self.val_indices, axis=0)
+            else:
+                X = self.data[self.val_indices][self.x_field]
+                Y = self.data[self.val_indices][self.y_field]
+
+            X, Y = self.__instance_function__()(X, Y)
+
+        if self.return_indices:
+            return (self.val_indices, X, Y)
+        else:
+            return (X, Y)        
 
     def update_performance(self, indices, predictions, confidences=None):
         """Inform the generator about how well the neural network performed on a set of examples.

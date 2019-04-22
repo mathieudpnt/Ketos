@@ -433,3 +433,38 @@ def test_active_learning_batch_generator_load_from_memory():
 
     ids, _, _ = next(generator)
     assert ids == [7,8,9]
+
+
+@pytest.mark.test_ActiveLearningBatchGenerator
+def test_active_learning_batch_generator_splits_into_training_and_validation():
+    """ Test can split into training and validation data
+    """
+    h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r')  
+    data = open_table(h5, "/train/species1")
+
+    specs = data[:]['data']
+    labels = data[:]['labels']
+
+    a = ActiveLearningBatchGenerator(table=data, session_size=6, batch_size=2, num_labels=2,\
+        return_indices=True, seed=1, val_frac=0.2, convert_to_one_hot=True)
+
+    assert len(a.val_indices) == 3
+
+    generator = next(a)
+    indices = np.concatenate((generator.entry_indices, a.val_indices))
+
+    generator = next(a)
+    indices = np.concatenate((generator.entry_indices, indices))
+
+    indices = np.sort(indices)
+    indices = np.unique(indices)
+
+    assert np.all(indices == np.arange(15))
+
+    idx, X, Y = a.get_validation_data()
+    assert np.all(idx == a.val_indices)
+
+    assert Y.shape[0] == 3
+    assert Y.shape[1] == 2
+
+    h5.close()

@@ -703,14 +703,20 @@ class BasicCNN(DataHandler):
                 >>> g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
                 >>> cost, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
         """    
+        provider.return_indices = False # ensure that the batch generator only returns x,y
+        provider.convert_to_one_hot = True 
+
+        # set validation data, if any
+        X, Y = provider.get_validation_data()
+        if len(X) > 0:
+            self.set_validation_data(x=X, y=Y)
+
         for i in range(num_sessions):
 
             if self.verbosity >= 2:
                 print('\nSession: {0}/{1}'.format(i+1, num_sessions))
 
             # batch generator
-            provider.return_indices = False # ensure that the batch generator only returns x,y
-            provider.convert_to_one_hot = True 
             gen = next(provider)
 
             # train
