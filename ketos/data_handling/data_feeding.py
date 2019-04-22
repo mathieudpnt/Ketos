@@ -607,13 +607,18 @@ class ActiveLearningBatchGenerator():
         YY = list()
         for _y in Y:
             _y = parse_labels(_y)
-            if len(_y) == 1:
+            if len(_y) >= 1:# if there are one or more labels, we use the first label
+                if len(_y) > 1:
+                    print('Warning: ActiveLearningBatchGenerator encountered instance with more than one label. Using the first label only.')
+
                 _y = _y[0]
+            elif len(_y) == 0:# if there are no labels, we use the label 0
+                _y = 0
 
             YY.append(_y)
 
         if len(YY) == 1:
-            YY = YY[0]
+            YY = YY[0]        
 
         return X,YY
 

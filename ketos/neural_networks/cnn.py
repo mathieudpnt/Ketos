@@ -665,7 +665,7 @@ class BasicCNN(DataHandler):
             Args:
                 provider: ActiveLearningBatchGenerator
                     ActiveLearningBatchGenerator
-                sessions: int
+                num_sessions: int
                     Number of training iterations.
                 batch_size: int
                     Batch size. Overwrites batch size specified at initialization.

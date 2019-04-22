@@ -997,6 +997,10 @@ class SpecWriter():
         """ Open a new database file, if none is open
         """                
         if self.file is None:
-            fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
+            if self.mode == 'a':
+                fname = self.base + self.ext
+            else:
+                fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
+
             self.file = tables.open_file(fname, self.mode)
             self.file_counter += 1

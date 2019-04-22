@@ -133,8 +133,9 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
-            validation_function=None, progress_bar=False, min_peak_diff=None,\
-            output_file=None, max_size=1E9, max_annotations=10):
+            validation_function=None, progress_bar=False,\
+            min_peak_diff=None, reduce_tonal_noise=False,\
+            output_file=None, max_size=1E9, max_annotations=10, mode='a'):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -181,6 +182,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             min_peak_diff: float
                 If specified, the following validation criterion is used:
                 max(spec2) > max(spec1) + min_peak_diff
+            reduce_tonal_noise: bool
+                Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
             output_file: str
                 Full path to output database file (*.h5). If no output file is 
                 provided (default), the spectrograms created are kept in memory 
@@ -195,6 +198,13 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                 files with _000, _001, etc, appended to the filename.
                 The default values is max_size=1E9 (1 Gbyte)
                 Only applicable if output_file is specified.
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’r’: Read-only; no data can be modified.
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted).
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
+            
         Returns:   
             specs: Spectrogram or list of Spectrograms
                 Created spectrogram(s). Returns None if output_file is specified.
@@ -247,7 +257,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
     """
     if output_file:
         from ketos.data_handling.database_interface import SpecWriter
-        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_annotations)
+        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_annotations, mode=mode)
 
     # set random seed
     np.random.seed(seed)
@@ -314,6 +324,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
 
             if validation_function(s1, s2, spec):
+
+                if reduce_tonal_noise:
+                    spec.tonal_noise_reduction()
+
                 if output_file:
                     writer.cd('/spec')
                     writer.write(spec)
