@@ -641,9 +641,6 @@ class BasicCNN(DataHandler):
 
             val_acc = self.accuracy_on_validation()
 
-            if val_acc >= val_acc_goal:
-                break
-
             if self.verbosity >= 2:
                 s = ' {0}/{4}  {1:.3f}  {2:.3f}  {3:.3f}'.format(epoch + 1, avg_cost, avg_acc, val_acc, num_epochs)
                 print(s)
@@ -653,6 +650,9 @@ class BasicCNN(DataHandler):
                 self.writer.add_summary(summary, self.epoch_counter)
 
             self.epoch_counter += 1
+
+            if val_acc >= val_acc_goal:
+                break
 
         if self.verbosity >= 2:
             print(line)
