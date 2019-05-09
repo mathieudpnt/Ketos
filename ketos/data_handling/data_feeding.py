@@ -312,21 +312,25 @@ class ActiveLearningBatchGenerator():
                 Parse labels field. Only applicable if y_field is 'labels' and instance_function is None.
             convert_to_one_hot: bool
                 Convert labels to 1-hot representation. Only applicable if instance_function is None.
+            suppress_warnings: bool
+                Do not show warnings
 
-            Attr:
-                data: pytables table (instance of table.Table()) 
-                    The HDF5 table containing the data
-                data_size: int
-                    The total number of instances in the data set
-                indices: numpy array
-                    Indices of all instances in the data set
-                session_indices: numpy array  
-                    Indices of all instances in the current session              
-                poor_indices: numpy array
-                    Indices of those instances in the previous session that were wronly 
-                    predicted, or correctly predicted but with low confidence
-                from_memory: bool
-                    True if the data are loaded from memory rather than an HDF5 table.
+        Attr:
+            data: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            data_size: int
+                The total number of instances in the data set
+            indices: numpy array
+                Indices of all instances in the data set
+            session_indices: numpy array  
+                Indices of all instances in the current session              
+            poor_indices: numpy array
+                Indices of those instances in the previous session that were wronly 
+                predicted, or correctly predicted but with low confidence
+            from_memory: bool
+                True if the data are loaded from memory rather than an HDF5 table.
+            suppress_warnings: bool
+                Do not show warnings
 
         Example:
             >>> from tables import open_file
@@ -362,7 +366,7 @@ class ActiveLearningBatchGenerator():
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
                     max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True,\
-                    convert_to_one_hot=False, val_frac=0.0):
+                    convert_to_one_hot=False, val_frac=0.0, suppress_warnings=False):
 
         self.from_memory = x is not None and y is not None
 
@@ -396,6 +400,7 @@ class ActiveLearningBatchGenerator():
         self.convert_to_one_hot = convert_to_one_hot
         self.parse_labels = parse_labels
         self.instance_function = instance_function
+        self.suppress_warnings = suppress_warnings
 
         if seed is not None:
             np.random.seed(seed) 
@@ -609,7 +614,8 @@ class ActiveLearningBatchGenerator():
             _y = parse_labels(_y)
             if len(_y) >= 1:# if there are one or more labels, we use the first label
                 if len(_y) > 1:
-                    print('Warning: ActiveLearningBatchGenerator encountered instance with more than one label. Using the first label only.')
+                    if not self.suppress_warnings:
+                        print('Warning: ActiveLearningBatchGenerator encountered instance with more than one label. Using the first label only.')
 
                 _y = _y[0]
             elif len(_y) == 0:# if there are no labels, we use the label 0
