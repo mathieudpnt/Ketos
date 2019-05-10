@@ -840,7 +840,8 @@ class SpecWriter():
                 Maximum size of output database file in bytes
                 If file exceeds this size, it will be split up into several 
                 files with _000, _001, etc, appended to the filename.
-                The default values is max_size=1E9 (1 Gbyte)
+                The default values is max_size=1E9 (1 Gbyte).
+                Disabled if writing in 'append' mode.
             verbose: bool
                 Print relevant information during execution such as files written to disk
             mode: str
