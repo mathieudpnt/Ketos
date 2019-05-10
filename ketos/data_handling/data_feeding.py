@@ -312,6 +312,11 @@ class ActiveLearningBatchGenerator():
                 Parse labels field. Only applicable if y_field is 'labels' and instance_function is None.
             convert_to_one_hot: bool
                 Convert labels to 1-hot representation. Only applicable if instance_function is None.
+            val_frac: float between 0 and 1
+                Fraction of data that will be used for validation
+            val_size: int
+                Number of samples that will be used for validation. 
+                None by default. Overwrites val_frac.
             suppress_warnings: bool
                 Do not show warnings
 
@@ -331,6 +336,8 @@ class ActiveLearningBatchGenerator():
                 True if the data are loaded from memory rather than an HDF5 table.
             suppress_warnings: bool
                 Do not show warnings
+            val_frac: float between 0 and 1
+                Fraction of data that will be used for validation
 
         Example:
             >>> from tables import open_file
@@ -366,7 +373,7 @@ class ActiveLearningBatchGenerator():
     """
     def __init__(self, session_size, batch_size, num_labels=2, table=None, x=None, y=None, shuffle=False, refresh=False, return_indices=False,\
                     max_keep=0, conf_cut=0, seed=None, instance_function=None, x_field='data', y_field='labels', parse_labels=True,\
-                    convert_to_one_hot=False, val_frac=0.0, suppress_warnings=False):
+                    convert_to_one_hot=False, val_frac=0.0, val_size=None, suppress_warnings=False):
 
         self.from_memory = x is not None and y is not None
 
@@ -410,6 +417,9 @@ class ActiveLearningBatchGenerator():
 
         # reserve for validation
         self.val_indices = []
+        if val_size is not None:
+            val_frac = min(1.0, val_size / self.data_size)
+
         if val_frac > 0:
             num_val = max(1, int(val_frac * self.data_size))
             self.val_indices = np.random.choice(self.indices, num_val, replace=False)
