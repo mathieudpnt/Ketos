@@ -413,6 +413,10 @@ class Spectrogram(AnnotationHandler):
                 Associates a particular wave file with each time bin in the spectrogram
             time_vector: 1d numpy array
                 Associated a particular time within a wave file with each time bin in the spectrogram
+            fcroplow: int
+                Number of lower-end frequency bins that have been cropped
+            fcrophigh: int
+                Number of upper-end frequency bins that have been cropped
 """
     def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag='', decibel=False):
         
@@ -425,6 +429,8 @@ class Spectrogram(AnnotationHandler):
         self.timestamp = timestamp
         self.flabels = flabels
         self.decibel = decibel
+        self.fcroplow = 0
+        self.fcrophigh = 0
 
         super().__init__() # initialize AnnotationHandler
 
@@ -1052,6 +1058,9 @@ class Spectrogram(AnnotationHandler):
                 f2_crop = f2r - f1r
 
                 img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
+
+                self.fcroplow += f1r
+                self.fcrophigh += Nf - f2r
 
         return img, t1, f1r
 
@@ -2247,6 +2256,12 @@ class MagSpectrogram(Spectrogram):
         if self.decibel:
             mag = from_decibel(mag)
 
+        # if the frequency axis has been cropped, pad with zeros
+        # along the 2nd axis to ensure that the spectrogram has 
+        # the expected shape
+        if self.fcroplow > 0 or self.fcrophigh > 0:
+            mag = np.pad(mag, pad_width=((0,0),(self.fcroplow,self.fcrophigh)), mode='constant')
+
         n_fft = self.NFFT
         hop = self.hop
 
@@ -2259,10 +2274,10 @@ class MagSpectrogram(Spectrogram):
 
         # sampling rate of estimated audio signal should equal the old rate
         N = len(audio)
-        old_rate = self.fres * 2 * self.image.shape[1]
+        old_rate = self.fres * 2 * mag.shape[1]
         rate = N / (self.duration() + n_fft/old_rate - self.winstep)
         
-        assert old_rate == rate, 'Ups. The sampling rate of the estimated audio signal does not match the original signal.'
+        assert abs(old_rate - rate) < 0.1, 'The sampling rate of the estimated audio signal ({0:.1f} Hz) does not match the original signal ({1:.1f} Hz).'.format(rate, old_rate)
 
         audio = AudioSignal(rate=rate, data=audio)
 
