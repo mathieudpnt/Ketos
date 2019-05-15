@@ -395,7 +395,7 @@ def test_blur_freq_axis():
     assert y[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
     assert xy[9,10] == pytest.approx(0, rel=0.001) 
 
-def test_create_audio_from_spectrogram(sine_audio):
+def test_estimate_audio_from_spectrogram(sine_audio):
     sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
     winlen = duration/4
@@ -403,6 +403,24 @@ def test_create_audio_from_spectrogram(sine_audio):
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
     audio = spec.audio_signal(num_iters=10)
     assert audio.rate == sine_audio.rate
+
+def test_estimate_audio_from_spectrogram_after_time_cropping(sine_audio):
+    sine_audio.resample(new_rate=16000)
+    winlen = 0.2
+    winstep = 0.02
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    spec.crop(tlow=0.4, thigh=2.7)
+    audio = spec.audio_signal(num_iters=10)
+    assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
+
+def test_estimate_audio_from_spectrogram_after_freq_cropping(sine_audio):
+    sine_audio.resample(new_rate=16000)
+    winlen = 0.2
+    winstep = 0.02
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    spec.crop(flow=200, fhigh=2300)
+    audio = spec.audio_signal(num_iters=10)
+    assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
 def test_annotate():
     spec = Spectrogram()
