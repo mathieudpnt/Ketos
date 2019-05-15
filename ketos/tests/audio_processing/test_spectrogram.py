@@ -342,24 +342,30 @@ def test_mag_spectrogram_has_correct_NFFT(sine_audio):
     winlen = duration/4
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1
+    assert spec.NFFT == expected
 
 def test_power_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1    
+    assert spec.NFFT == expected
 
 def test_mel_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1
+    assert spec.NFFT == expected
 
 def test_blur_time_axis():
     spec = Spectrogram()
@@ -390,11 +396,12 @@ def test_blur_freq_axis():
     assert xy[9,10] == pytest.approx(0, rel=0.001) 
 
 def test_create_audio_from_spectrogram(sine_audio):
+    sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    audio = spec.audio_signal()
+    audio = spec.audio_signal(num_iters=10)
     assert audio.rate == sine_audio.rate
 
 def test_annotate():

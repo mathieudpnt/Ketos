@@ -44,6 +44,39 @@ import datetime_glob
 import re
 
 
+def rel_path_unix(path, start=None):
+    """ Return a relative unix filepath to path either from the current 
+        directory or from an optional start directory.
+
+        Args:
+            path: str
+                Path. Can be unix or windows format.
+            start: str
+                Optional start directory. Can be unix or windows format.
+
+        Returns:
+            u: str
+                Relative unix filepath
+
+        Examples:
+            >>> from ketos.data_handling.data_handling import rel_path_unix      
+            >>> path = "/home/me/documents/projectX/file1.pdf"
+            >>> start = "/home/me/documents/"
+            >>> u = rel_path_unix(path, start)
+            >>> print(u)
+            /projectX/
+    """
+    rel = os.path.relpath(path, start)
+    h,t = os.path.split(rel)
+    u = '/'
+    while len(h) > 0:
+        h,t = os.path.split(h)
+        u = '/' + t + u
+
+    return u
+
+
+
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
        
@@ -145,8 +178,6 @@ def find_files(path, substr, fullpath=True, subdirs=False):
         for fil in f:
             if fullpath:
                 x = path
-                if path[-1] is not '/':
-                    x += '/'
                 allfiles.append(os.path.join(x, fil))
             else:
                 allfiles.append(fil)

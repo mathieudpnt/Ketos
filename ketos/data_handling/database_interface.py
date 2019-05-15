@@ -37,7 +37,7 @@ import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
-from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader
+from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
 from tqdm import tqdm
 
 def open_table(h5file, table_path):
@@ -745,16 +745,10 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
     # get all wav files in the folder
     files = find_wave_files(path=input_dir, fullpath=True, subdirs=True)
 
-    # subfolder structure
+    # subfolder unix structure
     subfolders = list()
     for f in files:
-        p1 = f.find(input_dir) + len(input_dir) 
-        p2 = f.rfind('/')
-        sf = f[p1:p2]
-        if len(sf) > 0: 
-            sf = '/' + sf + '/'
-        else:
-            sf = '/'
+        sf = rel_path_unix(f, input_dir)
         subfolders.append(sf)
 
     # loop over files
