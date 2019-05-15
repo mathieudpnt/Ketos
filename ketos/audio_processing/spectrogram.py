@@ -50,6 +50,8 @@
 """
 
 import numpy as np
+import scipy
+import librosa
 from scipy.fftpack import dct
 from scipy import ndimage
 from skimage.transform import rescale
@@ -595,6 +597,8 @@ class Spectrogram(AnnotationHandler):
                 phase_change: numpy.array
                     Phase change spectrogram. Only computed if compute_phase=True.
         """
+        self.hop = int(round(winstep * audio_signal.rate))
+
         # Make frames
         frames = audio_signal.make_frames(winlen, winstep) 
 
@@ -2206,32 +2210,54 @@ class MagSpectrogram(Spectrogram):
         
         return image, NFFT, fres, phase_change
 
-    def audio_signal(self):
-        """ Generate audio signal from magnitude spectrogram
+    def __inv_magphase__(self, mag, angle):
+        phase = np.cos(angle) + 1.j * np.sin(angle)
+        return mag * phase
+  
+    def audio_signal(self, num_iters=25, phase_angle=0):
+        """ Generate audio signal from magnitude spectrogram.
 
-            Note that the current implementation does not account for the effect of 
-            the Hamming window function, nor does it take into account phase 
-            information. 
+            Implements the algorithm described in 
 
-            An improved implementation is planned for release 2.0.0.
-            
+                D. W. Griffin and J. S. Lim, “Signal estimation from modified short-time Fourier transform,” IEEE Trans. ASSP, vol.32, no.2, pp.236–243, Apr. 1984.            
+
+            Follows closely https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
+
+            Note: Assumes Hamming window
+
+            Args:
+                phase_angle: 
+                    Initial condition for phase.
+                num_iters: 
+                    Number of iterations to perform.
+
             Returns:
-                a: AudioSignal
+                audio: AudioSignal
                     Audio signal
         """
-        y = np.fft.irfft(self.image)
-        d = self.tres * self.fres * (y.shape[1] + 1)
-        N = int(np.ceil(y.shape[0] * d))
-        s = np.zeros(N)
-        for i in range(y.shape[0]):
-            i0 = i * d
-            for j in range(0, y.shape[1]):
-                k = int(np.ceil(i0 + j))
-                if k < N:
-                    s[k] += y[i,j]
-        rate = int(np.ceil((N+1) / self.duration()))
-        a = AudioSignal(rate=rate, data=s[:N])
-        return a
+        mag = self.image
+        n_fft = self.NFFT
+        hop = self.hop
+
+        print(mag.shape)
+        print(n_fft)
+        print(hop)
+
+        fft_config = dict(n_fft=n_fft, win_length=n_fft, hop_length=hop, center=False, window=scipy.signal.hamming)
+        ifft_config = dict(win_length=n_fft, hop_length=hop, center=False, window=scipy.signal.hamming)
+        complex_specgram = self.__inv_magphase__(mag, phase_angle)
+        for i in range(num_iters):
+            audio = librosa.istft(complex_specgram, **ifft_config)
+            if i != num_iters - 1:
+                complex_specgram = librosa.stft(audio, **fft_config)
+                _, phase = librosa.magphase(complex_specgram)
+                angle = np.angle(phase)
+                complex_specgram = self.__inv_magphase__(mag, angle)
+
+        N = len(audio)
+        rate = (N - 1) / self.duration()
+        audio = AudioSignal(rate=rate, data=audio)
+        return audio
 
 
 class PowerSpectrogram(Spectrogram):
