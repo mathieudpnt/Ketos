@@ -390,11 +390,12 @@ def test_blur_freq_axis():
     assert xy[9,10] == pytest.approx(0, rel=0.001) 
 
 def test_create_audio_from_spectrogram(sine_audio):
+    sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    audio = spec.audio_signal()
+    audio = spec.audio_signal(num_iters=10)
     assert audio.rate == sine_audio.rate
 
 def test_annotate():

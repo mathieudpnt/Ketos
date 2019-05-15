@@ -320,7 +320,7 @@ class AudioSignal(AnnotationHandler):
         d = self.file_dict
         return d
 
-    def make_frames(self, winlen, winstep, zero_padding=False):
+    def make_frames(self, winlen, winstep, zero_padding=False, even_winlen=False):
         """ Split the signal into frames of length 'winlen' with consecutive 
             frames being shifted by an amount 'winstep'. 
             
@@ -346,6 +346,9 @@ class AudioSignal(AnnotationHandler):
 
         winlen = int(round(winlen * rate))
         winstep = int(round(winstep * rate))
+
+        if even_winlen and winlen%2 != 0:
+            winlen += 1
 
         frames = ap.make_frames(sig, winlen, winstep, zero_padding)
         return frames

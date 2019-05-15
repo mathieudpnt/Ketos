@@ -50,8 +50,7 @@
 """
 
 import numpy as np
-import scipy
-import librosa
+from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
 from skimage.transform import rescale
@@ -59,7 +58,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
+from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
@@ -597,10 +596,12 @@ class Spectrogram(AnnotationHandler):
                 phase_change: numpy.array
                     Phase change spectrogram. Only computed if compute_phase=True.
         """
+        self.winstep = winstep
         self.hop = int(round(winstep * audio_signal.rate))
+        self.hamming = hamming
 
         # Make frames
-        frames = audio_signal.make_frames(winlen, winstep) 
+        frames = audio_signal.make_frames(winlen=winlen, winstep=winstep, even_winlen=True) 
 
         # Apply Hamming window    
         if hamming:
@@ -2210,53 +2211,42 @@ class MagSpectrogram(Spectrogram):
         
         return image, NFFT, fres, phase_change
 
-    def __inv_magphase__(self, mag, angle):
-        phase = np.cos(angle) + 1.j * np.sin(angle)
-        return mag * phase
-  
     def audio_signal(self, num_iters=25, phase_angle=0):
-        """ Generate audio signal from magnitude spectrogram.
-
-            Implements the algorithm described in 
-
-                D. W. Griffin and J. S. Lim, “Signal estimation from modified short-time Fourier transform,” IEEE Trans. ASSP, vol.32, no.2, pp.236–243, Apr. 1984.            
-
-            Follows closely https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
-
-            Note: Assumes Hamming window
+        """ Estimate audio signal from magnitude spectrogram.
 
             Args:
-                phase_angle: 
-                    Initial condition for phase.
                 num_iters: 
                     Number of iterations to perform.
+                phase_angle: 
+                    Initial condition for phase.
 
             Returns:
                 audio: AudioSignal
                     Audio signal
         """
         mag = self.image
+        if self.decibel:
+            mag = from_decibel(mag)
+
         n_fft = self.NFFT
         hop = self.hop
 
-        print(mag.shape)
-        print(n_fft)
-        print(hop)
+        if self.hamming:
+            window = get_window('hamming', n_fft)
+        else:
+            window = np.ones(n_fft)
 
-        fft_config = dict(n_fft=n_fft, win_length=n_fft, hop_length=hop, center=False, window=scipy.signal.hamming)
-        ifft_config = dict(win_length=n_fft, hop_length=hop, center=False, window=scipy.signal.hamming)
-        complex_specgram = self.__inv_magphase__(mag, phase_angle)
-        for i in range(num_iters):
-            audio = librosa.istft(complex_specgram, **ifft_config)
-            if i != num_iters - 1:
-                complex_specgram = librosa.stft(audio, **fft_config)
-                _, phase = librosa.magphase(complex_specgram)
-                angle = np.angle(phase)
-                complex_specgram = self.__inv_magphase__(mag, angle)
+        audio = estimate_audio_signal(image=mag, phase_angle=phase_angle, n_fft=n_fft, hop=hop, num_iters=num_iters, window=window)
 
+        # sampling rate of estimated audio signal should equal the old rate
         N = len(audio)
-        rate = (N - 1) / self.duration()
+        old_rate = self.fres * 2 * self.image.shape[1]
+        rate = N / (self.duration() + n_fft/old_rate - self.winstep)
+        
+        assert old_rate == rate, 'Ups. The sampling rate of the estimated audio signal does not match the original signal.'
+
         audio = AudioSignal(rate=rate, data=audio)
+
         return audio
 
 
