@@ -353,15 +353,26 @@ class AudioSignal(AnnotationHandler):
         frames = ap.make_frames(sig, winlen, winstep, zero_padding)
         return frames
 
-    def to_wav(self, path):
+    def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
 
             Args:
                 path: str
                     Path to output wave file
+                auto_loudness: bool
+                    Automatically amplify the signal so that the 
+                    maximum amplitude matches the full range of 
+                    a 16-bit wav file (32760)
         """        
         ensure_dir(path)
-        wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
+        
+        if auto_loudness:
+            m = max(1, np.max(np.abs(self.data)))
+            s = 32760 / m
+        else:
+            s = 1
+
+        wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
     def empty(self):
         """ Check if the signal contains any data
