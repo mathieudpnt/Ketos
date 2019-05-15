@@ -617,6 +617,30 @@ def estimate_audio_signal(image, phase_angle, n_fft, hop, num_iters, window):
         Returns:
             audio: 1d numpy array
                 Audio signal
+
+        Example:
+            >>> # create a simple sinusoidal audio signal with frequency of 10 Hz
+            >>> import numpy as np
+            >>> x = np.arange(1000)
+            >>> sig = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
+            >>> # compute the magnitude spectrogram with window size of 200, step size of 40,
+            >>> # and using a Hamming window
+            >>> from ketos.audio_processing.audio_processing import make_frames
+            >>> frames = make_frames(sig, 200, 40) 
+            >>> frames *= np.hamming(frames.shape[1])
+            >>> mag = np.abs(np.fft.rfft(frames))
+            >>> # estimate the original signal            
+            >>> from ketos.audio_processing.audio_processing import estimate_audio_signal
+            >>> sig_est = estimate_audio_signal(image=mag, phase_angle=0, n_fft=200, hop=40, num_iters=25, window=np.hamming(frames.shape[1]))
+            >>> # plot the original and the estimated signal
+            >>> import matplotlib.pyplot as plt
+            >>> plt.clf()
+            >>> _ = plt.plot(sig)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_orig.png")
+            >>> _ = plt.plot(sig_est)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
     """
     # swap axis to conform with librosa 
     image = np.swapaxes(image, 0, 1)
