@@ -2489,9 +2489,8 @@ class MelSpectrogram(Spectrogram):
                     Plot the filter banks if True. If false (default) print the mel spectrogram.
             
             Returns:
-            fig: matplotlib.figure.Figure
-            A figure object.
-
+                fig: matplotlib.figure.Figure
+                    A figure object.
         """
         if filter_bank:
             img = self.filter_banks
