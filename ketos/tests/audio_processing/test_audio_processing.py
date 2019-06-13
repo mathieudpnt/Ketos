@@ -99,13 +99,13 @@ def test_make_frames():
     assert frames1.shape[0] == 21
     assert frames1.shape[1] == 20
     # max size should not affect output
-    frames2 = ap.make_frames(x=img, winlen=20, winstep=4, max_size=300)
+    frames2 = ap.make_frames(x=img, winlen=20, winstep=4, batch_size=300)
     assert np.all(frames2 == frames1)
-    frames3 = ap.make_frames(x=img, winlen=20, winstep=4, max_size=200)
+    frames3 = ap.make_frames(x=img, winlen=20, winstep=4, batch_size=200)
     assert np.all(frames3 == frames1)
     # add zero padding
     frames4 = ap.make_frames(x=img, winlen=20, winstep=4, zero_padding=True)
-    frames5 = ap.make_frames(x=img, winlen=20, winstep=4, zero_padding=True, max_size=200)
+    frames5 = ap.make_frames(x=img, winlen=20, winstep=4, zero_padding=True, batch_size=200)
     assert np.all(frames4 == frames5)
 
 
