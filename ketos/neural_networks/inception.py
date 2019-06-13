@@ -77,4 +77,45 @@ class InceptionBlock(tf.keras.Model):
 
         return out
 
+class Inception(tf.keras.Model):
+
+    def __init__(self, num_layers, num_classes, init_channels=16, **kwargs):
+        super(Inception, self).__init__(**kwargs)
+
+        self.input_channels = init_channels
+        self.output_channels = init_channels
+        self.num_layers = num_layers
+        self.num_classes = num_classes
+        self.init_channels = init_channels
+
+        self.conv1 = ConvBatchNormRelu(self.init_channels)
+
+        self.blocks = tf.keras.models.Sequential(name='dynamic-blocks')
+
+        for block_id in range(self.num_layers):
+            for layer_id in range(2):
+
+                if layer_id == 0:
+                    block = InceptionBlock(self.output_channels, strides=2)
+                else:
+                    block = InceptionBlock(self.output_channels, strides=1)
+
+                self.blocks.add(block)
+
+            self.output_channels *= 2
+
+        self.avg_pool = tf.keras.layers.GlobalAveragePooling2D()
+        self.dense = tf.keras.layers.Dense(self.num_classes)
+
+    def call(self, x, training=None):
+        out = self.conv1(x, training=training)
+        out = self.blocks(out, training=training)
+        out = self.avg_pool(out)
+        out = self.dense(out)
+
+        return out
+
+        
+
+        
 
