@@ -304,7 +304,7 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
-def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E7):
+def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E9):
     """ Split time-series data into frames of length 'winlen' with consecutive 
         frames being shifted by an amount 'winstep'.
 
@@ -324,7 +324,7 @@ def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E7):
                 If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
                 This assures that sample are not truncated from the original signal.
             batch_size: int
-                Batch size in bytes.
+                Max batch size in bytes. Default is 1 GB.
 
         Returns:
             frames: numpy array
