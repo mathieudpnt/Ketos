@@ -353,7 +353,7 @@ def make_frames(x, winlen, winstep, zero_padding=False):
 
     totlen = x.shape[0]
 
-    if zero_padding and i2 == x.shape[0]:
+    if zero_padding:
         n_frames = int(np.ceil(totlen / winstep))
         n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
         if np.ndim(x) == 1:
