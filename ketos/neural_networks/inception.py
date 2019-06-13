@@ -34,3 +34,19 @@
 """
 
 import tensorflow as tf
+
+class ConvBatchNormRelu(tf.keras.Model):
+    def __init__(self, ch, kernel_size=3, strides=1, padding='same'):
+        super(ConvBatchNormRelu, self).__init__()
+
+        self.model = tf.keras.models.Sequential([
+            tf.keras.layers.Conv2D(ch, kernel_size, strides=strides, padding=pa$
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.ReLU()
+        ])
+
+    def call(self, x, training=None):
+        x = self.model(x, training=training)
+
+        return x
+
