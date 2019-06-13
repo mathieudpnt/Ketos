@@ -2173,6 +2173,9 @@ class MagSpectrogram(Spectrogram):
             if tag is '':
                 tag = audio_signal.tag
 
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
+
         self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
     def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):

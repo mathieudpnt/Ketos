@@ -39,6 +39,8 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
 from tqdm import tqdm
+from sys import getsizeof
+from psutil import virtual_memory
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -767,30 +769,40 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         if sampling_rate is not None:
             a.resample(new_rate=sampling_rate) 
 
-        # compute the spectrogram
-        s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
-
         # add annotations
         if areader is not None:
-            fname = f[f.rfind('/')+1:]
-            labels, boxes = areader.get_annotations(fname)
-            s.annotate(labels, boxes) 
+            labels, boxes = areader.get_annotations(a.tag)
+            a.annotate(labels, boxes) 
 
-        # crop frequencies
-        s.crop(flow=flow, fhigh=fhigh) 
+        # check spectrogram size (estimated)
+        mem = virtual_memory()
+        siz = getsizeof(a.data) * window_size / step_size
 
-        # if duration is not specified, use duration of first spectrogram
-        if duration is None: 
-            duration = s.duration()
+        # segment, if spectrogram size exceeds 10% of system memory
+        num_segs = int(np.ceil(siz / (0.1 * mem.total)))
+        length = a.duration() / num_segs
+        segs = a.segment(length)
 
-        # ensure desired duration 
-        specs = s.segment(length=duration, pad=True, **kwargs)
+        for seg in segs:
 
-        # save spectrogram(s) to file        
-        path = sf + 'spec'
-        swriter.cd(path)
-        for spec in specs:
-            swriter.write(spec)
+            # compute the spectrogram
+            s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
+
+            # crop frequencies
+            s.crop(flow=flow, fhigh=fhigh) 
+
+            # if duration is not specified, use duration of first spectrogram
+            if duration is None: 
+                duration = s.duration()
+
+            # ensure desired duration 
+            specs = s.segment(length=duration, pad=True, **kwargs)
+
+            # save spectrogram(s) to file        
+            path = sf + 'spec'
+            swriter.cd(path)
+            for spec in specs:
+                swriter.write(spec)
 
     swriter.close()
 

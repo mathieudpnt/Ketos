@@ -104,7 +104,50 @@ def test_append_audio_signal_to_itself(sine_audio):
     audio.append(audio_copy)
     assert len(audio.data) == len_sum
     
+def test_segment_audio_signal(sine_audio):
+    lentot = sine_audio.duration()
+    segs = sine_audio.segment(lentot/3)
+    assert len(segs) == 3
+    # recover original full length signal by concatenating segments
+    v = segs[0].data
+    for s in segs[1:]:
+        v = np.concatenate((v, s.data))
+    # check that the recovered audio signal matches the original
+    assert np.all(v == sine_audio.data)
+    # check behaviour when length is larger than 0.5 of total length
+    segs = sine_audio.segment(0.8*lentot)
+    assert len(segs) == 1
+    assert segs[0].duration() == pytest.approx(0.8*lentot, abs=0.01)
 
+def test_segment_audio_signal_w_annotations(sine_audio):
+    lentot = sine_audio.duration()    
+    # add some annotations
+    t1 = 0.1 * lentot
+    t2 = 0.2 * lentot
+    sine_audio.annotate(labels=1, boxes=[t1, t2])
+    t1 = 0.4 * lentot
+    t2 = 0.6 * lentot
+    sine_audio.annotate(labels=1, boxes=[t1, t2])
+    t1 = 0.45 * lentot
+    t2 = 0.95 * lentot
+    sine_audio.annotate(labels=1, boxes=[t1, t2])
+    # segment
+    segs = sine_audio.segment(lentot/3)
+    assert len(segs) == 3
+    # 1st segment should have one annotation
+    s = segs[0]
+    assert len(s.labels) == 1
+    assert s.boxes[0][1] == 0.2 * lentot
+    # 2nd segment should have two annotations
+    s = segs[1]
+    assert len(s.labels) == 2
+    assert s.boxes[0][0] == 0.4 * lentot
+    assert s.boxes[1][1] == 0.95 * lentot
+    # 3rd segment should have one annotation
+    s = segs[2]
+    assert len(s.labels) == 1
+    assert s.boxes[0][0] == 0.45 * lentot
+    assert s.boxes[0][1] == 0.95 * lentot
 
 def test_append_audio_signal_without_time_stamp_to_itself(sine_audio_without_time_stamp): 
     len_sum = 2 * len(sine_audio_without_time_stamp.data)
