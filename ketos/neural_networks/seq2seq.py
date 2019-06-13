@@ -32,3 +32,35 @@
         seq2seq object:
         
 """
+
+import tensorflow as tf
+
+
+INPUT_SHAPE = (500,40)
+
+seq2seq = tf.keras.models.Sequential([
+    tf.keras.layers.Conv1D(196, kernel_size=15, strides=4, input_shape = INPUT_SHAPE),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Activation('relu'),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.Conv1D(196, kernel_size=15, strides=2, padding ='same'),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Activation('relu'),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.Conv1D(196, kernel_size=4, strides=2, padding ='same'),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Activation('relu'),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.GRU(units=128, return_sequences=True),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.GRU(units=128, return_sequences=True),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.8),
+    tf.keras.layers.TimeDistributed(
+        tf.keras.layers.Dense(1, activation='sigmoid'),
+        input_shape=(296,128)
+    )
+     
+])
