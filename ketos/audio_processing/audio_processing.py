@@ -43,6 +43,7 @@ from collections import namedtuple
 from numpy import seterr
 from sklearn.utils import shuffle
 from sys import getsizeof
+from psutil import virtual_memory
 
 
 def append_specs(specs):
@@ -304,7 +305,7 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
-def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E9):
+def make_frames(x, winlen, winstep, zero_padding=False):
     """ Split time-series data into frames of length 'winlen' with consecutive 
         frames being shifted by an amount 'winstep'.
 
@@ -323,8 +324,6 @@ def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E9):
             zero_padding: bool
                 If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
                 This assures that sample are not truncated from the original signal.
-            batch_size: int
-                Max batch size in bytes. Default is 1 GB.
 
         Returns:
             frames: numpy array
@@ -344,49 +343,35 @@ def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E9):
              [ 7  8  9 10]]
     """
 
+    mem = virtual_memory()
+
     siz = getsizeof(x) * winlen / winstep
 
-    num_batches = int(np.ceil(siz / batch_size))
-    batch_len = int(x.shape[0] / num_batches)
-    batch_len += (winstep - batch_len % winstep)
+    if siz > 0.1 * mem.total:
+        print("Warning: size of output frames exceeds 10% of memory")
+        print("Consider reducing the data size and/or increasing the step size and/or reducing the window length")
 
-    frames = None
+    totlen = x.shape[0]
 
-    for n in range(num_batches):
-        i1 = n * batch_len
-        i2 = (n + 1) * batch_len + winlen - winstep
-        i2 = min(i2, x.shape[0])
-        xn = x[i1:i2]
-
-        totlen = xn.shape[0]
-
-        if zero_padding and i2 == x.shape[0]:
-            n_frames = int(np.ceil(totlen / winstep))
-            n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-            if np.ndim(xn) == 1:
-                z_shape = n_zeros
-            else:
-                z_shape = (n_zeros, xn.shape[1])
-            z = np.zeros(shape=z_shape)
-            padded_signal = np.concatenate((xn, z))
+    if zero_padding and i2 == x.shape[0]:
+        n_frames = int(np.ceil(totlen / winstep))
+        n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
+        if np.ndim(x) == 1:
+            z_shape = n_zeros
         else:
-            padded_signal = xn
-            if winlen > totlen:
-                n_frames = 1
-                winlen = totlen
-            else:
-                n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
+            z_shape = (n_zeros, x.shape[1])
+        z = np.zeros(shape=z_shape)
+        padded_signal = np.concatenate((x, z))
+    else:
+        padded_signal = x
+        if winlen > totlen:
+            n_frames = 1
+            winlen = totlen
+        else:
+            n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
 
-        indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
-        f = padded_signal[indices.astype(np.int32, copy=False)]
-
-        if frames is None:
-            frames = f
-        else: 
-            frames = np.concatenate((frames,f), axis=0)
-
-        if i2 == x.shape[0]:
-            break
+    indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
+    frames = padded_signal[indices.astype(np.int32, copy=False)]
 
     return frames
 
