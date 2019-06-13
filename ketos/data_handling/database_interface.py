@@ -764,10 +764,8 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         if exists is False:
             continue
 
-        # read audio and resample
+        # read audio
         a = AudioSignal.from_wav(path=f, channel=channel)  
-        if sampling_rate is not None:
-            a.resample(new_rate=sampling_rate) 
 
         # add annotations
         if areader is not None:
@@ -781,9 +779,16 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         # segment, if spectrogram size exceeds 10% of system memory
         num_segs = int(np.ceil(siz / (0.1 * mem.total)))
         length = a.duration() / num_segs
-        segs = a.segment(length)
+        if duration is not None:
+            length = min(length, duration)
+
+        segs = a.segment(length=length, pad=True, keep_time=True)
 
         for seg in segs:
+
+            # resample
+            if sampling_rate is not None:
+                seg.resample(new_rate=sampling_rate) 
 
             # compute the spectrogram
             s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
@@ -803,6 +808,10 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
             swriter.cd(path)
             for spec in specs:
                 swriter.write(spec)
+
+        # attempt to free up some memory                
+        del segs
+        del a
 
     swriter.close()
 

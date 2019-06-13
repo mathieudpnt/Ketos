@@ -636,12 +636,18 @@ class AudioSignal(AnnotationHandler):
 
         return segs
 
-    def segment(self, length):
+    def segment(self, length, pad=False, keep_time=False):
         """ Split the audio signal into a number of equally long segments.
 
             Args:
                 length: float
                     Duration of each segment in seconds
+                pad: bool
+                    If True, pad spectrogram with zeros if necessary to ensure 
+                    that bins are used.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
 
             Returns:
                 segs: list
@@ -651,12 +657,15 @@ class AudioSignal(AnnotationHandler):
             return [self]
 
         # split data array into segments
-        frames = self.make_frames(winlen=length, winstep=length)
+        frames = self.make_frames(winlen=length, winstep=length, zero_padding=pad)
 
         # create audio signals
         segs = list()
         tstart = self.tmin
         for f in frames:
+
+            if not keep_time:
+                tstart = 0
 
             # audio signal
             a = AudioSignal(rate=self.rate, data=f, tag=self.tag, tstart=tstart)

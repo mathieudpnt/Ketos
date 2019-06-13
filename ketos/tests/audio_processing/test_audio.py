@@ -132,7 +132,7 @@ def test_segment_audio_signal_w_annotations(sine_audio):
     t2 = 0.95 * lentot
     sine_audio.annotate(labels=1, boxes=[t1, t2])
     # segment
-    segs = sine_audio.segment(lentot/3)
+    segs = sine_audio.segment(length=lentot/3, keep_time=True)
     assert len(segs) == 3
     # 1st segment should have one annotation
     s = segs[0]
