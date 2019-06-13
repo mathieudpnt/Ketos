@@ -37,3 +37,55 @@ class ResNetBlock(tf.keras.Model):
 
         x = x + residual
         return x
+
+class ResNet(tf.keras.Model):
+
+    def __init__(self, block_list, n_classes, initial_filters=16, **kwargs):
+        super(ResNet, self).__init__(**kwargs)
+
+        self.n_blocks = len(block_list)
+        self.n_classes = n_classes
+        self.block_list = block_list
+        self.input_channels = initial_filters
+        self.output_channels = initial_filters
+        self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_channels, kernel_size=(3,3), strides=1,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+
+        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
+
+        for block_id in range(self.n_blocks):
+            for layer_id in range(self.block_list[block_id]):
+                #Frst layer of every block except the first
+                if block_id != 0 and layer_id == 0:
+                    block = ResNetBlock(self.output_channels, strides=2, residual_path=True)
+                
+                else:
+                    if self.input_channels != self.output_channels:
+                        residual_path = True
+                    else:
+                        residual_path = False
+                    block = ResNetBlock(self.output_channels, residual_path=residual_path)
+
+                self.input_channels = self.output_channels
+
+                self.blocks.add(block)
+            
+            self.output_channels *= 2
+
+        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
+        self.fully_connected = tf.keras.layers.Dense(self.n_classes)
+
+    def call(self, inputs, training=None):
+
+        output = self.conv_initial(inputs)
+
+        output = self.blocks(output, training=training)
+        output = self.batch_norm_final(output, training=training)
+        output = tf.nn.relu(output)
+        output = self.average_pool(output)
+        output = self.fully_connected(output)
+
+        return output
+
