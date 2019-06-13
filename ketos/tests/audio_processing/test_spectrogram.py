@@ -342,24 +342,30 @@ def test_mag_spectrogram_has_correct_NFFT(sine_audio):
     winlen = duration/4
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1
+    assert spec.NFFT == expected
 
 def test_power_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = PowerSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1    
+    assert spec.NFFT == expected
 
 def test_mel_spectrogram_has_correct_NFFT(sine_audio):
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = MelSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    
-    assert spec.NFFT == int(round(winlen * sine_audio.rate))
+    expected = int(round(winlen * sine_audio.rate))
+    if expected%2 == 1:
+        expected += 1
+    assert spec.NFFT == expected
 
 def test_blur_time_axis():
     spec = Spectrogram()
@@ -389,13 +395,32 @@ def test_blur_freq_axis():
     assert y[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
     assert xy[9,10] == pytest.approx(0, rel=0.001) 
 
-def test_create_audio_from_spectrogram(sine_audio):
+def test_estimate_audio_from_spectrogram(sine_audio):
+    sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
     winlen = duration/4
     winstep = duration/10
     spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    audio = spec.audio_signal()
+    audio = spec.audio_signal(num_iters=10)
     assert audio.rate == sine_audio.rate
+
+def test_estimate_audio_from_spectrogram_after_time_cropping(sine_audio):
+    sine_audio.resample(new_rate=16000)
+    winlen = 0.2
+    winstep = 0.02
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    spec.crop(tlow=0.4, thigh=2.7)
+    audio = spec.audio_signal(num_iters=10)
+    assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
+
+def test_estimate_audio_from_spectrogram_after_freq_cropping(sine_audio):
+    sine_audio.resample(new_rate=16000)
+    winlen = 0.2
+    winstep = 0.02
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    spec.crop(flow=200, fhigh=2300)
+    audio = spec.audio_signal(num_iters=10)
+    assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
 def test_annotate():
     spec = Spectrogram()
@@ -559,6 +584,17 @@ def test_interbreed_spectrograms_with_default_args():
     assert specs[0].duration() == 100
 
 @pytest.mark.test_interbreed
+def test_interbreed_spectrograms_preserves_annotations():
+    s1 = Spectrogram(image=np.ones((100,100)))
+    s2 = s1.copy()
+    s2.annotate(labels=1, boxes=[30, 50])
+    specs = interbreed(specs1=[s1], specs2=[s2], num=9)
+    assert len(specs) == 9
+    assert specs[0].duration() == 100
+    assert specs[0].labels == [1]
+    assert specs[1].labels == [1]
+
+@pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_validation_function():
     s1 = Spectrogram(image=np.ones((100,100)))
     s2 = s1.copy()
@@ -588,13 +624,15 @@ def test_interbreed_spectrograms_with_min_peak_diff():
 def test_interbreed_save_to_file():
     s1 = Spectrogram(image=np.ones((100,100)))
     s2 = s1.copy()
-    outf = path_to_tmp + 'interbreed.h5'
-    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf)
+    s2.annotate(labels=1, boxes=[30,40])
+    outf = path_to_tmp + '/interbreed.h5'
+    interbreed(specs1=[s1], specs2=[s2], num=9, output_file=outf, mode='w')
     # check that spectrograms were saved to file
     fil = tables.open_file(outf, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 9   
+    assert specs[0].labels == [1]
 
 @pytest.mark.test_ensure_same_length
 def test_ensure_same_length():

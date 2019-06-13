@@ -50,6 +50,7 @@
 """
 
 import numpy as np
+from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
 from skimage.transform import rescale
@@ -57,7 +58,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel, enhance_image
+from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
@@ -133,8 +134,9 @@ def ensure_same_length(specs, pad=False):
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             scale=(1,1), t_scale=(1,1), f_scale=(1,1), seed=1,\
-            validation_function=None, progress_bar=False, min_peak_diff=None,\
-            output_file=None, max_size=1E9, max_annotations=10):
+            validation_function=None, progress_bar=False,\
+            min_peak_diff=None, reduce_tonal_noise=False,\
+            output_file=None, max_size=1E9, max_annotations=10, mode='a'):
     """ Interbreed spectrograms to create new ones.
 
         Interbreeding consists in adding/superimposing two spectrograms on top of each other.
@@ -181,6 +183,8 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
             min_peak_diff: float
                 If specified, the following validation criterion is used:
                 max(spec2) > max(spec1) + min_peak_diff
+            reduce_tonal_noise: bool
+                Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
             output_file: str
                 Full path to output database file (*.h5). If no output file is 
                 provided (default), the spectrograms created are kept in memory 
@@ -195,6 +199,13 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                 files with _000, _001, etc, appended to the filename.
                 The default values is max_size=1E9 (1 Gbyte)
                 Only applicable if output_file is specified.
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’r’: Read-only; no data can be modified.
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted).
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
+            
         Returns:   
             specs: Spectrogram or list of Spectrograms
                 Created spectrogram(s). Returns None if output_file is specified.
@@ -247,7 +258,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
     """
     if output_file:
         from ketos.data_handling.database_interface import SpecWriter
-        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_annotations)
+        writer = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_annotations, mode=mode)
 
     # set random seed
     np.random.seed(seed)
@@ -288,7 +299,7 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
         for i in range(N):
 
             if progress_bar:
-                if len(specs_counter) % nprog == 0:
+                if specs_counter % nprog == 0:
                     sys.stdout.write('{0:.0f}% \r'.format(specs_counter / num * 100.))
 
             s1 = _specs1[i]
@@ -314,6 +325,10 @@ def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
                     smooth=smooth, smooth_par=smooth_par, t_scale=sf_t[i], f_scale=sf_f[i])
 
             if validation_function(s1, s2, spec):
+
+                if reduce_tonal_noise:
+                    spec.tonal_noise_reduction()
+
                 if output_file:
                     writer.cd('/spec')
                     writer.write(spec)
@@ -398,6 +413,10 @@ class Spectrogram(AnnotationHandler):
                 Associates a particular wave file with each time bin in the spectrogram
             time_vector: 1d numpy array
                 Associated a particular time within a wave file with each time bin in the spectrogram
+            fcroplow: int
+                Number of lower-end frequency bins that have been cropped
+            fcrophigh: int
+                Number of upper-end frequency bins that have been cropped
 """
     def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag='', decibel=False):
         
@@ -410,6 +429,8 @@ class Spectrogram(AnnotationHandler):
         self.timestamp = timestamp
         self.flabels = flabels
         self.decibel = decibel
+        self.fcroplow = 0
+        self.fcrophigh = 0
 
         super().__init__() # initialize AnnotationHandler
 
@@ -554,8 +575,8 @@ class Spectrogram(AnnotationHandler):
         spec.fmin = self.fmin
         spec.timestamp = self.timestamp
         spec.flabels = self.flabels
-        spec.time_vector = self.time_vector.copy()
-        spec.file_vector = self.file_vector.copy()
+        spec.time_vector = np.copy(self.time_vector)
+        spec.file_vector = np.copy(self.file_vector)
         spec.file_dict = self.file_dict.copy()
         spec.labels = self.labels.copy()
         spec.boxes = list()
@@ -595,8 +616,12 @@ class Spectrogram(AnnotationHandler):
                 phase_change: numpy.array
                     Phase change spectrogram. Only computed if compute_phase=True.
         """
+        self.winstep = winstep
+        self.hop = int(round(winstep * audio_signal.rate))
+        self.hamming = hamming
+
         # Make frames
-        frames = audio_signal.make_frames(winlen, winstep) 
+        frames = audio_signal.make_frames(winlen=winlen, winstep=winstep, even_winlen=True) 
 
         # Apply Hamming window    
         if hamming:
@@ -1033,6 +1058,9 @@ class Spectrogram(AnnotationHandler):
                 f2_crop = f2r - f1r
 
                 img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
+
+                self.fcroplow += f1r
+                self.fcrophigh += Nf - f2r
 
         return img, t1, f1r
 
@@ -1955,9 +1983,14 @@ class Spectrogram(AnnotationHandler):
 
         assert np.all(self.image.shape[1] == spec.image.shape[1]), 'It is not possible to add spectrograms with different frequency range'
 
+        # shift annotations  
+        _labels = np.copy(spec.labels)
+        _boxes = np.copy(spec.boxes)
+        annotations = AnnotationHandler(labels=_labels, boxes=_boxes)
+        annotations._shift_annotations(delay=self.duration())
+
         # add annotations
-        spec._shift_annotations(delay=self.duration())
-        self.annotate(labels=spec.labels, boxes=spec.boxes)
+        self.annotate(labels=annotations.labels, boxes=annotations.boxes)
 
         # add time and file info
         self.time_vector = np.append(self.time_vector, spec.time_vector)
@@ -2209,32 +2242,49 @@ class MagSpectrogram(Spectrogram):
         
         return image, NFFT, fres, phase_change
 
-    def audio_signal(self):
-        """ Generate audio signal from magnitude spectrogram
+    def audio_signal(self, num_iters=25, phase_angle=0):
+        """ Estimate audio signal from magnitude spectrogram.
 
-            Note that the current implementation does not account for the effect of 
-            the Hamming window function, nor does it take into account phase 
-            information. 
+            Args:
+                num_iters: 
+                    Number of iterations to perform.
+                phase_angle: 
+                    Initial condition for phase.
 
-            An improved implementation is planned for release 2.0.0.
-            
             Returns:
-                a: AudioSignal
+                audio: AudioSignal
                     Audio signal
         """
-        y = np.fft.irfft(self.image)
-        d = self.tres * self.fres * (y.shape[1] + 1)
-        N = int(np.ceil(y.shape[0] * d))
-        s = np.zeros(N)
-        for i in range(y.shape[0]):
-            i0 = i * d
-            for j in range(0, y.shape[1]):
-                k = int(np.ceil(i0 + j))
-                if k < N:
-                    s[k] += y[i,j]
-        rate = int(np.ceil((N+1) / self.duration()))
-        a = AudioSignal(rate=rate, data=s[:N])
-        return a
+        mag = self.image
+        if self.decibel:
+            mag = from_decibel(mag)
+
+        # if the frequency axis has been cropped, pad with zeros
+        # along the 2nd axis to ensure that the spectrogram has 
+        # the expected shape
+        if self.fcroplow > 0 or self.fcrophigh > 0:
+            mag = np.pad(mag, pad_width=((0,0),(self.fcroplow,self.fcrophigh)), mode='constant')
+
+        n_fft = self.NFFT
+        hop = self.hop
+
+        if self.hamming:
+            window = get_window('hamming', n_fft)
+        else:
+            window = np.ones(n_fft)
+
+        audio = estimate_audio_signal(image=mag, phase_angle=phase_angle, n_fft=n_fft, hop=hop, num_iters=num_iters, window=window)
+
+        # sampling rate of estimated audio signal should equal the old rate
+        N = len(audio)
+        old_rate = self.fres * 2 * mag.shape[1]
+        rate = N / (self.duration() + n_fft/old_rate - self.winstep)
+        
+        assert abs(old_rate - rate) < 0.1, 'The sampling rate of the estimated audio signal ({0:.1f} Hz) does not match the original signal ({1:.1f} Hz).'.format(rate, old_rate)
+
+        audio = AudioSignal(rate=rate, data=audio)
+
+        return audio
 
 
 class PowerSpectrogram(Spectrogram):
@@ -2442,9 +2492,8 @@ class MelSpectrogram(Spectrogram):
                     Plot the filter banks if True. If false (default) print the mel spectrogram.
             
             Returns:
-            fig: matplotlib.figure.Figure
-            A figure object.
-
+                fig: matplotlib.figure.Figure
+                    A figure object.
         """
         if filter_bank:
             img = self.filter_banks
