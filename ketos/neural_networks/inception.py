@@ -29,8 +29,10 @@
     This module provides classes that implement Inception Neural Networks.
 
     Contents:
-        SiameseCNNBranch class:
-        SiameseCNN class:
+        ConvBatchNormRelu class:
+        InceptionBlock class:
+        Inception class:
+
 """
 
 import tensorflow as tf
@@ -49,6 +51,7 @@ class ConvBatchNormRelu(tf.keras.Model):
         x = self.model(x, training=training)
 
         return x
+
 
 class InceptionBlock(tf.keras.Model):
     def __init__(self, ch, strides=1):
