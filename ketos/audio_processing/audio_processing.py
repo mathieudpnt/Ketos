@@ -344,7 +344,7 @@ def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E9):
              [ 7  8  9 10]]
     """
 
-    siz = getsizeof(x)
+    siz = getsizeof(x) * winlen / winstep
 
     num_batches = int(np.ceil(siz / batch_size))
     batch_len = int(x.shape[0] / num_batches)
