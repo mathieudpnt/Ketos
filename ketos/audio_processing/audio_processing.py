@@ -358,8 +358,6 @@ def make_frames(x, winlen, winstep, zero_padding=False, batch_size=1E7):
         i2 = min(i2, x.shape[0])
         xn = x[i1:i2]
 
-        print(i1, i2, num_batches, batch_len, x.shape[0], siz)
-
         totlen = xn.shape[0]
 
         if zero_padding and i2 == x.shape[0]:
