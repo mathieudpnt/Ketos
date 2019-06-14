@@ -1252,8 +1252,15 @@ class Spectrogram(AnnotationHandler):
         # stretch to achieve minimum length, if necessary
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
 
+        # convert to bin numbers        
+        for b in boi:
+            b[0] = self._find_tbin(b[0], truncate=False)
+            b[1] = self._find_tbin(b[1], truncate=False, roundup=False) + 1
+            b[2] = self._find_fbin(b[2], truncate=False)
+            b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
+
         # extract
-        res = s._clip(boxes=boi, tpad=True, fpad=fpad, keep_time=keep_time)
+        res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
 
         # remove extracted labels
         s.delete_annotations(idx)
