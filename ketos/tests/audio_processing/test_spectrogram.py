@@ -474,16 +474,15 @@ def test_extract_with_non_empty_remainder():
     assert spec.image.shape[1] == img.shape[1]
     assert seg[0].image.shape[0] == 9
     assert seg[0].image.shape[1] == img.shape[1]
-    assert seg[1].image.shape[0] == 2
+    assert seg[1].image.shape[0] == 1
     assert seg[1].image.shape[1] == img.shape[1]
     assert np.sum(spec.get_label_vector(1)) == 0
     assert np.sum(seg[0].get_label_vector(1)) == 9
-    assert np.sum(seg[1].get_label_vector(1)) == 2
+    assert np.sum(seg[1].get_label_vector(1)) == 1
     assert seg[0].file_dict[0] == 'file.wav'
     assert seg[1].file_dict[0] == 'file.wav'
-    assert len(seg[1].time_vector) == 2
+    assert len(seg[1].time_vector) == 1
     assert seg[1].time_vector[0] == 5
-    assert seg[1].time_vector[1] == 6
 
 @pytest.mark.test_stretch
 def test_stretch():
