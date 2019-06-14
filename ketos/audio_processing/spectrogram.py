@@ -63,7 +63,7 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
 from tqdm import tqdm
-
+from librosa.core import cqt
 
 
 def ensure_same_length(specs, pad=False):
@@ -2163,7 +2163,7 @@ class Spectrogram(AnnotationHandler):
 
 
 class MagSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram
+    """ Magnitude Spectrogram computed from Short Time Fourier Transform (STFT)
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -2506,3 +2506,156 @@ class MelSpectrogram(Spectrogram):
         else:
             fig.colorbar(img_plot,format='%+2.0f')  
         return fig
+
+
+class CQTSpectrogram(Spectrogram):
+    """ Magnitude Spectrogram computed from Constant Q Transform (CQT).
+
+        The 0th axis is the time axis (t-axis).
+        The 1st axis is the frequency axis (f-axis).
+        
+        Each axis is characterized by a starting value (tmin and fmin)
+        and a resolution or bin size (tres and bins_per_octave).
+
+        Uses the librosa implementation:
+
+            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
+    
+        Args:
+            signal: AudioSignal
+                And instance of the :class:`audio_signal.AudioSignal` class 
+            fmin: float
+                Minimum frequency in Hz
+            fmax: float
+                Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+            winstep: float
+                Step size in seconds 
+            bins_per_octave: int
+                Number of bins per octave
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list of strings
+                List of labels for the frequency bins.     
+            decibel: bool
+                Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram.
+                If no tag is provided, the tag from the audio_signal will be used.
+    """
+    def __init__(self, audio_signal=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+
+        super(CQTSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+        self.fmin = fmin
+        self.bins_per_octave = bins_per_octave
+
+        if audio_signal is not None:
+
+            self.image, self.tres = make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
+
+            if tag is '':
+                tag = audio_signal.tag
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
+    def make_cqt_spec(self, audio_signal, fmin, fmax, winstep, bins_per_octave, decibel):
+        """ Create CQT spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                winstep: float
+                    Step size in seconds 
+                bins_per_octave: int
+                    Number of bins per octave
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                (image, tres):numpy.array,float
+                A tuple with the resulting magnitude spectrogram, and the time resolution
+        """
+        if fmax is None:
+            fmax = 0.5 * audio_signal.rate
+
+        x = int(np.ceil(np.log2(fmax/fmin)))
+        h0 = int(2**x)
+
+        b = bins_per_octave
+        fbins = x * b
+
+        h = int(audio_signal.rate * winstep)
+        k = int(np.ceil(h/h0))
+        h = int(k * h0)
+
+        c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
+        c = np.abs(c)
+        if decibel:
+            c = 20 * np.log10(c)
+    
+        image = np.swapaxes(c, 0, 1)
+        
+        tres = h/audio_signal.rate
+
+        return image, tres
+
+    def copy(self):
+        """ Make a deep copy of the spectrogram.
+
+            Returns:
+                spec: CQTSpectrogram
+                    Spectrogram copy.
+        """
+        spec = super(CQTSpectrogram, self).copy()
+        spec.bins_per_octave = self.bins_per_octave
+        return spec
+
+    def _find_fbin(self, f, truncate=False, roundup=True):
+        """ Find bin corresponding to given frequency.
+
+            Returns -1, if f < f_min.
+            Returns N, if f > f_max, where N is the number of frequency bins.
+
+            Args:
+                f: float
+                   Frequency in Hz 
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
+
+            Returns:
+                bin: int
+                     Bin number
+        """
+        bin = self.bins_per_octave * np.log2(f / self.fmin)
+
+        if truncate:
+            bin = max(bin, 0)
+            bin = min(bin, self.fbins())
+
+        return bin
+
+    def _fbin_low(self, bin):
+        """ Get the lower frequency value of the specified frequency bin.
+
+            Args:
+                bin: int
+                    Bin number
+        """
+        f = 2**(bin / self.bins_per_octave) * self.fmin
+        return f
+
+    def fmax(self):
+        """ Get upper range of frequency axis
+
+            Returns:
+                fmax: float
+                    Maximum frequency in Hz
+        """
+        fmax = 2**(self.fbins() / self.bins_per_octave) * self.fmin
+        return fmax
