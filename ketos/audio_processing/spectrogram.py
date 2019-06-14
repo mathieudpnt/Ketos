@@ -2551,7 +2551,7 @@ class CQTSpectrogram(Spectrogram):
 
         if audio_signal is not None:
 
-            self.image, self.tres = make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
+            self.image, self.tres = self.make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
 
             if tag is '':
                 tag = audio_signal.tag
@@ -2581,8 +2581,10 @@ class CQTSpectrogram(Spectrogram):
         """
         if fmax is None:
             fmax = 0.5 * audio_signal.rate
-
-        x = int(np.ceil(np.log2(fmax/fmin)))
+            x = int(np.floor(np.log2(fmax/fmin)))
+        else:    
+            x = int(np.ceil(np.log2(fmax/fmin)))
+    
         h0 = int(2**x)
 
         b = bins_per_octave
@@ -2633,6 +2635,7 @@ class CQTSpectrogram(Spectrogram):
                      Bin number
         """
         bin = self.bins_per_octave * np.log2(f / self.fmin)
+        bin = int(bin)
 
         if truncate:
             bin = max(bin, 0)
