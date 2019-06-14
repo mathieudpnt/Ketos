@@ -1022,7 +1022,7 @@ class Spectrogram(AnnotationHandler):
                 f2 = fhigh
             else:                        
                 f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-            
+
         if t2 <= t1:
             img = None
         
@@ -1253,7 +1253,7 @@ class Spectrogram(AnnotationHandler):
         boi = s._stretch(boxes=boi, min_length=min_length, center=center)
 
         # extract
-        res = s._clip(boxes=boi, fpad=fpad, keep_time=keep_time)
+        res = s._clip(boxes=boi, tpad=True, fpad=fpad, keep_time=keep_time)
 
         # remove extracted labels
         s.delete_annotations(idx)
@@ -1407,14 +1407,15 @@ class Spectrogram(AnnotationHandler):
                     r = 0.5001
                 else:
                     r = np.random.random_sample()
+                
                 t1 -= r * dt
                 t2 += (1-r) * dt
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
 
-                t1 = self.tmin + np.floor((t1-self.tmin)/self.tres) * self.tres                
-                t2 = self.tmin + np.floor((t2-self.tmin)/self.tres) * self.tres                
+                t1 = self.tmin + np.round((t1-self.tmin)/self.tres) * self.tres                
+                t2 = self.tmin + np.round((t2-self.tmin)/self.tres) * self.tres                
 
             b[0] = t1
             b[1] = t2
