@@ -516,3 +516,36 @@ def test_spec_writer_change_directory(sine_audio):
     assert len(specs) == 3
     specs = di.load_specs(fil.root.home.whale)
     assert len(specs) == 2
+    fil.close()
+
+def test_two_spec_writers_simultaneously(sine_audio):
+    # init two spec writers
+    out1 = os.path.join(path_to_assets, 'tmp/db10.h5')
+    writer1 = di.SpecWriter(output_file=out1)
+    out2 = os.path.join(path_to_assets, 'tmp/db11.h5')
+    writer2 = di.SpecWriter(output_file=out2)
+    # create spec
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    # write 
+    writer1.cd('/home/fish')
+    writer1.write(spec=spec)
+    writer1.write(spec=spec)
+    writer1.write(spec=spec)
+    writer2.cd('/home/whale')
+    writer2.write(spec=spec)
+    writer2.write(spec=spec)
+    # close
+    writer1.close()
+    writer2.close()
+    # check file 1
+    fil1 = tables.open_file(out1, 'r')
+    assert '/home/fish' in fil1
+    specs = di.load_specs(fil1.root.home.fish)
+    assert len(specs) == 3
+    fil1.close()
+    # check file 2
+    fil2 = tables.open_file(out2, 'r')
+    assert '/home/whale' in fil2
+    specs = di.load_specs(fil2.root.home.whale)
+    assert len(specs) == 2
+    fil2.close()
