@@ -62,7 +62,7 @@ class InceptionBlock(tf.keras.Model):
 
         self.conv1 = ConvBatchNormRelu(ch, strides=self.strides)
         self.conv2 = ConvBatchNormRelu(ch, kernel_size=3, strides=self.strides)
-        self.conv3_1 = ConvBatchNormRelu(ch, kernel_size=3, strides=self.stride$
+        self.conv3_1 = ConvBatchNormRelu(ch, kernel_size=3, strides=self.strides)
         self.conv3_2 = ConvBatchNormRelu(ch, kernel_size=3, strides=1)
 
         self.pool = tf.keras.layers.MaxPooling2D(3, strides=1, padding='same')
