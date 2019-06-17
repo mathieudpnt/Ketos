@@ -35,32 +35,76 @@
 
 import tensorflow as tf
 
+class Seq2Seq(tf.keras.Model):
+    def __init__(self, input_shape,
+            temporal_conv_settings = [{'filters':196,'kernel_size':15,'strides':4},
+                                      {'filters':196,'kernel_size':15,'strides':2},
+                                      {'filters':196,'kernel_size':15,'strides':2}],
+            seq_settings = [{'n_units':128}, {'n_units':128}]):
+        super(Seq2Seq, self).__init__()
 
-INPUT_SHAPE = (500,40)
+        self.in_shape = input_shape
+        self.temporal_conv_settings = temporal_conv_settings
+        self.seq_settings = seq_settings
+        
+        self.conv_block = tf.keras.models.Sequential(name="conv_block")
+        for i,layer in enumerate(self.temporal_conv_settings):
+            # if i == 0:
+            #     self.conv_block.add(tf.keras.layers.Conv1D(filters=layer['filters'], kernel_size=layer['kernel_size'], strides=layer['strides'], input_shape=self.in_shape))
+            # else:
+            #     self.conv_block.add(tf.keras.layers.Conv1D(filters=layer['filters'], kernel_size=layer['kernel_size'], strides=layer['strides']))
+            self.conv_block.add(tf.keras.layers.Conv1D(filters=layer['filters'], kernel_size=layer['kernel_size'], strides=layer['strides']))
+            self.conv_block.add(tf.keras.layers.BatchNormalization())
+            self.conv_block.add(tf.keras.layers.Activation('relu'))
+            self.conv_block.add(tf.keras.layers.Dropout(0.8))
+            
+        self.seq_block = tf.keras.models.Sequential(name="seq_block")
+        for layer in self.seq_settings:
+            self.seq_block.add(tf.keras.layers.GRU(units=layer['n_units'], return_sequences=True))
+            self.seq_block.add(tf.keras.layers.Dropout(0.8))
+            self.seq_block.add(tf.keras.layers.BatchNormalization())
 
-seq2seq = tf.keras.models.Sequential([
-    tf.keras.layers.Conv1D(196, kernel_size=15, strides=4, input_shape = INPUT_SHAPE),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Activation('relu'),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.Conv1D(196, kernel_size=15, strides=2, padding ='same'),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Activation('relu'),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.Conv1D(196, kernel_size=4, strides=2, padding ='same'),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Activation('relu'),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.GRU(units=128, return_sequences=True),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.GRU(units=128, return_sequences=True),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.8),
-    tf.keras.layers.TimeDistributed(
-        tf.keras.layers.Dense(1, activation='sigmoid'),
-        input_shape=(296,128)
-    )
+        self.final_dropout = tf.keras.layers.Dropout(0.8)
+        self.final_block = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(1, activation='sigmoid'),
+
+        input_shape=(296,self.seq_settings[-1]['n_units']))
+
+    def call(self, inputs, training=True):
+        output = self.conv_block(inputs)
+        output = self.seq_block(output)
+        output = self.final_dropout(output)
+        output = self.final_block(output)
+
+        return output
+
+
+
+
+# INPUT_SHAPE = (500,40)
+
+# seq2seq = tf.keras.models.Sequential([
+#     tf.keras.layers.Conv1D(196, kernel_size=15, strides=4, input_shape = INPUT_SHAPE),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.Activation('relu'),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.Conv1D(196, kernel_size=15, strides=2, padding ='same'),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.Activation('relu'),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.Conv1D(196, kernel_size=4, strides=2, padding ='same'),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.Activation('relu'),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.GRU(units=128, return_sequences=True),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.GRU(units=128, return_sequences=True),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.Dropout(0.8),
+#     tf.keras.layers.TimeDistributed(
+#         tf.keras.layers.Dense(1, activation='sigmoid'),
+#         input_shape=(296,128)
+#     )
      
-])
+# ])
