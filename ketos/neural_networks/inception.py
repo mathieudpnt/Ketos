@@ -42,7 +42,7 @@ class ConvBatchNormRelu(tf.keras.Model):
         super(ConvBatchNormRelu, self).__init__()
 
         self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(ch, kernel_size, strides=strides, padding=pa$
+            tf.keras.layers.Conv2D(ch, kernel_size, strides=strides, padding=padding),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.ReLU()
         ])
