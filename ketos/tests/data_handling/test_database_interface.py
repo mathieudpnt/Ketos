@@ -31,7 +31,7 @@ import tables
 import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
-from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram
+from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -142,6 +142,22 @@ def test_write_spec_TypeError(sine_audio):
        
     assert tbl.nrows == 0
     
+    h5file.close()
+    os.remove(fpath)
+
+@pytest.mark.test_write_spec
+def test_write_spec_cqt(sine_audio):
+    """Test if CQT spectrograms are written with appropriate encoding"""
+    # create cqt spectrogram    
+    spec = CQTSpectrogram(audio_signal=sine_audio, fmin=1, fmax=8000, winstep=0.1, bins_per_octave=32)
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
+    h5file = tables.open_file(fpath, 'w')
+    # create table
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
+    # write spectrogram to table
+    di.write_spec(table=tbl, spec=spec) 
+    assert int(tbl.attrs.freq_res) == -32
     h5file.close()
     os.remove(fpath)
 
@@ -371,6 +387,26 @@ def test_create_spec_database_with_default_args():
     specs = di.load_specs(tbl)
     assert len(specs) == 1
     assert specs[0].tres == 0.02
+
+    fil.close()
+
+def test_create_spec_database_with_cqt_specs():
+
+    output_file = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
+    input_dir = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, cqt=True, bins_per_octave=16)
+
+    path = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert specs[0].bins_per_octave == 16
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert specs[0].bins_per_octave == 16
 
     fil.close()
 
