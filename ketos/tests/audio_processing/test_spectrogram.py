@@ -622,6 +622,17 @@ def test_copy_mag_spectrogram(sine_audio):
     assert spec2.tmin == spec.tmin
     assert spec2.tres == spec.tres
 
+@pytest.mark.test_copy_cqt_spectrogram
+def test_copy_cqt_spectrogram():
+    img = np.zeros((101,31))
+    spec = CQTSpectrogram(image=img, fmin=14)
+    spec2 = spec.copy()
+    spec = None
+    assert spec2.image.shape[0] == 101
+    assert spec2.image.shape[1] == 31
+    assert spec2.fmin == 14
+    assert spec2.bins_per_octave == 32
+
 @pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_default_args():
     s1 = Spectrogram(image=np.ones((100,100)))
