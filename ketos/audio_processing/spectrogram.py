@@ -2606,7 +2606,7 @@ class CQTSpectrogram(Spectrogram):
         c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
         c = np.abs(c)
         if decibel:
-            c = 20 * np.log10(c)
+            c = to_decibel(c)
     
         image = np.swapaxes(c, 0, 1)
         
