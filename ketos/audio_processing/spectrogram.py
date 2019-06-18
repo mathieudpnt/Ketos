@@ -2543,7 +2543,7 @@ class CQTSpectrogram(Spectrogram):
                 Identifier, typically the name of the wave file used to generate the spectrogram.
                 If no tag is provided, the tag from the audio_signal will be used.
     """
-    def __init__(self, audio_signal=None, image=None, tres=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+    def __init__(self, audio_signal=None, image=np.zeros((2,2)), tres=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
         if fmin is None:
@@ -2621,7 +2621,7 @@ class CQTSpectrogram(Spectrogram):
                 spec: CQTSpectrogram
                     Spectrogram copy.
         """
-        spec = super(CQTSpectrogram, self).copy()
+        spec = super().copy()
         spec.bins_per_octave = self.bins_per_octave
         return spec
 
