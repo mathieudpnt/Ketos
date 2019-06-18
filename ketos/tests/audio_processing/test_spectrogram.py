@@ -501,11 +501,49 @@ def test_stretch():
     min_length = 2.0
     boxes = [box1, box2]
     spec = Spectrogram()
-    spec.annotate(labels=[1,2], boxes=[box1,box2])
+    spec.annotate(labels=[1,2], boxes=boxes)
     boxes = spec._stretch(boxes=boxes, min_length=min_length)
     assert len(boxes) == 2
     assert boxes[0][1]-boxes[0][0] == pytest.approx(min_length, abs=0.0001)
     assert boxes[1][1]-boxes[1][0] > min_length
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=False)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_center():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(0.9, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_special_case():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.2
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 6
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(1.0, abs=0.0001)
 
 @pytest.mark.test_select_boxes
 def test_select_boxes():

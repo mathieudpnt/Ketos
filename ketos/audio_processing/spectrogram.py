@@ -1181,7 +1181,7 @@ class Spectrogram(AnnotationHandler):
         if make_copy:
             return spec
 
-    def extract(self, label, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
+    def extract(self, label, length=None, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, the present instance contains the 
@@ -1192,6 +1192,9 @@ class Spectrogram(AnnotationHandler):
             Args:
                 label: int
                     Annotation label of interest. 
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
                 min_length: float
                     If necessary, extend the annotation boxes so that all extracted 
                     segments have a duration of at least min_length (in seconds) or 
@@ -1250,7 +1253,11 @@ class Spectrogram(AnnotationHandler):
         boi, idx = s._select_boxes(label)
 
         # stretch to achieve minimum length, if necessary
-        boi = s._stretch(boxes=boi, min_length=min_length, center=center)
+        if length is not None:  
+            print('hey')
+            boi = s._ensure_box_length(boxes=boi, length=length, center=center)
+        elif min_length is not None:
+            boi = s._stretch(boxes=boi, min_length=min_length, center=center)
 
         # convert to bin numbers        
         for b in boi:
@@ -1430,6 +1437,61 @@ class Spectrogram(AnnotationHandler):
             b[0] = t1
             b[1] = t2
             res.append(b)
+
+        return res
+
+    def _ensure_box_length(self, boxes, length, center=False):
+        """ Extend or divide the annotation boxes as necessary to ensure that all 
+            extracted segments have the same length.
+
+            Args:
+                boxes: list
+                    Input boxes
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
+                center: bool
+                    If True, the box is stretched/divided symmetrically in backward/forward time direction.
+                    If false, the distribution is random.
+
+            Returns:
+                res: list
+                    Same length boxes
+        """ 
+        epsilon = 1e-6
+
+        res = list()
+        for b in boxes:
+            b = b.copy()
+            t1 = b[0]
+            t2 = b[1]
+            dt = length - (t2 - t1)
+
+            if dt > 0:
+                b = self._stretch([b], min_length=length, center=center)[0]
+                res.append(b)
+
+            elif dt < 0:
+
+                diff = np.ceil((t2-t1)/length)*length - (t2-t1)
+                if abs(diff) > epsilon:
+                    if center:
+                        r = 0.5
+                    else:
+                        r = np.random.random_sample()
+                    diff *= r
+                else:
+                    diff = 0
+
+                t1_i = t1 - diff
+                t2_i = t1_i + length
+                while t1_i < t2 - epsilon:
+                    b_i = b.copy()
+                    b_i[0] = t1_i
+                    b_i[1] = t2_i
+                    res.append(b_i)
+                    t1_i += length
+                    t2_i += length
 
         return res
 
