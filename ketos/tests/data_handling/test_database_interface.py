@@ -150,6 +150,8 @@ def test_write_spec_cqt(sine_audio):
     """Test if CQT spectrograms are written with appropriate encoding"""
     # create cqt spectrogram    
     spec = CQTSpectrogram(audio_signal=sine_audio, fmin=1, fmax=8000, winstep=0.1, bins_per_octave=32)
+    # add annotation
+    spec.annotate(labels=(1,2), boxes=((1,2,300,400),(1.5,2.5,300.5,400.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
     h5file = tables.open_file(fpath, 'w')
@@ -157,7 +159,16 @@ def test_write_spec_cqt(sine_audio):
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
     di.write_spec(table=tbl, spec=spec) 
+    h5file.close()
+    # re-open
+    h5file = tables.open_file(fpath, 'r')
+    tbl = h5file.get_node("/group_1/table_1")
+    # check
     assert int(tbl.attrs.freq_res) == -32
+    assert tbl.nrows == 1
+    assert tbl[0]['labels'].decode() == '[1,2]'
+    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,300.0,400.0],[1.5,2.5,300.5,400.5]]'
+    # clean
     h5file.close()
     os.remove(fpath)
 
