@@ -460,7 +460,7 @@ def load_specs(table, index_list=None):
 
     return res
 
-def extract(table, label, min_length=None, center=False, fpad=True, keep_time=False):
+def extract(table, label, length=None, min_length=None, center=False, fpad=True, keep_time=False):
     """ Create new spectrograms by croping segments annotated with the specified label.
 
         Filter the table by the specified label. In each of the selected spectrograms,
@@ -478,6 +478,9 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
                 The table containing the spectrograms.
             label: int
                 The label
+            length: float
+                Extend or divide the annotation boxes as necessary to ensure that all 
+                extracted segments have the specified length (in seconds).  
             min_length: float
                 Minimum duration (in seconds) the of extracted segments.
             center: bool
@@ -549,7 +552,7 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
     for spec in items:
 
         # extract segments of interest
-        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
+        segs = spec.extract(label=label, length=length, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
         extracted = extracted + segs
 
         # collect
