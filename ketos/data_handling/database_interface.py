@@ -36,7 +36,7 @@ import math
 import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
+from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
 from tqdm import tqdm
 from sys import getsizeof
@@ -233,6 +233,13 @@ def write_spec(table, spec, id=None):
         Note: If the id field is left blank, it 
         will be replaced with the tag attribute.
 
+        Note: If the spectrogram is a CQT spectrogram, the number of 
+        bins per octave is encoded as a negative float in the  
+        table attribute 'freq_res'. The sign of this attribute is 
+        used to distinguish between ordinary and CQT spectrograms 
+        when spectrograms are loaded from a table. (See load_tables 
+        method.)
+
         Args:
             table: tables.Table
                 Table in which the spectrogram will be stored
@@ -286,8 +293,12 @@ def write_spec(table, spec, id=None):
         raise TypeError("spec must be an instance of Spectrogram")      
 
     table.attrs.time_res = spec.tres
-    table.attrs.freq_res = spec.fres
     table.attrs.freq_min = spec.fmin
+
+    if isinstance(spec, CQTSpectrogram):
+        table.attrs.freq_res = -spec.bins_per_octave  # encode bins_per_octave as a negative float
+    else:
+        table.attrs.freq_res = spec.fres
 
     if id is None:
         id_str = ''
@@ -436,8 +447,11 @@ def load_specs(table, index_list=None):
         # get the spectrogram data
         data = it['data']
 
-        # create audio signal or spectrogram object
-        x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
+        # create spectrogram object
+        if table.attrs.freq_res >= 0:
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
+        else:
+            x = CQTSpectrogram(image=data, winstep=table.attrs.time_res, bins_per_octave=int(-table.attrs.freq_res), fmin=table.attrs.freq_min, tag='')
 
         # annotate
         #import pdb; pdb.set_trace()
@@ -658,7 +672,8 @@ def parse_boxes(boxes):
 
 def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, **kwargs):
+        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
+        bins_per_octave=32, **kwargs):
     """ Create a database with spectrograms computed from raw audio (*.wav) files
 
         One spectrogram is created for each audio file.
@@ -710,6 +725,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 Option to display progress bar.
             verbose: bool
                 Print relevant information during execution such as files written to disk
+            cqt: bool
+                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
+                spectrogram.
+            bins_per_octave: int
+                Number of bins per octave. Only applicable if cqt is True.
 
             Example:
 
@@ -794,7 +814,10 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 seg.resample(new_rate=sampling_rate) 
 
             # compute the spectrogram
-            s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
+            if not cqt:
+                s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
+            else:
+                s = CQTSpectrogram(audio_signal=seg, winstep=step_size, fmin=flow, fmax=fhigh, bins_per_octave=bins_per_octave, decibel=True)
 
             # crop frequencies
             s.crop(flow=flow, fhigh=fhigh) 

@@ -85,7 +85,7 @@ def ensure_same_length(specs, pad=False):
         Example:
 
         >>> from ketos.audio_processing.audio import AudioSignal
-        >>>
+        >>>Spectrogram(
         >>> # Create two audio signals with different lengths
         >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
         >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
@@ -2600,6 +2600,8 @@ class CQTSpectrogram(Spectrogram):
         Args:
             signal: AudioSignal
                 And instance of the :class:`audio_signal.AudioSignal` class 
+            image: 2d numpy array
+                Spectrogram image. Only applicable if signal is None.
             fmin: float
                 Minimum frequency in Hz
             fmax: float
@@ -2618,8 +2620,11 @@ class CQTSpectrogram(Spectrogram):
                 Identifier, typically the name of the wave file used to generate the spectrogram.
                 If no tag is provided, the tag from the audio_signal will be used.
     """
-    def __init__(self, audio_signal=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+    def __init__(self, audio_signal=None, image=None, tres=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+
+        if fmin is None:
+            fmin = 1
 
         super(CQTSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
         self.fmin = fmin
@@ -2632,7 +2637,12 @@ class CQTSpectrogram(Spectrogram):
             if tag is '':
                 tag = audio_signal.tag
 
+        else:
+            self.image = image
+            self.tres = winstep
+
         self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
 
     def make_cqt_spec(self, audio_signal, fmin, fmax, winstep, bins_per_octave, decibel):
         """ Create CQT spectrogram from audio signal
@@ -2667,7 +2677,7 @@ class CQTSpectrogram(Spectrogram):
         fbins = x * b
 
         h = int(audio_signal.rate * winstep)
-        k = int(np.ceil(h/h0))
+        k = int(np.ceil(h / h0))
         h = int(k * h0)
 
         c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
@@ -2677,7 +2687,7 @@ class CQTSpectrogram(Spectrogram):
     
         image = np.swapaxes(c, 0, 1)
         
-        tres = h/audio_signal.rate
+        tres = h / audio_signal.rate
 
         return image, tres
 
