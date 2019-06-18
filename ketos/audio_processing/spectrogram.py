@@ -1253,7 +1253,6 @@ class Spectrogram(AnnotationHandler):
 
         # stretch to achieve minimum length, if necessary
         if length is not None:  
-            print('hey')
             boi = s._ensure_box_length(boxes=boi, length=length, center=center)
         elif min_length is not None:
             boi = s._stretch(boxes=boi, min_length=min_length, center=center)
