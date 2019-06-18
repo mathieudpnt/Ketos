@@ -2636,6 +2636,9 @@ class CQTSpectrogram(Spectrogram):
             if tag is '':
                 tag = audio_signal.tag
 
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
+
         else:
             self.image = image
             self.tres = winstep

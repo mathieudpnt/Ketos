@@ -460,8 +460,24 @@ def test_create_spec_database_with_annotations():
     # create database
     di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile)
 
-    path = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
-    fil = tables.open_file(path, 'r')
+    fil = tables.open_file(output_file, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert len(specs[0].labels) == 1
+    assert specs[0].labels[0] == 1
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert len(specs[0].labels) == 0
+
+    fil.close()
+
+    # create database with cqt specs
+    output_file = os.path.join(path_to_assets, 'tmp/db3_spec_cqt.h5')
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile, cqt=True)
+
+    fil = tables.open_file(output_file, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
