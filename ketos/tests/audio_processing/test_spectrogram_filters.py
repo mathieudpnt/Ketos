@@ -37,11 +37,11 @@ import matplotlib.pyplot  as plt
 def test_FAV_filter():
     spec = MagSpectrogram()
     spec.image = np.ones(shape=(100,100))
-    spec.image[::10,:] = 3
+    spec.image[:,::10] = 3
     f = filters.FAVFilter()
     f.apply(spec)
-    assert np.all(spec.image[::10,:] == 8)
-    assert np.all(spec.image[1,:] == 0)
+    assert np.all(spec.image[:,::10] == 8)
+    assert np.all(spec.image[:,1] == 0)
 
 def test_harmonic_filter():
     spec = MagSpectrogram()

@@ -63,7 +63,7 @@ class FAVFilter():
                 spec: Spectrogram
                     Spectrogram to which filter will be applied 
         """
-        spec.image = np.abs(np.power(np.diff(spec.image, axis=0), 3))
+        spec.image = np.abs(np.power(np.diff(spec.image, axis=1), 3))
 
 
 class HarmonicFilter():
