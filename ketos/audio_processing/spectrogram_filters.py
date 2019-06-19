@@ -44,6 +44,28 @@ from ketos.audio_processing.spectrogram import Spectrogram
 from ketos.utils import nearest_values
 
 
+class FAVFilter():
+    """ Computes the Frequency Amplitude Variation (FAV) spectrum
+
+        Attributes:
+            name: str
+                Filter name
+    """
+
+    def __init__(self):
+
+        self.name = "FAV"
+
+    def apply(self, spec):
+        """ Apply FAV filter to spectrogram
+
+            Args:
+                spec: Spectrogram
+                    Spectrogram to which filter will be applied 
+        """
+        spec.image = np.abs(np.power(np.diff(spec.image, axis=0), 3))
+
+
 class HarmonicFilter():
     """ Performs Fast Fourier Transform (FFT) of the frequency axis.
 
