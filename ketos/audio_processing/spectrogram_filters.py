@@ -44,6 +44,81 @@ from ketos.audio_processing.spectrogram import Spectrogram
 from ketos.utils import nearest_values
 
 
+
+class FAVThresholdFilter():
+    """ Modified Frequency Amplitude Variation (FAV) filter 
+        combined with thresholding operation.
+
+        Args:
+            threshold: float
+                Peak detection threshold 
+            winlen: int
+                Length of smoothing window
+        
+        Attributes:
+            threshold: float
+                Peak detection threshold, in units of std. dev.
+            winlen: int
+                Length of smoothing window
+            name: str
+                Filter name
+            std: numpy array
+                Standard deviation of the smoothened spectrum 
+    """
+
+    def __init__(self, threshold=3.0, winlen=7):
+
+        self.threshold = threshold
+        self.winlen = winlen
+        self.name = "FAV"
+        self.std = None
+        self.FAV = FAVFilter(winlen)
+
+    def apply(self, spec):
+        """ Apply FAV filter to spectrogram
+
+            Args:
+                spec: Spectrogram
+                    Spectrogram to which filter will be applied 
+        """
+        f = self.FAV
+        N = self.winlen
+        orig = spec.copy()
+
+        # apply FAV filter
+        f.apply(spec)
+
+        z = np.empty((spec.image.shape[0],2))
+
+        # loop over 1st dimension
+        m = spec.image.shape[0]
+        for i in range(m):
+            x = spec.image[i]
+
+            # thresholding operation
+            y = x * (x > self.threshold * f.std[i])
+
+            # find peaks
+            y1 = np.r_[y[1:], 0]
+            y2 = np.r_[0, y[:-1]]
+            peaks = np.argwhere(np.logical_and(y > y1, y > y2))
+            peaks = np.squeeze(peaks)
+            if np.ndim(peaks) == 0:
+                peaks = np.array([peaks])
+
+            # number of peaks and summed strength
+            num_peaks = len(peaks)
+            sum_strengths = 0
+            for p in peaks:
+                sum_strengths += np.max(orig.image[i,p:p+int(N/2)])
+
+            z[i,0] = num_peaks
+            z[i,1] = sum_strengths / max(1, num_peaks) / 100.                                   
+
+        spec.image = z
+        spec.flabels = ['num_peaks', 'avg_peak_strength']
+
+
 class FAVFilter():
     """ Modified Frequency Amplitude Variation (FAV) filter.
 
@@ -123,9 +198,7 @@ class FAVFilter():
             L = int(N/2)
         else:
             L = 1
-
-        y = np.copy(x)
-        y = -y[:, L:]
+        y = -x[:, L:]
         y = np.concatenate((y,np.zeros((y.shape[0],L))), axis=1)
         x = x * y
         x = x * (x > 0)
