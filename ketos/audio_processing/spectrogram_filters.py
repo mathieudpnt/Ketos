@@ -53,7 +53,13 @@ class FAVFilter():
         Second, the difference between neighboring bins is computed, 
         also along the frequency axis, and raised to the 3rd power.        
 
+        Args:
+            winlen: int
+                Length of smoothing window
+        
         Attributes:
+            winlen: int
+                Length of smoothing window
             name: str
                 Filter name
             std: numpy array
