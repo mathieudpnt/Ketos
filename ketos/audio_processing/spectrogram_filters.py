@@ -45,13 +45,18 @@ from ketos.utils import nearest_values
 
 
 class FAVFilter():
-    """ Computes the Frequency Amplitude Variation (FAV) signature.
+    """ Modified Frequency Amplitude Variation (FAV) filter.
 
         First, the spectrogram is smoothened along the frequency axis 
-        using a Blackman filter with a window length of 7, i.e.
+        using a Blackman filter with a window length of 7.
     
         Second, the difference between neighboring bins is computed, 
         also along the frequency axis, and raised to the 3rd power.        
+
+        Third, the spectrum is shifted by 3 bins, inverted, and 
+        multiplied by itself. 
+
+        Finally, only positive values are retained.
 
         Args:
             winlen: int
@@ -111,7 +116,19 @@ class FAVFilter():
         self.std = np.std(x, axis=1)
 
         # difference to power of 3
-        x = np.abs(np.power(np.diff(x, axis=1), 3))
+        x = np.power(np.diff(x, axis=1), 3)
+
+        # shift, invert and multiply by itself
+        if N > 1:
+            L = int(N/2)
+        else:
+            L = 1
+
+        y = np.copy(x)
+        y = -y[:, L:]
+        y = np.concatenate((y,np.zeros((y.shape[0],L))), axis=1)
+        x = x * y
+        x = x * (x > 0)
 
         spec.image = x
 

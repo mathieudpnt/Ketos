@@ -37,19 +37,20 @@ import matplotlib.pyplot  as plt
 def test_FAV_filter():
     spec = MagSpectrogram()
     spec.image = np.ones(shape=(100,100))
-    spec.image[:,::10] = 3
+    spec.image[:,::10] = 10
     f = filters.FAVFilter(winlen=1)
     f.apply(spec)
-    assert np.all(spec.image[:,::10] == 8)
-    assert np.all(spec.image[:,1] == 0)
+    assert np.all(spec.image[:,9] == 531441)
+    assert np.all(spec.image[:,19] == 531441)
 
 def test_FAV_filter_w_smoothing():
     spec = MagSpectrogram()
     spec.image = np.ones(shape=(100,100))
-    spec.image[:,::10] = 3
-    f = filters.FAVFilter()
+    spec.image[:,::20] = 100
+    f = filters.FAVFilter(winlen=5)
     f.apply(spec)
-    assert np.all(spec.image[:,::10] == pytest.approx(0.02532174, abs=0.000001))
+    assert np.all(spec.image[:,19] == pytest.approx(4.7318e8, abs=0.001e8))
+    assert np.all(spec.image[:,39] == pytest.approx(4.7318e8, abs=0.001e8))
 
 def test_harmonic_filter():
     spec = MagSpectrogram()
