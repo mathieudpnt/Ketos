@@ -82,6 +82,9 @@ class FAVFilter():
         x = spec.image
         N = self.winlen
 
+        assert x.ndim == 2, "FAVFilter.apply only accepts 2 dimensional arrays."
+        assert x.shape[1] >= N, "Frequency axis must be longer than window size."
+
         if N > 1:        
             # pad with reflected copies
             x = np.swapaxes(x,0,1)
