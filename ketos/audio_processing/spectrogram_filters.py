@@ -45,16 +45,26 @@ from ketos.utils import nearest_values
 
 
 class FAVFilter():
-    """ Computes the Frequency Amplitude Variation (FAV) spectrum
+    """ Computes the Frequency Amplitude Variation (FAV) signature.
+
+        First, the spectrogram is smoothened along the frequency axis 
+        using a Blackman filter with a window length of 7, i.e.
+    
+        Second, the difference between neighboring bins is computed, 
+        also along the frequency axis, and raised to the 3rd power.        
 
         Attributes:
             name: str
                 Filter name
+            std: numpy array
+                Standard deviation of the smoothened spectrum 
     """
 
-    def __init__(self):
+    def __init__(self, winlen=7):
 
+        self.winlen = winlen
         self.name = "FAV"
+        self.std = None
 
     def apply(self, spec):
         """ Apply FAV filter to spectrogram
@@ -63,7 +73,38 @@ class FAVFilter():
                 spec: Spectrogram
                     Spectrogram to which filter will be applied 
         """
-        spec.image = np.abs(np.power(np.diff(spec.image, axis=1), 3))
+        x = spec.image
+        N = self.winlen
+
+        if N > 1:        
+            # pad with reflected copies
+            x = np.swapaxes(x,0,1)
+            s = np.r_[x[N-1:0:-1], x, x[-2:-N-1:-1]]  
+            x = np.swapaxes(x,0,1)        
+            s = np.swapaxes(s,0,1)
+
+            # blackman averaging filter
+            w = np.blackman(N)
+
+            # convolution
+            K = x.shape[0]
+            M = x.shape[1]
+            y = np.empty((K,M+N-1))
+            for i in range(s.shape[0]):
+                y[i] = np.convolve(w/w.sum(), s[i], mode='valid')
+
+            # remove ends
+            k1 = int(N/2)
+            k2 = -k1 + 2 - N%2
+            x = y[:,k1:k2]
+
+        # compute standard deviation
+        self.std = np.std(x, axis=1)
+
+        # difference to power of 3
+        x = np.abs(np.power(np.diff(x, axis=1), 3))
+
+        spec.image = x
 
 
 class HarmonicFilter():
