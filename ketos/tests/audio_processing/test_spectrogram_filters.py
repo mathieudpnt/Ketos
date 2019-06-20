@@ -34,6 +34,24 @@ import ketos.audio_processing.spectrogram_filters as filters
 from ketos.data_handling.parsing import Interval
 import matplotlib.pyplot  as plt
 
+def test_FAV_threshold_filter():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::10] = 10
+    f = filters.FAVThresholdFilter(threshold=3.0, winlen=1)
+    f.apply(spec)
+    assert np.all(spec.image[:,0] == 9)
+    assert np.all(spec.image[:,1] == 0.1)
+
+def test_FAV_threshold_filter_w_winlen():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::10] = 10
+    f = filters.FAVThresholdFilter(threshold=0.1, winlen=9)
+    f.apply(spec)
+    assert np.all(spec.image[:,0] == 9)
+    assert np.all(spec.image[:,1] == 0.1)
+
 def test_FAV_filter():
     spec = MagSpectrogram()
     spec.image = np.ones(shape=(100,100))

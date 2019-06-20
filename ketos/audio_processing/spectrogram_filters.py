@@ -101,37 +101,42 @@ class FAVThresholdFilter():
             # find peaks
             y1 = np.r_[y[1:], 0]
             y2 = np.r_[0, y[:-1]]
-            peaks = np.argwhere(np.logical_and(y > y1, y > y2))
+            peaks = np.argwhere(np.logical_and(y > y1, y >= y2))
             peaks = np.squeeze(peaks)
             if np.ndim(peaks) == 0:
                 peaks = np.array([peaks])
 
-            # number of peaks and summed strength
+            # number of peaks and max strength
             num_peaks = len(peaks)
-            sum_strengths = 0
-            for p in peaks:
-                sum_strengths += np.max(orig.image[i,p:p+int(N/2)])
+            max_strength = 0
+            for p1 in peaks:
+                p2 = p1 + max(2, int(N/2))
+                max_strength = max(max_strength, np.max(orig.image[i,p1:p2]))
 
             z[i,0] = num_peaks
-            z[i,1] = sum_strengths / max(1, num_peaks) / 100.                                   
+            z[i,1] = max_strength / 100.                                   
 
         spec.image = z
-        spec.flabels = ['num_peaks', 'avg_peak_strength']
+        spec.flabels = ['num_peaks', 'max_peak_strength']
 
 
 class FAVFilter():
     """ Modified Frequency Amplitude Variation (FAV) filter.
 
         First, the spectrogram is smoothened along the frequency axis 
-        using a Blackman filter with a window length of 7.
+        using a Blackman filter.
     
         Second, the difference between neighboring bins is computed, 
         also along the frequency axis, and raised to the 3rd power.        
 
-        Third, the spectrum is shifted by 3 bins, inverted, and 
-        multiplied by itself. 
+        Third, the resulting matric is shifted by 3 bins, along the 
+        frequency axis, inverted, and multiplied with the unshifted matrix. 
 
         Finally, only positive values are retained.
+
+        The result of this set of operations is to emphasize narrow 
+        peaks in the frequency spectrum. (Here narrow implies narrower than 
+        roughly half of the Blackman filter.)
 
         Args:
             winlen: int
@@ -161,8 +166,9 @@ class FAVFilter():
         """
         x = spec.image
         N = self.winlen
+        D = x.ndim
 
-        assert x.ndim == 2, "FAVFilter.apply only accepts 2 dimensional arrays."
+        assert D == 2, "FAVFilter.apply only accepts 2 dimensional arrays."
         assert x.shape[1] > N, "Frequency axis must be longer than window size."
 
         if N > 1:        
