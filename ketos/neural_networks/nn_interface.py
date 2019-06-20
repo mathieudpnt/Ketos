@@ -14,4 +14,19 @@ class NNInterface():
         self.val_loss = tf.keras.metrics.Mean(name='val_loss')
         self.val_accuracy = tf.keras.metrics.BinaryAccuracy(name='val_accuracy')
 
-   
+    @tf.function
+    def train_step(input, label):
+    with tf.GradientTape() as tape:
+        predictions = self.neural_network(input)
+        loss = self.loss_object(label, predictions)
+    gradients = tape.gradient(loss, self.neural_network.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, self.neural_network.trainable_variables))
+
+    self.train_loss(loss)
+    self.train_accuracy(label, predictions)
+    
+
+    
+
+    
+
