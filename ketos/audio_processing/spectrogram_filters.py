@@ -83,7 +83,7 @@ class FAVFilter():
         N = self.winlen
 
         assert x.ndim == 2, "FAVFilter.apply only accepts 2 dimensional arrays."
-        assert x.shape[1] >= N, "Frequency axis must be longer than window size."
+        assert x.shape[1] > N, "Frequency axis must be longer than window size."
 
         if N > 1:        
             # pad with reflected copies
