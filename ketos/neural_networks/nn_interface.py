@@ -26,7 +26,13 @@ class NNInterface():
     self.train_accuracy(label, predictions)
     
 
-    
+    @tf.function
+    def val_step(input, label):
+        predictions = self.neural_network(input)
+        t_loss = self.loss_object(label, predictions)
+
+        self.val_loss(t_loss)
+        self.val_accuracy(label, predictions)
 
     
 
