@@ -123,6 +123,10 @@ class FAVThresholdFilter():
 class FAVFilter():
     """ Modified Frequency Amplitude Variation (FAV) filter.
 
+        Algorithm based on Reis et al. "Automatic Detection of Vessel 
+        Signatures in Audio Recordings with Spectral Amplitude Variation 
+        Signature" (2019).
+
         First, the spectrogram is smoothened along the frequency axis 
         using a Blackman filter.
     
