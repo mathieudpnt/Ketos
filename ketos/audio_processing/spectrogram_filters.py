@@ -32,6 +32,8 @@
     attribute name and the method apply. 
 
     Contents:
+        FAVThresholdFilter class
+        FAVFilter class
         HarmonicFilter class
         FrequencyFilter class
         WindowFilter class
@@ -133,7 +135,7 @@ class FAVFilter():
         Second, the difference between neighboring bins is computed, 
         also along the frequency axis, and raised to the 3rd power.        
 
-        Third, the resulting matric is shifted by 3 bins, along the 
+        Third, the resulting matrix is shifted by 3 bins, along the 
         frequency axis, inverted, and multiplied with the unshifted matrix. 
 
         Finally, only positive values are retained.
