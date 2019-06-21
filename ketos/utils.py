@@ -396,7 +396,10 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
     for column in df:
         x = df[column]
         m = np.median(np.abs(x - np.median(x)))
-        min_prominence = m * prominence
+        if prominence > 0:
+            min_prominence = m * prominence
+        else:
+            min_prominence = None
         positions, _ = find_peaks(x, height=height, threshold=threshold, distance=distance, prominence=(min_prominence,None))
         y = np.zeros(len(x))
         y[positions] = 1
