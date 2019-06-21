@@ -75,7 +75,7 @@ class FAVThresholdFilter():
         self.FAV = FAVFilter(winlen)
 
     def apply(self, spec):
-        """ Apply FAV filter to spectrogram
+        """ Apply FAV thresholding filter to spectrogram
 
             Args:
                 spec: Spectrogram
