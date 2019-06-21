@@ -2508,25 +2508,50 @@ class MelSpectrogram(Spectrogram):
 
 
 class CQTSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram computed from Constant Q Transform (CQT).
-
-        The time axis (0th axis) is characterized by a 
-        starting value, tmin, and a resolution, tres.
-
-        The frequency axis (1st axis) is characterized by a starting value, fmin, 
-        a maximum value, fmax, and the number of bins per octave, 
-        bins_per_octave.
-        The number of octaves is computed as 
-
-            num_octaves = int(np.ceil(np.log2(fmax/fmin)))
-
-        For example, with fmin=10 and fmax=16000 one obtains 
-        num_octaves=11.
-        The step size ...
-
-        Uses the librosa implementation:
+    """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
             https://librosa.github.io/librosa/generated/librosa.core.cqt.html
+
+        The time axis (0th axis) is characterized by a 
+        starting value, :math:`t_{min}`, and a bin size, :math:`t_{res}`, while the 
+        frequency axis (1st axis) is characterized by a starting value, :math:`f_{min}`, 
+        a maximum value, :math:`f_{max}`, and the number of bins per octave, 
+        :math:`m`.
+        The parameters :math:`t_{min}`, :math:`f_{min}`, :math:`m` are specified via the arguments 
+        `tmin`, `fmin`, `bins_per_octave`. The parameters :math:`t_{res}` and :math:`f_{max}`, on the other hand, 
+        are computed as detailed below, attempting to match the arguments `winstep` and `fmax` as closely as possible.
+
+        The total number of bins is given by :math:`n = k \cdot m` where :math:`k` denotes 
+        the number of octaves, computed as 
+
+        .. math::
+            k = ceil(log_{2}[f_{max}/f_{min}])
+
+        For example, with :math:`f_{min}=10`, :math:`f_{max}=16000`, and :math:`m = 32` the number 
+        of octaves is :math:`k = 11` and the total number of bins is :math:`n = 352`.  
+        The frequency of a given bin, :math:`i`, is given by 
+
+        .. math:: 
+            f_{i} = 2^{i / m} \cdot f_{min}
+
+        This implies that the maximum frequency is given by :math:`f_{max} = f_{n-1} = 2^{(n-1)/m} \cdot f_{min}`.
+        For the above example, we find :math:`f_{max} \sim 20041` Hz, i.e., somewhat larger than the requested maximum value.
+
+        The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
+        To ensure that this is the case, the step size is computed as follows,
+
+        .. math::
+            h = ceil(r \cdot w / 2^k ) \cdot 2^k
+
+        where :math:`r` is the sampling rate in Hz, and :math:`w` is the step size 
+        in seconds as specified via the argument `winstep`.
+        For example, assuming a sampling rate of 32 kHz (:math:`r = 32000`) and a step 
+        size of 0.02 seconds (:math:`w = 0.02`) and adopting the same frequency limits as 
+        above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
+        step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
+        to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
+        as the requested step size.
+
     
         Args:
             signal: AudioSignal
@@ -2551,7 +2576,7 @@ class CQTSpectrogram(Spectrogram):
                 Identifier, typically the name of the wave file used to generate the spectrogram.
                 If no tag is provided, the tag from the audio_signal will be used.
     """
-    def __init__(self, audio_signal=None, image=np.zeros((2,2)), tres=None, fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+    def __init__(self, audio_signal=None, image=np.zeros((2,2)), fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 
         if fmin is None:
@@ -2610,7 +2635,7 @@ class CQTSpectrogram(Spectrogram):
         b = bins_per_octave
         fbins = x * b
 
-        h = int(audio_signal.rate * winstep)
+        h = audio_signal.rate * winstep
         k = int(np.ceil(h / h0))
         h = int(k * h0)
 
