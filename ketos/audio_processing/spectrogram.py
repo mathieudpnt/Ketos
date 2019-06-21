@@ -2513,8 +2513,21 @@ class CQTSpectrogram(Spectrogram):
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
         
-        Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and bins_per_octave).
+        The time axis is characterized by a starting value, tmin, 
+        and a resolution, tres.
+
+        The frequency axis is characterized by a starting value, fmin, 
+        a maximum value, fmax, and the number of bins per octave, 
+        bins_per_octave.
+
+        The number of octaves is computed as 
+
+            num_octaves = int(np.ceil(np.log2(fmax/fmin)))
+
+        For example, with fmin=10 and fmax=16000 one obtains 
+        num_octaves=11.
+
+        The step size ...
 
         Uses the librosa implementation:
 
