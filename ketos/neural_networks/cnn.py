@@ -176,6 +176,7 @@ class BasicCNN(DataHandler):
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
+        self.is_train = tf_nodes['is_train']
 
         if reset:
             self.reset()
@@ -243,6 +244,7 @@ class BasicCNN(DataHandler):
         keep_prob = graph.get_tensor_by_name("keep_prob:0")        
         learning_rate = graph.get_tensor_by_name("learning_rate:0")      
         class_weights = graph.get_tensor_by_name("class_weights:0")  
+        is_train = graph.get_tensor_by_name("is_train:0")  
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -263,13 +265,16 @@ class BasicCNN(DataHandler):
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
                 'class_weights': class_weights,
+                'is_train': is_train,
                 }
 
         self.set_tf_nodes(tf_nodes=tf_nodes, reset=reset)
 
         return tf_nodes
 
-    def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512]):
+    def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]),\
+            ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512],\
+            batch_norm = False):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -290,6 +295,8 @@ class BasicCNN(DataHandler):
                     Each item in the list represents a convolutional layer.
                 dense_size: list(int)
                     Sizes of the fully connected layers preceeding the output layer.
+                batch_norm: bool
+                    Add batch normalization layers
 
             Returns:
                 tf_nodes: dict
@@ -328,6 +335,8 @@ class BasicCNN(DataHandler):
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
 
+        is_train = tf.placeholder_with_default(False, (), 'is_train')
+
         x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1]], name="x")
         x_shaped = tf.reshape(x, [-1, input_shape[0], input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, num_labels], name="y")
@@ -341,6 +350,13 @@ class BasicCNN(DataHandler):
         # dense layers including output layer
         dense_size.append(num_labels)
 
+        # batch normalisation on input
+        if batch_norm:
+            x_shaped = tf.layers.batch_normalization(x_shaped, training=is_train, momentum=0.99)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                x_shaped = tf.identity(x_shaped) # this ensures that moving average and variance are computed automatically (in training mode)
+    
         # create convolutional layers
         conv_layers = [x_shaped]
         N = len(params)
@@ -354,7 +370,7 @@ class BasicCNN(DataHandler):
             filter_shape = params[i].filter_shape
             name = params[i].name
             # create new layer
-            l = self._create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
+            l = self._create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name, batch_norm, is_train)
             conv_layers.append(l)
             # collect info
             dim = l.shape[1] * l.shape[2] * l.shape[3]
@@ -445,13 +461,14 @@ class BasicCNN(DataHandler):
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
                 'class_weights': y_,
+                'is_train': is_train
                 }
 
         self.set_tf_nodes(tf_nodes)
 
         return tf_nodes
         
-    def _create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
+    def _create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name, batch_norm, is_train):
         """Create a convolutional layer.
 
             Args:
@@ -469,6 +486,10 @@ class BasicCNN(DataHandler):
                     Example: [2,8]
                 name: str
                     Name by which the layer will be identified in the graph.
+                batch_norm: bool
+                    Add batch normalization layer
+                is_train: tensorflow bool tensor
+                    Boolean variables indicating if network is being trained or used for prediction
 
             Returns:
                 out_layer: tensorflow layer
@@ -490,6 +511,13 @@ class BasicCNN(DataHandler):
 
         # apply a ReLU non-linear activation
         out_layer = tf.nn.relu(out_layer)
+
+        # apply batch normalization 
+        if batch_norm:
+            out_layer = tf.layers.batch_normalization(out_layer, training=is_train, momentum=0.99)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                out_layer = tf.identity(out_layer)
 
         # now perform max pooling
         # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
@@ -631,9 +659,11 @@ class BasicCNN(DataHandler):
                 else:
                     x_i, y_i = next(train_batch_gen)
                 x_i = self._reshape_x(x_i)
+
+                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
-                _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
+                _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob, self.is_train: True})
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
