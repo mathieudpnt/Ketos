@@ -660,7 +660,6 @@ class BasicCNN(DataHandler):
                     x_i, y_i = next(train_batch_gen)
                 x_i = self._reshape_x(x_i)
 
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
                 _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob, self.is_train: True})
