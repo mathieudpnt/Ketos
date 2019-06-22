@@ -387,9 +387,6 @@ def check_data_sanity(images, labels):
                 File "ketos/data_handling/data_handling.py", line 599, in check_data_sanity
                     raise ValueError("Image and label columns have different lengths")
             ValueError: Image and label columns have different lengths
-
-
-
     """
     checks = True
     if images is None or labels is None:

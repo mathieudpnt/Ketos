@@ -34,6 +34,7 @@
 """
 import numpy as np
 import pandas as pd
+import librosa
 import scipy.io.wavfile as wave
 import scipy.ndimage as ndimage
 import scipy.stats as stats
@@ -568,3 +569,96 @@ def enhance_image(img, a=1, b=1):
     scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
     enhanced_img = img * scaling
     return enhanced_img
+
+
+def inv_magphase(mag, angle):
+    """ Computes complex value from magnitude and phase angle.
+
+        Args:
+            mag: numpy array
+                Magnitude
+            angle: float or numpy array
+                Phase angle
+
+        Returns:
+            c: numpy array
+                Complex value
+    """
+    phase = np.cos(angle) + 1.j * np.sin(angle)
+    c = mag * phase
+    return c  
+
+
+def estimate_audio_signal(image, phase_angle, n_fft, hop, num_iters, window):
+    """ Estimate audio signal from magnitude spectrogram.
+
+        Implements the algorithm described in 
+
+            D. W. Griffin and J. S. Lim, “Signal estimation from modified short-time Fourier transform,” IEEE Trans. ASSP, vol.32, no.2, pp.236–243, Apr. 1984.            
+
+        Follows closely the implentation of https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
+
+        Args:
+            image: 2d numpy array
+                Magnitude spectrogram
+            phase_angle: 
+                Initial condition for phase.
+            n_fft: int
+                Number of points used for the Fast-Fourier Transform. Same as window size.
+            hop: int
+                Step size.
+            num_iters: 
+                Number of iterations to perform.
+            window: string, tuple, number, function, np.ndarray [shape=(n_fft,)]
+                - a window specification (string, tuple, or number); see `scipy.signal.get_window`
+                - a window function, such as `scipy.signal.hamming`
+                - a user-specified window vector of length `n_fft`
+
+        Returns:
+            audio: 1d numpy array
+                Audio signal
+
+        Example:
+            >>> # create a simple sinusoidal audio signal with frequency of 10 Hz
+            >>> import numpy as np
+            >>> x = np.arange(1000)
+            >>> sig = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
+            >>> # compute the magnitude spectrogram with window size of 200, step size of 40,
+            >>> # and using a Hamming window
+            >>> from ketos.audio_processing.audio_processing import make_frames
+            >>> frames = make_frames(sig, 200, 40) 
+            >>> frames *= np.hamming(frames.shape[1])
+            >>> mag = np.abs(np.fft.rfft(frames))
+            >>> # estimate the original signal            
+            >>> from ketos.audio_processing.audio_processing import estimate_audio_signal
+            >>> sig_est = estimate_audio_signal(image=mag, phase_angle=0, n_fft=200, hop=40, num_iters=25, window=np.hamming(frames.shape[1]))
+            >>> # plot the original and the estimated signal
+            >>> import matplotlib.pyplot as plt
+            >>> plt.clf()
+            >>> _ = plt.plot(sig)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_orig.png")
+            >>> _ = plt.plot(sig_est)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
+    """
+    # swap axis to conform with librosa 
+    image = np.swapaxes(image, 0, 1)
+
+    # settings for FFT and inverse FFT    
+    fft_config = dict(n_fft=n_fft, win_length=n_fft, hop_length=hop, center=False, window=window)
+    ifft_config = dict(win_length=n_fft, hop_length=hop, center=False, window=window)
+
+    # initial spectrogram for iterative algorithm
+    complex_specgram = inv_magphase(image, phase_angle)
+
+    # Griffin-Lim iterative algorithm
+    for i in range(num_iters):
+        audio = librosa.istft(complex_specgram, **ifft_config)
+        if i != num_iters - 1:
+            complex_specgram = librosa.stft(audio, **fft_config)
+            _, phase = librosa.magphase(complex_specgram)
+            angle = np.angle(phase)
+            complex_specgram = inv_magphase(image, angle)
+
+    return audio
