@@ -559,7 +559,7 @@ class BasicCNN(DataHandler):
 
         return img_shape
 
-    def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01, log_path=None):
         """ Train the neural network on the training set.
 
             Train on the batches of training data provided by the generator ``train_batch_gen``. 
@@ -587,12 +587,14 @@ class BasicCNN(DataHandler):
                     i.e., drop-out will be applied if keep_prob < 1.
                 val_acc_goal: float 
                     Terminate training when validation accuracy reaches this value 
+                log_path: str
+                    Path to file where training and validation accuracies will be saved for each epoch
 
             Returns:
-                avg_cost: float
-                    Average cost of last completed training epoch.
-                val_acc: float
-                    Accuracy on validation data. Will be 0 if no validation data is provided.
+                train_acc_epoch: list
+                    Accuracy on training data for each epoch
+                val_acc_epoch: list
+                    Accuracy on validation data for each epoch. Will be 0 if no validation data is provided.
 
             Example:
 
@@ -646,6 +648,9 @@ class BasicCNN(DataHandler):
         else:
             batches = int(y.shape[0] / batch_size)
 
+        train_acc_epoch = list()
+        val_acc_epoch = list()
+
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
@@ -680,15 +685,27 @@ class BasicCNN(DataHandler):
 
             self.epoch_counter += 1
 
+            if log_path is not None:
+                if self.epoch_counter == 1:
+                    log_file = open(log_path, 'w+')
+                else:
+                    log_file = open(log_path, 'a')
+
+                log_file.write('{0},{1:.4f},{2:.4f}\n'.format(self.epoch_counter, avg_acc, val_acc))
+                log_file.close()
+
+            train_acc_epoch.append(avg_acc)
+            val_acc_epoch.append(val_acc)
+
             if val_acc >= val_acc_goal:
                 break
 
         if self.verbosity >= 2:
             print(line)
 
-        return avg_cost, val_acc
+        return train_acc_epoch, val_acc_epoch
 
-    def train_active(self, provider, num_sessions=1, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train_active(self, provider, num_sessions=1, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01, log_path=None):
         """ Train the neural network in an active manner using a data provider module.
 
             Args:
@@ -707,12 +724,14 @@ class BasicCNN(DataHandler):
                     i.e., drop-out will be applied if keep_prob < 1.
                 val_acc_goal: float 
                     Terminate training when validation accuracy reaches this value 
+                log_file: str
+                    Path to file where training and validation accuracies will be saved for each epoch
 
             Returns:
-                avg_cost: float
-                    Average cost of last completed training epoch.
-                val_acc: float
-                    Accuracy on validation data. Will be 0 if no validation data is provided.
+                train_acc_epoch: list
+                    Accuracy on training data for each epoch
+                val_acc_epoch: list
+                    Accuracy on validation data for each epoch. Will be 0 if no validation data is provided.
 
             Example:
 
@@ -740,6 +759,9 @@ class BasicCNN(DataHandler):
         if len(X) > 0:
             self.set_validation_data(x=X, y=Y)
 
+        train_acc_epoch = list()
+        val_acc_epoch = list()
+
         for i in range(num_sessions):
 
             if self.verbosity >= 2:
@@ -749,8 +771,9 @@ class BasicCNN(DataHandler):
             gen = next(provider)
 
             # train
-            avg_cost, val_acc = self.train(train_batch_gen=gen, num_epochs=num_epochs,\
-                    learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
+            train_acc, val_acc = self.train(train_batch_gen=gen, num_epochs=num_epochs,\
+                    learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal,\
+                    log_path=log_path)
 
             # update predictions and confidences
             num_batches = gen.n_batches
@@ -762,10 +785,13 @@ class BasicCNN(DataHandler):
                 conf = class_confidences(w)
                 provider.update_performance(indices=i, predictions=pred, confidences=conf)
 
-            if val_acc >= val_acc_goal:
+            if val_acc[-1] >= val_acc_goal:
                 break
 
-        return avg_cost, val_acc
+            train_acc_epoch += train_acc
+            val_acc_epoch += val_acc
+
+        return train_acc_epoch, val_acc_epoch
 
     def save(self, destination):
         """ Save the model
