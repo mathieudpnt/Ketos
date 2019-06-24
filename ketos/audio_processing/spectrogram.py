@@ -1260,12 +1260,14 @@ class Spectrogram(AnnotationHandler):
         # convert to bin numbers        
         for b in boi:
             num_bins = int(np.round((b[1]-b[0])/self.tres))
+            print(b[1]-b[0], (b[1]-b[0])/self.tres, num_bins)
             b[0] = self._find_tbin(b[0], truncate=False)
             b[1] = self._find_tbin(b[1], truncate=False, roundup=False) + 1
             b[2] = self._find_fbin(b[2], truncate=False)
             b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
             # ensure correct number of bins
             b[1] += num_bins - (b[1] - b[0])
+            print(b[0], b[1], b[1]-b[0])
 
         # extract
         res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
@@ -1428,9 +1430,6 @@ class Spectrogram(AnnotationHandler):
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
-
-                t1 = self.tmin + np.round((t1-self.tmin)/self.tres) * self.tres                
-                t2 = self.tmin + np.round((t2-self.tmin)/self.tres) * self.tres                
 
             b[0] = t1
             b[1] = t2
