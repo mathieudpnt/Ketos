@@ -33,6 +33,7 @@
         TimeStampedAudioSignal class
 """
 
+import os
 import numpy as np
 import datetime
 import math
@@ -122,7 +123,8 @@ class AudioSignal(AnnotationHandler):
 
         """        
         rate, data = read_wave(file=path, channel=channel)
-        return cls(rate, data, path[path.rfind('/')+1:])
+        _, fname = os.path.split(path)
+        return cls(rate, data, fname)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, tag=''):
@@ -645,6 +647,50 @@ class AudioSignal(AnnotationHandler):
 
         self.data = data_c
         self.tmin = 0
+
+        return segs
+
+    def segment(self, length, pad=False, keep_time=False):
+        """ Split the audio signal into a number of equally long segments.
+
+            Args:
+                length: float
+                    Duration of each segment in seconds
+                pad: bool
+                    If True, pad spectrogram with zeros if necessary to ensure 
+                    that bins are used.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
+
+            Returns:
+                segs: list
+                    List of segments
+        """
+        if length >= self.duration():
+            return [self]
+
+        # split data array into segments
+        frames = self.make_frames(winlen=length, winstep=length, zero_padding=pad)
+
+        # create audio signals
+        segs = list()
+        tstart = self.tmin
+        for f in frames:
+
+            if not keep_time:
+                tstart = 0
+
+            # audio signal
+            a = AudioSignal(rate=self.rate, data=f, tag=self.tag, tstart=tstart)
+
+            # handle annotations
+            for l,b in zip(self.labels, self.boxes):
+                if b[0] < a.tmin + a.duration() and b[1] > a.tmin:            
+                    a.annotate(labels=l, boxes=b)
+    
+            segs.append(a)
+            tstart += length 
 
         return segs
 

@@ -222,6 +222,7 @@ def find_wave_files(path, fullpath=True, subdirs=False):
 
     """
     wavefiles = find_files(path, '.wav', fullpath, subdirs)
+    wavefiles += find_files(path, '.WAV', fullpath, subdirs)
     return wavefiles
 
 
