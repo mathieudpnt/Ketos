@@ -1344,7 +1344,7 @@ class Spectrogram(AnnotationHandler):
             bins1 = bins
         
         elif length is not None and length != self.duration():
-            bins = int(np.ceil(length / spec.tres))
+            bins = int(np.round(length / spec.tres))
             number = int(f(spec.tbins() / bins))
             bins1 = bins
 
