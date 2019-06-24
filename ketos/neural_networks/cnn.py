@@ -842,11 +842,6 @@ class BasicCNN(DataHandler):
 
         return results
 
-#        x = self._reshape_x(x) 
-#        y1hot = self._ensure1hot(y)       
-#        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
-#        return results
-
     def get_predictions(self, x):
         """ Predict labels by running the model on x
 
