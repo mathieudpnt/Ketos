@@ -674,9 +674,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
         flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
         bins_per_octave=32, **kwargs):
-    """ Create a database with spectrograms computed from raw audio (*.wav) files
-
-        One spectrogram is created for each audio file.
+    """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
+    
+        
+        One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
+        a constant-Q transform (CQT).
         
         However, if the spectrogram is longer than the specified duration, the spectrogram 
         will be split into segments, each with the desired duration.
