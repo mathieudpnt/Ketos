@@ -274,7 +274,7 @@ class BasicCNN(DataHandler):
 
     def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]),\
             ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512],\
-            batch_norm = False, weights=None):
+            batch_norm = False):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -403,11 +403,6 @@ class BasicCNN(DataHandler):
                 l = tf.nn.relu(l, name=n) # ReLu activation
             else: # output layer
                 losses = tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y)
-
-                if weights is not None:
-                    weights = np.arange(32)
-                    losses = tf.losses.softmax_cross_entropy(logits=l, onehot_labels=y, weights=weights)
-
                 cross_entropy = tf.reduce_mean(losses, name="cost_function")
                 n = 'class_weights'
                 l = tf.nn.softmax(l, name=n) # softmax                    
