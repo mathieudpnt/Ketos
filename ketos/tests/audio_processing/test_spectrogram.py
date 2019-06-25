@@ -29,7 +29,7 @@
 
 import pytest
 import numpy as np
-from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
+from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram, interbreed, ensure_same_length
 from ketos.data_handling.parsing import Interval
 from ketos.audio_processing.audio import AudioSignal
 import ketos.data_handling.database_interface as di
@@ -95,6 +95,16 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     assert spec.tres == winstep
     assert spec.fmin == 0
 
+def test_init_cqt_spectrogram_from_sine_wave(sine_audio):
+    duration = sine_audio.duration()
+    winstep = duration/10
+    spec = CQTSpectrogram(audio_signal=sine_audio, winstep=winstep, fmin=1, fmax=4000, bins_per_octave=64)
+    mag = spec.image
+    for i in range(mag.shape[0]):
+        freq = np.argmax(mag[i])
+        freqHz = spec._fbin_low(freq)
+        assert freqHz == pytest.approx(2000, abs=50)
+    
 def test_init_mel_spectrogram_with_kwargs(sine_audio):
     
     duration = sine_audio.duration()
@@ -574,6 +584,17 @@ def test_copy_mag_spectrogram(sine_audio):
     assert spec2.image.shape[1] == spec.image.shape[1]
     assert spec2.tmin == spec.tmin
     assert spec2.tres == spec.tres
+
+@pytest.mark.test_copy_cqt_spectrogram
+def test_copy_cqt_spectrogram():
+    img = np.zeros((101,31))
+    spec = CQTSpectrogram(image=img, fmin=14)
+    spec2 = spec.copy()
+    spec = None
+    assert spec2.image.shape[0] == 101
+    assert spec2.image.shape[1] == 31
+    assert spec2.fmin == 14
+    assert spec2.bins_per_octave == 32
 
 @pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_default_args():

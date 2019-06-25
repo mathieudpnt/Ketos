@@ -63,7 +63,7 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
 from tqdm import tqdm
-
+from librosa.core import cqt
 
 
 def ensure_same_length(specs, pad=False):
@@ -85,7 +85,6 @@ def ensure_same_length(specs, pad=False):
         Example:
 
         >>> from ketos.audio_processing.audio import AudioSignal
-        >>>
         >>> # Create two audio signals with different lengths
         >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
         >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
@@ -2163,7 +2162,7 @@ class Spectrogram(AnnotationHandler):
 
 
 class MagSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram
+    """ Magnitude Spectrogram computed from Short Time Fourier Transform (STFT)
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -2506,3 +2505,205 @@ class MelSpectrogram(Spectrogram):
         else:
             fig.colorbar(img_plot,format='%+2.0f')  
         return fig
+
+
+class CQTSpectrogram(Spectrogram):
+    """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
+
+            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
+
+        The time axis (0th axis) is characterized by a 
+        starting value, :math:`t_{min}`, and a bin size, :math:`t_{res}`, while the 
+        frequency axis (1st axis) is characterized by a starting value, :math:`f_{min}`, 
+        a maximum value, :math:`f_{max}`, and the number of bins per octave, 
+        :math:`m`.
+        The parameters :math:`t_{min}`, :math:`f_{min}`, :math:`m` are specified via the arguments 
+        `tmin`, `fmin`, `bins_per_octave`. The parameters :math:`t_{res}` and :math:`f_{max}`, on the other hand, 
+        are computed as detailed below, attempting to match the arguments `winstep` and `fmax` as closely as possible.
+
+        The total number of bins is given by :math:`n = k \cdot m` where :math:`k` denotes 
+        the number of octaves, computed as 
+
+        .. math::
+            k = ceil(log_{2}[f_{max}/f_{min}])
+
+        For example, with :math:`f_{min}=10`, :math:`f_{max}=16000`, and :math:`m = 32` the number 
+        of octaves is :math:`k = 11` and the total number of bins is :math:`n = 352`.  
+        The frequency of a given bin, :math:`i`, is given by 
+
+        .. math:: 
+            f_{i} = 2^{i / m} \cdot f_{min}
+
+        This implies that the maximum frequency is given by :math:`f_{max} = f_{n-1} = 2^{(n-1)/m} \cdot f_{min}`.
+        For the above example, we find :math:`f_{max} \sim 20041` Hz, i.e., somewhat larger than the requested maximum value.
+
+        The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
+        To ensure that this is the case, the step size is computed as follows,
+
+        .. math::
+            h = ceil(r \cdot w / 2^k ) \cdot 2^k
+
+        where :math:`r` is the sampling rate in Hz, and :math:`w` is the step size 
+        in seconds as specified via the argument `winstep`.
+        For example, assuming a sampling rate of 32 kHz (:math:`r = 32000`) and a step 
+        size of 0.02 seconds (:math:`w = 0.02`) and adopting the same frequency limits as 
+        above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
+        step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
+        to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
+        as the requested step size.
+
+    
+        Args:
+            signal: AudioSignal
+                And instance of the :class:`audio_signal.AudioSignal` class 
+            image: 2d numpy array
+                Spectrogram image. Only applicable if signal is None.
+            fmin: float
+                Minimum frequency in Hz
+            fmax: float
+                Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+            winstep: float
+                Step size in seconds 
+            bins_per_octave: int
+                Number of bins per octave
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list of strings
+                List of labels for the frequency bins.     
+            decibel: bool
+                Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram.
+                If no tag is provided, the tag from the audio_signal will be used.
+    """
+    def __init__(self, audio_signal=None, image=np.zeros((2,2)), fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+
+        if fmin is None:
+            fmin = 1
+
+        super(CQTSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+        self.fmin = fmin
+        self.bins_per_octave = bins_per_octave
+
+        if audio_signal is not None:
+
+            self.image, self.tres = self.make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
+
+            if tag is '':
+                tag = audio_signal.tag
+
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
+
+        else:
+            self.image = image
+            self.tres = winstep
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
+
+    def make_cqt_spec(self, audio_signal, fmin, fmax, winstep, bins_per_octave, decibel):
+        """ Create CQT spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                winstep: float
+                    Step size in seconds 
+                bins_per_octave: int
+                    Number of bins per octave
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                (image, tres):numpy.array,float
+                A tuple with the resulting magnitude spectrogram, and the time resolution
+        """
+        if fmax is None:
+            fmax = 0.5 * audio_signal.rate
+            x = int(np.floor(np.log2(fmax/fmin)))
+        else:    
+            x = int(np.ceil(np.log2(fmax/fmin)))
+    
+        h0 = int(2**x)
+
+        b = bins_per_octave
+        fbins = x * b
+
+        h = audio_signal.rate * winstep
+        k = int(np.ceil(h / h0))
+        h = int(k * h0)
+
+        c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
+        c = np.abs(c)
+        if decibel:
+            c = to_decibel(c)
+    
+        image = np.swapaxes(c, 0, 1)
+        
+        tres = h / audio_signal.rate
+
+        return image, tres
+
+    def copy(self):
+        """ Make a deep copy of the spectrogram.
+
+            Returns:
+                spec: CQTSpectrogram
+                    Spectrogram copy.
+        """
+        spec = super().copy()
+        spec.bins_per_octave = self.bins_per_octave
+        return spec
+
+    def _find_fbin(self, f, truncate=False, roundup=True):
+        """ Find bin corresponding to given frequency.
+
+            Returns -1, if f < f_min.
+            Returns N, if f > f_max, where N is the number of frequency bins.
+
+            Args:
+                f: float
+                   Frequency in Hz 
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
+
+            Returns:
+                bin: int
+                     Bin number
+        """
+        bin = self.bins_per_octave * np.log2(f / self.fmin)
+        bin = int(bin)
+
+        if truncate:
+            bin = max(bin, 0)
+            bin = min(bin, self.fbins())
+
+        return bin
+
+    def _fbin_low(self, bin):
+        """ Get the lower frequency value of the specified frequency bin.
+
+            Args:
+                bin: int
+                    Bin number
+        """
+        f = 2**(bin / self.bins_per_octave) * self.fmin
+        return f
+
+    def fmax(self):
+        """ Get upper range of frequency axis
+
+            Returns:
+                fmax: float
+                    Maximum frequency in Hz
+        """
+        fmax = 2**(self.fbins() / self.bins_per_octave) * self.fmin
+        return fmax
