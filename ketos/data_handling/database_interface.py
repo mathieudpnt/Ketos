@@ -39,6 +39,8 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
 from tqdm import tqdm
+from sys import getsizeof
+from psutil import virtual_memory
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -472,7 +474,7 @@ def load_specs(table, index_list=None):
 
     return res
 
-def extract(table, label, min_length=None, center=False, fpad=True, keep_time=False):
+def extract(table, label, length=None, min_length=None, center=False, fpad=True, keep_time=False):
     """ Create new spectrograms by croping segments annotated with the specified label.
 
         Filter the table by the specified label. In each of the selected spectrograms,
@@ -490,6 +492,9 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
                 The table containing the spectrograms.
             label: int
                 The label
+            length: float
+                Extend or divide the annotation boxes as necessary to ensure that all 
+                extracted segments have the specified length (in seconds).  
             min_length: float
                 Minimum duration (in seconds) the of extracted segments.
             center: bool
@@ -561,7 +566,7 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
     for spec in items:
 
         # extract segments of interest
-        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
+        segs = spec.extract(label=label, length=length, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
         extracted = extracted + segs
 
         # collect
@@ -669,9 +674,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
         flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
         bins_per_octave=32, **kwargs):
-    """ Create a database with spectrograms computed from raw audio (*.wav) files
-
-        One spectrogram is created for each audio file.
+    """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
+    
+        
+        One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
+        a constant-Q transform (CQT).
         
         However, if the spectrogram is longer than the specified duration, the spectrogram 
         will be split into segments, each with the desired duration.
@@ -782,38 +789,59 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         if exists is False:
             continue
 
-        # read audio and resample
+        # read audio
         a = AudioSignal.from_wav(path=f, channel=channel)  
-        if sampling_rate is not None:
-            a.resample(new_rate=sampling_rate) 
-
-        # compute the spectrogram
-        if not cqt:
-            s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
-        else:
-            s = CQTSpectrogram(audio_signal=a, winstep=step_size, fmin=flow, fmax=fhigh, bins_per_octave=bins_per_octave, decibel=True)
 
         # add annotations
         if areader is not None:
-            fname = f[f.rfind('/')+1:]
-            labels, boxes = areader.get_annotations(fname)
-            s.annotate(labels, boxes) 
+            labels, boxes = areader.get_annotations(a.tag)
+            a.annotate(labels, boxes) 
 
-        # crop frequencies
-        s.crop(flow=flow, fhigh=fhigh) 
+        # check spectrogram size (estimated)
+        mem = virtual_memory()
+        siz = getsizeof(a.data) * window_size / step_size
 
-        # if duration is not specified, use duration of first spectrogram
-        if duration is None: 
-            duration = s.duration()
+        # segment, if spectrogram size exceeds 10% of system memory
+        num_segs = int(np.ceil(siz / (0.1 * mem.total)))
+        length = a.duration() / num_segs
+        if duration is not None:
+            length = min(length, duration)
 
-        # ensure desired duration 
-        specs = s.segment(length=duration, pad=True, **kwargs)
+        segs = a.segment(length=length, pad=True, keep_time=True)
 
-        # save spectrogram(s) to file        
-        path = sf + 'spec'
-        swriter.cd(path)
-        for spec in specs:
-            swriter.write(spec)
+        for seg in segs:
+
+            # resample
+            if sampling_rate is not None:
+                seg.resample(new_rate=sampling_rate) 
+
+            # compute the spectrogram
+            if not cqt:
+                s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
+            else:
+                s = CQTSpectrogram(audio_signal=seg, winstep=step_size, fmin=flow, fmax=fhigh, bins_per_octave=bins_per_octave, decibel=True)
+
+            # crop frequencies
+            s.crop(flow=flow, fhigh=fhigh) 
+
+            # if duration is not specified, use duration of first spectrogram
+            if duration is None: 
+                d = s.duration()
+            else:
+                d = duration
+
+            # ensure desired duration 
+            specs = s.segment(length=d, pad=True, **kwargs)
+
+            # save spectrogram(s) to file        
+            path = sf + 'spec'
+            swriter.cd(path)
+            for spec in specs:
+                swriter.write(spec)
+
+        # attempt to free up some memory                
+        del segs
+        del a
 
     swriter.close()
 

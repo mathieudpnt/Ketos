@@ -484,16 +484,15 @@ def test_extract_with_non_empty_remainder():
     assert spec.image.shape[1] == img.shape[1]
     assert seg[0].image.shape[0] == 9
     assert seg[0].image.shape[1] == img.shape[1]
-    assert seg[1].image.shape[0] == 2
+    assert seg[1].image.shape[0] == 1
     assert seg[1].image.shape[1] == img.shape[1]
     assert np.sum(spec.get_label_vector(1)) == 0
     assert np.sum(seg[0].get_label_vector(1)) == 9
-    assert np.sum(seg[1].get_label_vector(1)) == 2
+    assert np.sum(seg[1].get_label_vector(1)) == 1
     assert seg[0].file_dict[0] == 'file.wav'
     assert seg[1].file_dict[0] == 'file.wav'
-    assert len(seg[1].time_vector) == 2
+    assert len(seg[1].time_vector) == 1
     assert seg[1].time_vector[0] == 5
-    assert seg[1].time_vector[1] == 6
 
 @pytest.mark.test_stretch
 def test_stretch():
@@ -502,11 +501,49 @@ def test_stretch():
     min_length = 2.0
     boxes = [box1, box2]
     spec = Spectrogram()
-    spec.annotate(labels=[1,2], boxes=[box1,box2])
+    spec.annotate(labels=[1,2], boxes=boxes)
     boxes = spec._stretch(boxes=boxes, min_length=min_length)
     assert len(boxes) == 2
     assert boxes[0][1]-boxes[0][0] == pytest.approx(min_length, abs=0.0001)
     assert boxes[1][1]-boxes[1][0] > min_length
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=False)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_center():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(0.9, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_special_case():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.2
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 6
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(1.0, abs=0.0001)
 
 @pytest.mark.test_select_boxes
 def test_select_boxes():

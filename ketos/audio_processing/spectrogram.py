@@ -1021,7 +1021,7 @@ class Spectrogram(AnnotationHandler):
                 f2 = fhigh
             else:                        
                 f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-            
+
         if t2 <= t1:
             img = None
         
@@ -1180,7 +1180,7 @@ class Spectrogram(AnnotationHandler):
         if make_copy:
             return spec
 
-    def extract(self, label, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
+    def extract(self, label, length=None, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, the present instance contains the 
@@ -1191,6 +1191,9 @@ class Spectrogram(AnnotationHandler):
             Args:
                 label: int
                     Annotation label of interest. 
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
                 min_length: float
                     If necessary, extend the annotation boxes so that all extracted 
                     segments have a duration of at least min_length (in seconds) or 
@@ -1249,10 +1252,23 @@ class Spectrogram(AnnotationHandler):
         boi, idx = s._select_boxes(label)
 
         # stretch to achieve minimum length, if necessary
-        boi = s._stretch(boxes=boi, min_length=min_length, center=center)
+        if length is not None:  
+            boi = s._ensure_box_length(boxes=boi, length=length, center=center)
+        elif min_length is not None:
+            boi = s._stretch(boxes=boi, min_length=min_length, center=center)
+
+        # convert to bin numbers        
+        for b in boi:
+            num_bins = int(np.round((b[1]-b[0])/self.tres))
+            b[0] = self._find_tbin(b[0], truncate=False)
+            b[1] = self._find_tbin(b[1], truncate=False, roundup=False) + 1
+            b[2] = self._find_fbin(b[2], truncate=False)
+            b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
+            # ensure correct number of bins
+            b[1] += num_bins - (b[1] - b[0])
 
         # extract
-        res = s._clip(boxes=boi, fpad=fpad, keep_time=keep_time)
+        res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
 
         # remove extracted labels
         s.delete_annotations(idx)
@@ -1406,18 +1422,74 @@ class Spectrogram(AnnotationHandler):
                     r = 0.5001
                 else:
                     r = np.random.random_sample()
+                
                 t1 -= r * dt
                 t2 += (1-r) * dt
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
 
-                t1 = self.tmin + np.floor((t1-self.tmin)/self.tres) * self.tres                
-                t2 = self.tmin + np.floor((t2-self.tmin)/self.tres) * self.tres                
+                t1 = self.tmin + np.round((t1-self.tmin)/self.tres) * self.tres                
+                t2 = self.tmin + np.round((t2-self.tmin)/self.tres) * self.tres                
 
             b[0] = t1
             b[1] = t2
             res.append(b)
+
+        return res
+
+    def _ensure_box_length(self, boxes, length, center=False):
+        """ Extend or divide the annotation boxes as necessary to ensure that all 
+            extracted segments have the same length.
+
+            Args:
+                boxes: list
+                    Input boxes
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
+                center: bool
+                    If True, the box is stretched/divided symmetrically in backward/forward time direction.
+                    If false, the distribution is random.
+
+            Returns:
+                res: list
+                    Same length boxes
+        """ 
+        epsilon = 1e-6
+
+        res = list()
+        for b in boxes:
+            b = b.copy()
+            t1 = b[0]
+            t2 = b[1]
+            dt = length - (t2 - t1)
+
+            if dt > 0:
+                b = self._stretch([b], min_length=length, center=center)[0]
+                res.append(b)
+
+            elif dt < 0:
+
+                diff = np.ceil((t2-t1)/length)*length - (t2-t1)
+                if abs(diff) > epsilon:
+                    if center:
+                        r = 0.5
+                    else:
+                        r = np.random.random_sample()
+                    diff *= r
+                else:
+                    diff = 0
+
+                t1_i = t1 - diff
+                t2_i = t1_i + length
+                while t1_i < t2 - epsilon:
+                    b_i = b.copy()
+                    b_i[0] = t1_i
+                    b_i[1] = t2_i
+                    res.append(b_i)
+                    t1_i += length
+                    t2_i += length
 
         return res
 
@@ -2204,6 +2276,9 @@ class MagSpectrogram(Spectrogram):
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
             if tag is '':
                 tag = audio_signal.tag
+
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
 
         self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
