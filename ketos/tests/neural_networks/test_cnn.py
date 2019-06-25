@@ -63,7 +63,7 @@ def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
     network.train()
 
 @pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_batch_norm(database_prepared_for_NN):
+def test_train_BasicCNN_with_batch_norm():
     x = 2.0 * np.random.randn(128,8,8) + 1.5
     y = np.random.randn(128)
     y = (y > 0.5)    
@@ -79,6 +79,16 @@ def test_train_BasicCNN_with_batch_norm(database_prepared_for_NN):
         assert moving_average[0] == pytest.approx(0.2, abs=0.1)
         assert moving_variance[0] == pytest.approx(1.3, abs=0.2)
 
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_weights():
+    x = 2.0 * np.random.randn(128,8,8) + 1.5
+    y = np.random.randn(128)
+    y = (y > 0.2)    
+    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, batch_size=32, num_epochs=3)
+    _ = network.create(weights=[0.8, 0.2])
+    network.train()
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
