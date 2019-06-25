@@ -778,7 +778,7 @@ class BasicCNN(DataHandler):
             # update predictions and confidences
             num_batches = gen.n_batches
             gen.return_batch_ids = True
-            for _ in range(num_batches):
+            for j in range(num_batches):
                 i, x, _ = next(gen)
                 w = self.get_class_weights(x)
                 pred = predictions(w)
