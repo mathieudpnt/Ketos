@@ -33,6 +33,7 @@
         TimeStampedAudioSignal class
 """
 
+import os
 import numpy as np
 import datetime
 import math
@@ -122,7 +123,8 @@ class AudioSignal(AnnotationHandler):
 
         """        
         rate, data = read_wave(file=path, channel=channel)
-        return cls(rate, data, path[path.rfind('/')+1:])
+        _, fname = os.path.split(path)
+        return cls(rate, data, fname)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, tag=''):
@@ -320,7 +322,7 @@ class AudioSignal(AnnotationHandler):
         d = self.file_dict
         return d
 
-    def make_frames(self, winlen, winstep, zero_padding=False):
+    def make_frames(self, winlen, winstep, zero_padding=False, even_winlen=False):
         """ Split the signal into frames of length 'winlen' with consecutive 
             frames being shifted by an amount 'winstep'. 
             
@@ -347,18 +349,32 @@ class AudioSignal(AnnotationHandler):
         winlen = int(round(winlen * rate))
         winstep = int(round(winstep * rate))
 
+        if even_winlen and winlen%2 != 0:
+            winlen += 1
+
         frames = ap.make_frames(sig, winlen, winstep, zero_padding)
         return frames
 
-    def to_wav(self, path):
+    def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
 
             Args:
                 path: str
                     Path to output wave file
+                auto_loudness: bool
+                    Automatically amplify the signal so that the 
+                    maximum amplitude matches the full range of 
+                    a 16-bit wav file (32760)
         """        
         ensure_dir(path)
-        wave.write(filename=path, rate=int(self.rate), data=self.data.astype(dtype=np.int16))
+        
+        if auto_loudness:
+            m = max(1, np.max(np.abs(self.data)))
+            s = 32760 / m
+        else:
+            s = 1
+
+        wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
     def empty(self):
         """ Check if the signal contains any data
@@ -631,6 +647,50 @@ class AudioSignal(AnnotationHandler):
 
         self.data = data_c
         self.tmin = 0
+
+        return segs
+
+    def segment(self, length, pad=False, keep_time=False):
+        """ Split the audio signal into a number of equally long segments.
+
+            Args:
+                length: float
+                    Duration of each segment in seconds
+                pad: bool
+                    If True, pad spectrogram with zeros if necessary to ensure 
+                    that bins are used.
+                keep_time: bool
+                    If True, the extracted segments keep the time from the present instance. 
+                    If False, the time axis of each extracted segment starts at t=0
+
+            Returns:
+                segs: list
+                    List of segments
+        """
+        if length >= self.duration():
+            return [self]
+
+        # split data array into segments
+        frames = self.make_frames(winlen=length, winstep=length, zero_padding=pad)
+
+        # create audio signals
+        segs = list()
+        tstart = self.tmin
+        for f in frames:
+
+            if not keep_time:
+                tstart = 0
+
+            # audio signal
+            a = AudioSignal(rate=self.rate, data=f, tag=self.tag, tstart=tstart)
+
+            # handle annotations
+            for l,b in zip(self.labels, self.boxes):
+                if b[0] < a.tmin + a.duration() and b[1] > a.tmin:            
+                    a.annotate(labels=l, boxes=b)
+    
+            segs.append(a)
+            tstart += length 
 
         return segs
 

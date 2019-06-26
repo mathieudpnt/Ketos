@@ -33,7 +33,7 @@ import tables
 import numpy as np
 import ketos.data_handling.data_handling as dh
 import ketos.data_handling.database_interface as di
-from ketos.data_handling.data_feeding import BatchGenerator
+from ketos.data_handling.data_feeding import BatchGenerator, ActiveLearningBatchGenerator
 from ketos.neural_networks.cnn import BasicCNN, ConvParams
 from tensorflow import reset_default_graph
 
@@ -61,6 +61,24 @@ def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
     network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_batch_norm():
+    x = 2.0 * np.random.randn(128,8,8) + 1.5
+    y = np.random.randn(128)
+    y = (y > 0.5)    
+    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, batch_size=32, num_epochs=3)
+    _ = network.create(batch_norm=True)
+    network.train()
+    # retrieve moving average and variance
+    import tensorflow as tf
+    with tf.variable_scope("", reuse=tf.AUTO_REUSE):
+        out = network.sess.run([tf.get_variable('batch_normalization/moving_mean'),
+                        tf.get_variable('batch_normalization/moving_variance')])
+        moving_average, moving_variance = out
+        assert moving_average[0] == pytest.approx(0.2, abs=0.1)
+        assert moving_variance[0] == pytest.approx(1.3, abs=0.2)
+
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
@@ -142,6 +160,20 @@ def test_compute_class_weights_with_BasicCNN(database_prepared_for_NN_2_classes)
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
+def test_compute_class_weights_with_BasicCNN_with_batch_norm(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    x = d["train_x"]
+    y = d["train_y"]
+    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, seed=41)
+    _ = network.create(batch_norm=True)
+    network.train()
+    img = np.zeros((20, 20))
+    result = network.get_class_weights(x=[img])
+    weights = result[0]
+    assert weights[0] + weights[1] == pytest.approx(1.000, abs=0.001)
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
 def test_compute_features_with_BasicCNN(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -154,3 +186,20 @@ def test_compute_features_with_BasicCNN(database_prepared_for_NN_2_classes):
     f = result[0]
     assert f.shape == (512,)
     reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_active_learning():
+    # initialize BasicCNN for classifying 2x2 images
+    cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
+    # create a small network with one convolutional layers and one dense layer
+    params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
+    _ = cnn.create(conv_params=[params], dense_size=[4])
+    # create some training data
+    img0 = np.zeros(shape=(2,2))
+    img1 = np.ones(shape=(2,2))
+    x = [img0, img1, img0, img1, img0, img1, img0] # input data
+    y = [0, 1, 0, 1, 0, 1, 0] # labels
+    # create a data provider
+    g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
+    # train it
+    _, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
