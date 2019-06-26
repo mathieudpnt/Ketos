@@ -82,16 +82,6 @@ def test_train_BasicCNN_with_batch_norm():
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_weights():
-    x = 2.0 * np.random.randn(128,8,8) + 1.5
-    y = np.random.randn(128)
-    y = (y > 0.2)    
-    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, batch_size=32, num_epochs=3)
-    _ = network.create(weights=[0.8, 0.2])
-    network.train()
-    reset_default_graph()
-
-@pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_default_args2(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     train_x = d["train_x"]
