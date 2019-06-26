@@ -397,7 +397,6 @@ class BasicCNN(DataHandler):
             b_name = 'b_{0}'.format(i+1)
             b = tf.Variable(tf.truncated_normal([size], stddev=0.01), name=b_name)
             l = tf.matmul(l_prev, w) + b
-            print(l)
             if i < len(dense_size) - 1:
                 n = 'dense_{0}'.format(i+1)
                 l = tf.nn.relu(l, name=n) # ReLu activation
