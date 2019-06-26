@@ -93,6 +93,13 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
+def test_make_frames():
+    img = np.random.normal(size=100)
+    frames1 = ap.make_frames(x=img, winlen=20, winstep=4)
+    assert frames1.shape[0] == 21
+    assert frames1.shape[1] == 20
+
+
 def test_prepare_for_binary_cnn():
     n = 1
     l = 2
@@ -156,3 +163,20 @@ def test_filter_isolated_spots_removes_single_pixels():
 
     assert np.array_equal(filtered_img, expected)
 
+@pytest.mark.test_estimate_audio_signal
+def test_estimate_audio_signal(sine_audio):
+    n_fft = 20000
+    hop = 2000
+    winlen = n_fft / sine_audio.rate
+    winstep = hop / sine_audio.rate
+    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
+    img = spec.image
+    window = sg.get_window('hamming', n_fft)
+    # estimate signal
+    audio = ap.estimate_audio_signal(image=img, phase_angle=3.14, n_fft=n_fft, hop=hop, num_iters=25, window=window)
+    # check that recovered signal looks like a harmonic with frequency of 2000 Hz
+    N = int(6./2000. * sine_audio.rate)
+    N = N + N%2 
+    f = np.abs(np.fft.rfft(audio[:N]))
+    expected = int(2000./(sine_audio.rate/2.)*len(f))
+    assert np.argmax(f) == expected
