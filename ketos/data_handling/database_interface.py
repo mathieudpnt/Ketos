@@ -36,9 +36,11 @@ import math
 import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram, MelSpectrogram, ensure_same_length
+from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
 from tqdm import tqdm
+from sys import getsizeof
+from psutil import virtual_memory
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -231,6 +233,13 @@ def write_spec(table, spec, id=None):
         Note: If the id field is left blank, it 
         will be replaced with the tag attribute.
 
+        Note: If the spectrogram is a CQT spectrogram, the number of 
+        bins per octave is encoded as a negative float in the  
+        table attribute 'freq_res'. The sign of this attribute is 
+        used to distinguish between ordinary and CQT spectrograms 
+        when spectrograms are loaded from a table. (See load_tables 
+        method.)
+
         Args:
             table: tables.Table
                 Table in which the spectrogram will be stored
@@ -284,8 +293,12 @@ def write_spec(table, spec, id=None):
         raise TypeError("spec must be an instance of Spectrogram")      
 
     table.attrs.time_res = spec.tres
-    table.attrs.freq_res = spec.fres
     table.attrs.freq_min = spec.fmin
+
+    if isinstance(spec, CQTSpectrogram):
+        table.attrs.freq_res = -spec.bins_per_octave  # encode bins_per_octave as a negative float
+    else:
+        table.attrs.freq_res = spec.fres
 
     if id is None:
         id_str = ''
@@ -434,8 +447,11 @@ def load_specs(table, index_list=None):
         # get the spectrogram data
         data = it['data']
 
-        # create audio signal or spectrogram object
-        x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
+        # create spectrogram object
+        if table.attrs.freq_res >= 0:
+            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
+        else:
+            x = CQTSpectrogram(image=data, winstep=table.attrs.time_res, bins_per_octave=int(-table.attrs.freq_res), fmin=table.attrs.freq_min, tag='')
 
         # annotate
         #import pdb; pdb.set_trace()
@@ -458,7 +474,7 @@ def load_specs(table, index_list=None):
 
     return res
 
-def extract(table, label, min_length=None, center=False, fpad=True, keep_time=False):
+def extract(table, label, length=None, min_length=None, center=False, fpad=True, keep_time=False):
     """ Create new spectrograms by croping segments annotated with the specified label.
 
         Filter the table by the specified label. In each of the selected spectrograms,
@@ -476,6 +492,9 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
                 The table containing the spectrograms.
             label: int
                 The label
+            length: float
+                Extend or divide the annotation boxes as necessary to ensure that all 
+                extracted segments have the specified length (in seconds).  
             min_length: float
                 Minimum duration (in seconds) the of extracted segments.
             center: bool
@@ -547,7 +566,7 @@ def extract(table, label, min_length=None, center=False, fpad=True, keep_time=Fa
     for spec in items:
 
         # extract segments of interest
-        segs = spec.extract(label=label, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
+        segs = spec.extract(label=label, length=length, min_length=min_length, fpad=fpad, center=center, keep_time=keep_time)
         extracted = extracted + segs
 
         # collect
@@ -653,10 +672,13 @@ def parse_boxes(boxes):
 
 def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, **kwargs):
-    """ Create a database with spectrograms computed from raw audio (*.wav) files
-
-        One spectrogram is created for each audio file.
+        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
+        bins_per_octave=32, **kwargs):
+    """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
+    
+        
+        One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
+        a constant-Q transform (CQT).
         
         However, if the spectrogram is longer than the specified duration, the spectrogram 
         will be split into segments, each with the desired duration.
@@ -705,6 +727,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 Option to display progress bar.
             verbose: bool
                 Print relevant information during execution such as files written to disk
+            cqt: bool
+                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
+                spectrogram.
+            bins_per_octave: int
+                Number of bins per octave. Only applicable if cqt is True.
 
             Example:
 
@@ -762,35 +789,59 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         if exists is False:
             continue
 
-        # read audio and resample
+        # read audio
         a = AudioSignal.from_wav(path=f, channel=channel)  
-        if sampling_rate is not None:
-            a.resample(new_rate=sampling_rate) 
-
-        # compute the spectrogram
-        s = MagSpectrogram(audio_signal=a, winlen=window_size, winstep=step_size, decibel=True) 
 
         # add annotations
         if areader is not None:
-            fname = f[f.rfind('/')+1:]
-            labels, boxes = areader.get_annotations(fname)
-            s.annotate(labels, boxes) 
+            labels, boxes = areader.get_annotations(a.tag)
+            a.annotate(labels, boxes) 
 
-        # crop frequencies
-        s.crop(flow=flow, fhigh=fhigh) 
+        # check spectrogram size (estimated)
+        mem = virtual_memory()
+        siz = getsizeof(a.data) * window_size / step_size
 
-        # if duration is not specified, use duration of first spectrogram
-        if duration is None: 
-            duration = s.duration()
+        # segment, if spectrogram size exceeds 10% of system memory
+        num_segs = int(np.ceil(siz / (0.1 * mem.total)))
+        length = a.duration() / num_segs
+        if duration is not None:
+            length = min(length, duration)
 
-        # ensure desired duration 
-        specs = s.segment(length=duration, pad=True, **kwargs)
+        segs = a.segment(length=length, pad=True, keep_time=True)
 
-        # save spectrogram(s) to file        
-        path = sf + 'spec'
-        swriter.cd(path)
-        for spec in specs:
-            swriter.write(spec)
+        for seg in segs:
+
+            # resample
+            if sampling_rate is not None:
+                seg.resample(new_rate=sampling_rate) 
+
+            # compute the spectrogram
+            if not cqt:
+                s = MagSpectrogram(audio_signal=seg, winlen=window_size, winstep=step_size, decibel=True) 
+            else:
+                s = CQTSpectrogram(audio_signal=seg, winstep=step_size, fmin=flow, fmax=fhigh, bins_per_octave=bins_per_octave, decibel=True)
+
+            # crop frequencies
+            s.crop(flow=flow, fhigh=fhigh) 
+
+            # if duration is not specified, use duration of first spectrogram
+            if duration is None: 
+                d = s.duration()
+            else:
+                d = duration
+
+            # ensure desired duration 
+            specs = s.segment(length=d, pad=True, **kwargs)
+
+            # save spectrogram(s) to file        
+            path = sf + 'spec'
+            swriter.cd(path)
+            for spec in specs:
+                swriter.write(spec)
+
+        # attempt to free up some memory                
+        del segs
+        del a
 
     swriter.close()
 
@@ -834,9 +885,16 @@ class SpecWriter():
                 Maximum size of output database file in bytes
                 If file exceeds this size, it will be split up into several 
                 files with _000, _001, etc, appended to the filename.
-                The default values is max_size=1E9 (1 Gbyte)
+                The default values is max_size=1E9 (1 Gbyte).
+                Disabled if writing in 'append' mode.
             verbose: bool
                 Print relevant information during execution such as files written to disk
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’r’: Read-only; no data can be modified.
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted).
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
 
             Example:
 
@@ -865,7 +923,7 @@ class SpecWriter():
                 >>> print(f.root.spec)
                 /spec (Table(3,), fletcher32, shuffle, zlib(1)) ''
     """
-    def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100):
+    def __init__(self, output_file, max_size=1E9, verbose=True, max_annotations=100, mode='w'):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -877,6 +935,7 @@ class SpecWriter():
         self.name = 'spec'
         self.verbose = verbose
         self.spec_counter = 0
+        self.mode = mode
 
     def cd(self, fullpath='/'):
         """ Change the current directory within the database file system
@@ -984,6 +1043,10 @@ class SpecWriter():
         """ Open a new database file, if none is open
         """                
         if self.file is None:
-            fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
-            self.file = tables.open_file(fname, 'w')
+            if self.mode == 'a':
+                fname = self.base + self.ext
+            else:
+                fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
+
+            self.file = tables.open_file(fname, self.mode)
             self.file_counter += 1

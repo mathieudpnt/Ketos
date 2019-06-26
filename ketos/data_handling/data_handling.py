@@ -222,6 +222,7 @@ def find_wave_files(path, fullpath=True, subdirs=False):
 
     """
     wavefiles = find_files(path, '.wav', fullpath, subdirs)
+    wavefiles += find_files(path, '.WAV', fullpath, subdirs)
     return wavefiles
 
 
@@ -387,9 +388,6 @@ def check_data_sanity(images, labels):
                 File "ketos/data_handling/data_handling.py", line 599, in check_data_sanity
                     raise ValueError("Image and label columns have different lengths")
             ValueError: Image and label columns have different lengths
-
-
-
     """
     checks = True
     if images is None or labels is None:
