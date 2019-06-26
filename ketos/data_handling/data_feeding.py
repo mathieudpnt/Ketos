@@ -487,7 +487,7 @@ class ActiveLearningBatchGenerator():
         
         """
         # number of instances from previous session with poor performace 
-        num_poor = len(self.poor_indices)
+        num_poor = len(np.unique(self.poor_indices))
 
         # number of examples kept from previous session
         num_keep = int(min(num_poor, self.max_keep * self.session_size))
@@ -533,7 +533,7 @@ class ActiveLearningBatchGenerator():
         # get indices for new session
         session_indices = self.__get_session_indices__()
 
-        # refresh is_poor array
+        # refresh poor_indices array
         self.poor_indices = np.array([], dtype=int)
 
         # create batch generator

@@ -1266,7 +1266,7 @@ class Spectrogram(AnnotationHandler):
             b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
             # ensure correct number of bins
             b[1] += num_bins - (b[1] - b[0])
-
+ 
         # extract
         res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
 
@@ -1344,7 +1344,7 @@ class Spectrogram(AnnotationHandler):
             bins1 = bins
         
         elif length is not None and length != self.duration():
-            bins = int(np.ceil(length / spec.tres))
+            bins = int(np.round(length / spec.tres))
             number = int(f(spec.tbins() / bins))
             bins1 = bins
 
@@ -1428,9 +1428,6 @@ class Spectrogram(AnnotationHandler):
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
-
-                t1 = self.tmin + np.round((t1-self.tmin)/self.tres) * self.tres                
-                t2 = self.tmin + np.round((t2-self.tmin)/self.tres) * self.tres                
 
             b[0] = t1
             b[1] = t2

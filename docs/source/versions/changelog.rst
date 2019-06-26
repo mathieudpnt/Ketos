@@ -2,6 +2,11 @@ Change log
 ==========
 
 
+**Version 1.0.3** (June 21, 2019)
+
+* New filters FAVFilter and FAVThresholdFilter added to spectrogram_filters module
+
+
 **Version 1.0.2** (May 14, 2019)
 
 * create_spec_database method in database_interface module correctly handles parsing of Windows paths

@@ -34,6 +34,42 @@ import ketos.audio_processing.spectrogram_filters as filters
 from ketos.data_handling.parsing import Interval
 import matplotlib.pyplot  as plt
 
+def test_FAV_threshold_filter():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::10] = 10
+    f = filters.FAVThresholdFilter(threshold=3.0, winlen=1)
+    f.apply(spec)
+    assert np.all(spec.image[:,0] == 9)
+    assert np.all(spec.image[:,1] == 0.1)
+
+def test_FAV_threshold_filter_w_winlen():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::10] = 10
+    f = filters.FAVThresholdFilter(threshold=0.1, winlen=9)
+    f.apply(spec)
+    assert np.all(spec.image[:,0] == 9)
+    assert np.all(spec.image[:,1] == 0.1)
+
+def test_FAV_filter():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::10] = 10
+    f = filters.FAVFilter(winlen=1)
+    f.apply(spec)
+    assert np.all(spec.image[:,9] == 531441)
+    assert np.all(spec.image[:,19] == 531441)
+
+def test_FAV_filter_w_smoothing():
+    spec = MagSpectrogram()
+    spec.image = np.ones(shape=(100,100))
+    spec.image[:,::20] = 100
+    f = filters.FAVFilter(winlen=5)
+    f.apply(spec)
+    assert np.all(spec.image[:,19] == pytest.approx(4.7318e8, abs=0.001e8))
+    assert np.all(spec.image[:,39] == pytest.approx(4.7318e8, abs=0.001e8))
+
 def test_harmonic_filter():
     spec = MagSpectrogram()
     spec.image = np.zeros(shape=(100,100))

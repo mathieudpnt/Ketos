@@ -176,6 +176,7 @@ class BasicCNN(DataHandler):
         self.keep_prob = tf_nodes['keep_prob']
         self.learning_rate = tf_nodes['learning_rate']
         self.class_weights = tf_nodes['class_weights']
+        self.is_train = tf_nodes['is_train']
 
         if reset:
             self.reset()
@@ -243,6 +244,7 @@ class BasicCNN(DataHandler):
         keep_prob = graph.get_tensor_by_name("keep_prob:0")        
         learning_rate = graph.get_tensor_by_name("learning_rate:0")      
         class_weights = graph.get_tensor_by_name("class_weights:0")  
+        is_train = graph.get_tensor_by_name("is_train:0")  
 
         init_op = tf.global_variables_initializer()
         merged = tf.summary.merge_all()
@@ -263,13 +265,16 @@ class BasicCNN(DataHandler):
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
                 'class_weights': class_weights,
+                'is_train': is_train,
                 }
 
         self.set_tf_nodes(tf_nodes=tf_nodes, reset=reset)
 
         return tf_nodes
 
-    def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]), ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512]):
+    def create(self, conv_params=[ConvParams(name='conv_1',n_filters=32,filter_shape=[2,8]),\
+            ConvParams(name='conv_2',n_filters=64,filter_shape=[30,8])], dense_size=[512],\
+            batch_norm = False):
         """Create the Neural Network structure.
 
             The Network has a number of convolutional layers followed by a number 
@@ -290,6 +295,8 @@ class BasicCNN(DataHandler):
                     Each item in the list represents a convolutional layer.
                 dense_size: list(int)
                     Sizes of the fully connected layers preceeding the output layer.
+                batch_norm: bool
+                    Add batch normalization layers
 
             Returns:
                 tf_nodes: dict
@@ -328,6 +335,8 @@ class BasicCNN(DataHandler):
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
 
+        is_train = tf.placeholder_with_default(False, (), 'is_train')
+
         x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1]], name="x")
         x_shaped = tf.reshape(x, [-1, input_shape[0], input_shape[1], 1])
         y = tf.placeholder(tf.float32, [None, num_labels], name="y")
@@ -341,6 +350,13 @@ class BasicCNN(DataHandler):
         # dense layers including output layer
         dense_size.append(num_labels)
 
+        # batch normalisation on input
+        if batch_norm:
+            x_shaped = tf.layers.batch_normalization(x_shaped, training=is_train, momentum=0.99)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                x_shaped = tf.identity(x_shaped) # this ensures that moving average and variance are computed automatically (in training mode)
+    
         # create convolutional layers
         conv_layers = [x_shaped]
         N = len(params)
@@ -354,7 +370,7 @@ class BasicCNN(DataHandler):
             filter_shape = params[i].filter_shape
             name = params[i].name
             # create new layer
-            l = self._create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name=name)
+            l = self._create_new_conv_layer(l_prev, n_input, n_filters, filter_shape, pool_shape, name, batch_norm, is_train)
             conv_layers.append(l)
             # collect info
             dim = l.shape[1] * l.shape[2] * l.shape[3]
@@ -385,7 +401,8 @@ class BasicCNN(DataHandler):
                 n = 'dense_{0}'.format(i+1)
                 l = tf.nn.relu(l, name=n) # ReLu activation
             else: # output layer
-                cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y),name="cost_function")
+                losses = tf.nn.softmax_cross_entropy_with_logits(logits=l, labels=y)
+                cross_entropy = tf.reduce_mean(losses, name="cost_function")
                 n = 'class_weights'
                 l = tf.nn.softmax(l, name=n) # softmax                    
 
@@ -413,12 +430,12 @@ class BasicCNN(DataHandler):
         y_ = dense_layers[-1]
 
         # add an optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate,name = "optimizer").minimize(cross_entropy)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate, name="optimizer").minimize(cross_entropy)
 
         # define an accuracy assessment operation
         predict = tf.argmax(y_, 1, name="predict")
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1), name="correct_prediction")
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32),name="accuracy")
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name="accuracy")
 
         # setup the initialisation operator
         init_op = tf.global_variables_initializer()
@@ -445,13 +462,14 @@ class BasicCNN(DataHandler):
                 'keep_prob': keep_prob,
                 'learning_rate': learning_rate,
                 'class_weights': y_,
+                'is_train': is_train
                 }
 
         self.set_tf_nodes(tf_nodes)
 
         return tf_nodes
         
-    def _create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name):
+    def _create_new_conv_layer(self, input_data, num_input_channels, num_filters, filter_shape, pool_shape, name, batch_norm, is_train):
         """Create a convolutional layer.
 
             Args:
@@ -469,6 +487,10 @@ class BasicCNN(DataHandler):
                     Example: [2,8]
                 name: str
                     Name by which the layer will be identified in the graph.
+                batch_norm: bool
+                    Add batch normalization layer
+                is_train: tensorflow bool tensor
+                    Boolean variables indicating if network is being trained or used for prediction
 
             Returns:
                 out_layer: tensorflow layer
@@ -490,6 +512,13 @@ class BasicCNN(DataHandler):
 
         # apply a ReLU non-linear activation
         out_layer = tf.nn.relu(out_layer)
+
+        # apply batch normalization 
+        if batch_norm:
+            out_layer = tf.layers.batch_normalization(out_layer, training=is_train, momentum=0.99)
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                out_layer = tf.identity(out_layer)
 
         # now perform max pooling
         # ksize is the argument which defines the size of the max pooling window (i.e. the area over which the maximum is
@@ -531,7 +560,7 @@ class BasicCNN(DataHandler):
 
         return img_shape
 
-    def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train(self, train_batch_gen=None,  batch_size=None, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01, log_path=None):
         """ Train the neural network on the training set.
 
             Train on the batches of training data provided by the generator ``train_batch_gen``. 
@@ -559,12 +588,14 @@ class BasicCNN(DataHandler):
                     i.e., drop-out will be applied if keep_prob < 1.
                 val_acc_goal: float 
                     Terminate training when validation accuracy reaches this value 
+                log_path: str
+                    Path to file where training and validation accuracies will be saved for each epoch
 
             Returns:
-                avg_cost: float
-                    Average cost of last completed training epoch.
-                val_acc: float
-                    Accuracy on validation data. Will be 0 if no validation data is provided.
+                train_acc_epoch: list
+                    Accuracy on training data for each epoch
+                val_acc_epoch: list
+                    Accuracy on validation data for each epoch. Will be 0 if no validation data is provided.
 
             Example:
 
@@ -618,6 +649,9 @@ class BasicCNN(DataHandler):
         else:
             batches = int(y.shape[0] / batch_size)
 
+        train_acc_epoch = list()
+        val_acc_epoch = list()
+
         for epoch in range(num_epochs):
             avg_cost = 0
             avg_acc = 0
@@ -632,9 +666,10 @@ class BasicCNN(DataHandler):
                     x_i, y_i = next(train_batch_gen)
 
                 x_i = self._reshape_x(x_i)
+
                 fetch = [self.optimizer, self.cost_function, self.accuracy]
 
-                _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob})
+                _, c, a = sess.run(fetches=fetch, feed_dict={self.x: x_i, self.y: y_i, self.learning_rate: learning_rate, self.keep_prob: keep_prob, self.is_train: True})
                 
                 avg_cost += c / batches
                 avg_acc += a / batches
@@ -651,15 +686,27 @@ class BasicCNN(DataHandler):
 
             self.epoch_counter += 1
 
+            if log_path is not None:
+                if self.epoch_counter == 1:
+                    log_file = open(log_path, 'w+')
+                else:
+                    log_file = open(log_path, 'a')
+
+                log_file.write('{0},{1:.4f},{2:.4f}\n'.format(self.epoch_counter, avg_acc, val_acc))
+                log_file.close()
+
+            train_acc_epoch.append(avg_acc)
+            val_acc_epoch.append(val_acc)
+
             if val_acc >= val_acc_goal:
                 break
 
         if self.verbosity >= 2:
             print(line)
 
-        return avg_cost, val_acc
+        return train_acc_epoch, val_acc_epoch
 
-    def train_active(self, provider, num_sessions=1, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01):
+    def train_active(self, provider, num_sessions=1, num_epochs=None, learning_rate=None, keep_prob=None, val_acc_goal=1.01, log_path=None):
         """ Train the neural network in an active manner using a data provider module.
 
             Args:
@@ -678,12 +725,14 @@ class BasicCNN(DataHandler):
                     i.e., drop-out will be applied if keep_prob < 1.
                 val_acc_goal: float 
                     Terminate training when validation accuracy reaches this value 
+                log_file: str
+                    Path to file where training and validation accuracies will be saved for each epoch
 
             Returns:
-                avg_cost: float
-                    Average cost of last completed training epoch.
-                val_acc: float
-                    Accuracy on validation data. Will be 0 if no validation data is provided.
+                train_acc_epoch: list
+                    Accuracy on training data for each epoch
+                val_acc_epoch: list
+                    Accuracy on validation data for each epoch. Will be 0 if no validation data is provided.
 
             Example:
 
@@ -711,6 +760,9 @@ class BasicCNN(DataHandler):
         if len(X) > 0:
             self.set_validation_data(x=X, y=Y)
 
+        train_acc_epoch = list()
+        val_acc_epoch = list()
+
         for i in range(num_sessions):
 
             if self.verbosity >= 2:
@@ -720,8 +772,9 @@ class BasicCNN(DataHandler):
             gen = next(provider)
 
             # train
-            avg_cost, val_acc = self.train(train_batch_gen=gen, num_epochs=num_epochs,\
-                    learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal)
+            train_acc, val_acc = self.train(train_batch_gen=gen, num_epochs=num_epochs,\
+                    learning_rate=learning_rate, keep_prob=keep_prob, val_acc_goal=val_acc_goal,\
+                    log_path=log_path)
 
             # update predictions and confidences
             num_batches = gen.n_batches
@@ -733,10 +786,13 @@ class BasicCNN(DataHandler):
                 conf = class_confidences(w)
                 provider.update_performance(indices=i, predictions=pred, confidences=conf)
 
-            if val_acc >= val_acc_goal:
+            if val_acc[-1] >= val_acc_goal:
                 break
 
-        return avg_cost, val_acc
+            train_acc_epoch += train_acc
+            val_acc_epoch += val_acc
+
+        return train_acc_epoch, val_acc_epoch
 
     def save(self, destination):
         """ Save the model
@@ -801,7 +857,16 @@ class BasicCNN(DataHandler):
 
         x = self._reshape_x(x) 
         y1hot = self._ensure1hot(y)       
-        results = self.sess.run(fetches=self.accuracy, feed_dict={self.x:x, self.y:y1hot, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+
+        x, y1hot = self._split(x, y1hot)
+        results = list()
+        for xi,yi in zip(x, y1hot):
+            r = self.sess.run(fetches=self.accuracy, feed_dict={self.x:xi, self.y:yi, self.learning_rate: self.learning_rate_value, self.keep_prob:1.0})
+            results.append(r)
+
+        results = np.array(results)
+        results = np.average(results)
+
         return results
 
     def get_predictions(self, x):

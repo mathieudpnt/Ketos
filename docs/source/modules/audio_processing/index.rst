@@ -7,5 +7,7 @@ Audio Processing
 
    audio_processing
    audio
-   spectrogram
    annotation
+   spectrogram
+   spectrogram_filters
+
