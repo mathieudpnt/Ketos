@@ -41,7 +41,7 @@ def test_empty_annotation_handler_has_correct_columns():
 
 def test_add_individual_annotations():
     handler = AnnotationHandler()
-    # add simple annotation
+    # add annotation without units
     handler.add(start=0.0, stop=4.1, label=1)
     a = handler.get()
     assert len(a) == 1
@@ -89,51 +89,118 @@ def test_add_annotations_as_dict():
 def test_crop_annotations_along_time_axis():
     handler = AnnotationHandler()
     handler.add(1, 3, 0, 100, 1)
-    handler.add(3, 5, 0, 100, 2)
-    handler.add(5, 7, 0, 100, 3)
+    handler.add(3, 5.2, 0, 100, 2)
+    handler.add(5, 7.3, 0, 100, 3)
     handler.add(8, 10, 0, 100, 4)
     a = handler.get()
     assert len(a) == 4
+    # crop from t=4 to t=9
+    # 1st annotation is fully removed, 2nd and 4th are partially cropped
     handler.crop(4, 9)
     a = handler.get()
     assert len(a) == 3
-    assert np.array_equal(a['start'], [0, 1, 4]) 
-    assert np.array_equal(a['stop'], [1, 3, 5]) 
+    assert np.allclose(a['start'], [0, 1, 4], atol=1e-08) 
+    assert np.allclose(a['stop'], [1.2, 3.3, 5], atol=1e-08) 
     assert np.array_equal(a['label'], [2, 3, 4]) 
-
-
-    ### CONTINUE HERE ###
-
 
 def test_segment_annotations():
     handler = AnnotationHandler()
     handler.add(0.2, 1.1, 0, 100, 1)
     handler.add(3.1, 4.7, 0, 100, 2)
+    # divided into 1.0-second long segments with 50% overlap
     ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5)
-    for x in ann:
-        print('-----------------------------')
-        print(x)
-        print(ann[x].get())
+    # the segments overlapping with the two annotations are:
+    # 0) 0.0-1.0, 1) 0.5-1.5, 2) 1.0-2.0, 5) 2.5-3.5, 6) 3.0-4.0, 
+    # 7) 3.5-4.5, 8) 4.0-5.0, 9) 4.5-5.5
+    assert len(ann) == 8
+    # check 1st segment
+    a = ann[0].get()
+    assert np.allclose(a['start'], [0.2])
+    assert np.allclose(a['stop'], [1.0])
+    assert np.array_equal(a['label'], [1]) 
+    # check 2nd segment
+    a = ann[1].get()
+    assert np.allclose(a['start'], [0.0])
+    assert np.allclose(a['stop'], [0.6])
+    assert np.array_equal(a['label'], [1]) 
+    # check 8th segment
+    a = ann[9].get()
+    assert np.allclose(a['start'], [0.0])
+    assert np.allclose(a['stop'], [0.2])
+    assert np.array_equal(a['label'], [2])
+
+def test_segment_annotations_with_nonzero_start_time():
+    handler = AnnotationHandler()
+    handler.add(0.2, 1.1, 0, 100, 1)
+    # divided into 1.0-second long segments with 50% overlap, and start 
+    # time set to -0.9 seconds
+    ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5, start='-0.9sec')
+    # the segments overlapping with the two annotations are:
+    # 1) -0.4-0.6, 2) 0.1-1.1, 3) 0.6-1.6
+    assert len(ann) == 3
+    # check 1st segment
+    a = ann[1].get()
+    assert np.allclose(a['start'], [0.6])
+    assert np.allclose(a['stop'], [1.0])
+    assert np.array_equal(a['label'], [1]) 
+    # check 2nd segment
+    a = ann[2].get()
+    assert np.allclose(a['start'], [0.1])
+    assert np.allclose(a['stop'], [1.0])
+    assert np.array_equal(a['label'], [1]) 
+    # check 3rd segment
+    a = ann[3].get()
+    assert np.allclose(a['start'], [0.0])
+    assert np.allclose(a['stop'], [0.5])
+    assert np.array_equal(a['label'], [1])
+
+def test_audio_source_handler_has_correct_columns():
+    handler = AudioSourceHandler()
+    a = handler.get()
+    unittest.TestCase().assertCountEqual(list(a.columns), ['start', 'stop', 'offset', 'label'])
 
 def test_add_audio_tags():
-    tracker = AudioSourceHandler()
-    tracker.add(start=0.0, stop=4.1, label='test1.wav')
-    tracker.add(4.1, 8.3, 'test2.wav', offset=700.)
-    print(tracker.get())
+    handler = AudioSourceHandler()
+    handler.add(start=0.0, stop=4.1, label='test1.wav')
+    handler.add(4.1, 8.3, 'test2.wav', offset=700.)
+    tags = handler.get()
+    assert len(tags) == 2
+    assert np.allclose(tags['offset'], [0.0, 700.])
 
 def test_crop_audio_tags():
-    tracker = AudioSourceHandler()
-    tracker.add(start=0.0, stop=4.1, label='test1.wav')
-    tracker.add(4.1, 8.3, 'test2.wav', offset=700.)
-    tracker.crop(2.0, 10.0)
-    print(tracker.get())
+    handler = AudioSourceHandler()
+    handler.add(start=0.0, stop=4.1, label='test1.wav')
+    handler.add(4.1, 8.3, 'test2.wav', offset=700.)
+    handler.crop(2.0, 10.0)
+    tags = handler.get()
+    assert len(tags) == 2
+    assert np.allclose(tags['start'], [0.0, 2.1])
+    assert np.allclose(tags['stop'], [2.1, 6.3])
+    assert np.allclose(tags['offset'], [2.0, 700.])
 
 def test_segment_audio_tags():
-    tracker = AudioSourceHandler()
-    tracker.add(start=0.0, stop=4.1, label='test1.wav')
-    tracker.add(4.1, 8.3, 'test2.wav', offset=700.)
-    ann = tracker.segment(num_segs=20, window_size=1.0, step_size=0.5)
-    for x in ann:
-        print('-----------------------------')
-        print(x)
-        print(ann[x].get())
+    handler = AudioSourceHandler()
+    handler.add(start=0.2, stop=1.1, label='test1.wav')
+    handler.add(1.1, 2.0, 'test2.wav', offset=700.)
+    ann = handler.segment(num_segs=4, window_size=1.0, step_size=0.5)
+    assert len(ann) == 4
+    a = ann[0].get()
+    assert np.allclose(a['start'], [0.2])
+    assert np.allclose(a['stop'], [1.0])
+    assert np.array_equal(a['offset'], [0.0])
+    assert np.array_equal(a['label'], ['test1.wav'])
+    a = ann[1].get()
+    assert np.allclose(a['start'], [0.0, 0.6])
+    assert np.allclose(a['stop'], [0.6, 1.0])
+    assert np.array_equal(a['offset'], [0.3, 700.])
+    assert np.array_equal(a['label'], ['test1.wav', 'test2.wav'])
+    a = ann[2].get()
+    assert np.allclose(a['start'], [0.0, 0.1])
+    assert np.allclose(a['stop'], [0.1, 1.0])
+    assert np.array_equal(a['offset'], [0.8, 700.])
+    assert np.array_equal(a['label'], ['test1.wav', 'test2.wav'])
+    a = ann[3].get()
+    assert np.allclose(a['start'], [0.0])
+    assert np.allclose(a['stop'], [0.5])
+    assert np.array_equal(a['offset'], [700.4])
+    assert np.array_equal(a['label'], ['test2.wav'])

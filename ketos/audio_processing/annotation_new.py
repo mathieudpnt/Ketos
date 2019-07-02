@@ -310,6 +310,10 @@ class AnnotationHandler():
 
             # create/fill annotation handlers for each segment
             for j in range(n):
+                
+                if b[j] <= a[j]:
+                    continue
+
                 r = row.copy()
                 r['start'] = a[j]
                 r['stop'] = b[j]
