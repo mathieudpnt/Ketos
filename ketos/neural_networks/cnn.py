@@ -331,10 +331,10 @@ class BasicCNN(DataHandler):
         """
         input_shape = self._image_shape()
         num_labels = self.num_labels
-
-        if len(input_shape) == 2:
+        
+        if len(input_shape) <= 2:
             num_channels = 1
-        elif len(input_shape) > 2:
+        else:
             num_channels = input_shape[2]
 
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
@@ -979,9 +979,13 @@ class BasicCNN(DataHandler):
         """
         img_shape = self._image_shape()
 
-        if len(img_shape) == 2:
+        if len(img_shape) == 1:
+            reshaped_x = np.reshape(x, (-1, img_shape[0]))
+
+        elif (len(img_shape) == 2) or (len(img_shape) > 2 and img_shape[2] == 1):
             reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
-        elif len(img_shape) > 2:
+
+        else:
             reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1], img_shape[2]))
 
         return reshaped_x

@@ -61,6 +61,7 @@ def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
     network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
+    reset_default_graph()
 
 @pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_two_channel_images():
@@ -72,6 +73,7 @@ def test_train_BasicCNN_with_two_channel_images():
     network = BasicCNN(train_x=train_x, train_y=train_y,  num_labels=2, verbosity=0)
     _ = network.create()
     network.train()
+    reset_default_graph()
 
 @pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_two_channel_images_and_validation():
@@ -87,6 +89,7 @@ def test_train_BasicCNN_with_two_channel_images_and_validation():
             num_labels=2, verbosity=0, batch_size=32, num_epochs=10)
     _ = network.create()
     network.train()
+    reset_default_graph()
 
 @pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_batch_norm():
@@ -229,3 +232,4 @@ def test_active_learning():
     g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
     # train it
     _, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
+    reset_default_graph()
