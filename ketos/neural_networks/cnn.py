@@ -332,19 +332,29 @@ class BasicCNN(DataHandler):
         input_shape = self._image_shape()
         num_labels = self.num_labels
 
+        if len(input_shape) == 2:
+            num_channels = 1
+        elif len(input_shape) > 2:
+            num_channels = input_shape[2]
+
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
 
         is_train = tf.placeholder_with_default(False, (), 'is_train')
 
-        x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1]], name="x")
-        x_shaped = tf.reshape(x, [-1, input_shape[0], input_shape[1], 1])
+        if num_channels == 1:
+            x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1]], name="x")
+        else:
+            x = tf.placeholder(tf.float32, [None, input_shape[0] * input_shape[1], num_channels], name="x")
+
+        x_shaped = tf.reshape(x, [-1, input_shape[0], input_shape[1], num_channels])
+
         y = tf.placeholder(tf.float32, [None, num_labels], name="y")
 
-        pool_shape=[2,2]
+        pool_shape = [2,2]
 
         # input and convolutional layers
-        params = [ConvParams(name='input', n_filters=1, filter_shape=[1,1])] # input layer with dimension 1
+        params = [ConvParams(name='input', n_filters=num_channels, filter_shape=[1,1])] # input layer with dimension 1
         params.extend(conv_params)
             
         # dense layers including output layer
@@ -968,7 +978,12 @@ class BasicCNN(DataHandler):
                     A vector containing the flattened inputs.                
         """
         img_shape = self._image_shape()
-        reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
+
+        if len(img_shape) == 2:
+            reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1]))
+        elif len(img_shape) > 2:
+            reshaped_x = np.reshape(x, (-1, img_shape[0] * img_shape[1], img_shape[2]))
+
         return reshaped_x
 
     def predict_on_validation(self):

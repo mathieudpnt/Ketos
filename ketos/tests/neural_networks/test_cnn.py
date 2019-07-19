@@ -63,6 +63,32 @@ def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
     network.train()
 
 @pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_two_channel_images():
+    N = 32
+    # training data
+    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
+    # initialize network
+    network = BasicCNN(train_x=train_x, train_y=train_y,  num_labels=2, verbosity=0)
+    _ = network.create()
+    network.train()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_two_channel_images_and_validation():
+    N = 128
+    # training data
+    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
+    # validation data
+    val_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    val_y = np.sum(val_x, axis=(1,2,3)) > 1.5
+    # initialize network
+    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y,\
+            num_labels=2, verbosity=0, batch_size=32, num_epochs=10)
+    _ = network.create()
+    network.train()
+
+@pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_batch_norm():
     x = 2.0 * np.random.randn(128,8,8) + 1.5
     y = np.random.randn(128)
