@@ -2,6 +2,11 @@ Change log
 ==========
 
 
+**Version 1.0.5** (July 19, 2019)
+
+ * BasicCNN accepts multi-channel images as input.
+
+
 **Version 1.0.4** (June 26, 2019)
 
  * Option to add batch normalization layers to BasicCNN.
@@ -24,6 +29,7 @@ Change log
  * Improved implementation of ActiveLearningBatchGenerator; train_active method in BasicCNN modified accordingly.
  * Both BatchGenerator and ActiveLearningBatchGenerator can read either from memory or database.
  * New tutorial showing how to compute spectrograms and save them to a database.
+
 
 **Version 1.0.3** (June 21, 2019)
 
