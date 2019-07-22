@@ -63,7 +63,7 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import random_floats
 from tqdm import tqdm
-from librosa.core import cqt
+from librosa.core import cqt, load, get_samplerate, get_duration
 
 
 def ensure_same_length(specs, pad=False):
@@ -2309,6 +2309,41 @@ class MagSpectrogram(Spectrogram):
         image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
+
+    @classmethod
+    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None):
+
+        # sampling rate
+        sr = sampling_rate
+        if sr is None:
+            sr = get_samplerate(path)
+
+        # window size must correspond to integer number of samples
+        ws = round(window_size * sr) / sr
+
+        # step size must be an integer number of samples
+                
+
+        x, sr = load(path=path, sr=sampling_rate, offset=offset, duration=duration)
+
+        fname = os.path.basename(path)
+
+        duration = len(x) / sr
+
+        num_bins = int(round(duration / step_size))
+
+        ss = duration / num_bins
+
+        ws = windown_size / 
+
+        ss = duration / num_bins / bin_size
+        ws = window_size / bin_size
+
+
+
+
+        audio = AudioSignal(rate=sr, data=y, tag=fname, tstart=offset)
+
 
     def audio_signal(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
