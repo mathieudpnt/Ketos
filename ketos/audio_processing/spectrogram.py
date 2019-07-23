@@ -2364,7 +2364,7 @@ class MagSpectrogram(Spectrogram):
         delta_offset = pad_sec
 
         # padding after        
-        pad = win_siz / 2 - (seg_siz - num_steps * step_siz)
+        pad = max(0, win_siz / 2 - (seg_siz - num_steps * step_siz) - step_siz)
         pad_sec = pad / sr # convert to seconds
         resid = file_duration - (offset + duration)
         pad_zeros_sec = max(0, pad_sec - resid) # amount of zero padding required
