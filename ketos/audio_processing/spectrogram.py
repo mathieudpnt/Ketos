@@ -2323,7 +2323,7 @@ class MagSpectrogram(Spectrogram):
         return image, NFFT, fres, phase_change
 
     @classmethod
-    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True, adjust_duration=False):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -2332,6 +2332,9 @@ class MagSpectrogram(Spectrogram):
             audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
             is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
             the audio is padded with zeros.
+
+            Note that the duration must be equal to an integer number of steps. If this is not the case, 
+            an exception will be raised. Alternatively, you can set adjust_duration to True.
 
             TODO: Align implementation with the rest of the module.
 
@@ -2354,6 +2357,9 @@ class MagSpectrogram(Spectrogram):
                     Channel to read from (for stereo recordings).
                 decibel: bool
                     Use logarithmic (decibel) scale.
+                adjust_duration: bool
+                    If True, the duration is adjusted (upwards) to ensure that the 
+                    length corresponds to an integer number of steps.
 
             Returns:
                 spec: MagSpectrogram
@@ -2397,14 +2403,21 @@ class MagSpectrogram(Spectrogram):
         win_siz = int(round(window_size * sr))
         win_siz += win_siz%2
 
-        # ensure step size is a divisor of the segment size
+        # step size
         step_siz = int(step_size * sr)
-        divisors = np.array(list(factors(seg_siz)))
-        step_siz = divisors[np.abs(divisors-step_siz).argmin()] # find closest
 
-        # ensure integer number of steps
+        # ensure step size is a divisor of the segment size
+        res = seg_siz % step_siz
+        if not adjust_duration:
+            assert res == 0, 'Step size must be a divisor of the audio duration. Consider setting adjust_duration=True.'
+        else:
+            if res > 0: 
+                seg_siz = step_siz * int(np.ceil(seg_siz / step_siz))
+                duration = float(seg_siz) / sr
+
+        # number of steps
         num_steps = int(seg_siz / step_siz)
-        
+
         # padding before / after        
         pad_zeros = [0, 0]
 

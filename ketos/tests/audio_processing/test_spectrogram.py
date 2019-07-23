@@ -805,20 +805,28 @@ def test_from_wav(sine_wave_file):
     spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0)
     assert spec.tres == 0.01
     assert spec.duration() == 3.0
+
     # duration is not integer multiply of step size
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0)
+    with pytest.raises(AssertionError):
+        spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0)
+
+    # duration is not integer multiply of step size, but adjust duration automatically
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0, adjust_duration=True)
     assert spec.tres == pytest.approx(0.011, abs=0.001)
-    assert spec.duration() == 3.0
+    assert spec.duration() == pytest.approx(3.0, abs=0.01)
+
     # segment is empty raises assertion error
     with pytest.raises(AssertionError):
         spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=4.0, duration=None, channel=0)
+
     # duration can be less than full length
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=2.14, channel=0)
-    assert spec.tres == pytest.approx(0.011, abs=0.001)
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=2.14, channel=0, adjust_duration=True)
+    assert spec.tres == 0.01
     assert spec.duration() == 2.14
+
     # specify both offset and duration
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0.13, duration=2.14, channel=0)
-    assert spec.tres == pytest.approx(0.011, abs=0.001)
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0.13, duration=2.14, channel=0, adjust_duration=True)
+    assert spec.tres == 0.01
     assert spec.duration() == 2.14
     assert spec.tmin == 0.13
     # check file name

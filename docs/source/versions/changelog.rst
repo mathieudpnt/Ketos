@@ -2,6 +2,12 @@ Change log
 ==========
 
 
+**Version 1.0.7** (July 23, 2019)
+
+ * from_wav method in MagSpectrogram class raises an exception if the duration 
+   does not equal an integer number of steps.
+
+
 **Version 1.0.6** (July 23, 2019)
 
  * New method for generating magnitude spectrograms directly from audio file (*.wav) input.
