@@ -832,3 +832,25 @@ def test_from_wav(sine_wave_file):
     # check file name
     assert spec.file_dict[0] == 'sine_wave.wav'
 
+@pytest.mark.test_from_wav
+def test_from_wav_cqt(sine_wave_file):
+    # zero offset
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32)
+    assert spec.tmin == 0
+    assert spec.tres == pytest.approx(0.01, abs=0.002)
+    assert spec.duration() == pytest.approx(3.0, abs=0.01)
+    tres = spec.tres
+    # non-zero offset
+    offset = 1.0
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=offset, duration=None, channel=0)
+    assert spec.tmin == offset
+    assert spec.tres == tres
+    assert spec.duration() == pytest.approx(3.0 - offset, abs=0.01)
+    # duration is less than segment length
+    duration = 1.1
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, duration=duration)
+    assert spec.tres == tres
+    assert spec.duration() == pytest.approx(duration, abs=0.01)
+    # step size is not divisor of duration
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.017, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0)
+    assert spec.duration() == pytest.approx(3.0, abs=0.02)

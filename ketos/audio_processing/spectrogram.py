@@ -2453,6 +2453,9 @@ class MagSpectrogram(Spectrogram):
         # select the segment of interest manually. 
         if len(x) != int(sr * duration):
             x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            if np.ndim(x) == 2:
+                x = x[channel]
+
             start = int((offset - delta_offset) * sr)
             num_samples = int(duration * sr)
             stop = min(len(x), start + num_samples)
@@ -2971,3 +2974,99 @@ class CQTSpectrogram(Spectrogram):
         """
         fmax = 2**(self.fbins() / self.bins_per_octave) * self.fmin
         return fmax
+
+    @classmethod
+    def from_wav(cls, path, step_size, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+        """ Create CQT spectrogram directly from wav file.
+
+            The arguments offset and duration can be used to select a segment of the audio file.
+
+            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
+            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
+            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
+            the audio is padded with zeros.
+
+            TODO: Align implementation with the rest of the module.
+
+            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
+        
+            Args:
+                path: str
+                    Complete path to wav file 
+                step_size: float
+                    Step size in seconds 
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                bins_per_octave: int
+                    Number of bins per octave
+                sampling_rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
+                offset: float
+                    Start time of spectrogram in seconds.
+                duration: float
+                    Duration of spectrogrma in seconds.
+                channel: int
+                    Channel to read from (for stereo recordings).
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                spec: CQTSpectrogram
+                    CQT spectrogram
+
+            Example:
+                >>> # load spectrogram from wav file
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step_size=0.01, fmin=1, fmax=800, bins_per_octave=16)
+                >>> # show
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
+        """
+        # ensure offset is non-negative
+        offset = max(0, offset)
+
+        # ensure selected segment does not exceed file duration
+        file_duration = librosa.get_duration(filename=path)
+        if duration is None:
+            duration = file_duration
+
+        duration = min(duration, file_duration - offset)
+
+        # assert that segment is non-empty
+        assert duration > 0, 'Selected audio segment is empty'
+
+        # load audio
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration)
+
+        # select channel
+        if np.ndim(x) == 2:
+            x = x[channel]
+
+        # check that loaded audio segment has the expected length.
+        # if this is not the case, load the entire audio file and 
+        # select the segment of interest manually. 
+        if len(x) != int(sr * duration):
+            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            if np.ndim(x) == 2:
+                x = x[channel]
+
+            start = int((offset - delta_offset) * sr)
+            num_samples = int(duration * sr)
+            stop = min(len(x), start + num_samples)
+            x = x[start:stop]
+
+        # parse file name
+        fname = os.path.basename(path)
+
+        # create audio signal
+        a = AudioSignal(rate=sr, data=x, tag=fname, tstart=offset)
+
+        # create CQT spectrogram
+        spec = cls(audio_signal=a, fmin=fmin, fmax=fmax, winstep=step_size, bins_per_octave=bins_per_octave,\
+                hamming=True, decibel=decibel)
+
+        return spec
