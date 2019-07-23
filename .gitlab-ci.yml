@@ -7,8 +7,6 @@ stages:
 - trig
 
 before_script:
-  - pip install psutil
-  - pip install soundfile
 
 after_script:
   - rm -rf ketos/tests/assets/tmp/*

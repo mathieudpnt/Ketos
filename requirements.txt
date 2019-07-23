@@ -30,6 +30,7 @@ Pillow==5.4.1
 Pint==0.9
 pluggy==0.8.1
 protobuf==3.6.1
+psutil==5.6.3
 py==1.8.0
 pyparsing==2.3.1
 pytest==4.3.0

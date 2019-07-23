@@ -16,6 +16,9 @@ RUN apt-get update
 # Install HDF5 C library
 RUN apt-get install -y --no-install-recommends libhdf5-serial-dev
 
+# Install sndfile (needed by librosa)
+RUN apt-get install libsndfile1
+
 # Clean
 RUN rm -rf /var/lib/apt/lists/*
 
