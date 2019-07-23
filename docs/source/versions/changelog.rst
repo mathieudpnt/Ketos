@@ -2,6 +2,11 @@ Change log
 ==========
 
 
+**Version 1.0.6** (July 23, 2019)
+
+ * New method for generating magnitude spectrograms directly from audio file (*.wav) input.
+
+
 **Version 1.0.5** (July 19, 2019)
 
  * BasicCNN accepts multi-channel images as input.

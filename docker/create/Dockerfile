@@ -16,6 +16,9 @@ RUN apt-get update
 # Install HDF5 C library
 RUN apt-get install -y --no-install-recommends libhdf5-serial-dev
 
+# Install sndfile (needed by librosa)
+RUN apt-get install -y --no-install-recommends libsndfile1
+
 # Clean
 RUN rm -rf /var/lib/apt/lists/*
 
@@ -24,6 +27,6 @@ RUN pip install -r requirements.txt
 
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-1.0.1.tar.gz
+RUN pip install dist/ketos-1.0.6.tar.gz
 RUN pip install sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz
 

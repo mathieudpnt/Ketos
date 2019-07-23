@@ -1,4 +1,4 @@
-image: oliskir/ketos:v1.0.1
+image: oliskir/ketos:v1.0.6
 
 stages:
 - build
@@ -7,7 +7,6 @@ stages:
 - trig
 
 before_script:
-  - pip install psutil
 
 after_script:
   - rm -rf ketos/tests/assets/tmp/*

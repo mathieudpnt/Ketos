@@ -49,6 +49,7 @@
         MelSpectrogram class
 """
 
+import os
 import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
@@ -61,9 +62,10 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.utils import random_floats
+from ketos.utils import random_floats, factors
 from tqdm import tqdm
 from librosa.core import cqt
+import librosa
 
 
 def ensure_same_length(specs, pad=False):
@@ -2263,13 +2265,23 @@ class MagSpectrogram(Spectrogram):
                 If no tag is provided, the tag from the audio_signal will be used.
             decibel: bool
                 Use logarithmic z axis
+            image: 2d numpy array
+                Spectrogram matrix. If provided, audio_signal is ignored.
+            tmin: float
+                Spectrogram start time. Only used if image is provided.
+            fres: float
+                Spectrogram frequency resolution. Only used if image is provided.
     """
     def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag='',\
+                 image=None, tmin=0, fres=1):
 
         super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
-        if audio_signal is not None:
+        if image is not None:
+            super(MagSpectrogram, self).__init__(image=image, NFFT=NFFT, tres=winstep, tmin=tmin, fres=fres, tag=tag, timestamp=timestamp, flabels=flabels, decibel=decibel)
+
+        elif audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
             if tag is '':
                 tag = audio_signal.tag
@@ -2309,6 +2321,173 @@ class MagSpectrogram(Spectrogram):
         image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
+
+    @classmethod
+    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+        """ Create magnitude spectrogram directly from wav file.
+
+            The arguments offset and duration can be used to select a segment of the audio file.
+
+            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
+            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
+            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
+            the audio is padded with zeros.
+
+            TODO: Align implementation with the rest of the module.
+
+            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
+        
+            Args:
+                path: str
+                    Complete path to wav file 
+                window_size: float
+                    Window size in seconds
+                step_size: float
+                    Step size in seconds 
+                sampling_rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
+                offset: float
+                    Start time of spectrogram in seconds.
+                duration: float
+                    Duration of spectrogrma in seconds.
+                channel: int
+                    Channel to read from (for stereo recordings).
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                spec: MagSpectrogram
+                    Magnitude spectrogram
+
+            Example:
+                >>> # load spectrogram from wav file
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> # crop frequency
+                >>> spec.crop(flow=50, fhigh=800)
+                >>> # show
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+        """
+        # ensure offset is non-negative
+        offset = max(0, offset)
+
+        # ensure selected segment does not exceed file duration
+        file_duration = librosa.get_duration(filename=path)
+        if duration is None:
+            duration = file_duration
+
+        duration = min(duration, file_duration - offset)
+
+        # assert that segment is non-empty
+        assert duration > 0, 'Selected audio segment is empty'
+
+        # sampling rate
+        if sampling_rate is None:
+            sr = librosa.get_samplerate(path)
+        else:
+            sr = sampling_rate
+
+        # segment size 
+        seg_siz = int(duration * sr)
+
+        # ensure that window size is an even number of samples
+        win_siz = int(round(window_size * sr))
+        win_siz += win_siz%2
+
+        # ensure step size is a divisor of the segment size
+        step_siz = int(step_size * sr)
+        divisors = np.array(list(factors(seg_siz)))
+        step_siz = divisors[np.abs(divisors-step_siz).argmin()] # find closest
+
+        # ensure integer number of steps
+        num_steps = int(seg_siz / step_siz)
+        
+        # padding before / after        
+        pad_zeros = [0, 0]
+
+        # padding before
+        pad = win_siz / 2
+        pad_sec = pad / sr # convert to seconds
+        pad_zeros_sec = max(0, pad_sec - offset) # amount of zero padding required
+        pad_zeros[0] = int(pad_zeros_sec * sr) # convert to # samples
+
+        # increment duration
+        pad_sec -= pad_zeros_sec
+        duration += pad_sec
+
+        # reduce offset
+        delta_offset = pad_sec
+
+        # padding after        
+        pad = max(0, win_siz / 2 - (seg_siz - num_steps * step_siz) - step_siz)
+        pad_sec = pad / sr # convert to seconds
+        resid = file_duration - (offset + duration)
+        pad_zeros_sec = max(0, pad_sec - resid) # amount of zero padding required
+        pad_zeros[1] = int(pad_zeros_sec * sr) # convert to # samples
+
+        # increment duration
+        pad_sec -= pad_zeros_sec
+        duration += pad_sec
+
+        # load audio segment
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
+
+        # check that loaded audio segment has the expected length.
+        # if this is not the case, load the entire audio file and 
+        # select the segment of interest manually. 
+        if len(x) != int(sr * duration):
+            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            start = int((offset - delta_offset) * sr)
+            num_samples = int(duration * sr)
+            stop = min(len(x), start + num_samples)
+            x = x[start:stop]
+
+        # parse file name
+        fname = os.path.basename(path)
+
+        # select channel
+        if np.ndim(x) == 2:
+            x = x[channel]
+
+        # pad with zeros
+        if pad_zeros[0] > 0:
+            z = np.zeros(pad_zeros[0])
+            x = np.concatenate((z, x))        
+        if pad_zeros[1] > 0:
+            z = np.zeros(pad_zeros[1])
+            x = np.concatenate((x, z))        
+
+        # make frames
+        frames = make_frames(x, winlen=win_siz, winstep=step_siz)
+
+        # Apply Hamming window    
+        frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        fft = np.fft.rfft(frames)
+
+        # Compute magnitude
+        image = np.abs(fft)
+
+        # Number of points used for FFT
+        NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = sr / 2. / image.shape[1]
+
+        # use logarithmic axis
+        if decibel:
+            image = to_decibel(image)
+
+        spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
+        spec.hop = step_siz
+        spec.hamming = True
+
+        return spec
+
 
     def audio_signal(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
