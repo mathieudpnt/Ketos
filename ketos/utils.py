@@ -33,6 +33,22 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
+from functools import reduce
+
+def factors(n):    
+    """ Returns sorted set of all divisors of n
+
+        Args:
+            n: int
+                Integer number
+
+        Returns:
+            s: set
+                Sorted set of all divisors of n
+    """
+    s = set(reduce(list.__add__, 
+                ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
+    return s
 
 def ensure_dir(file_path):
     """ Ensure that destination directory exists.

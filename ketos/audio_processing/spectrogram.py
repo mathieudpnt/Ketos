@@ -62,7 +62,7 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.utils import random_floats
+from ketos.utils import random_floats, factors
 from tqdm import tqdm
 from librosa.core import cqt
 import librosa
@@ -2265,13 +2265,23 @@ class MagSpectrogram(Spectrogram):
                 If no tag is provided, the tag from the audio_signal will be used.
             decibel: bool
                 Use logarithmic z axis
+            image: 2d numpy array
+                Spectrogram matrix. If provided, audio_signal is ignored.
+            tmin: float
+                Spectrogram start time. Only used if image is provided.
+            fres: float
+                Spectrogram frequency resolution. Only used if image is provided.
     """
     def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag='',\
+                 image=None, tmin=0, fres=1):
 
         super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
-        if audio_signal is not None:
+        if image is not None:
+            super(MagSpectrogram, self).__init__(image=image, NFFT=NFFT, tres=winstep, tmin=tmin, fres=fres, tag=tag, timestamp=timestamp, flabels=flabels, decibel=decibel)
+
+        elif audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
             if tag is '':
                 tag = audio_signal.tag
@@ -2313,8 +2323,54 @@ class MagSpectrogram(Spectrogram):
         return image, NFFT, fres, phase_change
 
     @classmethod
-    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0):
+    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+        """ Create magnitude spectrogram directly from wav file.
 
+            The arguments offset and duration can be used to select a segment of the audio file.
+
+            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
+            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
+            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
+            the audio is padded with zeros.
+
+            TODO: Align implementation with the rest of the module.
+
+            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
+        
+            Args:
+                path: str
+                    Complete path to wav file 
+                window_size: float
+                    Window size in seconds
+                step_size: float
+                    Step size in seconds 
+                sampling_rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
+                offset: float
+                    Start time of spectrogram in seconds.
+                duration: float
+                    Duration of spectrogrma in seconds.
+                channel: int
+                    Channel to read from (for stereo recordings).
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                spec: MagSpectrogram
+                    Magnitude spectrogram
+
+            Example:
+                >>> # load spectrogram from wav file
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> # crop frequency
+                >>> spec.crop(flow=50, fhigh=800)
+                >>> # show
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+        """
         # ensure offset is non-negative
         offset = max(0, offset)
 
@@ -2334,19 +2390,21 @@ class MagSpectrogram(Spectrogram):
         else:
             sr = sampling_rate
 
+        # segment size 
+        seg_siz = int(duration * sr)
+
         # ensure that window size is an even number of samples
         win_siz = int(round(window_size * sr))
         win_siz += win_siz%2
 
+        # ensure step size is a divisor of the segment size
+        step_siz = int(step_size * sr)
+        divisors = np.array(list(factors(seg_siz)))
+        step_siz = divisors[np.abs(divisors-step_siz).argmin()] # find closest
+
         # ensure integer number of steps
-        num_steps = int(round(duration / step_size))
+        num_steps = int(seg_siz / step_siz)
         
-        # ensure step size is an integer number of samples
-        step_siz = int(round(duration / num_steps * sr))
-
-        # segment size 
-        seg_siz = int(duration * sr)
-
         # padding before / after        
         pad_zeros = [0, 0]
 
@@ -2374,10 +2432,6 @@ class MagSpectrogram(Spectrogram):
         pad_sec -= pad_zeros_sec
         duration += pad_sec
 
-        print(win_siz, step_siz, num_steps, seg_siz)
-        print(pad_zeros)
-        print(duration)
-
         # load audio segment
         x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
 
@@ -2399,8 +2453,6 @@ class MagSpectrogram(Spectrogram):
         # make frames
         frames = make_frames(x, winlen=win_siz, winstep=step_siz)
 
-        print(x.shape, len(frames))
-
         # Apply Hamming window    
         frames *= np.hamming(frames.shape[1])
 
@@ -2417,14 +2469,14 @@ class MagSpectrogram(Spectrogram):
         fres = sr / 2. / image.shape[1]
 
         # use logarithmic axis
-        image = to_decibel(image)
+        if decibel:
+            image = to_decibel(image)
 
-        y = Spectrogram(image=image, NFFT=NFFT, tres=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=True)
-        y.hop = step_siz
-        y.hamming = True
-        y.file_dict, y.file_vector, y.time_vector = y._create_tracking_data(fname) 
+        spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
+        spec.hop = step_siz
+        spec.hamming = True
 
-        return y
+        return spec
 
 
     def audio_signal(self, num_iters=25, phase_angle=0):
