@@ -2435,6 +2435,16 @@ class MagSpectrogram(Spectrogram):
         # load audio segment
         x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
 
+        # check that loaded audio segment has the expected length.
+        # if this is not the case, load the entire audio file and 
+        # select the segment of interest manually. 
+        if len(x) != int(sr * duration):
+            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            start = int((offset - delta_offset) * sr)
+            num_samples = int(duration * sr)
+            stop = min(len(x), start + num_samples)
+            x = x[start:stop]
+
         # parse file name
         fname = os.path.basename(path)
 
