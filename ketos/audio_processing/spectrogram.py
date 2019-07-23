@@ -3018,8 +3018,8 @@ class CQTSpectrogram(Spectrogram):
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step_size=0.01, fmin=1, fmax=800, bins_per_octave=16)
+                >>> from ketos.audio_processing.spectrogram import CQTSpectrogram
+                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step_size=0.01, fmin=10, fmax=800, bins_per_octave=16)
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
@@ -3054,7 +3054,7 @@ class CQTSpectrogram(Spectrogram):
             if np.ndim(x) == 2:
                 x = x[channel]
 
-            start = int((offset - delta_offset) * sr)
+            start = int(offset * sr)
             num_samples = int(duration * sr)
             stop = min(len(x), start + num_samples)
             x = x[start:stop]
@@ -3070,3 +3070,47 @@ class CQTSpectrogram(Spectrogram):
                 hamming=True, decibel=decibel)
 
         return spec
+
+
+    def plot(self, label=None, pred=None, feat=None, conf=None):
+        """ Plot the CQT spectrogram with proper axes ranges and labels.
+
+            Optionally, also display selected label, binary predictions, features, and confidence levels.
+
+            All plotted quantities share the same time axis, and are assumed to span the 
+            same period of time as the spectrogram.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                spec: Spectrogram
+                    spectrogram to be plotted
+                label: int
+                    Label of interest
+                pred: 1d array
+                    Binary prediction for each time bin in the spectrogram
+                feat: 2d array
+                    Feature vector for each time bin in the spectrogram
+                conf: 1d array
+                    Confidence level of prediction for each time bin in the spectrogram
+            
+            Returns:
+                fig: matplotlib.figure.Figure
+                    A figure object.
+        """
+        fig = super().plot(label, pred, feat, conf)
+
+        i = np.arange(0, self.fbins(), self.bins_per_octave)
+        if i[-1] != self.fbins()-1:
+            i = np.concatenate((i, [self.fbins() - 1]))
+
+        ticks = self.fmin + i * (self.fmax() - self.fmin) / self.fbins()
+        labels = 2**(i / self.bins_per_octave) * self.fmin
+        labels_str = list()
+        for l in labels.tolist():
+            labels_str.append('{0:.1f}'.format(l))            
+
+        plt.yticks(ticks, labels_str)
+
+        return fig
