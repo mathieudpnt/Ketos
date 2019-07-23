@@ -2333,6 +2333,9 @@ class MagSpectrogram(Spectrogram):
             is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
             the audio is padded with zeros.
 
+            Note that the duration must be equal to an integer number of steps. If this is not the case, 
+            an exception will be raised. Alternatively, you can set adjust_duration to True.
+
             TODO: Align implementation with the rest of the module.
 
             TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
