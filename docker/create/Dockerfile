@@ -24,6 +24,6 @@ RUN pip install -r requirements.txt
 
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-1.0.1.tar.gz
+RUN pip install dist/ketos-1.0.6.tar.gz
 RUN pip install sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz
 
