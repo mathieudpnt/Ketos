@@ -798,3 +798,9 @@ def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
     for i in range(spec.image.shape[0]):
         val = spec.image[0,i]
         assert 0 <= val <= 1
+
+@pytest.mark.test_from_wav
+def test_from_wav(sine_wave_file):
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0)
+    assert spec.tres == 0.01
+    assert spec.duration() == 3.0
