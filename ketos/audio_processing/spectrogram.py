@@ -1050,7 +1050,11 @@ class Spectrogram(AnnotationHandler):
 
                 t1r = max(t1, 0)
                 t2r = min(t2, Nt)
-                t1_crop = max(-1*t1, 0)
+                if tpad:
+                    t1_crop = max(-1*t1, 0)
+                else:
+                    t1_crop = 0
+
                 t2_crop = t1_crop + t2r - t1r
 
                 f1r = max(f1, 0)
