@@ -2805,10 +2805,10 @@ class CQTSpectrogram(Spectrogram):
             f_{i} = 2^{i / m} \cdot f_{min}
 
         This implies that the maximum frequency is given by :math:`f_{max} = f_{n} = 2^{n/m} \cdot f_{min}`.
-        For the above example, we find :math:`f_{max} \sim 20480` Hz, i.e., somewhat larger than the requested maximum value.
+        For the above example, we find :math:`f_{max} = 20480` Hz, i.e., somewhat larger than the requested maximum value.
 
         Note that if :math:`f_{max}` exceeds the Nyquist frequency, :math:`f_{nyquist} = 0.5 \cdot s`, where :math:`s` is the sampling rate,  
-        the number of octaves, :math:`k`, is reduced to ensure that :math:`f_{max} < f_{nyquist}`. 
+        the number of octaves, :math:`k`, is reduced to ensure that :math:`f_{max} \leq f_{nyquist}`. 
 
         The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
         To ensure that this is the case, the step size is computed as follows,
