@@ -1,6 +1,18 @@
 import tensorflow as tf
 
 class NNInterface():
+    """ General interface for neural network architectures in the ketos.neural_networks module.
+
+        This class implements common methods for neural network models.
+
+    Args:
+        neural_network: 
+            An instance of one of the architectures available in the neural_networks module.
+        data_input: data_feeder
+            An object containing or able to read the data.
+
+    
+    """
     def __init__(self, neural_network, data_input):
         self.neural_network = neural_network
 
