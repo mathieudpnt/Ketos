@@ -1062,8 +1062,6 @@ class Spectrogram(AnnotationHandler):
                 f1_crop = 0
                 f2_crop = f2r - f1r
 
-                print(img.shape, t1, t2, t1_crop, t2_crop, t1r, t2r, Nt_crop, Nt)
-
                 img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
 
                 self.fcroplow += f1r
