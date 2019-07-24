@@ -2,6 +2,14 @@ Change log
 ==========
 
 
+**Version 1.0.8** (July 24, 2019)
+
+ * New method for generating CQT spectrograms directly from audio file (*.wav) input.
+ * Spectrogram plot method provides correct labels for CQT spectrogram.
+ * If necessary, maximum frequency of CQT spectrogram is automatically reduced to ensure that it is below the Nyquist frequency. 
+ * Minor bug fix in _crop_image method in Spectrogram class
+
+
 **Version 1.0.7** (July 23, 2019)
 
  * from_wav method in MagSpectrogram class raises an exception if the duration 
