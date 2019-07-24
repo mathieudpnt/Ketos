@@ -1050,13 +1050,19 @@ class Spectrogram(AnnotationHandler):
 
                 t1r = max(t1, 0)
                 t2r = min(t2, Nt)
-                t1_crop = max(-1*t1, 0)
+                if tpad:
+                    t1_crop = max(-1*t1, 0)
+                else:
+                    t1_crop = 0
+
                 t2_crop = t1_crop + t2r - t1r
 
                 f1r = max(f1, 0)
                 f2r = min(f2, Nf)
                 f1_crop = 0
                 f2_crop = f2r - f1r
+
+                print(img.shape, t1, t2, t1_crop, t2_crop, t1r, t2r, Nt_crop, Nt)
 
                 img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
 
