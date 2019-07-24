@@ -1763,7 +1763,7 @@ class Spectrogram(AnnotationHandler):
             >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
+            <Figure size 640x400 with 2 Axes>
             
             >>> plt.show()
             >>> # apply very small amount (0.01 sec) of horizontal blur
@@ -1771,7 +1771,7 @@ class Spectrogram(AnnotationHandler):
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
             >>> # show blurred image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
+            <Figure size 640x400 with 2 Axes>
 
             >>> plt.show()
             
