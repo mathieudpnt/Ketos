@@ -2150,12 +2150,15 @@ class Spectrogram(AnnotationHandler):
         if (conf is not None): 
             nrows += 1
 
-        if nrows == 1:
-            figsize=(6.4, 4.8)
-        else:
-            figsize=(8, 1+1.5*nrows)            
+        hratio = 1.5/4.0
+        figsize=(6, 4.0*(1.+hratio*(nrows-1)))    
+        height_ratios = []
+        for _ in range(1,nrows):
+            height_ratios.append(hratio)
+
+        height_ratios.append(1)
         
-        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True)
+        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True, gridspec_kw={'height_ratios': height_ratios})
 
         if nrows == 1:
             ax0 = ax
@@ -2801,19 +2804,22 @@ class CQTSpectrogram(Spectrogram):
         .. math:: 
             f_{i} = 2^{i / m} \cdot f_{min}
 
-        This implies that the maximum frequency is given by :math:`f_{max} = f_{n-1} = 2^{(n-1)/m} \cdot f_{min}`.
-        For the above example, we find :math:`f_{max} \sim 20041` Hz, i.e., somewhat larger than the requested maximum value.
+        This implies that the maximum frequency is given by :math:`f_{max} = f_{n} = 2^{n/m} \cdot f_{min}`.
+        For the above example, we find :math:`f_{max} \sim 20480` Hz, i.e., somewhat larger than the requested maximum value.
+
+        Note that if :math:`f_{max}` exceeds the Nyquist frequency, :math:`f_{nyquist} = 0.5 \cdot s`, where :math:`s` is the sampling rate,  
+        the number of octaves, :math:`k`, is reduced to ensure that :math:`f_{max} < f_{nyquist}`. 
 
         The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
         To ensure that this is the case, the step size is computed as follows,
 
         .. math::
-            h = ceil(r \cdot w / 2^k ) \cdot 2^k
+            h = ceil(s \cdot x / 2^k ) \cdot 2^k
 
-        where :math:`r` is the sampling rate in Hz, and :math:`w` is the step size 
+        where :math:`s` is the sampling rate in Hz, and :math:`x` is the step size 
         in seconds as specified via the argument `winstep`.
-        For example, assuming a sampling rate of 32 kHz (:math:`r = 32000`) and a step 
-        size of 0.02 seconds (:math:`w = 0.02`) and adopting the same frequency limits as 
+        For example, assuming a sampling rate of 32 kHz (:math:`s = 32000`) and a step 
+        size of 0.02 seconds (:math:`x = 0.02`) and adopting the same frequency limits as 
         above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
         step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
         to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
@@ -2891,20 +2897,22 @@ class CQTSpectrogram(Spectrogram):
                 (image, tres):numpy.array,float
                 A tuple with the resulting magnitude spectrogram, and the time resolution
         """
-        if fmax is None:
-            fmax = 0.5 * audio_signal.rate
-            x = int(np.floor(np.log2(fmax/fmin)))
-        else:    
-            x = int(np.ceil(np.log2(fmax/fmin)))
-    
-        h0 = int(2**x)
+        f_nyquist = 0.5 * audio_signal.rate
+        k_nyquist = int(np.floor(np.log2(f_nyquist / fmin)))
 
+        if fmax is None:
+            k = k_nyquist
+        else:    
+            k = int(np.ceil(np.log2(fmax/fmin)))
+            k = min(k, k_nyquist)
+
+        h0 = int(2**k)
         b = bins_per_octave
-        fbins = x * b
+        fbins = k * b
 
         h = audio_signal.rate * winstep
-        k = int(np.ceil(h / h0))
-        h = int(k * h0)
+        r = int(np.ceil(h / h0))
+        h = int(r * h0)
 
         c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
         c = np.abs(c)
@@ -2972,7 +2980,7 @@ class CQTSpectrogram(Spectrogram):
                 fmax: float
                     Maximum frequency in Hz
         """
-        fmax = 2**(self.fbins() / self.bins_per_octave) * self.fmin
+        fmax = self._fbin_low(self.fbins())
         return fmax
 
     @classmethod
@@ -3102,8 +3110,8 @@ class CQTSpectrogram(Spectrogram):
         fig = super().plot(label, pred, feat, conf)
 
         i = np.arange(0, self.fbins(), self.bins_per_octave)
-        if i[-1] != self.fbins()-1:
-            i = np.concatenate((i, [self.fbins() - 1]))
+        if i[-1] != self.fbins():
+            i = np.concatenate((i, [self.fbins()]))
 
         ticks = self.fmin + i * (self.fmax() - self.fmin) / self.fbins()
         labels = 2**(i / self.bins_per_octave) * self.fmin
