@@ -40,6 +40,7 @@ from ketos.data_handling.database_interface import parse_labels
 from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
+
 class BatchGenerator():
     """ Creates batches to be fed to a model
 
@@ -98,7 +99,7 @@ class BatchGenerator():
             batch_indices: list of tuples (int,int)
                 A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
             batch_count: int
-                The current batch within the epoch
+                The current batch within the epoch. This will be the batch yielded on the next call to 'next()'.
             from_memory: bool
                 True if the data are loaded from memory rather than an HDF5 table.
 
@@ -144,7 +145,7 @@ class BatchGenerator():
             >>> h5.close()
     """
     def __init__(self, batch_size, hdf5_table=None, x=None, y=None, indices=None, instance_function=None, x_field='data', y_field='boxes',\
-                    shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+                    shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None):
 
         self.from_memory = x is not None and y is not None
 
@@ -157,7 +158,7 @@ class BatchGenerator():
                 self.indices = np.arange(len(self.x), dtype=int) 
             else:
                 self.indices = indices
-
+            
             self.n_instances = len(self.indices)
         else:
             assert hdf5_table is not None, 'hdf5_table or x,y must be specified'
@@ -170,6 +171,8 @@ class BatchGenerator():
             else:
                 self.n_instances = len(indices)
                 self.indices = indices
+            if filter is not None:
+                self.indices = self.data.get_where_list(self.filter)
 
         self.batch_size = batch_size
         self.shuffle = shuffle
