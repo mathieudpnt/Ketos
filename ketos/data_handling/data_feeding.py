@@ -266,6 +266,27 @@ class BatchGenerator():
         else:
             return (X, Y)
 
+class SiameseBatchGenerator():
+    
+    def __init__(self, hdf5_table, batch_size, n_batches, instance_function=None, x_field='data', y_field='sp', classes=[1,2], shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+        self.data = hdf5_table
+        self.batch_size = batch_size
+        self.x_field = x_field
+        self.y_field = y_field
+        self.classes = classes
+        self.class_coord = self.__get_class_coordinates__()        
+        self.n_instances = self.data.nrows
+        self.n_batches = n_batches
+        self.n_same = int(self.batch_size/2)
+        self.n_diff = int(self.batch_size/2)
+        self.shuffle = shuffle
+        self.instance_function = instance_function
+        self.batch_count = 0
+        self.refresh_on_epoch_end = refresh_on_epoch_end
+        self.return_batch_ids = return_batch_ids
+
+        
+
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
 
