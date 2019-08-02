@@ -86,6 +86,11 @@ class BatchGenerator():
             return_batch_ids: bool
                 If False, each batch will consist of X and Y. If True, the instance indices 
                 (as they are in the hdf5_table) will be included ((ids, X, Y)).
+            filter: str
+                A valid PyTables query. If provided, the Batch Generator will query the hdf5
+                database before defining the batches and only the matching records will be used.
+                Only relevant when data is passed through the hdf5_table argument. If both 'filter'
+                and 'indices' are passed, 'indices' is ignored.
 
         Attr:
             data: pytables table (instance of table.Table()) 
