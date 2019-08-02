@@ -267,6 +267,111 @@ class BatchGenerator():
             return (X, Y)
 
 class SiameseBatchGenerator():
+        """ Creates paired batches to be fed to a Siamese network or similar model
+
+        Instances of this class are python generators. They will load one batch at 
+        a time from a HDF5 database, which is particularly useful when working with 
+        larger than memory datasets. Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' 
+        is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where 
+        mx,nx are the shape of on instance of X in the database. Similarly, Y is an 
+        np.array of shape[0]=batch_size with the corresponding labels.
+
+        It is also possible to load the entire data set into memory and provide it 
+        to the BatchGenerator via the arguments x and y. This can be convenient when 
+        working with smaller data sets.
+
+        self, hdf5_table, batch_size, n_batches, instance_function=None, x_field='data',
+        y_field='sp', classes=[1,2], shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False
+        Args:
+            hdf5_table: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            batch_size: int
+                The number of instance pairs in each batch. 
+            n_batches: int
+                The number of batches to be generated.
+            instance_function: function
+                A function to be applied to the batch, transforming the instances. Must accept 
+                'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
+            x_field: str
+                The name of the column containing the X data in the hdf5_table
+            y_field: str
+                The name of the column containing the Y labels in the hdf5_table
+            classes: list
+                The list of classes to be used when creating pairs of instances.
+                The list items must be values found in the 'y_field' field of the dataset. 
+            shuffle: bool
+                If True, instances are selected randomly (without replacement). If False, 
+                instances are selected in the order the appear in the database
+            refresh_on_epoch: bool
+                If True, and shuffle is also True, resampling is performed at the end of 
+                each epoch resulting in different batches for every epoch. If False, the 
+                same batches are used in all epochs.
+                Has no effect if shuffle is False.
+            return_batch_ids: bool
+                If False, each batch will consist of X and Y. If True, the instance indices 
+                (as they are in the hdf5_table) will be included ((ids, X, Y)).
+            filter: str
+                A valid PyTables query. If provided, the Batch Generator will query the hdf5
+                database before defining the batches and only the matching records will be used.
+                Only relevant when data is passed through the hdf5_table argument. If both 'filter'
+                and 'indices' are passed, 'indices' is ignored.
+
+        Attr:
+            data: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            n_instances: int
+                The number of intances (rows) in the hdf5_table
+            n_batches: int
+                The number of batches of size 'batch_size' for each epoch
+            entry_indices:list of ints
+                A list of all intance indices, in the order used to generate batches for this epoch
+            batch_indices: list of tuples (int,int)
+                A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
+            batch_count: int
+                The current batch within the epoch. This will be the batch yielded on the next call to 'next()'.
+           
+
+        Examples:
+            >>> from tables import open_file
+            >>> from ketos.data_handling.database_interface import open_table
+            >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
+            >>> train_data = open_table(h5, "/train/species1")
+            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
+            >>> #Run 2 epochs. 
+            >>> n_epochs = 2    
+            >>> for e in range(n_epochs):
+            ...    for batch_num in range(train_generator.n_batches):
+            ...        ids, batch_X, batch_Y = next(train_generator)   
+            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
+            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            >>> #Applying a custom function to the batch
+            >>> #Takes the mean of each instance in X; leaves Y untouched
+            >>> def apply_to_batch(X,Y):
+            ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
+            ...    return (X,Y)
+            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
+            >>> X,Y = next(train_generator)                
+            >>> #Now each X instance is one single number, instead of a (2413,201) matrix
+            >>> #A batch of size 3 is an array of the 3 means
+            >>> X.shape
+            (3,)
+            >>> #Here is how one X instance looks like
+            >>> X[0]
+            7694.1147
+            >>> #Y is the same as before 
+            >>> Y.shape
+            (3,)
+            >>> h5.close()
+    """
     
     def __init__(self, hdf5_table, batch_size, n_batches, instance_function=None, x_field='data', y_field='sp', classes=[1,2], shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
         self.data = hdf5_table
@@ -285,7 +390,7 @@ class SiameseBatchGenerator():
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
 
-        
+
 
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
