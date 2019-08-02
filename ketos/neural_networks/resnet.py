@@ -75,7 +75,7 @@ class ResNetBlock(tf.keras.Model):
         x = x + residual
         return x
 
-class ResNet(tf.keras.Model):
+class ResNetArch(tf.keras.Model):
 
     def __init__(self, block_list, n_classes, initial_filters=16, **kwargs):
         super(ResNet, self).__init__(**kwargs)
