@@ -416,7 +416,18 @@ class SiameseBatchGenerator():
 
 
      def __get_same_pair__(self, chosen_class):
-         
+         """ Randomly select 2 instances of the same class.
+
+            Args:
+                chosen_class: int or same type as items in self.classes
+                The class to which both selected instances belong
+            
+            Return: 
+                tuple (of ints)
+                A tuple with 3 ints: the index for the first instance, the index for the second instance and 1,
+                indicating the two instances belong to the same class.
+         """
+
         first_input = np.random.choice(self.class_coord[chosen_class])
         second_input = np.random.choice(self.class_coord[chosen_class])
         target = 1
