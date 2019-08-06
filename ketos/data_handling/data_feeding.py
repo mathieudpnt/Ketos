@@ -477,9 +477,36 @@ class SiameseBatchGenerator():
             list_of_indices.append(self.__get_diff_pair__(chosen_class=diff_chosen_class))
         return list_of_indices
 
-     def __iter__(self):
+    def __iter__(self):
         return self
 
+    def __next__(self):
+        """         
+            Return: tuple
+            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indeces (ids, X, Y) 
+        """
+
+        batch_ids = self.__get_batch_indices__()
+        input1_ids = [ids[0] for ids in batch_ids]
+        input2_ids = [ids[1] for ids in batch_ids]
+        input1_arrays = self.data.read_coordinates(input1_ids)[:][self.x_field]
+        input2_arrays = self.data.read_coordinates(input2_ids)[:][self.x_field]
+        labels = np.array([ids[2] for ids in batch_ids])
+
+
+        n_inputs, width, height = input1_arrays.shape
+        input_batch_1 = input1_arrays.reshape((n_inputs, width, height, 1))
+        input_batch_2 = input2_arrays.reshape((n_inputs, width, height, 1))
+        labels_batch = labels.reshape(labels.shape[0], 1)
+
+        if self.shuffle:
+            shuffle_ids = np.random.choice(list(range(n_inputs)), size=n_inputs, replace=False)
+            input_batch_1 = input_batch_1[shuffle_ids]
+            input_batch_2 = input_batch_2[shuffle_ids]
+            labels_batch = labels_batch[shuffle_ids]
+
+        return input_batch_1, input_batch_2, labels_batch        
+        
 
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
