@@ -266,8 +266,9 @@ class BatchGenerator():
         else:
             return (X, Y)
 
+
 class SiameseBatchGenerator():
-        """ Creates paired batches to be fed to a Siamese network or similar model
+    """ Creates paired batches to be fed to a Siamese network or similar model
 
         Instances of this class are python generators. They will load one batch at 
         a time from a HDF5 database, which is particularly useful when working with 
@@ -396,6 +397,14 @@ class SiameseBatchGenerator():
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
 
+
+    def __get_class_coordinates__(self):
+        class_coord = {}
+        for input_class in self.classes:
+            condition = "{} == {}".format(self.y_field, input_class)
+            class_coord[input_class] = self.data.get_where_list(condition)
+            
+        return class_coord
 
 
 class ActiveLearningBatchGenerator():
