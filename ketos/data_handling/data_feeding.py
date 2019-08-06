@@ -342,12 +342,12 @@ class SiameseBatchGenerator():
             >>> from ketos.data_handling.database_interface import open_table
             >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
             >>> train_data = open_table(h5, "/train/species1")
-            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
+            >>> train_generator = SiameseBatchGenerator(hdf5_table=train_data, batch_size=3, n_batches = 4, classes = [0,1]) #create a batch generator 
             >>> #Run 2 epochs. 
             >>> n_epochs = 2    
             >>> for e in range(n_epochs):
             ...    for batch_num in range(train_generator.n_batches):
-            ...        ids, batch_X, batch_Y = next(train_generator)   
+            ...        batch_X1, batch_X2, batch_Y = next(train_generator)   
             ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
             epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
             epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
