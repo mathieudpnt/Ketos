@@ -399,6 +399,14 @@ class SiameseBatchGenerator():
 
 
     def __get_class_coordinates__(self):
+        """ Get the index for every instance of each class specified in the 'classes' attribute.
+
+            Returns:
+                class_cood: dictionary
+                    Each key is one of the classes and the corresponding value is a list (of ints) indicating
+                    the indices for instances of that class within the dataset.
+
+        """
         class_coord = {}
         for input_class in self.classes:
             condition = "{} == {}".format(self.y_field, input_class)
