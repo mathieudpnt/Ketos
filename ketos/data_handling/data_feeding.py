@@ -455,7 +455,27 @@ class SiameseBatchGenerator():
 
         return (first_input, second_input, target)
 
+    def __get_batch_indices__(self):
+        """Selects the indices for one batch
 
+
+            Returns:
+                list_of_indices: list of tuples
+                    A list of tuples, each containing
+                     three integer values: the coodinates (row number) for the first input,
+                     the coordinates for the second input and the target value (1 if the inputs
+                     belong to the same class, 0 if not).
+        
+        """
+        
+        list_of_indices=[]
+        for same in range(self.n_same):
+            same_chosen_class = np.random.choice(self.classes)
+            list_of_indices.append(self.__get_same_pair__(chosen_class=same_chosen_class))
+        for diff in range(self.n_diff):
+            diff_chosen_class = np.random.choice(self.classes)
+            list_of_indices.append(self.__get_diff_pair__(chosen_class=diff_chosen_class))
+        return list_of_indices
 
 
 class ActiveLearningBatchGenerator():
