@@ -271,17 +271,15 @@ class SiameseBatchGenerator():
 
         Instances of this class are python generators. They will load one batch at 
         a time from a HDF5 database, which is particularly useful when working with 
-        larger than memory datasets. Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' 
-        is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where 
-        mx,nx are the shape of on instance of X in the database. Similarly, Y is an 
+        larger than memory datasets. Yield (X1,X2,Y) or (ids1, ids2,X1,X2,Y) if 'return_batch_ids' 
+        is True. X1 and X2 are paired batches of data as a np.array of shape (batch_size,mx,nx) where 
+        mx,nx are the shape of an instance of the input ('x_field') in the database. Similarly, Y is an 
         np.array of shape[0]=batch_size with the corresponding labels.
 
-        It is also possible to load the entire data set into memory and provide it 
-        to the BatchGenerator via the arguments x and y. This can be convenient when 
-        working with smaller data sets.
+        The pairs (X1[n], X2[n]) can either belong to the same class, in which case the corresponding label will be Y[n]=1,
+        or to different classes (Y[n]=0).
 
-        self, hdf5_table, batch_size, n_batches, instance_function=None, x_field='data',
-        y_field='sp', classes=[1,2], shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False
+        
         Args:
             hdf5_table: pytables table (instance of table.Table()) 
                 The HDF5 table containing the data
@@ -319,14 +317,22 @@ class SiameseBatchGenerator():
         Attr:
             data: pytables table (instance of table.Table()) 
                 The HDF5 table containing the data
+            batch_size: int
+                The number of instances in each batch.
+            n_same: int
+                The number of intances belonging to the same class in each batch
+            n_diff: int
+                The number of intances belonging to different classes in each batch
             n_instances: int
                 The number of intances (rows) in the hdf5_table
             n_batches: int
                 The number of batches of size 'batch_size' for each epoch
-            entry_indices:list of ints
-                A list of all intance indices, in the order used to generate batches for this epoch
-            batch_indices: list of tuples (int,int)
-                A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
+            classes: list
+                The list of classes to be used when creating pairs of instances.
+                The list items must be values found in the 'y_field' field of the dataset. 
+            class_coord:dictionary of lists of ints
+                A dictionary where keys are the classes and values are lists of ints indicating the index number for
+                all intances in the database that belong to the same class.
             batch_count: int
                 The current batch within the epoch. This will be the batch yielded on the next call to 'next()'.
            
