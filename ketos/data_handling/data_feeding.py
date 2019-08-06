@@ -415,6 +415,14 @@ class SiameseBatchGenerator():
         return class_coord
 
 
+     def __get_same_pair__(self, chosen_class):
+         
+        first_input = np.random.choice(self.class_coord[chosen_class])
+        second_input = np.random.choice(self.class_coord[chosen_class])
+        target = 1
+
+        return (first_input, second_input, target)
+
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
 
