@@ -477,6 +477,9 @@ class SiameseBatchGenerator():
             list_of_indices.append(self.__get_diff_pair__(chosen_class=diff_chosen_class))
         return list_of_indices
 
+     def __iter__(self):
+        return self
+
 
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
