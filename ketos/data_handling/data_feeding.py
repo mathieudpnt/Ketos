@@ -415,7 +415,7 @@ class SiameseBatchGenerator():
         return class_coord
 
 
-     def __get_same_pair__(self, chosen_class):
+    def __get_same_pair__(self, chosen_class):
          """ Randomly select 2 instances of the same class.
 
             Args:
@@ -433,6 +433,30 @@ class SiameseBatchGenerator():
         target = 1
 
         return (first_input, second_input, target)
+
+    def __get_diff_pair__(self, chosen_class):
+         """ Randomly select 2 instances of the different class.
+             The first belonging the the specified class.
+
+            Args:
+                chosen_class: int or same type as items in self.classes
+                The class to which the first selected instances belongs
+            
+            Return: 
+                tuple (of ints)
+                A tuple with 3 ints: the index for the first instance, the index for the second instance and 0,
+                indicating the two instances belong to the different classes.
+         """    
+        first_input = np.random.choice(self.class_coord[chosen_class])
+        other_classes = [c for c in self.classes if c != chosen_class]
+        second_class = np.random.choice(other_classes)
+        second_input = np.random.choice(self.class_coord[second_class])
+        target = 0
+
+        return (first_input, second_input, target)
+
+
+
 
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
