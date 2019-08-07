@@ -5,7 +5,7 @@ Change log
 **Version 1.0.9** (August 7, 2019)
 
  * Fixed minor bug in spectrogram crop method.
- * Updated to latest numpy version (1.17.0), which includes a enhanced Fast-Fourier-Transform (FFT) implementation.
+ * Updated to latest numpy version (1.17.0), which includes an enhanced Fast-Fourier-Transform (FFT) implementation.
 
 
 **Version 1.0.8** (July 24, 2019)
