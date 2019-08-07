@@ -1137,10 +1137,25 @@ class Spectrogram(AnnotationHandler):
             spec = self
 
         if bin_no:
-            t1 = self._tbin_low(tlow)
-            t2 = self._tbin_low(thigh)
-            f1 = self._fbin_low(flow)
-            f2 = self._fbin_low(fhigh)
+            if tlow is None:
+                t1 = self.tmin
+            else:
+                t1 = self._tbin_low(tlow)
+
+            if thigh is None:
+                t2 = self.tmin + self.duration()
+            else:
+                t2 = self._tbin_low(thigh)
+
+            if flow is None:
+                f1 = self.fmin
+            else:
+                f1 = self._fbin_low(flow)
+
+            if fhigh is None:
+                f2 = self.fmax()
+            else:
+                f2 = self._fbin_low(fhigh)
         else:
             t1 = tlow
             t2 = thigh
