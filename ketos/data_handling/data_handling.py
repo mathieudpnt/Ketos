@@ -1126,6 +1126,10 @@ class AudioSequenceReader:
                 >>> len(seq2.data)
                 40000
         """
+        # ensure that size has type int
+        if size is not math.inf:
+            size = int(size)
+
         if self.finished():
             return None
         

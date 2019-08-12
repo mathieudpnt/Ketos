@@ -38,6 +38,7 @@
         FrequencyFilter class
         WindowFilter class
         WindowSubtractionFilter class
+        AverageFilter class
 """
 
 import numpy as np
@@ -440,3 +441,19 @@ class WindowSubtractionFilter():
         
         spec.image = new_img
 
+
+class AverageFilter(WindowFilter):
+    """ Applies a windowed average filter to the spectrogram.
+
+        Args:
+            window_size: float
+                Window size in seconds
+            step_size: float
+                Step size in seconds
+
+        Attributes:
+            name: str
+                Filter name
+    """
+    def __init__(self, window_size, step_size):
+        super().__init__(window_size, step_size, np.ma.average)
