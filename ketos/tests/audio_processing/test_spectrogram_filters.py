@@ -122,3 +122,14 @@ def test_window_subtraction_filter():
     f.apply(spec)
     assert spec.image[0,6] == -5
     assert spec.image[1,6] == -4
+
+def test_average_filter():
+    spec = MagSpectrogram()
+    spec.image = np.zeros(shape=(100,100))
+    spec.image[:,6] = np.arange(spec.image.shape[0])
+    f = filters.AverageFilter(window_size=9.0, step_size=3)
+    f.apply(spec)
+    assert f.name == "Average"
+    assert spec.image.shape[0] == 34
+    assert spec.image[0,6] == 4.5
+    assert spec.image[1,6] == 7.5
