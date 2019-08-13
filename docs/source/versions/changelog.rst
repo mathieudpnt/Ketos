@@ -2,6 +2,12 @@ Change log
 ==========
 
 
+**Version 1.1.0** (August 13, 2019)
+
+ * New Jupyter Notebook tutorial demonstrating how to implement a simple boat detection program.
+ * AverageFilter added to spectrogram_filters module.
+
+
 **Version 1.0.9** (August 7, 2019)
 
  * Fixed minor bug in spectrogram crop method.
