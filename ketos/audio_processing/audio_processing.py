@@ -43,6 +43,8 @@ from scipy import interpolate
 from collections import namedtuple
 from numpy import seterr
 from sklearn.utils import shuffle
+from sys import getsizeof
+from psutil import virtual_memory
 
 
 def append_specs(specs):
@@ -341,6 +343,14 @@ def make_frames(x, winlen, winstep, zero_padding=False):
              [ 5  6  7  8]
              [ 7  8  9 10]]
     """
+
+    mem = virtual_memory()
+
+    siz = getsizeof(x) * winlen / winstep
+
+    if siz > 0.1 * mem.total:
+        print("Warning: size of output frames exceeds 10% of memory")
+        print("Consider reducing the data size and/or increasing the step size and/or reducing the window length")
 
     totlen = x.shape[0]
 

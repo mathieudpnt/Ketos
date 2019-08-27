@@ -29,7 +29,7 @@
 
 import pytest
 import numpy as np
-from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, interbreed, ensure_same_length
+from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram, interbreed, ensure_same_length
 from ketos.data_handling.parsing import Interval
 from ketos.audio_processing.audio import AudioSignal
 import ketos.data_handling.database_interface as di
@@ -95,6 +95,16 @@ def test_init_mel_spectrogram_from_sine_wave(sine_audio):
     assert spec.tres == winstep
     assert spec.fmin == 0
 
+def test_init_cqt_spectrogram_from_sine_wave(sine_audio):
+    duration = sine_audio.duration()
+    winstep = duration/10
+    spec = CQTSpectrogram(audio_signal=sine_audio, winstep=winstep, fmin=1, fmax=4000, bins_per_octave=64)
+    mag = spec.image
+    for i in range(mag.shape[0]):
+        freq = np.argmax(mag[i])
+        freqHz = spec._fbin_low(freq)
+        assert freqHz == pytest.approx(2000, abs=50)
+    
 def test_init_mel_spectrogram_with_kwargs(sine_audio):
     
     duration = sine_audio.duration()
@@ -474,16 +484,15 @@ def test_extract_with_non_empty_remainder():
     assert spec.image.shape[1] == img.shape[1]
     assert seg[0].image.shape[0] == 9
     assert seg[0].image.shape[1] == img.shape[1]
-    assert seg[1].image.shape[0] == 2
+    assert seg[1].image.shape[0] == 1
     assert seg[1].image.shape[1] == img.shape[1]
     assert np.sum(spec.get_label_vector(1)) == 0
     assert np.sum(seg[0].get_label_vector(1)) == 9
-    assert np.sum(seg[1].get_label_vector(1)) == 2
+    assert np.sum(seg[1].get_label_vector(1)) == 1
     assert seg[0].file_dict[0] == 'file.wav'
     assert seg[1].file_dict[0] == 'file.wav'
-    assert len(seg[1].time_vector) == 2
+    assert len(seg[1].time_vector) == 1
     assert seg[1].time_vector[0] == 5
-    assert seg[1].time_vector[1] == 6
 
 @pytest.mark.test_stretch
 def test_stretch():
@@ -492,11 +501,49 @@ def test_stretch():
     min_length = 2.0
     boxes = [box1, box2]
     spec = Spectrogram()
-    spec.annotate(labels=[1,2], boxes=[box1,box2])
+    spec.annotate(labels=[1,2], boxes=boxes)
     boxes = spec._stretch(boxes=boxes, min_length=min_length)
     assert len(boxes) == 2
     assert boxes[0][1]-boxes[0][0] == pytest.approx(min_length, abs=0.0001)
     assert boxes[1][1]-boxes[1][0] > min_length
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=False)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_center():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.3
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 5
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(0.9, abs=0.0001)
+
+@pytest.mark.test_ensure_box_length
+def test_ensure_box_length_special_case():
+    box1 = [1.0, 2.0]
+    box2 = [0.5, 0.6]
+    length = 0.2
+    boxes = [box1, box2]
+    spec = Spectrogram()
+    spec.annotate(labels=[1,2], boxes=boxes)
+    boxes = spec._ensure_box_length(boxes=boxes, length=length, center=True)
+    assert len(boxes) == 6
+    assert boxes[0][1]-boxes[0][0] == pytest.approx(length, abs=0.0001)
+    assert boxes[0][0] == pytest.approx(1.0, abs=0.0001)
 
 @pytest.mark.test_select_boxes
 def test_select_boxes():
@@ -574,6 +621,17 @@ def test_copy_mag_spectrogram(sine_audio):
     assert spec2.image.shape[1] == spec.image.shape[1]
     assert spec2.tmin == spec.tmin
     assert spec2.tres == spec.tres
+
+@pytest.mark.test_copy_cqt_spectrogram
+def test_copy_cqt_spectrogram():
+    img = np.zeros((101,31))
+    spec = CQTSpectrogram(image=img, fmin=14)
+    spec2 = spec.copy()
+    spec = None
+    assert spec2.image.shape[0] == 101
+    assert spec2.image.shape[1] == 31
+    assert spec2.fmin == 14
+    assert spec2.bins_per_octave == 32
 
 @pytest.mark.test_interbreed
 def test_interbreed_spectrograms_with_default_args():
@@ -740,3 +798,59 @@ def test_normalized_spectrum_has_values_between_0_and_1(sine_audio):
     for i in range(spec.image.shape[0]):
         val = spec.image[0,i]
         assert 0 <= val <= 1
+
+@pytest.mark.test_from_wav
+def test_from_wav(sine_wave_file):
+    # duration is integer multiply of step size
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0)
+    assert spec.tres == 0.01
+    assert spec.duration() == 3.0
+
+    # duration is not integer multiply of step size
+    with pytest.raises(AssertionError):
+        spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0)
+
+    # duration is not integer multiply of step size, but adjust duration automatically
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0, adjust_duration=True)
+    assert spec.tres == pytest.approx(0.011, abs=0.001)
+    assert spec.duration() == pytest.approx(3.0, abs=0.01)
+
+    # segment is empty raises assertion error
+    with pytest.raises(AssertionError):
+        spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=4.0, duration=None, channel=0)
+
+    # duration can be less than full length
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=2.14, channel=0, adjust_duration=True)
+    assert spec.tres == 0.01
+    assert spec.duration() == 2.14
+
+    # specify both offset and duration
+    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0.13, duration=2.14, channel=0, adjust_duration=True)
+    assert spec.tres == 0.01
+    assert spec.duration() == 2.14
+    assert spec.tmin == 0.13
+    # check file name
+    assert spec.file_dict[0] == 'sine_wave.wav'
+
+@pytest.mark.test_from_wav
+def test_from_wav_cqt(sine_wave_file):
+    # zero offset
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32)
+    assert spec.tmin == 0
+    assert spec.tres == pytest.approx(0.01, abs=0.002)
+    assert spec.duration() == pytest.approx(3.0, abs=0.01)
+    tres = spec.tres
+    # non-zero offset
+    offset = 1.0
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=offset, duration=None, channel=0)
+    assert spec.tmin == offset
+    assert spec.tres == tres
+    assert spec.duration() == pytest.approx(3.0 - offset, abs=0.01)
+    # duration is less than segment length
+    duration = 1.1
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, duration=duration)
+    assert spec.tres == tres
+    assert spec.duration() == pytest.approx(duration, abs=0.01)
+    # step size is not divisor of duration
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.017, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0)
+    assert spec.duration() == pytest.approx(3.0, abs=0.02)

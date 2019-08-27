@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 #
 
 setup(name='ketos',
-      version='1.0.2',
+      version='1.0.8',
       description="Python package for developing deep-learning-based models for the detection and classification of underwater sounds",
       # TODO: define a function readme() that reads the contents of a readme file
       # long_description=readme(),
@@ -30,6 +30,7 @@ setup(name='ketos',
           'matplotlib',
           'tqdm',
           'pint',
+          'psutil',
           ],
       setup_requires=['pytest-runner', ],
       tests_require=['pytest', ],

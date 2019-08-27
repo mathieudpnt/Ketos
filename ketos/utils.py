@@ -33,6 +33,22 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
+from functools import reduce
+
+def factors(n):    
+    """ Returns sorted set of all divisors of n
+
+        Args:
+            n: int
+                Integer number
+
+        Returns:
+            s: set
+                Sorted set of all divisors of n
+    """
+    s = set(reduce(list.__add__, 
+                ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
+    return s
 
 def ensure_dir(file_path):
     """ Ensure that destination directory exists.
@@ -396,7 +412,10 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
     for column in df:
         x = df[column]
         m = np.median(np.abs(x - np.median(x)))
-        min_prominence = m * prominence
+        if prominence > 0:
+            min_prominence = m * prominence
+        else:
+            min_prominence = None
         positions, _ = find_peaks(x, height=height, threshold=threshold, distance=distance, prominence=(min_prominence,None))
         y = np.zeros(len(x))
         y[positions] = 1

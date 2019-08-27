@@ -64,6 +64,53 @@ def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_two_channel_images():
+    N = 32
+    # training data
+    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
+    # initialize network
+    network = BasicCNN(train_x=train_x, train_y=train_y,  num_labels=2, verbosity=0)
+    _ = network.create()
+    network.train()
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_two_channel_images_and_validation():
+    N = 128
+    # training data
+    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
+    # validation data
+    val_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
+    val_y = np.sum(val_x, axis=(1,2,3)) > 1.5
+    # initialize network
+    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y,\
+            num_labels=2, verbosity=0, batch_size=32, num_epochs=10)
+    _ = network.create()
+    network.train()
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
+def test_train_BasicCNN_with_batch_norm():
+    x = 2.0 * np.random.randn(128,8,8) + 1.5
+    y = np.random.randn(128)
+    y = (y > 0.5)    
+    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, batch_size=32, num_epochs=3)
+    _ = network.create(batch_norm=True)
+    network.train()
+    # retrieve moving average and variance
+    import tensorflow as tf
+    with tf.variable_scope("", reuse=tf.AUTO_REUSE):
+        out = network.sess.run([tf.get_variable('batch_normalization/moving_mean'),
+                        tf.get_variable('batch_normalization/moving_variance')])
+        moving_average, moving_variance = out
+        assert moving_average[0] == pytest.approx(0.2, abs=0.1)
+        assert moving_variance[0] == pytest.approx(1.3, abs=0.2)
+
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
 def test_train_BasicCNN_with_default_args2(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     train_x = d["train_x"]
@@ -142,6 +189,20 @@ def test_compute_class_weights_with_BasicCNN(database_prepared_for_NN_2_classes)
     reset_default_graph()
 
 @pytest.mark.test_BasicCNN
+def test_compute_class_weights_with_BasicCNN_with_batch_norm(database_prepared_for_NN_2_classes):
+    d = database_prepared_for_NN_2_classes
+    x = d["train_x"]
+    y = d["train_y"]
+    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, seed=41)
+    _ = network.create(batch_norm=True)
+    network.train()
+    img = np.zeros((20, 20))
+    result = network.get_class_weights(x=[img])
+    weights = result[0]
+    assert weights[0] + weights[1] == pytest.approx(1.000, abs=0.001)
+    reset_default_graph()
+
+@pytest.mark.test_BasicCNN
 def test_compute_features_with_BasicCNN(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -171,3 +232,4 @@ def test_active_learning():
     g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
     # train it
     _, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
+    reset_default_graph()
