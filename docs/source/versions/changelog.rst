@@ -2,6 +2,18 @@ Change log
 ==========
 
 
+**Version 1.1.0** (August 13, 2019)
+
+ * New Jupyter Notebook tutorial demonstrating how to implement a simple boat detection program.
+ * AverageFilter added to spectrogram_filters module.
+
+
+**Version 1.0.9** (August 7, 2019)
+
+ * Fixed minor bug in spectrogram crop method.
+ * Updated to latest numpy version (1.17.0), which includes an enhanced Fast-Fourier-Transform (FFT) implementation.
+
+
 **Version 1.0.8** (July 24, 2019)
 
  * New method for generating CQT spectrograms directly from audio file (*.wav) input.
