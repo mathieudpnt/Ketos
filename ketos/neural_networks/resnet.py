@@ -151,10 +151,16 @@ class ResNetInterface():
         self.metrics = metrics
 
         self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
+        self.compile_model()
 
         self.train_generator = None
         self.val_generator = None
         self.test_generator = None
+
+    def compile_model(self):
+        self.model.compile(optimizer=self.optimizer,
+                            loss = self.loss_function,
+                            metrics = self.metrics)
 
 
     def set_train_generator(self, train_generator):
@@ -165,3 +171,6 @@ class ResNetInterface():
 
     def set_test_generator(self, test_generator):
         self.test_generator = test_generator
+
+        
+
