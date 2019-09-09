@@ -154,6 +154,10 @@ class ResNetInterface():
         self.compile_model()
         self.metrics_names = self.model.metrics_names
 
+        
+        self.log_dir = None
+        self.checkpoint_dir = None
+        self.tensorboard_callback = None
         self.train_generator = None
         self.val_generator = None
         self.test_generator = None
@@ -181,6 +185,10 @@ class ResNetInterface():
     def set_checkpoint_dir(self, checkpoint_dir):
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def set_tensorboard_callback(self):
+        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
+        tensorboard_callback.set_model(self.model)
         
 
     def print_metrics(self, metric_values):
@@ -194,7 +202,7 @@ class ResNetInterface():
         return named_logs
         
 
-    def train_loop(self, n_epochs, verbose=True, validate=True):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=True):
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             self.model.reset_metrics()
@@ -205,8 +213,8 @@ class ResNetInterface():
                 if verbose == True:
                     print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
                     self.print_metrics(train_result)
-
-            tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
+            if log_tensorboard == True:
+                self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
             if validate == True:
                 for val_batch_id in range(self.val_generator.n_batches):
                     val_X, val_Y = next(self.val_generator)
@@ -216,14 +224,15 @@ class ResNetInterface():
                 if verbose == True:
                     print("\nval: ")
                     self.print_metrics(val_result)
-            
-                tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
+                if log_tensorboard == True:
+                    self.tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
 
             
             if epoch % 5:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
                 self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
-            
-        tensorboard_callback.on_train_end(None)
+        
+        if log_tensorboard == True:
+            self.tensorboard_callback.on_train_end(None)
 
     
