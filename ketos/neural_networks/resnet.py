@@ -152,6 +152,7 @@ class ResNetInterface():
 
         self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
         self.compile_model()
+        self.metrics_names = self.model.metrics_names
 
         self.train_generator = None
         self.val_generator = None
@@ -173,4 +174,36 @@ class ResNetInterface():
         self.test_generator = test_generator
 
         
+    def train_loop(self, n_epochs, verbose=True):
+        metrics_names = self.model.metrics_names
 
+        for epoch in range(n_epochs):
+            #Reset the metric accumulators
+            self.model.reset_metrics()
+                
+            for train_batch_id in range(self.train_generator.n_batches):
+                train_X, train_Y = next(self.train_generator)  
+                train_result = self.model.train_on_batch(train_X, train_Y)
+                if verbose == True:
+                    print("train: ",
+                    "Epoch:{} - batch:{} | {}: {:.3f}".format(epoch, train_batch_id, model.metrics_names[0], train_result[0]),
+                    "{}: {:.3f}".format(model.metrics_names[1], train_result[1]))
+            for val_batch_id in range(self.val_generator.n_batches):
+                val_X, val_Y = next(self.val_generator)
+                val_result = self.model.test_on_batch(val_X, val_Y, 
+                                            # return accumulated metrics
+                                            reset_metrics=False)
+            tensorboard_callback.on_epoch_end(epoch, name_logs(model, train_result, "train_"))    
+            tensorboard_callback.on_epoch_end(epoch, name_logs(model, val_result, "val_"))  
+            if epoch % 5:
+                checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
+                self.model.save_weights(os.path.join(checkpoint_path, checkpoint_name))
+            
+            if verbose == True:
+                print("\neval: ",
+                        "{}: {:.3f}".format(model.metrics_names[0], val_result[0]),
+                        "{}: {:.3f}".format(model.metrics_names[1], val_result[1]))
+
+        tensorboard_callback.on_train_end(None)
+
+    
