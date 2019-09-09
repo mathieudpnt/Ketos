@@ -177,7 +177,7 @@ class ResNetInterface():
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
         print(''.join(message))
         
-    def train_loop(self, n_epochs, verbose=True):
+    def train_loop(self, n_epochs, verbose=True, validate=True):
         metrics_names = self.model.metrics_names
 
         for epoch in range(n_epochs):
@@ -190,21 +190,25 @@ class ResNetInterface():
                 if verbose == True:
                     print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
                     self.print_metrics(train_result)
-            for val_batch_id in range(self.val_generator.n_batches):
-                val_X, val_Y = next(self.val_generator)
-                val_result = self.model.test_on_batch(val_X, val_Y, 
-                                            # return accumulated metrics
-                                            reset_metrics=False)
-            tensorboard_callback.on_epoch_end(epoch, name_logs(model, train_result, "train_"))    
-            tensorboard_callback.on_epoch_end(epoch, name_logs(model, val_result, "val_"))  
+
+            tensorboard_callback.on_epoch_end(epoch, name_logs(model, train_result, "train_"))                
+            if validate == True:
+                for val_batch_id in range(self.val_generator.n_batches):
+                    val_X, val_Y = next(self.val_generator)
+                    val_result = self.model.test_on_batch(val_X, val_Y, 
+                                                # return accumulated metrics
+                                                reset_metrics=False)
+                if verbose == True:
+                    print("\nval: ")
+                    self.print_metrics(val_result)
+            
+                tensorboard_callback.on_epoch_end(epoch, name_logs(model, val_result, "val_"))  
+
+            
             if epoch % 5:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
                 self.model.save_weights(os.path.join(checkpoint_path, checkpoint_name))
             
-            if verbose == True:
-                print("\nval: ")
-                self.print_metrics(val_result)
-
         tensorboard_callback.on_train_end(None)
 
     
