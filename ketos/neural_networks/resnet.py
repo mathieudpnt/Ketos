@@ -129,7 +129,18 @@ class ResNet(tf.keras.Model):
 
 class ResNetInterface():
 
-   
+    @classmethod
+    def build_from_recipe(cls, recipe):
+        block_list = recipe['block_list']
+        n_classes = recipe['n_classes']
+        initial_filters = recipe['initial_filters']
+        optimizer = recipe['optimizer']
+        loss_function = recipe['loss_function']
+        metrics = recipe['metrics']
+
+        instance = cls(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
+        return instance
 
     def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics):
         self.block_list = block_list
