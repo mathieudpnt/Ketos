@@ -176,6 +176,12 @@ class ResNetInterface():
     def print_metrics(self, metric_values):
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
         print(''.join(message))
+
+    def name_logs(self, logs, prefix="train_"):
+        named_logs = {}
+        for l in zip(self.metrics_names, logs):
+            named_logs[prefix+l[0]] = l[1]
+        return named_logs
         
     def train_loop(self, n_epochs, verbose=True, validate=True):
         for epoch in range(n_epochs):
@@ -189,7 +195,7 @@ class ResNetInterface():
                     print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
                     self.print_metrics(train_result)
 
-            tensorboard_callback.on_epoch_end(epoch, name_logs(model, train_result, "train_"))                
+            tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
             if validate == True:
                 for val_batch_id in range(self.val_generator.n_batches):
                     val_X, val_Y = next(self.val_generator)
@@ -200,7 +206,7 @@ class ResNetInterface():
                     print("\nval: ")
                     self.print_metrics(val_result)
             
-                tensorboard_callback.on_epoch_end(epoch, name_logs(model, val_result, "val_"))  
+                tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
 
             
             if epoch % 5:
