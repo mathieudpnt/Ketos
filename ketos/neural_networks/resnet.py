@@ -188,9 +188,8 @@ class ResNetInterface():
                 train_X, train_Y = next(self.train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
                 if verbose == True:
-                    print("train: ",
-                    "Epoch:{} - batch:{} | {}: {:.3f}".format(epoch, train_batch_id, model.metrics_names[0], train_result[0]),
-                    "{}: {:.3f}".format(model.metrics_names[1], train_result[1]))
+                    print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
+                    self.print_metrics(train_result)
             for val_batch_id in range(self.val_generator.n_batches):
                 val_X, val_Y = next(self.val_generator)
                 val_result = self.model.test_on_batch(val_X, val_Y, 
@@ -203,9 +202,8 @@ class ResNetInterface():
                 self.model.save_weights(os.path.join(checkpoint_path, checkpoint_name))
             
             if verbose == True:
-                print("\neval: ",
-                        "{}: {:.3f}".format(model.metrics_names[0], val_result[0]),
-                        "{}: {:.3f}".format(model.metrics_names[1], val_result[1]))
+                print("\nval: ")
+                self.print_metrics(val_result)
 
         tensorboard_callback.on_train_end(None)
 
