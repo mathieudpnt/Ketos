@@ -178,8 +178,6 @@ class ResNetInterface():
         print(''.join(message))
         
     def train_loop(self, n_epochs, verbose=True, validate=True):
-        metrics_names = self.model.metrics_names
-
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             self.model.reset_metrics()
