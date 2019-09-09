@@ -173,6 +173,16 @@ class ResNetInterface():
     def set_test_generator(self, test_generator):
         self.test_generator = test_generator
 
+    def set_log_dir(self, log_dir)
+        self.log_dir = log_dir
+        os.makedirs(self.log_dir, exist_ok=True)
+        
+        
+    def set_checkpoint_dir(self, checkpoint_dir):
+        self.checkpoint_dir = checkpoint_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        
+
     def print_metrics(self, metric_values):
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
         print(''.join(message))
@@ -183,6 +193,7 @@ class ResNetInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
         
+
     def train_loop(self, n_epochs, verbose=True, validate=True):
         for epoch in range(n_epochs):
             #Reset the metric accumulators
@@ -211,7 +222,7 @@ class ResNetInterface():
             
             if epoch % 5:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
-                self.model.save_weights(os.path.join(checkpoint_path, checkpoint_name))
+                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
             
         tensorboard_callback.on_train_end(None)
 
