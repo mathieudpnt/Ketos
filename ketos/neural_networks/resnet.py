@@ -173,6 +173,9 @@ class ResNetInterface():
     def set_test_generator(self, test_generator):
         self.test_generator = test_generator
 
+    def print_metrics(self, metric_values):
+        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
+        print(''.join(message))
         
     def train_loop(self, n_epochs, verbose=True):
         metrics_names = self.model.metrics_names
