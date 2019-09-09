@@ -157,3 +157,11 @@ class ResNetInterface():
         self.test_generator = None
 
 
+    def set_train_generator(self, train_generator):
+        self.train_generator = train_generator
+
+    def set_val_generator(self, val_generator):
+        self.val_generator = val_generator
+
+    def set_test_generator(self, test_generator):
+        self.test_generator = test_generator
