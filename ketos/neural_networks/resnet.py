@@ -126,3 +126,24 @@ class ResNetArch(tf.keras.Model):
 
         return output
 
+
+class ResNetInterface():
+    def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics):
+        self.block_list = block_list
+        self.n_classes = n_classes
+        self.initial_filters = initial_filters
+        self.optimizer = optimizer
+        self.loss_function = loss_function
+        self.metrics = metrics
+
+        self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
+        self.compile_model()
+        self.metrics_names = self.model.metrics_names
+
+        
+        self.log_dir = None
+        self.checkpoint_dir = None
+        self.tensorboard_callback = None
+        self.train_generator = None
+        self.val_generator = None
+        self.test_generator = None
