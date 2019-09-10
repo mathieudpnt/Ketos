@@ -166,3 +166,12 @@ class ResNetInterface():
         self.model.compile(optimizer=self.optimizer,
                             loss = self.loss_function,
                             metrics = self.metrics)
+
+     def set_train_generator(self, train_generator):
+        self.train_generator = train_generator
+
+    def set_val_generator(self, val_generator):
+        self.val_generator = val_generator
+
+    def set_test_generator(self, test_generator):
+        self.test_generator = test_generator
