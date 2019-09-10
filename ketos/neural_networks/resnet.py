@@ -183,3 +183,8 @@ class ResNetInterface():
     def set_checkpoint_dir(self, checkpoint_dir):
         self.checkpoint_dir = checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def set_tensorboard_callback(self):
+        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
+        tensorboard_callback.set_model(self.model)
+        
