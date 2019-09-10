@@ -192,8 +192,41 @@ class ResNetInterface():
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
         print(''.join(message))
 
-     def name_logs(self, logs, prefix="train_"):
+    def name_logs(self, logs, prefix="train_"):
         named_logs = {}
         for l in zip(self.metrics_names, logs):
             named_logs[prefix+l[0]] = l[1]
         return named_logs
+
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=True):
+        for epoch in range(n_epochs):
+            #Reset the metric accumulators
+            self.model.reset_metrics()
+                
+            for train_batch_id in range(self.train_generator.n_batches):
+                train_X, train_Y = next(self.train_generator)  
+                train_result = self.model.train_on_batch(train_X, train_Y)
+                if verbose == True:
+                    print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
+                    self.print_metrics(train_result)
+            if log_tensorboard == True:
+                self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
+            if validate == True:
+                for val_batch_id in range(self.val_generator.n_batches):
+                    val_X, val_Y = next(self.val_generator)
+                    val_result = self.model.test_on_batch(val_X, val_Y, 
+                                                # return accumulated metrics
+                                                reset_metrics=False)
+                if verbose == True:
+                    print("\nval: ")
+                    self.print_metrics(val_result)
+                if log_tensorboard == True:
+                    self.tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
+
+            
+            if epoch % 5:
+                checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
+                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
+        
+        if log_tensorboard == True:
+            self.tensorboard_callback.on_train_end(None)
