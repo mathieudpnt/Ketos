@@ -190,7 +190,7 @@ class ResNetInterface():
         tensorboard_callback.set_model(self.model)
         
     def print_metrics(self, metric_values):
-        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
+        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in range(len(self.metrics_names))]
         print(''.join(message))
 
     def name_logs(self, logs, prefix="train_"):
