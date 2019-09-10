@@ -78,7 +78,7 @@ class ResNetBlock(tf.keras.Model):
 class ResNetArch(tf.keras.Model):
 
     def __init__(self, block_list, n_classes, initial_filters=16, **kwargs):
-        super(ResNet, self).__init__(**kwargs)
+        super(ResNetArch, self).__init__(**kwargs)
 
         self.n_blocks = len(block_list)
         self.n_classes = n_classes
@@ -150,7 +150,7 @@ class ResNetInterface():
         self.loss_function = loss_function
         self.metrics = metrics
 
-        self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
+        self.model=ResNetArch(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
         self.compile_model()
         self.metrics_names = self.model.metrics_names
 
