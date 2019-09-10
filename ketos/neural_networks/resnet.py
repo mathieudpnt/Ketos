@@ -34,6 +34,7 @@
 """
 
 import tensorflow as tf
+import os
 
 class ResNetBlock(tf.keras.Model):
     def __init__(self, channels, strides=1, residual_path=False):
