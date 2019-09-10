@@ -175,3 +175,11 @@ class ResNetInterface():
 
     def set_test_generator(self, test_generator):
         self.test_generator = test_generator
+
+    def set_log_dir(self, log_dir):
+        self.log_dir = log_dir
+        os.makedirs(self.log_dir, exist_ok=True)
+        
+    def set_checkpoint_dir(self, checkpoint_dir):
+        self.checkpoint_dir = checkpoint_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
