@@ -188,3 +188,6 @@ class ResNetInterface():
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
         tensorboard_callback.set_model(self.model)
         
+     def print_metrics(self, metric_values):
+        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
+        print(''.join(message))
