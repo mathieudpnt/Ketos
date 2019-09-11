@@ -145,9 +145,18 @@ class ResNetInterface():
 
         return built_optimizer
 
+    @classmethod
+    def parse_loss_function(cls, loss_function):
+        name = loss_function['name']
+        args = loss_function['parameters']
+
+        if name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(name))
+        built_loss = cls.valid_loss[name](**args)
+
+        return built_loss
+
    
-
-
 
     @classmethod
     def read_recipe_file(cls, json_file):
