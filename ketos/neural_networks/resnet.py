@@ -134,7 +134,20 @@ class ResNetInterface():
     valid_losses = {'FScoreLoss':FScoreLoss}
     valid_metrics = {'CategoricalAccuracy':tf.keras.metrics.CategoricalAccuracy}
 
+    @classmethod
+    def parse_optimizer(cls, optimizer):
+        name = optimizer['name']
+        args = optimizer['parameters']
+
+        if name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(name))
+        built_optimizer = cls.valid_optimizers[name](**args)
+
+        return built_optimizer
+
    
+
+
 
     @classmethod
     def read_recipe_file(cls, json_file):
