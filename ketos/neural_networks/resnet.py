@@ -156,7 +156,20 @@ class ResNetInterface():
 
         return built_loss
 
-   
+    @classmethod
+    def parse_metrics(cls, metrics):
+        name = loss_function['name']
+        args = loss_function['parameters']
+
+        built_metrics = []
+        for m in metrics 
+        if m['name'] not in cls.valid_metrics.keys():
+            raise ValueError("Invalid metric name '{}'".format(m['name']))
+        built_metrics.appen(cls.valid_loss[name])
+
+        return built_metrics
+
+
 
     @classmethod
     def read_recipe_file(cls, json_file):
