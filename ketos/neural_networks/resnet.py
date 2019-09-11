@@ -130,6 +130,20 @@ class ResNetArch(tf.keras.Model):
 
 class ResNetInterface():
 
+    
+
+
+    @classmethod
+    def read_recipe_file(cls, json_file):
+        with open(json_file, 'r') as json_recipe:
+            recipe_dict = json.load(json_recipe)
+
+        optimizer = cls.parse_optimizer(recipe['optimizer'])
+        loss_function = cls.parse_loss_function(recipe['loss_function'])
+        metrics = cls.parse_metrics(recipe['metrics'])
+
+        return recipe_dict
+
     @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
