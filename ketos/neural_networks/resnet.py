@@ -130,8 +130,11 @@ class ResNetArch(tf.keras.Model):
 
 class ResNetInterface():
 
-    
+    valid_optimizers = {'Adam':tf.keras.optimizers.Adam}
+    valid_losses = {'FScoreLoss':FScoreLoss}
+    valid_metrics = {'CategoricalAccuracy':tf.keras.metrics.CategoricalAccuracy}
 
+   
 
     @classmethod
     def read_recipe_file(cls, json_file):
