@@ -32,3 +32,29 @@
         FScoreLoss class:
 """
 
+import tensorflow as tf
+import numpy as np
+
+class FScoreLoss(tf.keras.losses.Loss):
+
+    def __init__(self, beta=1.0, **kwargs):
+        super(FScoreLoss, self).__init__(**kwargs)
+        self.beta = beta
+
+    def call(self, y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.dtypes.cast(y_true, y_pred.dtype)
+
+        epsilon = 0.000001
+
+        tp = tf.math.reduce_sum(y_true*y_pred)
+        tn = tf.math.reduce_sum((1-y_true)*(1-y_pred))
+        fp = tf.math.reduce_sum((1-y_true)*y_pred)
+        fn = tf.math.reduce_sum(y_true*(1-y_pred))
+
+        p = tp / (tp + fp + epsilon)
+        r = tp / (tp + fn + epsilon)
+
+        f = (1.0 + self.beta**2)*p*r / ((self.beta**2*p)+r+epsilon)
+        f = tf.where(tf.math.is_nan(f), tf.zeros_like(f), f)
+        return 1 - tf.math.reduce_mean(f)
