@@ -405,6 +405,16 @@ class ResNetInterface():
             return output
 
     
+    def run_on_batch(self, input_batch, return_raw_output=False):
+        input = transform_input(input)
+        output = self.model.predict(input)
+        
+        if not return_raw_output:
+            return self.transform_output(output)
+        else:
+            return output
+
+
             
 
     
