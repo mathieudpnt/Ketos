@@ -145,6 +145,32 @@ class ResNetInterface():
     valid_losses = {'FScoreLoss':FScoreLoss}
     valid_metrics = {'CategoricalAccuracy':tf.keras.metrics.CategoricalAccuracy}
 
+
+    @classmethod
+    def to1hot(cls, class_label, n_classes=2):
+        one_hot = np.zeros(2)
+        one_hot[class_label]=1.0
+        return one_hot
+    
+    @classmethod
+    def transform_train_batch(cls,x,y):
+        X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
+        Y = np.array([to1hot(sp) for sp in y])
+        return (X,Y)
+
+    @classmethod
+    def transform_input(cls,input):
+        if input.ndim == 2
+            transformed_input = input.reshape(1,input.shape[0], input.shape[1],1)
+        elif input.ndim == 3
+            transformed_input = input.reshape(input.shape[0],input.shape[1], input.shape[2],1)
+        else:
+            raise ValueError("Expected input to have 2 or 3 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+
+    @classmethod
+    def transform_output(cls,output):
+        transformed_output = input.reshape(1,input.shape[1], input.shape[2],1)
+
     @classmethod
     def parse_optimizer(cls, optimizer):
         name = optimizer['name']
@@ -368,5 +394,6 @@ class ResNetInterface():
         if log_tensorboard == True:
             self.tensorboard_callback.on_train_end(None)
 
+    
     
     
