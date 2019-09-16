@@ -194,6 +194,15 @@ class ResNetInterface():
         return recipe_dict
 
     @classmethod
+    def load(cls, recipe, weights_path):
+        instance = cls.build_from_recipe(recipe) 
+        latest_checkpoint = tf.train.latest_checkpoint(weights_path)
+        instance.model.load_weights(latest_checkpoint)
+
+        return instance
+
+
+    @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
         n_classes = recipe['n_classes']
@@ -264,7 +273,7 @@ class ResNetInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=True):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False):
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             train_precision = 0    
@@ -358,3 +367,6 @@ class ResNetInterface():
         
         if log_tensorboard == True:
             self.tensorboard_callback.on_train_end(None)
+
+    
+    
