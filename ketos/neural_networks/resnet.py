@@ -307,7 +307,7 @@ class ResNetInterface():
             if verbose == True:
                     print("train: ","Epoch:{}".format(epoch))
                     print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                        train_result[0], train_accuracy, train_precision, train_recall, train_f_score) 
+                       1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
                     )
                     
 
@@ -340,7 +340,7 @@ class ResNetInterface():
                 if verbose == True:
                         print("val: ")
                         print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                            val_result[0], val_accuracy, val_precision, val_recall, val_f_score) 
+                            1 - val_f_score, val_accuracy, val_precision, val_recall, val_f_score) 
                         )
                         
 
