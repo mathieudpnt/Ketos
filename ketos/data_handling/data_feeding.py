@@ -186,7 +186,8 @@ class BatchGenerator():
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
 
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+        #self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+        self.n_batches = int(self.n_instances // self.batch_size)
 
         self.entry_indices = self.__update_indices__()
 
