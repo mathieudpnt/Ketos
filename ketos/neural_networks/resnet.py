@@ -394,6 +394,19 @@ class ResNetInterface():
         if log_tensorboard == True:
             self.tensorboard_callback.on_train_end(None)
 
+        
+    def run(self, input, return_raw_output=False):
+        input = transform_input(input)
+        output = self.model.predict(input)
+        
+        if not return_raw_output:
+            return self.transform_output(output)
+        else:
+            return output
+
+    
+            
+
     
     
     
