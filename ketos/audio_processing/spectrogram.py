@@ -901,8 +901,9 @@ class Spectrogram(AnnotationHandler):
         y = np.zeros(self.tbins())
         boi, _ = self._select_boxes(label)
         for b in boi:
-            t1 = self._find_tbin(b[0])
-            t2 = self._find_tbin(b[1], roundup=False) + 1  # include the upper bin 
+            t1 = self._find_tbin(b[0], truncate=True)
+            t2 = self._find_tbin(b[1], truncate=True, roundup=False) + 1  # include the upper bin 
+            t2 = min(t2, self.tbins())
             y[t1:t2] = 1
 
         return y
