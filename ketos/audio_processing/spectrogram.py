@@ -718,6 +718,8 @@ class Spectrogram(AnnotationHandler):
             if b[3] == math.inf:
                 b[3] = self.fmax()
 
+        self.labels, self.boxes = self.get_cropped_annotations(t1=self.tmin, t2=self.tmin+self.duration())
+
     def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
         """ Find bin corresponding to given value
 
