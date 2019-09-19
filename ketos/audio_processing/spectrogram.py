@@ -2471,13 +2471,13 @@ class MagSpectrogram(Spectrogram):
         duration += pad_sec
 
         # load audio segment
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False)
 
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
         if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 
@@ -3070,17 +3070,19 @@ class CQTSpectrogram(Spectrogram):
         assert duration > 0, 'Selected audio segment is empty'
 
         # load audio
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
 
         # select channel
+        print('shape', x.shape)
         if np.ndim(x) == 2:
+            print('selecting channel', channel)
             x = x[channel]
 
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
         if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 
