@@ -814,13 +814,14 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
             if cqt:
                 s = CQTSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
                     bins_per_octave=bins_per_octave, fmin=flow, fmax=fhigh,\
-                    step_size=step_size, offset=time, duration=duration, decibel=True)
+                    step_size=step_size, offset=time, duration=duration, decibel=True,\
+                    channel=channel)
 
             else:
                 s = MagSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
                     window_size=window_size, step_size=step_size,\
                     offset=time, duration=duration, decibel=True,\
-                    adjust_duration=True)
+                    adjust_duration=True, channel=channel)
 
                 # crop frequencies
                 s.crop(flow=flow, fhigh=fhigh) 
