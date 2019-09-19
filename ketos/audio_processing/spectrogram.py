@@ -3073,9 +3073,7 @@ class CQTSpectrogram(Spectrogram):
         x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
 
         # select channel
-        print('shape', x.shape)
         if np.ndim(x) == 2:
-            print('selecting channel', channel)
             x = x[channel]
 
         # check that loaded audio segment has the expected length.
