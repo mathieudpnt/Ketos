@@ -33,8 +33,9 @@
         ResNet class:
 """
 
-import tensorflow as tf
 import os
+import tensorflow as tf
+import numpy as np
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
 
@@ -155,21 +156,33 @@ class ResNetInterface():
     @classmethod
     def transform_train_batch(cls,x,y):
         X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([to1hot(sp) for sp in y])
+        Y = np.array([cls.to1hot(sp) for sp in y])
         return (X,Y)
 
     @classmethod
     def transform_input(cls,input):
-        if input.ndim == 2
+        if input.ndim == 2:
             transformed_input = input.reshape(1,input.shape[0], input.shape[1],1)
-        elif input.ndim == 3
+        elif input.ndim == 3:
             transformed_input = input.reshape(input.shape[0],input.shape[1], input.shape[2],1)
         else:
             raise ValueError("Expected input to have 2 or 3 dimensions, got {}({}) instead".format(input.ndims, input.shape))
 
+        return transformed_input
+
     @classmethod
     def transform_output(cls,output):
-        transformed_output = input.reshape(1,input.shape[1], input.shape[2],1)
+        max_class = np.argmax(output, axis=-1)
+        if output.shape[0] == 1:
+            max_class_conf = output[0][max_class]
+            transformed_output = (max_class[0], max_class_conf[0])
+        elif output.shape[0] > 1:
+            max_class_conf = np.array([output[i][c] for i, c in enumerate(max_class)])
+
+        transformed_output = (max_class, max_class_conf)
+        
+        return transformed_output
+
 
     @classmethod
     def parse_optimizer(cls, optimizer):
@@ -340,6 +353,7 @@ class ResNetInterface():
             train_accuracy = train_accuracy / self.train_generator.n_batches
             
             if verbose == True:
+                    print("====================================================================================")
                     print("train: ","Epoch:{}".format(epoch))
                     print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
                        1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
@@ -373,10 +387,12 @@ class ResNetInterface():
                 val_accuracy = val_accuracy / self.val_generator.n_batches
                 
                 if verbose == True:
-                        print("val: ")
+                        print("\nval: ")
                         print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
                             1 - val_f_score, val_accuracy, val_precision, val_recall, val_f_score) 
                         )
+                        print("====================================================================================")
+
                         
 
 
@@ -396,7 +412,7 @@ class ResNetInterface():
 
         
     def run(self, input, return_raw_output=False):
-        input = transform_input(input)
+        input = self.transform_input(input)
         output = self.model.predict(input)
         
         if not return_raw_output:
@@ -405,9 +421,10 @@ class ResNetInterface():
             return output
 
     
-    def run_on_batch(self, input_batch, return_raw_output=False):
-        input = transform_input(input)
-        output = self.model.predict(input)
+    def run_on_batch(self, input_batch, return_raw_output=False, transform_input=True):
+        if transform_input == True:
+            input_batch = self.transform_input(input_batch)
+        output = self.model.predict(input_batch)
         
         if not return_raw_output:
             return self.transform_output(output)
