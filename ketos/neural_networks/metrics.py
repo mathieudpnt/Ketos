@@ -1,4 +1,4 @@
-from sklearn.metrics import  accuracy_score, recall_score, average_precision_score, fbeta_score
+from sklearn.metrics import  accuracy_score, recall_score, precision_score, average_precision_score, fbeta_score
 import numpy as np
 
 def precision_recall_accuracy_f(y_true, y_pred, f_beta=1.0):
@@ -8,11 +8,11 @@ def precision_recall_accuracy_f(y_true, y_pred, f_beta=1.0):
     epsilon = 0.000001
     
     a = accuracy_score(y_true, y_pred)
-    p = average_precision_score(y_true, y_pred)
+    p = precision_score(y_true, y_pred)
     r = recall_score(y_true, y_pred)
 
     f = (1.0 +f_beta**2)*p*r / ((f_beta**2*p)+r+epsilon)
-  
+    #import pdb;pdb.set_trace()
     precision=p
     recall=r
     f_score=f
