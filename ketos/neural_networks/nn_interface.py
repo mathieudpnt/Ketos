@@ -1,5 +1,18 @@
 import tensorflow as tf
 
+
+class RecipeCompat():
+    def __init__(self, name, func, **kwargs):
+        self.name = name
+        self.func = func
+        self.args = kwargs
+
+    def __call__(self, *args, **kwargs):
+        result = self.func(*args, **kwargs)
+        return result
+
+
+
 class NNInterface():
     """ General interface for neural network architectures in the ketos.neural_networks module.
 
