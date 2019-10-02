@@ -433,7 +433,7 @@ def test_estimate_audio_from_spectrogram_after_freq_cropping(sine_audio):
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
 def test_annotate():
-    spec = Spectrogram()
+    spec = Spectrogram(image=np.zeros((10,2)))
     spec.annotate(labels=1, boxes=[1,2,3,4])
     spec.annotate(labels=[2,3], boxes=[[1,2,3,4],[5,6,7,8]])
     assert len(spec.labels) == 3

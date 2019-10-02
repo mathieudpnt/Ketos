@@ -718,6 +718,8 @@ class Spectrogram(AnnotationHandler):
             if b[3] == math.inf:
                 b[3] = self.fmax()
 
+        self.labels, self.boxes = self.get_cropped_annotations(t1=self.tmin, t2=self.tmin+self.duration())
+
     def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
         """ Find bin corresponding to given value
 
@@ -901,8 +903,9 @@ class Spectrogram(AnnotationHandler):
         y = np.zeros(self.tbins())
         boi, _ = self._select_boxes(label)
         for b in boi:
-            t1 = self._find_tbin(b[0])
-            t2 = self._find_tbin(b[1], roundup=False) + 1  # include the upper bin 
+            t1 = self._find_tbin(b[0], truncate=True)
+            t2 = self._find_tbin(b[1], truncate=True, roundup=False) + 1  # include the upper bin 
+            t2 = min(t2, self.tbins())
             y[t1:t2] = 1
 
         return y
@@ -2468,13 +2471,13 @@ class MagSpectrogram(Spectrogram):
         duration += pad_sec
 
         # load audio segment
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False)
 
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
         if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 
@@ -3067,7 +3070,7 @@ class CQTSpectrogram(Spectrogram):
         assert duration > 0, 'Selected audio segment is empty'
 
         # load audio
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
 
         # select channel
         if np.ndim(x) == 2:
@@ -3077,7 +3080,7 @@ class CQTSpectrogram(Spectrogram):
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
         if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 

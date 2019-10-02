@@ -1,7 +1,7 @@
 Installation
 =============
 
-The easiest way to install the Ketos package is using anaconda: ::
+The easiest way to install the Ketos package is using pip: ::
 
     pip install ketos
 
