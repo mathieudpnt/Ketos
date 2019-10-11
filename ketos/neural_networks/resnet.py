@@ -38,6 +38,10 @@ import tensorflow as tf
 import numpy as np
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
+from .nn_interface import RecipeCompat
+import json
+from zipfile import ZipFile
+from glob import glob
 
 class ResNetBlock(tf.keras.Model):
     def __init__(self, channels, strides=1, residual_path=False):
@@ -185,39 +189,76 @@ class ResNetInterface():
 
 
     @classmethod
-    def parse_optimizer(cls, optimizer):
+    def optimizer_from_recipe(cls, optimizer):
         name = optimizer['name']
-        args = optimizer['parameters']
+        kwargs = optimizer['parameters']
 
         if name not in cls.valid_optimizers.keys():
             raise ValueError("Invalid optimizer name '{}'".format(name))
-        built_optimizer = cls.valid_optimizers[name](**args)
+        built_optimizer = RecipeCompat(name,cls.valid_optimizers[name],**kwargs)
 
         return built_optimizer
 
     @classmethod
-    def parse_loss_function(cls, loss_function):
+    def optimizer_to_recipe(cls, optimizer):
+        name = optimizer.name
+        kwargs = optimizer.args
+
+        if name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(name))
+        recipe_optimizer = {'name':name, 'parameters':kwargs}
+
+        return recipe_optimizer
+
+    @classmethod
+    def loss_function_from_recipe(cls, loss_function):
         name = loss_function['name']
-        args = loss_function['parameters']
+        kwargs = loss_function['parameters']
 
         if name not in cls.valid_losses.keys():
             raise ValueError("Invalid loss function name '{}'".format(name))
-        built_loss = cls.valid_loss[name](**args)
+        built_loss = RecipeCompat(name, cls.valid_losses[name],**kwargs)
 
         return built_loss
 
     @classmethod
-    def parse_metrics(cls, metrics):
-        name = loss_function['name']
-        args = loss_function['parameters']
+    def loss_function_to_recipe(cls, loss_function):
+        name = loss_function.name
+        kwargs = loss_function.args
 
+        if name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(name))
+        recipe_loss = {'name':name, 'parameters':kwargs}
+
+        return recipe_loss
+
+
+    @classmethod
+    def metrics_from_recipe(cls, metrics):
+        
         built_metrics = []
-        for m in metrics: 
-            if m['name'] not in cls.valid_metrics.keys():
+        for m in metrics:
+            name = m['name']
+            kwargs = m['parameters']
+             
+            if name not in cls.valid_metrics.keys():
                 raise ValueError("Invalid metric name '{}'".format(m['name']))
-        built_metrics.append(cls.valid_loss[name])
+            built_metrics.append(RecipeCompat(name, cls.valid_metrics[name], **kwargs))
 
         return built_metrics
+
+    @classmethod
+    def metrics_to_recipe(cls, metrics):
+        # name = metrics.name
+        # kwargs = metrics.parameters
+
+        recipe_metrics = []
+        for m in metrics: 
+            if m.name not in cls.valid_metrics.keys():
+                raise ValueError("Invalid metric name '{}'".format(m['name']))
+            recipe_metrics.append({'name':m.name, 'parameters':m.args})
+
+        return recipe_metrics
 
 
 
@@ -226,11 +267,21 @@ class ResNetInterface():
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
-        optimizer = cls.parse_optimizer(recipe['optimizer'])
-        loss_function = cls.parse_loss_function(recipe['loss_function'])
-        metrics = cls.parse_metrics(recipe['metrics'])
+        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+
+        recipe_dict['optimizer'] = optimizer
+        recipe_dict['loss_function'] = loss_function
+        recipe_dict['metrics'] = metrics
 
         return recipe_dict
+
+    @classmethod
+    def write_recipe_file(cls, json_file, recipe):
+        with open(json_file, 'w') as json_recipe:
+            json.dump(recipe, json_recipe)
+
 
     @classmethod
     def load(cls, recipe, weights_path):
@@ -241,6 +292,7 @@ class ResNetInterface():
         return instance
 
 
+    
     @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
@@ -274,8 +326,42 @@ class ResNetInterface():
         self.val_generator = None
         self.test_generator = None
 
+    def write_recipe(self):
+        recipe = {}
+        recipe['block_list'] = self.block_list
+        recipe['n_classes'] = self.n_classes
+        recipe['initial_filters'] = self.initial_filters
+        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+
+        return recipe
+
+
+
+    def save_recipe(self, recipe_file):
+        recipe = self.write_recipe()
+        self.write_recipe_file(json_file=recipe_file, recipe=recipe)
+
+    def save_model(self, model_file):
+        recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
+        with ZipFile(model_file, 'w') as zip:
+            
+            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
+            checkpoints = glob(latest + '*')                                                                                                                 
+            self.save_recipe(recipe_path)
+            zip.write(recipe_path, "recipe.json")
+            zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
+            for c in checkpoints:
+                 zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
+
+        os.remove(recipe_path)
+
+
+
+    
     def compile_model(self):
-        self.model.compile(optimizer=self.optimizer,
+        self.model.compile(optimizer=self.optimizer.func,
                             loss = self.loss_function,
                             metrics = self.metrics)
         self.metrics_names = self.model.metrics_names
