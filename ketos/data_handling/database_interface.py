@@ -805,7 +805,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
             duration = file_duration
             num_segs = 1
         else:
-            num_segs = int(np.ceil(file_duration / duration))
+            num_segs = int(np.ceil(file_duration / (duration - overlap)))
 
         assert overlap < duration, 'Overlap must be less than duration'
 
