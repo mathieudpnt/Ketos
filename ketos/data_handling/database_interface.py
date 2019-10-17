@@ -676,7 +676,7 @@ def parse_boxes(boxes):
 
 def create_spec_database(output_file, input_dir, annotations_file=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
+        overlap=0, flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
         bins_per_octave=32, **kwargs):
     """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
     
@@ -718,6 +718,8 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 Step size (seconds) used for computing the spectrogram
             duration: float
                 Duration in seconds of individual spectrograms.
+            overlap: float
+                Overlap in seconds between consecutive spectrograms.
             flow: float
                 Lower cut on frequency (Hz)
             fhigh: float
@@ -783,7 +785,6 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         subfolders.append(sf)
 
     # loop over files    
-    num_wrong_duration = 0
     for i in range(len(files)):
     
         if progress_bar:
@@ -806,6 +807,8 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         else:
             num_segs = int(np.ceil(file_duration / duration))
 
+        assert overlap < duration, 'Overlap must be less than duration'
+
         # read, one segment at the time
         time = 0
         for i in tqdm(range(num_segs), disable = not progress_bar):
@@ -827,7 +830,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 s.crop(flow=flow, fhigh=fhigh) 
 
             # increment time
-            time += duration
+            time += duration - overlap
 
             # add annotations
             if areader is not None:
