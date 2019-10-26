@@ -568,6 +568,35 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     assert reader.finished() == True
     assert len(b.data) == n1 + n2 - reader.n_smooth - size
 
+def test_next_batch_with_three_files_and_one_file_per_batch(sine_wave_file, sawtooth_wave_file):
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    n1 = len(s1.data)
+    n2 = len(s2.data)
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=1)
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n1
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n2
+    b = reader.next()
+    assert reader.finished() == True
+    assert len(b.data) == n1
+
+def test_next_batch_with_three_files_and_two_files_per_batch(sine_wave_file, sawtooth_wave_file):
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    n1 = len(s1.data)
+    n2 = len(s2.data)
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=2)
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n1 + n2 - reader.n_smooth
+    b = reader.next()
+    assert reader.finished() == True
+    assert len(b.data) == n1
+
 def test_next_batch_with_two_very_short_files():
     short_file_1 = os.path.join(path_to_assets, "super_short_1.wav")
     ap.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))

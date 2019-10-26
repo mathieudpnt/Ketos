@@ -860,6 +860,13 @@ class AudioSequenceReader:
         alphabetically (if given as a folder name) or in the order provided (if given as a list 
         of file names).
 
+        OBS: Note that the AudioSequenceReader always loads entire wav files into memory, 
+        even when the requested batch size is smaller than the file size. This can cause 
+        problems if the wav files are very large.
+
+        TODO: If the file size is larger than the batch size, only load the relevant part of 
+        the wav file into memory, to avoid problems with very large wav files.
+        
         Args:
             source: str or list
                 File name, list of file names, or directory name 
@@ -879,7 +886,10 @@ class AudioSequenceReader:
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
                 If True, print progress messages during processing
-
+            batch_size_samples: int
+                Number of samples loaded for each batch.
+            batch_size_files: int
+                Number of wav files loaded for each batch. (Overwrites batch_size_samples.)
         
         Raises:
             AssertionError:
@@ -908,7 +918,8 @@ class AudioSequenceReader:
         40000
 
     """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False,\
+            batch_size_samples=None, batch_size_files=None):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -919,18 +930,22 @@ class AudioSequenceReader:
         self.time = None
         self.eof = False
         self.verbose = verbose
+        self.batch_size_samples = batch_size_samples
+        self.batch_size_files = batch_size_files
         self.load(source=source, recursive_search=recursive_search, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
 
     def load(self, source, recursive_search=False, datetime_stamp=None, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
+            OBS: These method does not actually load any audio data into memory, but merely 
+            creates a record of all the wav files to be processed.
+
             Args:
                 source: str or list
                     File name, list of file names, or directory name 
                 recursive_search: bool
                     If true, include wav files from all subdirectories
-
                 datetime_stamp: str
                     A default datetime to be used in case the file names do not contain datetime information.
                     Requires the format to be specified by the 'datetime_fmt' argument.
@@ -1013,6 +1028,7 @@ class AudioSequenceReader:
         # sort signals in chronological order
         def sorting(y):
             return y[1]
+
         self.files.sort(key=sorting)
 
         # reset the reader
@@ -1086,6 +1102,7 @@ class AudioSequenceReader:
                 n_smooth = self.n_smooth
             else:
                 n_smooth = 0
+
             t = self.batch.append(signal=self.signal, n_smooth=n_smooth, max_length=size) # add to existing batch
             if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
                 self.times.append(t) # collect times
@@ -1097,11 +1114,13 @@ class AudioSequenceReader:
         """
             Read next batch of audio files and merge into a single audio signal. 
             
-            If no maximum size is given, all loaded files will be read and merged.
+            If no maximum size is given, all loaded files will be read and merged, 
+            unless either batch_size_samples or batch_size_files has been specified 
+            at the time of initialization.  
             
             Args:
                 size: int
-                    Maximum batch size (number of samples) 
+                    Maximum batch size (number of samples).
                     
             Returns:
                 batch: TimeStampedAudioSignal
@@ -1126,21 +1145,35 @@ class AudioSequenceReader:
                 >>> len(seq2.data)
                 40000
         """
+        num_files = None
+
         # ensure that size has type int
         if size is not math.inf:
             size = int(size)
+        
+        elif self.batch_size_files is not None:
+            num_files = self.batch_size_files
+
+        elif self.batch_size_samples is not None:
+            size = self.batch_size_samples
 
         if self.finished():
             return None
         
-        length = 0
-        
-        while length < size and not self.finished():
+        # batch size corresponds to certain number of wav files
+        if num_files is not None:
+            file_no = 0
+            while file_no < num_files and not self.finished():
+                self._add_to_batch(size=math.inf, new_batch=(file_no==0))
+                file_no += 1
 
-            self._add_to_batch(size, new_batch=(length==0))
-            
-            if self.batch is not None:
-                length = len(self.batch.data)
+        # batch size corresponds to certain number of samples
+        else:
+            length = 0        
+            while length < size and not self.finished():
+                self._add_to_batch(size=size, new_batch=(length==0))                
+                if self.batch is not None:
+                    length = len(self.batch.data)
 
         if self.finished() and self.verbose:
             print(' Successfully processed {0} files'.format(len(self.files)))
