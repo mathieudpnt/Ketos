@@ -1056,8 +1056,9 @@ class TimeStampedAudioSignal(AudioSignal):
             Returns:
                 Instance of TimeStampedAudioSignal
                     Time stamped audio signal from wave file
-        """        
-        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        """
+#        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        signal = AudioSignal.from_wav(path=path)
         return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
 
     def copy(self):
