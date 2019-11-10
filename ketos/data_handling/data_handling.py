@@ -42,6 +42,7 @@ from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
+from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
 
 
 def rel_path_unix(path, start=None):
@@ -1452,7 +1453,16 @@ class SpecProvider():
             Example:
     """
     def __init__(self, input_dir, sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, **kwargs):
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32):
+
+        self.sampling_rate=sampling_rate
+        self.channel=channel
+        self.window_size=window_size
+        self.step_size=step_size
+        self.flow=flow
+        self.fhigh=fhigh 
+        self.cqt=cqt
+        self.bins_per_octave=bins_per_octave
 
         if length is not None:
             assert overlap < length, 'Overlap must be less than spectrogram length'
@@ -1467,34 +1477,33 @@ class SpecProvider():
         self.fid = -1
         self._next_file()
 
-
     def __iter__(self):
         return self
 
     def __next__(self):
         """         
-            Return: 
-                spec: instance of MagSpectrogram, PowerSpectrogram, or CQTSpectrogram
-                    Computed spectrogram.
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
         """
         # current file
         f = self.files[self.fid]
 
         # compute spectrogram
-        if cqt:
-            spec = CQTSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
-                bins_per_octave=bins_per_octave, fmin=flow, fmax=fhigh,\
-                step_size=step_size, offset=time, duration=duration, decibel=True,\
-                channel=channel)
+        if self.cqt:
+            spec = CQTSpectrogram.from_wav(path=f, sampling_rate=self.sampling_rate,\
+                bins_per_octave=self.bins_per_octave, fmin=self.flow, fmax=self.fhigh,\
+                step_size=self.step_size, offset=self.time, duration=self.length, decibel=True,\
+                channel=self.channel)
 
         else:
-            spec = MagSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
-                window_size=window_size, step_size=step_size,\
-                offset=time, duration=duration, decibel=True,\
-                adjust_duration=True, channel=channel)
+            spec = MagSpectrogram.from_wav(path=f, sampling_rate=self.sampling_rate,\
+                window_size=self.window_size, step_size=self.step_size,\
+                offset=self.time, duration=self.length, decibel=True,\
+                adjust_duration=True, channel=self.channel)
 
             # crop frequencies
-            spec.crop(flow=flow, fhigh=fhigh) 
+            spec.crop(flow=self.flow, fhigh=self.fhigh) 
 
         # increment time
         self.time += spec.duration() - self.overlap
@@ -1511,6 +1520,9 @@ class SpecProvider():
     def _next_file(self):
         # increment file ID
         self.fid += 1
+
+        if self.fid == len(self.files):
+            self.fid = 0
 
         # check if file exists
         f = self.files[self.fid]
@@ -1531,3 +1543,5 @@ class SpecProvider():
         # reset segment ID and time
         self.sid = 0
         self.time = 0
+
+        return True
