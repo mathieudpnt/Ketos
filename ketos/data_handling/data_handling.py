@@ -1421,3 +1421,113 @@ class AnnotationTableReader():
         return labels, boxes
 
 
+class SpecProvider():
+    """ Compute spectrograms from raw audio (*.wav) files.
+    
+        Args:
+            input_dir: str
+                Full path to folder containing the input audio files (*.wav)
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            window_size: float
+                Window size (seconds) used for computing the spectrogram
+            step_size: float
+                Step size (seconds) used for computing the spectrogram
+            duration: float
+                Duration in seconds of individual spectrograms.
+            overlap: float
+                Overlap in seconds between consecutive spectrograms.
+            flow: float
+                Lower cut on frequency (Hz)
+            fhigh: float
+                Upper cut on frequency (Hz)
+            cqt: bool
+                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
+                spectrogram.
+            bins_per_octave: int
+                Number of bins per octave. Only applicable if cqt is True.
+
+            Example:
+    """
+    def __init__(self, input_dir, sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, length=None,\
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, **kwargs):
+
+        if length is not None:
+            assert overlap < length, 'Overlap must be less than spectrogram length'
+
+        self.length = length
+        self.overlap = overlap 
+
+        # get all wav files in the folder, including any subfolders
+        self.files = find_wave_files(path=input_dir, fullpath=True, subdirs=True)
+
+        # file ID
+        self.fid = -1
+        self._next_file()
+
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """         
+            Return: 
+                spec: instance of MagSpectrogram, PowerSpectrogram, or CQTSpectrogram
+                    Computed spectrogram.
+        """
+        # current file
+        f = self.files[self.fid]
+
+        # compute spectrogram
+        if cqt:
+            spec = CQTSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
+                bins_per_octave=bins_per_octave, fmin=flow, fmax=fhigh,\
+                step_size=step_size, offset=time, duration=duration, decibel=True,\
+                channel=channel)
+
+        else:
+            spec = MagSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
+                window_size=window_size, step_size=step_size,\
+                offset=time, duration=duration, decibel=True,\
+                adjust_duration=True, channel=channel)
+
+            # crop frequencies
+            spec.crop(flow=flow, fhigh=fhigh) 
+
+        # increment time
+        self.time += spec.duration() - self.overlap
+
+        # increment segment ID
+        self.sid += 1
+
+        # if this was the last segment, jump to the next file
+        if self.sid == self.num_segs:
+            self._next_file()
+
+        return spec
+
+    def _next_file(self):
+        # increment file ID
+        self.fid += 1
+
+        # check if file exists
+        f = self.files[self.fid]
+        exists = os.path.exists(f)
+
+        # if not, jump to the next file
+        if not exists:
+            self._next_file()
+
+        # get duration
+        duration = librosa.get_duration(filename=f)
+
+        if self.length is None:
+            self.num_segs = 1
+        else:
+            self.num_segs = int(np.ceil(duration / (self.length - self.overlap)))
+
+        # reset segment ID and time
+        self.sid = 0
+        self.time = 0
