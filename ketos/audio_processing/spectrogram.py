@@ -2408,12 +2408,10 @@ class MagSpectrogram(Spectrogram):
         # ensure selected segment does not exceed file duration
         file_duration = librosa.get_duration(filename=path)
         if duration is None:
-            duration = file_duration
-
-#        duration = min(duration, file_duration - offset)
+            duration = file_duration - offset
 
         # assert that segment is non-empty
-        assert duration > 0, 'Selected audio segment is empty'
+        assert offset < file_duration, 'Selected audio segment is empty'
 
         # sampling rate
         if sampling_rate is None:
@@ -3069,12 +3067,10 @@ class CQTSpectrogram(Spectrogram):
         # ensure selected segment does not exceed file duration
         file_duration = librosa.get_duration(filename=path)
         if duration is None:
-            duration = file_duration
-
-        duration = min(duration, file_duration - offset)
+            duration = file_duration - offset
 
         # assert that segment is non-empty
-        assert duration > 0, 'Selected audio segment is empty'
+        assert offset < file_duration, 'Selected audio segment is empty'
 
         # load audio
         x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
