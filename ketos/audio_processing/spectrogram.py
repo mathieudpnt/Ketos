@@ -62,6 +62,7 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
 from tqdm import tqdm
 from librosa.core import cqt
@@ -2349,7 +2350,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
-                    decibel=True, adjust_duration=False, fmin=None, fmax=None):
+                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING'):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -2397,6 +2398,8 @@ class MagSpectrogram(Spectrogram):
                     Minimum frequency in Hz
                 fmax: float
                     Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                window_function: str
+                    Window function. Ignored for CQT spectrograms.
 
             Returns:
                 spec: MagSpectrogram
@@ -2421,6 +2424,8 @@ class MagSpectrogram(Spectrogram):
             fmax = spec_config.high_frequency_cut
             sampling_rate=spec_config.rate
             duration = spec_config.length
+            if spec_config.window_function is not None:
+                window_function = WinFun(spec_config.window_function).name
         
         # ensure offset is non-negative
         offset = max(0, offset)
@@ -2530,7 +2535,8 @@ class MagSpectrogram(Spectrogram):
         frames = make_frames(x, winlen=win_siz, winstep=step_siz)
 
         # Apply Hamming window    
-        frames *= np.hamming(frames.shape[1])
+        if window_function == 'HAMMING':
+            frames *= np.hamming(frames.shape[1])
 
         # Compute fast fourier transform
         fft = np.fft.rfft(frames)

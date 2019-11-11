@@ -1508,6 +1508,21 @@ class SpecProvider():
 
         return spec
 
+    def reset(self):
+        """ Go back to the beginning of the first file.
+        """
+        self.jump(0)
+
+    def jump(self, file_id=0):
+        """ Go to the beginning of the selected file.
+
+            Args:
+                file_id: int
+                    File ID
+        """
+        self.fid = file_id - 1
+        self._next_file()
+
     def get(self, time=0, file_id=0):
         """ Compute spectrogram from specific file and time.
 
