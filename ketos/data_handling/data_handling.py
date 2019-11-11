@@ -42,7 +42,6 @@ from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
-from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
 
 
 def rel_path_unix(path, start=None):
@@ -1426,8 +1425,8 @@ class SpecProvider():
     """ Compute spectrograms from raw audio (*.wav) files.
     
         Args:
-            input_dir: str
-                Full path to folder containing the input audio files (*.wav)
+            path: str
+                Full path to audio file (*.wav) or folder containing audio files
             sampling_rate: float
                 If specified, audio data will be resampled at this rate
             channel: int
@@ -1452,7 +1451,7 @@ class SpecProvider():
 
             Example:
     """
-    def __init__(self, input_dir, sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, length=None,\
+    def __init__(self, path, sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, length=None,\
         overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32):
 
         self.sampling_rate=sampling_rate
@@ -1471,7 +1470,10 @@ class SpecProvider():
         self.overlap = overlap 
 
         # get all wav files in the folder, including any subfolders
-        self.files = find_wave_files(path=input_dir, fullpath=True, subdirs=True)
+        if path[-3:].lower() == 'wav':
+            self.files = [path]
+        else:
+            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
 
         # file ID
         self.fid = -1
@@ -1486,6 +1488,8 @@ class SpecProvider():
                 spec: instance of MagSpectrogram or CQTSpectrogram
                     Spectrogram.
         """
+        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
+
         # current file
         f = self.files[self.fid]
 

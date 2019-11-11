@@ -696,3 +696,43 @@ def test_get_maximum_number_of_annotations():
     a = AnnotationTableReader(fname)
     m = a.get_max_annotations()
     assert m == 2
+
+def test_init_spec_provider_with_folder(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+
+def test_init_spec_provider_with_wav_file(sine_wave_file):
+    sp = dh.SpecProvider(path=sine_wave_file)
+    assert len(sp.files) == 1
+
+def test_use_spec_provider_on_five_wav_files(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.5
+    s = next(sp)
+    assert s.duration() == 0.5
+    assert sp.fid == 2
+
+def test_use_spec_provider_on_five_wav_files_specify_length(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.fid == 1
+
+def test_use_spec_provider_on_five_wav_files_specify_overlap(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, overlap=0.05, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.time == pytest.approx(0.45, abs=1e-6)
+    assert sp.fid == 0
