@@ -2348,7 +2348,8 @@ class MagSpectrogram(Spectrogram):
         return image, NFFT, fres, phase_change
 
     @classmethod
-    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True, adjust_duration=False):
+    def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
+                    decibel=True, adjust_duration=False, fmin=None, fmax=None):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -2361,6 +2362,11 @@ class MagSpectrogram(Spectrogram):
             Note that the duration must be equal to an integer number of steps. If this is not the case, 
             an exception will be raised. Alternatively, you can set adjust_duration to True.
 
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, window_size, step_size, duration, fmin, fmax.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
             TODO: Align implementation with the rest of the module.
 
             TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
@@ -2368,6 +2374,8 @@ class MagSpectrogram(Spectrogram):
             Args:
                 path: str
                     Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
                 window_size: float
                     Window size in seconds
                 step_size: float
@@ -2385,6 +2393,10 @@ class MagSpectrogram(Spectrogram):
                 adjust_duration: bool
                     If True, the duration is adjusted (upwards) to ensure that the 
                     length corresponds to an integer number of steps.
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
 
             Returns:
                 spec: MagSpectrogram
@@ -2402,6 +2414,14 @@ class MagSpectrogram(Spectrogram):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
+        if spec_config is not None:
+            window_size = spec_config.window_size
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+        
         # ensure offset is non-negative
         offset = max(0, offset)
 
@@ -2531,6 +2551,9 @@ class MagSpectrogram(Spectrogram):
         spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
         spec.hop = step_siz
         spec.hamming = True
+
+        # crop frequencies
+        spec.crop(flow=fmin, fhigh=fmax) 
 
         return spec
 
@@ -3011,7 +3034,7 @@ class CQTSpectrogram(Spectrogram):
         return fmax
 
     @classmethod
-    def from_wav(cls, path, step_size, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+    def from_wav(cls, path, spec_config=None, step_size=0.01, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -3021,6 +3044,11 @@ class CQTSpectrogram(Spectrogram):
             is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
             the audio is padded with zeros.
 
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, bins_per_octave, step_size, duration, fmin, fmax, cqt.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
             TODO: Align implementation with the rest of the module.
 
             TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
@@ -3028,6 +3056,8 @@ class CQTSpectrogram(Spectrogram):
             Args:
                 path: str
                     Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
                 step_size: float
                     Step size in seconds 
                 fmin: float
@@ -3061,6 +3091,14 @@ class CQTSpectrogram(Spectrogram):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
         """
+        if spec_config is not None:
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            bins_per_octave = spec_config.bins_per_octave
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+
         # ensure offset is non-negative
         offset = max(0, offset)
 

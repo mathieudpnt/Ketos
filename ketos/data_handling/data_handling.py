@@ -42,6 +42,7 @@ from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
+from ketos.data_handling.parsing import SpectrogramConfiguration
 
 
 def rel_path_unix(path, start=None):
@@ -1423,19 +1424,26 @@ class AnnotationTableReader():
 
 class SpecProvider():
     """ Compute spectrograms from raw audio (*.wav) files.
+
+        Note that if spec_config is specified, the following arguments are ignored: 
+        sampling_rate, window_size, step_size, length, overlap, flow, fhigh, cqt, bins_per_octave.
+
+        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
     
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
-            sampling_rate: float
-                If specified, audio data will be resampled at this rate
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
+            spec_config: SpectrogramConfiguration
+                Spectrogram configuration object.
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
             window_size: float
                 Window size (seconds) used for computing the spectrogram
             step_size: float
                 Step size (seconds) used for computing the spectrogram
-            duration: float
+            length: float
                 Duration in seconds of individual spectrograms.
             overlap: float
                 Overlap in seconds between consecutive spectrograms.
@@ -1451,23 +1459,19 @@ class SpecProvider():
 
             Example:
     """
-    def __init__(self, path, sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, length=None,\
+    def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
         overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32):
 
-        self.sampling_rate=sampling_rate
-        self.channel=channel
-        self.window_size=window_size
-        self.step_size=step_size
-        self.flow=flow
-        self.fhigh=fhigh 
-        self.cqt=cqt
-        self.bins_per_octave=bins_per_octave
+        if spec_config is None:
+            spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
+                bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
 
-        if length is not None:
-            assert overlap < length, 'Overlap must be less than spectrogram length'
+        if spec_config.length is not None:
+            assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
 
-        self.length = length
-        self.overlap = overlap 
+        self.spec_config = spec_config
+        self.channel = channel
 
         # get all wav files in the folder, including any subfolders
         if path[-3:].lower() == 'wav':
@@ -1483,34 +1487,17 @@ class SpecProvider():
         return self
 
     def __next__(self):
-        """         
+        """ Compute next spectrogram.
+
             Returns: 
                 spec: instance of MagSpectrogram or CQTSpectrogram
                     Spectrogram.
         """
-        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
-
-        # current file
-        f = self.files[self.fid]
-
-        # compute spectrogram
-        if self.cqt:
-            spec = CQTSpectrogram.from_wav(path=f, sampling_rate=self.sampling_rate,\
-                bins_per_octave=self.bins_per_octave, fmin=self.flow, fmax=self.fhigh,\
-                step_size=self.step_size, offset=self.time, duration=self.length, decibel=True,\
-                channel=self.channel)
-
-        else:
-            spec = MagSpectrogram.from_wav(path=f, sampling_rate=self.sampling_rate,\
-                window_size=self.window_size, step_size=self.step_size,\
-                offset=self.time, duration=self.length, decibel=True,\
-                adjust_duration=True, channel=self.channel)
-
-            # crop frequencies
-            spec.crop(flow=self.flow, fhigh=self.fhigh) 
+        # get spectrogram
+        spec = self.get(time=self.time, file_id=self.fid)
 
         # increment time
-        self.time += spec.duration() - self.overlap
+        self.time += spec.duration() - self.spec_config.overlap
 
         # increment segment ID
         self.sid += 1
@@ -1521,7 +1508,39 @@ class SpecProvider():
 
         return spec
 
+    def get(self, time=0, file_id=0):
+        """ Compute spectrogram from specific file and time.
+
+            Args:
+                time: float
+                    Start time of the spectrogram in seconds, measured from the 
+                    beginning of the file.
+                file_id: int
+                    Integer file identifier.
+        
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
+        """
+        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
+
+        # file
+        f = self.files[file_id]
+
+        # compute spectrogram
+        if self.spec_config.type == 'CQT':
+            spec = CQTSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, channel=self.channel)
+
+        else:
+            spec = MagSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, adjust_duration=True, channel=self.channel)
+
+        return spec
+
     def _next_file(self):
+        """ Jump to next file. 
+        """
         # increment file ID
         self.fid += 1
 
@@ -1539,13 +1558,11 @@ class SpecProvider():
         # get duration
         duration = librosa.get_duration(filename=f)
 
-        if self.length is None:
+        if self.spec_config.length is None:
             self.num_segs = 1
         else:
-            self.num_segs = int(np.ceil(duration / (self.length - self.overlap)))
+            self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
 
         # reset segment ID and time
         self.sid = 0
         self.time = 0
-
-        return True

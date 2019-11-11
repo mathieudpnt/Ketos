@@ -54,7 +54,7 @@ low - Lower limit (float)
 high - Upper limit (float)''' 
 
 
-SpectrogramConfiguration = namedtuple('SpectrogramConfiguration', 'rate window_size step_size bins_per_octave window_function low_frequency_cut high_frequency_cut length overlap')
+SpectrogramConfiguration = namedtuple('SpectrogramConfiguration', 'rate window_size step_size bins_per_octave window_function low_frequency_cut high_frequency_cut length overlap type')
 SpectrogramConfiguration.__doc__ = '''\
 Configuration parameters for generation of spectrograms
 
@@ -66,7 +66,16 @@ window_function - Window function used for framing (e.g. Hamming window)
 low_frequency_cut - Low-frequency cut-off in Hz (float)
 high_frequency_cut - High-frequency cut-off in Hz (float)
 length - Spectrogram length in seconds (float)
-overlap - Overlap with previous spectrogram in seconds (float)''' 
+overlap - Overlap with previous spectrogram in seconds (float)
+type - Spectrogram type (Mag, CQT)''' 
+
+
+def load_spectrogram_configuration(path):
+    f = open(path, "r")
+    data = json.load(f)
+    cfg = parse_spectrogram_configuration(data['spectrogram'])
+    f.close()
+    return cfg
 
 
 def parse_spectrogram_configuration(data):
@@ -94,43 +103,45 @@ def parse_spectrogram_configuration(data):
         >>> print(settings.rate)  # print sampling rate in Hz
         20000.0
     """
-    # default values
-    rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap = None, None, None, None, None, None, None, None, None    
-
     rate = parse_value(data, 'rate', 'Hz')
     wsiz = parse_value(data, 'window_size', 's')
     step = parse_value(data, 'step_size', 's')
-    bpo = parse_value(data, 'bins_per_octave', 'int')
+    bpo = parse_value(data, 'bins_per_octave', typ='int')
     flow = parse_value(data, 'low_frequency_cut', 'Hz')
     fhigh = parse_value(data, 'high_frequency_cut', 'Hz')
     length = parse_value(data, 'length', 's')
     overlap = parse_value(data, 'overlap', 's')
+    stype = parse_value(data, 'type', typ='str')
 
+    wfun = None
     if data.get('window_function') is not None:
-
         for name, member in WinFun.__members__.items():
             if data['window_function'] == name:
                 wfun = member
-
         if wfun is None:
             s = ", ".join(name for name, _ in WinFun.__members__.items())
             raise ValueError("Unknown window function. Select between: "+s)
 
-    c = SpectrogramConfiguration(rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap)    
+    c = SpectrogramConfiguration(rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap, stype)    
 
     return c
 
 
-def parse_value(x, name, unit='float'):
+def parse_value(x, name, unit=None, typ='float'):
     Q = ureg.Quantity
     v = None
     if x.get(name) is not None:
-        if unit is 'int':
-            v = int(x[name])
-        elif unit is 'float':
-            v = float(x[name])
+        if unit is None:
+            v = x[name]
         else:
             v = Q(x[name]).m_as(unit)
+
+        if typ is 'int':
+            v = int(v)
+        elif unit is 'float':
+            v = float(v)
+        elif typ is 'str':
+            v = str(v)
 
     return v
 
