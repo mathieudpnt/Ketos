@@ -54,16 +54,19 @@ low - Lower limit (float)
 high - Upper limit (float)''' 
 
 
-SpectrogramConfiguration = namedtuple('SpectrogramConfiguration', 'rate window_size step_size window_function low_frequency_cut high_frequency_cut')
+SpectrogramConfiguration = namedtuple('SpectrogramConfiguration', 'rate window_size step_size bins_per_octave window_function low_frequency_cut high_frequency_cut length overlap')
 SpectrogramConfiguration.__doc__ = '''\
 Configuration parameters for generation of spectrograms
 
 rate - Sampling rate in Hz (int)
 window_size - Window size used for framing in seconds (float)
 step_size - Step size used for framing in seconds (float)
+bins_per_octave - Number of bins per octave (only applicable for CQT spectrograms)
 window_function - Window function used for framing (e.g. Hamming window)
 low_frequency_cut - Low-frequency cut-off in Hz (float)
-high_frequency_cut - High-frequency cut-off in Hz (float)''' 
+high_frequency_cut - High-frequency cut-off in Hz (float)
+length - Spectrogram length in seconds (float)
+overlap - Overlap with previous spectrogram in seconds (float)''' 
 
 
 def parse_spectrogram_configuration(data):
@@ -91,23 +94,17 @@ def parse_spectrogram_configuration(data):
         >>> print(settings.rate)  # print sampling rate in Hz
         20000.0
     """
-    Q = ureg.Quantity
-
     # default values
-    rate, wsiz, step, wfun, flow, fhigh = None, None, None, None, None, None    
+    rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap = None, None, None, None, None, None, None, None, None    
 
-    # check that entry exists, before attempting to read
-    if data.get('rate') is not None:
-        rate = Q(data['rate'])
-        rate = rate.m_as("Hz")
-
-    if data.get('window_size') is not None:
-        wsiz = Q(data['window_size'])
-        wsiz = wsiz.m_as("s")
-
-    if data.get('step_size') is not None:
-        step = Q(data['step_size'])
-        step = step.m_as("s")
+    rate = parse_value(data, 'rate', 'Hz')
+    wsiz = parse_value(data, 'window_size', 's')
+    step = parse_value(data, 'step_size', 's')
+    bpo = parse_value(data, 'bins_per_octave', 'int')
+    flow = parse_value(data, 'low_frequency_cut', 'Hz')
+    fhigh = parse_value(data, 'high_frequency_cut', 'Hz')
+    length = parse_value(data, 'length', 's')
+    overlap = parse_value(data, 'overlap', 's')
 
     if data.get('window_function') is not None:
 
@@ -119,17 +116,23 @@ def parse_spectrogram_configuration(data):
             s = ", ".join(name for name, _ in WinFun.__members__.items())
             raise ValueError("Unknown window function. Select between: "+s)
 
-    if data.get('low_frequency_cut') is not None:
-        flow = Q(data['low_frequency_cut'])
-        flow = flow.m_as("Hz")
-
-    if data.get('high_frequency_cut') is not None:
-        fhigh = Q(data['high_frequency_cut'])
-        fhigh = fhigh.m_as("Hz")
-
-    c = SpectrogramConfiguration(rate, wsiz, step, wfun, flow, fhigh)    
+    c = SpectrogramConfiguration(rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap)    
 
     return c
+
+
+def parse_value(x, name, unit='float'):
+    Q = ureg.Quantity
+    v = None
+    if x.get(name) is not None:
+        if unit is 'int':
+            v = int(x[name])
+        elif unit is 'float':
+            v = float(x[name])
+        else:
+            v = Q(x[name]).m_as(unit)
+
+    return v
 
 
 def parse_frequency_bands(data):
