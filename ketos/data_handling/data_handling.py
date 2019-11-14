@@ -1319,15 +1319,15 @@ class AnnotationTableReader():
 
         The csv file should have at least the following columns:
 
-            "filename": file name
-            "label": label value (0, 1, 2, ...)
-            "start": start time in seconds measured from the beginning of the audio file
-            "end": end time in seconds
+           * "filename": file name
+           * "label": label value (0, 1, 2, ...)
+           * "start": start time in seconds measured from the beginning of the audio file
+           * "end": end time in seconds
 
         In addition, it can the following two optional columns:
 
-            "flow": frequency lower boundary in Hz
-            "fhigh": frequency upper boundary in Hz
+           * "flow": frequency lower boundary in Hz
+           * "fhigh": frequency upper boundary in Hz
 
         Args:
             path: str
