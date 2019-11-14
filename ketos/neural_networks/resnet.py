@@ -42,6 +42,7 @@ from .nn_interface import RecipeCompat
 import json
 from zipfile import ZipFile
 from glob import glob
+from shutil import rmtree
 
 class ResNetBlock(tf.keras.Model):
     def __init__(self, channels, strides=1, residual_path=False):
@@ -290,6 +291,30 @@ class ResNetInterface():
         instance.model.load_weights(latest_checkpoint)
 
         return instance
+
+    @classmethod
+    def load_model(cls, model_file):
+        tmp_dir = "tmp_model_files"
+        try:
+            os.makedirs(tmp_dir)
+        except FileExistsError:
+            rmtree(tmp_dir)
+            os.makedirs(tmp_dir)
+
+        with ZipFile(model_file, 'r') as zip:
+            zip.extractall(path=tmp_dir)
+        recipe = cls.read_recipe_file(os.path.join(tmp_dir,"recipe.json"))
+        model_instance = cls.load(recipe,  os.path.join(tmp_dir, "checkpoints"))
+
+        rmtree(tmp_dir)
+
+        return model_instance
+
+
+        
+            
+
+    
 
 
     
