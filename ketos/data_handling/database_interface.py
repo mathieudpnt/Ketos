@@ -38,7 +38,8 @@ import numpy as np
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
-from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix
+from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix, SpecProvider
+from ketos.data_handling.parsing import SpectrogramConfiguration
 from tqdm import tqdm
 from sys import getsizeof
 from psutil import virtual_memory
@@ -674,12 +675,11 @@ def parse_boxes(boxes):
     
     return parsed_boxes
 
-def create_spec_database(output_file, input_dir, annotations_file=None,\
+def create_spec_database(output_file, input_dir, annotations_file=None, spec_config=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
-        flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
+        overlap=0, flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
         bins_per_octave=32, **kwargs):
     """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
-    
         
         One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
         a constant-Q transform (CQT).
@@ -701,6 +701,11 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
         The internal file structure of the database file will mirror the structure of the 
         data directory where the audio data is stored. See the example below.
 
+        Note that if spec_config is specified, the following arguments are ignored: 
+        sampling_rate, window_size, step_size, duration, overlap, flow, fhigh, cqt, bins_per_octave.
+
+        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
         Args:
             output_file: str
                 Full path to output database file (*.h5)
@@ -708,6 +713,8 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 Full path to folder containing the input audio files (*.wav)
             annotations_file: str
                 Full path to file containing annotations (*.csv)
+            spec_config: SpectrogramConfiguration
+                Spectrogram configuration object.
             sampling_rate: float
                 If specified, audio data will be resampled at this rate
             channel: int
@@ -718,6 +725,8 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
                 Step size (seconds) used for computing the spectrogram
             duration: float
                 Duration in seconds of individual spectrograms.
+            overlap: float
+                Overlap in seconds between consecutive spectrograms.
             flow: float
                 Lower cut on frequency (Hz)
             fhigh: float
@@ -773,71 +782,37 @@ def create_spec_database(output_file, input_dir, annotations_file=None,\
     # spectrogram writer
     swriter = SpecWriter(output_file=output_file, max_size=max_size, max_annotations=max_ann, verbose=verbose, ignore_wrong_shape=True)
 
-    # get all wav files in the folder
-    files = find_wave_files(path=input_dir, fullpath=True, subdirs=True)
+    if spec_config is None:
+        spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
+            bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
+            length=duration, overlap=overlap, type=['Mag', 'CQT'][cqt])
+
+    # spectrogram provider
+    provider = SpecProvider(path=input_dir, channel=channel, spec_config=spec_config)
 
     # subfolder unix structure
+    files = provider.files
     subfolders = list()
     for f in files:
         sf = rel_path_unix(f, input_dir)
         subfolders.append(sf)
 
     # loop over files    
-    num_wrong_duration = 0
-    for i in range(len(files)):
-    
-        if progress_bar:
-            print('File {0} of {1}'.format(i+1, len(files)))
+    num_files = len(files)
+    for i in tqdm(range(num_files), disable = not progress_bar):
 
-        f = files[i]
-        sf = subfolders[i]
+        # get next spectrogram
+        spec = next(provider)
 
-        # check if files exists
-        exists = os.path.exists(f)
-        if exists is False:
-            continue
+        # add annotations
+        if areader is not None:
+            labels, boxes = areader.get_annotations(spec.file_dict[0])
+            spec.annotate(labels, boxes) 
 
-        # get duration
-        file_duration = librosa.get_duration(filename=f)
-
-        if duration is None:
-            duration = file_duration
-            num_segs = 1
-        else:
-            num_segs = int(np.ceil(file_duration / duration))
-
-        # read, one segment at the time
-        time = 0
-        for i in tqdm(range(num_segs), disable = not progress_bar):
-
-            # compute spectrogram
-            if cqt:
-                s = CQTSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
-                    bins_per_octave=bins_per_octave, fmin=flow, fmax=fhigh,\
-                    step_size=step_size, offset=time, duration=duration, decibel=True,\
-                    channel=channel)
-
-            else:
-                s = MagSpectrogram.from_wav(path=f, sampling_rate=sampling_rate,\
-                    window_size=window_size, step_size=step_size,\
-                    offset=time, duration=duration, decibel=True,\
-                    adjust_duration=True, channel=channel)
-
-                # crop frequencies
-                s.crop(flow=flow, fhigh=fhigh) 
-
-            # increment time
-            time += duration
-
-            # add annotations
-            if areader is not None:
-                labels, boxes = areader.get_annotations(s.file_dict[0])
-                s.annotate(labels, boxes) 
-
-            # save spectrogram(s) to file        
-            path = sf + 'spec'
-            swriter.cd(path)
-            swriter.write(s)
+        # save spectrogram(s) to file        
+        path = subfolders[i] + 'spec'
+        swriter.cd(path)
+        swriter.write(spec)
 
     if swriter.num_ignored > 0:
         print('Ignored {0} spectrograms with wrong shape'.format(swriter.num_ignored))
