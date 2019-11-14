@@ -62,6 +62,7 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
 from tqdm import tqdm
 from librosa.core import cqt
@@ -718,6 +719,8 @@ class Spectrogram(AnnotationHandler):
             if b[3] == math.inf:
                 b[3] = self.fmax()
 
+        self.labels, self.boxes = self.get_cropped_annotations(t1=self.tmin, t2=self.tmin+self.duration())
+
     def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
         """ Find bin corresponding to given value
 
@@ -901,8 +904,9 @@ class Spectrogram(AnnotationHandler):
         y = np.zeros(self.tbins())
         boi, _ = self._select_boxes(label)
         for b in boi:
-            t1 = self._find_tbin(b[0])
-            t2 = self._find_tbin(b[1], roundup=False) + 1  # include the upper bin 
+            t1 = self._find_tbin(b[0], truncate=True)
+            t2 = self._find_tbin(b[1], truncate=True, roundup=False) + 1  # include the upper bin 
+            t2 = min(t2, self.tbins())
             y[t1:t2] = 1
 
         return y
@@ -2345,7 +2349,8 @@ class MagSpectrogram(Spectrogram):
         return image, NFFT, fres, phase_change
 
     @classmethod
-    def from_wav(cls, path, window_size, step_size, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True, adjust_duration=False):
+    def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
+                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING'):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -2358,6 +2363,11 @@ class MagSpectrogram(Spectrogram):
             Note that the duration must be equal to an integer number of steps. If this is not the case, 
             an exception will be raised. Alternatively, you can set adjust_duration to True.
 
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, window_size, step_size, duration, fmin, fmax.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
             TODO: Align implementation with the rest of the module.
 
             TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
@@ -2365,6 +2375,8 @@ class MagSpectrogram(Spectrogram):
             Args:
                 path: str
                     Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
                 window_size: float
                     Window size in seconds
                 step_size: float
@@ -2382,6 +2394,12 @@ class MagSpectrogram(Spectrogram):
                 adjust_duration: bool
                     If True, the duration is adjusted (upwards) to ensure that the 
                     length corresponds to an integer number of steps.
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                window_function: str
+                    Window function. Ignored for CQT spectrograms.
 
             Returns:
                 spec: MagSpectrogram
@@ -2399,18 +2417,26 @@ class MagSpectrogram(Spectrogram):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
+        if spec_config is not None:
+            window_size = spec_config.window_size
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+            if spec_config.window_function is not None:
+                window_function = WinFun(spec_config.window_function).name
+        
         # ensure offset is non-negative
         offset = max(0, offset)
 
         # ensure selected segment does not exceed file duration
         file_duration = librosa.get_duration(filename=path)
         if duration is None:
-            duration = file_duration
-
-        duration = min(duration, file_duration - offset)
+            duration = file_duration - offset
 
         # assert that segment is non-empty
-        assert duration > 0, 'Selected audio segment is empty'
+        assert offset < file_duration, 'Selected audio segment is empty'
 
         # sampling rate
         if sampling_rate is None:
@@ -2447,7 +2473,7 @@ class MagSpectrogram(Spectrogram):
         pad = win_siz / 2
         pad_sec = pad / sr # convert to seconds
         pad_zeros_sec = max(0, pad_sec - offset) # amount of zero padding required
-        pad_zeros[0] = int(pad_zeros_sec * sr) # convert to # samples
+        pad_zeros[0] = round(pad_zeros_sec * sr) # convert to # samples
 
         # increment duration
         pad_sec -= pad_zeros_sec
@@ -2459,22 +2485,23 @@ class MagSpectrogram(Spectrogram):
         # padding after        
         pad = max(0, win_siz / 2 - (seg_siz - num_steps * step_siz) - step_siz)
         pad_sec = pad / sr # convert to seconds
-        resid = file_duration - (offset + duration)
+        resid = file_duration - (offset - delta_offset + duration)
         pad_zeros_sec = max(0, pad_sec - resid) # amount of zero padding required
-        pad_zeros[1] = int(pad_zeros_sec * sr) # convert to # samples
+        pad_zeros[1] = round(pad_zeros_sec * sr) # convert to # samples
 
         # increment duration
         pad_sec -= pad_zeros_sec
         duration += pad_sec
 
         # load audio segment
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False)
 
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
-        if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+        N = int(sr * duration)
+        if len(x) != N:
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 
@@ -2482,6 +2509,12 @@ class MagSpectrogram(Spectrogram):
             num_samples = int(duration * sr)
             stop = min(len(x), start + num_samples)
             x = x[start:stop]
+
+        # check again, pad with zeros to fix any remaining mismatch
+        N = round(sr * duration)
+        if len(x) < N:
+            z = np.zeros(N-len(x))
+            x = np.concatenate((z, x))        
 
         # parse file name
         fname = os.path.basename(path)
@@ -2502,7 +2535,8 @@ class MagSpectrogram(Spectrogram):
         frames = make_frames(x, winlen=win_siz, winstep=step_siz)
 
         # Apply Hamming window    
-        frames *= np.hamming(frames.shape[1])
+        if window_function == 'HAMMING':
+            frames *= np.hamming(frames.shape[1])
 
         # Compute fast fourier transform
         fft = np.fft.rfft(frames)
@@ -2523,6 +2557,9 @@ class MagSpectrogram(Spectrogram):
         spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
         spec.hop = step_siz
         spec.hamming = True
+
+        # crop frequencies
+        spec.crop(flow=fmin, fhigh=fmax) 
 
         return spec
 
@@ -3003,7 +3040,7 @@ class CQTSpectrogram(Spectrogram):
         return fmax
 
     @classmethod
-    def from_wav(cls, path, step_size, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+    def from_wav(cls, path, spec_config=None, step_size=0.01, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -3013,6 +3050,11 @@ class CQTSpectrogram(Spectrogram):
             is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
             the audio is padded with zeros.
 
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, bins_per_octave, step_size, duration, fmin, fmax, cqt.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
             TODO: Align implementation with the rest of the module.
 
             TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
@@ -3020,6 +3062,8 @@ class CQTSpectrogram(Spectrogram):
             Args:
                 path: str
                     Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
                 step_size: float
                     Step size in seconds 
                 fmin: float
@@ -3053,21 +3097,27 @@ class CQTSpectrogram(Spectrogram):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
         """
+        if spec_config is not None:
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            bins_per_octave = spec_config.bins_per_octave
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+
         # ensure offset is non-negative
         offset = max(0, offset)
 
         # ensure selected segment does not exceed file duration
         file_duration = librosa.get_duration(filename=path)
         if duration is None:
-            duration = file_duration
-
-        duration = min(duration, file_duration - offset)
+            duration = file_duration - offset
 
         # assert that segment is non-empty
-        assert duration > 0, 'Selected audio segment is empty'
+        assert offset < file_duration, 'Selected audio segment is empty'
 
         # load audio
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
 
         # select channel
         if np.ndim(x) == 2:
@@ -3076,8 +3126,9 @@ class CQTSpectrogram(Spectrogram):
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
         # select the segment of interest manually. 
-        if len(x) != int(sr * duration):
-            x, sr = librosa.core.load(path=path, sr=sampling_rate)
+        N = int(sr * duration)
+        if len(x) != N:
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
             if np.ndim(x) == 2:
                 x = x[channel]
 
@@ -3085,6 +3136,12 @@ class CQTSpectrogram(Spectrogram):
             num_samples = int(duration * sr)
             stop = min(len(x), start + num_samples)
             x = x[start:stop]
+
+        # if the segment is shorted than expected, pad with zeros
+        N = round(sr * duration)
+        if len(x) < N:
+            z = np.zeros(N-len(x))
+            x = np.concatenate([x,z])
 
         # parse file name
         fname = os.path.basename(path)

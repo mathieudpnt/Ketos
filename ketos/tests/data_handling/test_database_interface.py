@@ -426,7 +426,7 @@ def test_create_spec_database_with_size_limit():
     output_file = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
     input_dir = os.path.join(path_to_assets, 'wav_files/')
 
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=5E6)
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=10E6)
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
     fil = tables.open_file(path, 'r')

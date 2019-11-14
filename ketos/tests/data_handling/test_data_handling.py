@@ -568,6 +568,35 @@ def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtoo
     assert reader.finished() == True
     assert len(b.data) == n1 + n2 - reader.n_smooth - size
 
+def test_next_batch_with_three_files_and_one_file_per_batch(sine_wave_file, sawtooth_wave_file):
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    n1 = len(s1.data)
+    n2 = len(s2.data)
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=1)
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n1
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n2
+    b = reader.next()
+    assert reader.finished() == True
+    assert len(b.data) == n1
+
+def test_next_batch_with_three_files_and_two_files_per_batch(sine_wave_file, sawtooth_wave_file):
+    s1 = AudioSignal.from_wav(sine_wave_file)
+    s2 = AudioSignal.from_wav(sawtooth_wave_file)
+    n1 = len(s1.data)
+    n2 = len(s2.data)
+    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=2)
+    b = reader.next()
+    assert reader.finished() == False
+    assert len(b.data) == n1 + n2 - reader.n_smooth
+    b = reader.next()
+    assert reader.finished() == True
+    assert len(b.data) == n1
+
 def test_next_batch_with_two_very_short_files():
     short_file_1 = os.path.join(path_to_assets, "super_short_1.wav")
     ap.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))
@@ -667,3 +696,43 @@ def test_get_maximum_number_of_annotations():
     a = AnnotationTableReader(fname)
     m = a.get_max_annotations()
     assert m == 2
+
+def test_init_spec_provider_with_folder(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+
+def test_init_spec_provider_with_wav_file(sine_wave_file):
+    sp = dh.SpecProvider(path=sine_wave_file)
+    assert len(sp.files) == 1
+
+def test_use_spec_provider_on_five_wav_files(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.5
+    s = next(sp)
+    assert s.duration() == 0.5
+    assert sp.fid == 2
+
+def test_use_spec_provider_on_five_wav_files_specify_length(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.fid == 1
+
+def test_use_spec_provider_on_five_wav_files_specify_overlap(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, overlap=0.05, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.time == pytest.approx(0.45, abs=1e-6)
+    assert sp.fid == 0

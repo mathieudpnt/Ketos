@@ -124,7 +124,7 @@ class AudioSignal(AnnotationHandler):
         """        
         rate, data = read_wave(file=path, channel=channel)
         _, fname = os.path.split(path)
-        return cls(rate, data, fname)
+        return cls(rate=rate, data=data, tag=fname)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, tag=''):
@@ -650,7 +650,7 @@ class AudioSignal(AnnotationHandler):
 
         return segs
 
-    def segment(self, length, pad=False, keep_time=False):
+    def segment(self, length, pad=False, keep_time=False, step=None):
         """ Split the audio signal into a number of equally long segments.
 
             Args:
@@ -662,6 +662,8 @@ class AudioSignal(AnnotationHandler):
                 keep_time: bool
                     If True, the extracted segments keep the time from the present instance. 
                     If False, the time axis of each extracted segment starts at t=0
+                step: float
+                    Step size in seconds. If None, the step size is set equal to the length.
 
             Returns:
                 segs: list
@@ -670,8 +672,11 @@ class AudioSignal(AnnotationHandler):
         if length >= self.duration():
             return [self]
 
+        if step is None:
+            step = length
+
         # split data array into segments
-        frames = self.make_frames(winlen=length, winstep=length, zero_padding=pad)
+        frames = self.make_frames(winlen=length, winstep=step, zero_padding=pad)
 
         # create audio signals
         segs = list()
@@ -690,7 +695,7 @@ class AudioSignal(AnnotationHandler):
                     a.annotate(labels=l, boxes=b)
     
             segs.append(a)
-            tstart += length 
+            tstart += step 
 
         return segs
 
@@ -1033,6 +1038,9 @@ class TimeStampedAudioSignal(AudioSignal):
                 tag: str
                     Optional argument that may be used to indicate the source.
         """
+        if tag == "":
+            tag = audio_signal.tag
+
         return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
 
     @classmethod
@@ -1048,8 +1056,9 @@ class TimeStampedAudioSignal(AudioSignal):
             Returns:
                 Instance of TimeStampedAudioSignal
                     Time stamped audio signal from wave file
-        """        
-        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        """
+#        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
+        signal = AudioSignal.from_wav(path=path)
         return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
 
     def copy(self):

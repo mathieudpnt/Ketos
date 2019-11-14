@@ -2,6 +2,21 @@ Change log
 ==========
 
 
+**Version 1.1.2** (November 12, 2019)
+
+ * Added option for creating overlapping spectrograms in the create_spec_database method
+ * Added option for specifying batch size as an integer number of wav files in AudioSequenceReader
+ * Added option for generating spectrograms from a SpectrogramConfiguration object
+ * New SpecProvider class facilitates loading and computation of spectrograms from wave files
+
+**Version 1.1.1** (October 2, 2019)
+
+ * Fixed minor bug in spectrogram.get_label_vector method, occuring when annotation box goes beyond spectrogram time range.
+ * When annotations are added to a spectrogram with the spectrogram.annotate mehod, any annotation that is fully outside the spectrogram time range is ignored.
+ * When spectrograms are saved to a HDF5 database file using the database_interface.write_spec method, the time offset tmin is subtracted from all annotations, since this offset is lost when the spectrogram is saved.
+ * from_wav methods in spectrogram module do not merge stereo recordings into mono
+
+
 **Version 1.1.0** (August 13, 2019)
 
  * New Jupyter Notebook tutorial demonstrating how to implement a simple boat detection program.
