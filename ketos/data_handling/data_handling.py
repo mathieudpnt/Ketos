@@ -1475,9 +1475,11 @@ class SpecProvider():
 
         # get all wav files in the folder, including any subfolders
         if path[-3:].lower() == 'wav':
+            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
             self.files = [path]
         else:
             self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
 
         # file ID
         self.fid = -1
@@ -1503,7 +1505,8 @@ class SpecProvider():
         self.sid += 1
 
         # if this was the last segment, jump to the next file
-        if self.sid == self.num_segs:
+        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
+        if self.sid == self.num_segs or self.time >= file_duration:
             self._next_file()
 
         return spec

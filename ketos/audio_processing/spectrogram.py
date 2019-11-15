@@ -2337,6 +2337,9 @@ class MagSpectrogram(Spectrogram):
                     Compute phase spectrogram in addition to magnitude spectrogram
                 decibel: bool
                     Use logarithmic (decibel) scale.
+                res_type: str
+                    Resampling method. Options: 'kaiser_best' (default), 'kaiser_fast', 'scipy', 'polyphase'.
+                    See http://librosa.github.io/librosa/master/generated/librosa.core.resample.html for further details.
 
             Returns:
                 (image, NFFT, fres):numpy.array,int, int
@@ -2350,7 +2353,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
-                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING'):
+                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING', res_type='kaiser_best'):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -2494,7 +2497,7 @@ class MagSpectrogram(Spectrogram):
         duration += pad_sec
 
         # load audio segment
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False)
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False, res_type=res_type)
 
         # check that loaded audio segment has the expected length.
         # if this is not the case, load the entire audio file and 
