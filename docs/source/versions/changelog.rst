@@ -2,12 +2,19 @@ Change log
 ==========
 
 
+**Version 1.1.3** (November 15, 2019)
+
+ * Added option to specify resampling type in MagSpectrogram.from_wav method 
+ * Bug fix in SpecProvider: jump to next file if time exceeds file duration.
+
+
 **Version 1.1.2** (November 12, 2019)
 
  * Added option for creating overlapping spectrograms in the create_spec_database method
  * Added option for specifying batch size as an integer number of wav files in AudioSequenceReader
  * Added option for generating spectrograms from a SpectrogramConfiguration object
  * New SpecProvider class facilitates loading and computation of spectrograms from wave files
+
 
 **Version 1.1.1** (October 2, 2019)
 
