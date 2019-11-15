@@ -2337,6 +2337,9 @@ class MagSpectrogram(Spectrogram):
                     Compute phase spectrogram in addition to magnitude spectrogram
                 decibel: bool
                     Use logarithmic (decibel) scale.
+                res_type: str
+                    Resampling method. Options: 'kaiser_best' (default), 'kaiser_fast', 'scipy', 'polyphase'.
+                    See http://librosa.github.io/librosa/master/generated/librosa.core.resample.html for further details.
 
             Returns:
                 (image, NFFT, fres):numpy.array,int, int
