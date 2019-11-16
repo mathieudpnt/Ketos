@@ -678,7 +678,7 @@ def parse_boxes(boxes):
 def create_spec_database(output_file, input_dir, annotations_file=None, spec_config=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
         overlap=0, flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
-        bins_per_octave=32, pad=False, **kwargs):
+        bins_per_octave=32, pad=True, **kwargs):
     """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
         
         One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
@@ -745,6 +745,10 @@ def create_spec_database(output_file, input_dir, annotations_file=None, spec_con
                 spectrogram.
             bins_per_octave: int
                 Number of bins per octave. Only applicable if cqt is True.
+            pad: bool
+                If True (default), audio files will be padded with zeros at the end to produce an 
+                integer number of spectrogram if necessary. If False, audio files 
+                will be truncated at the end.
 
             Example:
 

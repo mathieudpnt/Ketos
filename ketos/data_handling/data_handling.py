@@ -1456,16 +1456,20 @@ class SpecProvider():
                 spectrogram.
             bins_per_octave: int
                 Number of bins per octave. Only applicable if cqt is True.
+            pad: bool
+                If True (default), audio files will be padded with zeros at the end to produce an 
+                integer number of spectrogram if necessary. If False, audio files 
+                will be truncated at the end.
 
             Example:
     """
     def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=False):
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
 
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
                 bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt], pad=True)
 
         if spec_config.length is not None:
             assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
