@@ -801,18 +801,21 @@ def create_spec_database(output_file, input_dir, annotations_file=None, spec_con
     num_files = len(files)
     for i in tqdm(range(num_files), disable = not progress_bar):
 
-        # get next spectrogram
-        spec = next(provider)
+        # loop over segments
+        for _ in range(provider.num_segs):
 
-        # add annotations
-        if areader is not None:
-            labels, boxes = areader.get_annotations(spec.file_dict[0])
-            spec.annotate(labels, boxes) 
+            # get next spectrogram
+            spec = next(provider)
 
-        # save spectrogram(s) to file        
-        path = subfolders[i] + 'spec'
-        swriter.cd(path)
-        swriter.write(spec)
+            # add annotations
+            if areader is not None:
+                labels, boxes = areader.get_annotations(spec.file_dict[0])
+                spec.annotate(labels, boxes) 
+
+            # save spectrogram(s) to file        
+            path = subfolders[i] + 'spec'
+            swriter.cd(path)
+            swriter.write(spec)
 
     if swriter.num_ignored > 0:
         print('Ignored {0} spectrograms with wrong shape'.format(swriter.num_ignored))
