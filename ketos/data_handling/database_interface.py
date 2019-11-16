@@ -678,7 +678,7 @@ def parse_boxes(boxes):
 def create_spec_database(output_file, input_dir, annotations_file=None, spec_config=None,\
         sampling_rate=None, channel=0, window_size=0.2, step_size=0.02, duration=None,\
         overlap=0, flow=None, fhigh=None, max_size=1E9, progress_bar=False, verbose=True, cqt=False,\
-        bins_per_octave=32, **kwargs):
+        bins_per_octave=32, pad=False, **kwargs):
     """ Create a database with magnitude spectrograms computed from raw audio (*.wav) files
         
         One spectrogram is created for each audio file using either a short-time Fourier transform (STFT) or
@@ -788,7 +788,7 @@ def create_spec_database(output_file, input_dir, annotations_file=None, spec_con
             length=duration, overlap=overlap, type=['Mag', 'CQT'][cqt])
 
     # spectrogram provider
-    provider = SpecProvider(path=input_dir, channel=channel, spec_config=spec_config)
+    provider = SpecProvider(path=input_dir, channel=channel, spec_config=spec_config, pad=pad)
 
     # subfolder unix structure
     files = provider.files
@@ -801,18 +801,21 @@ def create_spec_database(output_file, input_dir, annotations_file=None, spec_con
     num_files = len(files)
     for i in tqdm(range(num_files), disable = not progress_bar):
 
-        # get next spectrogram
-        spec = next(provider)
+        # loop over segments
+        for _ in range(provider.num_segs):
 
-        # add annotations
-        if areader is not None:
-            labels, boxes = areader.get_annotations(spec.file_dict[0])
-            spec.annotate(labels, boxes) 
+            # get next spectrogram
+            spec = next(provider)
 
-        # save spectrogram(s) to file        
-        path = subfolders[i] + 'spec'
-        swriter.cd(path)
-        swriter.write(spec)
+            # add annotations
+            if areader is not None:
+                labels, boxes = areader.get_annotations(spec.file_dict[0])
+                spec.annotate(labels, boxes) 
+
+            # save spectrogram(s) to file        
+            path = subfolders[i] + 'spec'
+            swriter.cd(path)
+            swriter.write(spec)
 
     if swriter.num_ignored > 0:
         print('Ignored {0} spectrograms with wrong shape'.format(swriter.num_ignored))

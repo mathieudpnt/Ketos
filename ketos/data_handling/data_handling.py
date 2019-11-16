@@ -1460,7 +1460,7 @@ class SpecProvider():
             Example:
     """
     def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32):
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=False):
 
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
@@ -1472,6 +1472,7 @@ class SpecProvider():
 
         self.spec_config = spec_config
         self.channel = channel
+        self.pad = pad
 
         # get all wav files in the folder, including any subfolders
         if path[-3:].lower() == 'wav':
@@ -1579,7 +1580,11 @@ class SpecProvider():
         if self.spec_config.length is None:
             self.num_segs = 1
         else:
-            self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            if self.pad:
+                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            else:
+                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
+                self.num_segs = max(1, self.num_segs)
 
         # reset segment ID and time
         self.sid = 0
