@@ -1469,7 +1469,7 @@ class SpecProvider():
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
                 bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt], pad=True)
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
 
         if spec_config.length is not None:
             assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
