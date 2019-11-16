@@ -1319,15 +1319,15 @@ class AnnotationTableReader():
 
         The csv file should have at least the following columns:
 
-            "filename": file name
-            "label": label value (0, 1, 2, ...)
-            "start": start time in seconds measured from the beginning of the audio file
-            "end": end time in seconds
+           * "filename": file name
+           * "label": label value (0, 1, 2, ...)
+           * "start": start time in seconds measured from the beginning of the audio file
+           * "end": end time in seconds
 
         In addition, it can the following two optional columns:
 
-            "flow": frequency lower boundary in Hz
-            "fhigh": frequency upper boundary in Hz
+           * "flow": frequency lower boundary in Hz
+           * "fhigh": frequency upper boundary in Hz
 
         Args:
             path: str
@@ -1475,9 +1475,11 @@ class SpecProvider():
 
         # get all wav files in the folder, including any subfolders
         if path[-3:].lower() == 'wav':
+            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
             self.files = [path]
         else:
             self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
 
         # file ID
         self.fid = -1
@@ -1503,7 +1505,8 @@ class SpecProvider():
         self.sid += 1
 
         # if this was the last segment, jump to the next file
-        if self.sid == self.num_segs:
+        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
+        if self.sid == self.num_segs or self.time >= file_duration:
             self._next_file()
 
         return spec
