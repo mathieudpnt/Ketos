@@ -93,6 +93,13 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
+def test_make_frames():
+    img = np.random.normal(size=100)
+    frames1 = ap.make_frames(x=img, winlen=20, winstep=4)
+    assert frames1.shape[0] == 21
+    assert frames1.shape[1] == 20
+
+
 def test_prepare_for_binary_cnn():
     n = 1
     l = 2

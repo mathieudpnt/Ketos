@@ -49,6 +49,7 @@
         MelSpectrogram class
 """
 
+import os
 import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
@@ -61,9 +62,11 @@ import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.utils import random_floats
+from ketos.data_handling.parsing import WinFun
+from ketos.utils import random_floats, factors
 from tqdm import tqdm
-
+from librosa.core import cqt
+import librosa
 
 
 def ensure_same_length(specs, pad=False):
@@ -85,7 +88,6 @@ def ensure_same_length(specs, pad=False):
         Example:
 
         >>> from ketos.audio_processing.audio import AudioSignal
-        >>>
         >>> # Create two audio signals with different lengths
         >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
         >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
@@ -717,6 +719,8 @@ class Spectrogram(AnnotationHandler):
             if b[3] == math.inf:
                 b[3] = self.fmax()
 
+        self.labels, self.boxes = self.get_cropped_annotations(t1=self.tmin, t2=self.tmin+self.duration())
+
     def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
         """ Find bin corresponding to given value
 
@@ -900,8 +904,9 @@ class Spectrogram(AnnotationHandler):
         y = np.zeros(self.tbins())
         boi, _ = self._select_boxes(label)
         for b in boi:
-            t1 = self._find_tbin(b[0])
-            t2 = self._find_tbin(b[1], roundup=False) + 1  # include the upper bin 
+            t1 = self._find_tbin(b[0], truncate=True)
+            t2 = self._find_tbin(b[1], truncate=True, roundup=False) + 1  # include the upper bin 
+            t2 = min(t2, self.tbins())
             y[t1:t2] = 1
 
         return y
@@ -1022,7 +1027,7 @@ class Spectrogram(AnnotationHandler):
                 f2 = fhigh
             else:                        
                 f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-            
+
         if t2 <= t1:
             img = None
         
@@ -1049,7 +1054,11 @@ class Spectrogram(AnnotationHandler):
 
                 t1r = max(t1, 0)
                 t2r = min(t2, Nt)
-                t1_crop = max(-1*t1, 0)
+                if tpad:
+                    t1_crop = max(-1*t1, 0)
+                else:
+                    t1_crop = 0
+
                 t2_crop = t1_crop + t2r - t1r
 
                 f1r = max(f1, 0)
@@ -1132,10 +1141,25 @@ class Spectrogram(AnnotationHandler):
             spec = self
 
         if bin_no:
-            t1 = self._tbin_low(tlow)
-            t2 = self._tbin_low(thigh)
-            f1 = self._fbin_low(flow)
-            f2 = self._fbin_low(fhigh)
+            if tlow is None:
+                t1 = self.tmin
+            else:
+                t1 = self._tbin_low(tlow)
+
+            if thigh is None:
+                t2 = self.tmin + self.duration()
+            else:
+                t2 = self._tbin_low(thigh)
+
+            if flow is None:
+                f1 = self.fmin
+            else:
+                f1 = self._fbin_low(flow)
+
+            if fhigh is None:
+                f2 = self.fmax()
+            else:
+                f2 = self._fbin_low(fhigh)
         else:
             t1 = tlow
             t2 = thigh
@@ -1181,7 +1205,7 @@ class Spectrogram(AnnotationHandler):
         if make_copy:
             return spec
 
-    def extract(self, label, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
+    def extract(self, label, length=None, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
 
             After the selected segments have been extracted, the present instance contains the 
@@ -1192,6 +1216,9 @@ class Spectrogram(AnnotationHandler):
             Args:
                 label: int
                     Annotation label of interest. 
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
                 min_length: float
                     If necessary, extend the annotation boxes so that all extracted 
                     segments have a duration of at least min_length (in seconds) or 
@@ -1250,10 +1277,23 @@ class Spectrogram(AnnotationHandler):
         boi, idx = s._select_boxes(label)
 
         # stretch to achieve minimum length, if necessary
-        boi = s._stretch(boxes=boi, min_length=min_length, center=center)
+        if length is not None:  
+            boi = s._ensure_box_length(boxes=boi, length=length, center=center)
+        elif min_length is not None:
+            boi = s._stretch(boxes=boi, min_length=min_length, center=center)
 
+        # convert to bin numbers        
+        for b in boi:
+            num_bins = int(np.round((b[1]-b[0])/self.tres))
+            b[0] = self._find_tbin(b[0], truncate=False)
+            b[1] = self._find_tbin(b[1], truncate=False, roundup=False) + 1
+            b[2] = self._find_fbin(b[2], truncate=False)
+            b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
+            # ensure correct number of bins
+            b[1] += num_bins - (b[1] - b[0])
+ 
         # extract
-        res = s._clip(boxes=boi, fpad=fpad, keep_time=keep_time)
+        res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
 
         # remove extracted labels
         s.delete_annotations(idx)
@@ -1329,7 +1369,7 @@ class Spectrogram(AnnotationHandler):
             bins1 = bins
         
         elif length is not None and length != self.duration():
-            bins = int(np.ceil(length / spec.tres))
+            bins = int(np.round(length / spec.tres))
             number = int(f(spec.tbins() / bins))
             bins1 = bins
 
@@ -1407,18 +1447,71 @@ class Spectrogram(AnnotationHandler):
                     r = 0.5001
                 else:
                     r = np.random.random_sample()
+                
                 t1 -= r * dt
                 t2 += (1-r) * dt
                 if t1 < 0:
                     t2 -= t1
                     t1 = 0
 
-                t1 = self.tmin + np.floor((t1-self.tmin)/self.tres) * self.tres                
-                t2 = self.tmin + np.floor((t2-self.tmin)/self.tres) * self.tres                
-
             b[0] = t1
             b[1] = t2
             res.append(b)
+
+        return res
+
+    def _ensure_box_length(self, boxes, length, center=False):
+        """ Extend or divide the annotation boxes as necessary to ensure that all 
+            extracted segments have the same length.
+
+            Args:
+                boxes: list
+                    Input boxes
+                length: float
+                    Extend or divide the annotation boxes as necessary to ensure that all 
+                    extracted segments have the specified length (in seconds).  
+                center: bool
+                    If True, the box is stretched/divided symmetrically in backward/forward time direction.
+                    If false, the distribution is random.
+
+            Returns:
+                res: list
+                    Same length boxes
+        """ 
+        epsilon = 1e-6
+
+        res = list()
+        for b in boxes:
+            b = b.copy()
+            t1 = b[0]
+            t2 = b[1]
+            dt = length - (t2 - t1)
+
+            if dt > 0:
+                b = self._stretch([b], min_length=length, center=center)[0]
+                res.append(b)
+
+            elif dt < 0:
+
+                diff = np.ceil((t2-t1)/length)*length - (t2-t1)
+                if abs(diff) > epsilon:
+                    if center:
+                        r = 0.5
+                    else:
+                        r = np.random.random_sample()
+                    diff *= r
+                else:
+                    diff = 0
+
+                t1_i = t1 - diff
+                t2_i = t1_i + length
+                while t1_i < t2 - epsilon:
+                    b_i = b.copy()
+                    b_i[0] = t1_i
+                    b_i[1] = t2_i
+                    res.append(b_i)
+                    t1_i += length
+                    t2_i += length
 
         return res
 
@@ -1693,7 +1786,7 @@ class Spectrogram(AnnotationHandler):
             >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
+            <Figure size 600x400 with 2 Axes>
             
             >>> plt.show()
             >>> # apply very small amount (0.01 sec) of horizontal blur
@@ -1701,7 +1794,7 @@ class Spectrogram(AnnotationHandler):
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
             >>> # show blurred image
             >>> spec.plot()
-            <Figure size 640x480 with 2 Axes>
+            <Figure size 600x400 with 2 Axes>
 
             >>> plt.show()
             
@@ -2080,12 +2173,15 @@ class Spectrogram(AnnotationHandler):
         if (conf is not None): 
             nrows += 1
 
-        if nrows == 1:
-            figsize=(6.4, 4.8)
-        else:
-            figsize=(8, 1+1.5*nrows)            
+        hratio = 1.5/4.0
+        figsize=(6, 4.0*(1.+hratio*(nrows-1)))    
+        height_ratios = []
+        for _ in range(1,nrows):
+            height_ratios.append(hratio)
+
+        height_ratios.append(1)
         
-        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True)
+        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True, gridspec_kw={'height_ratios': height_ratios})
 
         if nrows == 1:
             ax0 = ax
@@ -2163,7 +2259,7 @@ class Spectrogram(AnnotationHandler):
 
 
 class MagSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram
+    """ Magnitude Spectrogram computed from Short Time Fourier Transform (STFT)
     
         The 0th axis is the time axis (t-axis).
         The 1st axis is the frequency axis (f-axis).
@@ -2195,16 +2291,29 @@ class MagSpectrogram(Spectrogram):
                 If no tag is provided, the tag from the audio_signal will be used.
             decibel: bool
                 Use logarithmic z axis
+            image: 2d numpy array
+                Spectrogram matrix. If provided, audio_signal is ignored.
+            tmin: float
+                Spectrogram start time. Only used if image is provided.
+            fres: float
+                Spectrogram frequency resolution. Only used if image is provided.
     """
     def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag='',\
+                 image=None, tmin=0, fres=1):
 
         super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
 
-        if audio_signal is not None:
+        if image is not None:
+            super(MagSpectrogram, self).__init__(image=image, NFFT=NFFT, tres=winstep, tmin=tmin, fres=fres, tag=tag, timestamp=timestamp, flabels=flabels, decibel=decibel)
+
+        elif audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
             if tag is '':
                 tag = audio_signal.tag
+
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
 
         self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
 
@@ -2238,6 +2347,222 @@ class MagSpectrogram(Spectrogram):
         image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
         
         return image, NFFT, fres, phase_change
+
+    @classmethod
+    def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
+                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING'):
+        """ Create magnitude spectrogram directly from wav file.
+
+            The arguments offset and duration can be used to select a segment of the audio file.
+
+            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
+            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
+            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
+            the audio is padded with zeros.
+
+            Note that the duration must be equal to an integer number of steps. If this is not the case, 
+            an exception will be raised. Alternatively, you can set adjust_duration to True.
+
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, window_size, step_size, duration, fmin, fmax.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
+            TODO: Align implementation with the rest of the module.
+
+            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
+        
+            Args:
+                path: str
+                    Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
+                window_size: float
+                    Window size in seconds
+                step_size: float
+                    Step size in seconds 
+                sampling_rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
+                offset: float
+                    Start time of spectrogram in seconds.
+                duration: float
+                    Duration of spectrogrma in seconds.
+                channel: int
+                    Channel to read from (for stereo recordings).
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+                adjust_duration: bool
+                    If True, the duration is adjusted (upwards) to ensure that the 
+                    length corresponds to an integer number of steps.
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                window_function: str
+                    Window function. Ignored for CQT spectrograms.
+
+            Returns:
+                spec: MagSpectrogram
+                    Magnitude spectrogram
+
+            Example:
+                >>> # load spectrogram from wav file
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> # crop frequency
+                >>> spec.crop(flow=50, fhigh=800)
+                >>> # show
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+        """
+        if spec_config is not None:
+            window_size = spec_config.window_size
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+            if spec_config.window_function is not None:
+                window_function = WinFun(spec_config.window_function).name
+        
+        # ensure offset is non-negative
+        offset = max(0, offset)
+
+        # ensure selected segment does not exceed file duration
+        file_duration = librosa.get_duration(filename=path)
+        if duration is None:
+            duration = file_duration - offset
+
+        # assert that segment is non-empty
+        assert offset < file_duration, 'Selected audio segment is empty'
+
+        # sampling rate
+        if sampling_rate is None:
+            sr = librosa.get_samplerate(path)
+        else:
+            sr = sampling_rate
+
+        # segment size 
+        seg_siz = int(duration * sr)
+
+        # ensure that window size is an even number of samples
+        win_siz = int(round(window_size * sr))
+        win_siz += win_siz%2
+
+        # step size
+        step_siz = int(step_size * sr)
+
+        # ensure step size is a divisor of the segment size
+        res = seg_siz % step_siz
+        if not adjust_duration:
+            assert res == 0, 'Step size must be a divisor of the audio duration. Consider setting adjust_duration=True.'
+        else:
+            if res > 0: 
+                seg_siz = step_siz * int(np.ceil(seg_siz / step_siz))
+                duration = float(seg_siz) / sr
+
+        # number of steps
+        num_steps = int(seg_siz / step_siz)
+
+        # padding before / after        
+        pad_zeros = [0, 0]
+
+        # padding before
+        pad = win_siz / 2
+        pad_sec = pad / sr # convert to seconds
+        pad_zeros_sec = max(0, pad_sec - offset) # amount of zero padding required
+        pad_zeros[0] = round(pad_zeros_sec * sr) # convert to # samples
+
+        # increment duration
+        pad_sec -= pad_zeros_sec
+        duration += pad_sec
+
+        # reduce offset
+        delta_offset = pad_sec
+
+        # padding after        
+        pad = max(0, win_siz / 2 - (seg_siz - num_steps * step_siz) - step_siz)
+        pad_sec = pad / sr # convert to seconds
+        resid = file_duration - (offset - delta_offset + duration)
+        pad_zeros_sec = max(0, pad_sec - resid) # amount of zero padding required
+        pad_zeros[1] = round(pad_zeros_sec * sr) # convert to # samples
+
+        # increment duration
+        pad_sec -= pad_zeros_sec
+        duration += pad_sec
+
+        # load audio segment
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False)
+
+        # check that loaded audio segment has the expected length.
+        # if this is not the case, load the entire audio file and 
+        # select the segment of interest manually. 
+        N = int(sr * duration)
+        if len(x) != N:
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
+            if np.ndim(x) == 2:
+                x = x[channel]
+
+            start = int((offset - delta_offset) * sr)
+            num_samples = int(duration * sr)
+            stop = min(len(x), start + num_samples)
+            x = x[start:stop]
+
+        # check again, pad with zeros to fix any remaining mismatch
+        N = round(sr * duration)
+        if len(x) < N:
+            z = np.zeros(N-len(x))
+            x = np.concatenate((z, x))        
+
+        # parse file name
+        fname = os.path.basename(path)
+
+        # select channel
+        if np.ndim(x) == 2:
+            x = x[channel]
+
+        # pad with zeros
+        if pad_zeros[0] > 0:
+            z = np.zeros(pad_zeros[0])
+            x = np.concatenate((z, x))        
+        if pad_zeros[1] > 0:
+            z = np.zeros(pad_zeros[1])
+            x = np.concatenate((x, z))        
+
+        # make frames
+        frames = make_frames(x, winlen=win_siz, winstep=step_siz)
+
+        # Apply Hamming window    
+        if window_function == 'HAMMING':
+            frames *= np.hamming(frames.shape[1])
+
+        # Compute fast fourier transform
+        fft = np.fft.rfft(frames)
+
+        # Compute magnitude
+        image = np.abs(fft)
+
+        # Number of points used for FFT
+        NFFT = frames.shape[1]
+        
+        # Frequency resolution
+        fres = sr / 2. / image.shape[1]
+
+        # use logarithmic axis
+        if decibel:
+            image = to_decibel(image)
+
+        spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
+        spec.hop = step_siz
+        spec.hamming = True
+
+        # crop frequencies
+        spec.crop(flow=fmin, fhigh=fmax) 
+
+        return spec
+
 
     def audio_signal(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
@@ -2505,4 +2830,371 @@ class MelSpectrogram(Spectrogram):
             fig.colorbar(img_plot,format='%+2.0f dB')
         else:
             fig.colorbar(img_plot,format='%+2.0f')  
+        return fig
+
+
+class CQTSpectrogram(Spectrogram):
+    """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
+
+            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
+
+        The time axis (0th axis) is characterized by a 
+        starting value, :math:`t_{min}`, and a bin size, :math:`t_{res}`, while the 
+        frequency axis (1st axis) is characterized by a starting value, :math:`f_{min}`, 
+        a maximum value, :math:`f_{max}`, and the number of bins per octave, 
+        :math:`m`.
+        The parameters :math:`t_{min}`, :math:`f_{min}`, :math:`m` are specified via the arguments 
+        `tmin`, `fmin`, `bins_per_octave`. The parameters :math:`t_{res}` and :math:`f_{max}`, on the other hand, 
+        are computed as detailed below, attempting to match the arguments `winstep` and `fmax` as closely as possible.
+
+        The total number of bins is given by :math:`n = k \cdot m` where :math:`k` denotes 
+        the number of octaves, computed as 
+
+        .. math::
+            k = ceil(log_{2}[f_{max}/f_{min}])
+
+        For example, with :math:`f_{min}=10`, :math:`f_{max}=16000`, and :math:`m = 32` the number 
+        of octaves is :math:`k = 11` and the total number of bins is :math:`n = 352`.  
+        The frequency of a given bin, :math:`i`, is given by 
+
+        .. math:: 
+            f_{i} = 2^{i / m} \cdot f_{min}
+
+        This implies that the maximum frequency is given by :math:`f_{max} = f_{n} = 2^{n/m} \cdot f_{min}`.
+        For the above example, we find :math:`f_{max} = 20480` Hz, i.e., somewhat larger than the requested maximum value.
+
+        Note that if :math:`f_{max}` exceeds the Nyquist frequency, :math:`f_{nyquist} = 0.5 \cdot s`, where :math:`s` is the sampling rate,  
+        the number of octaves, :math:`k`, is reduced to ensure that :math:`f_{max} \leq f_{nyquist}`. 
+
+        The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
+        To ensure that this is the case, the step size is computed as follows,
+
+        .. math::
+            h = ceil(s \cdot x / 2^k ) \cdot 2^k
+
+        where :math:`s` is the sampling rate in Hz, and :math:`x` is the step size 
+        in seconds as specified via the argument `winstep`.
+        For example, assuming a sampling rate of 32 kHz (:math:`s = 32000`) and a step 
+        size of 0.02 seconds (:math:`x = 0.02`) and adopting the same frequency limits as 
+        above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
+        step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
+        to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
+        as the requested step size.
+
+    
+        Args:
+            signal: AudioSignal
+                And instance of the :class:`audio_signal.AudioSignal` class 
+            image: 2d numpy array
+                Spectrogram image. Only applicable if signal is None.
+            fmin: float
+                Minimum frequency in Hz
+            fmax: float
+                Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+            winstep: float
+                Step size in seconds 
+            bins_per_octave: int
+                Number of bins per octave
+            timestamp: datetime
+                Spectrogram time stamp (default: None)
+            flabels: list of strings
+                List of labels for the frequency bins.     
+            decibel: bool
+                Use logarithmic (decibel) scale.
+            tag: str
+                Identifier, typically the name of the wave file used to generate the spectrogram.
+                If no tag is provided, the tag from the audio_signal will be used.
+    """
+    def __init__(self, audio_signal=None, image=np.zeros((2,2)), fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
+                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+
+        if fmin is None:
+            fmin = 1
+
+        super(CQTSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+        self.fmin = fmin
+        self.bins_per_octave = bins_per_octave
+
+        if audio_signal is not None:
+
+            self.image, self.tres = self.make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
+
+            if tag is '':
+                tag = audio_signal.tag
+
+            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
+            self.tmin = audio_signal.tmin
+
+        else:
+            self.image = image
+            self.tres = winstep
+
+        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+
+
+    def make_cqt_spec(self, audio_signal, fmin, fmax, winstep, bins_per_octave, decibel):
+        """ Create CQT spectrogram from audio signal
+        
+            Args:
+                signal: AudioSignal
+                    Audio signal 
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                winstep: float
+                    Step size in seconds 
+                bins_per_octave: int
+                    Number of bins per octave
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                (image, tres):numpy.array,float
+                A tuple with the resulting magnitude spectrogram, and the time resolution
+        """
+        f_nyquist = 0.5 * audio_signal.rate
+        k_nyquist = int(np.floor(np.log2(f_nyquist / fmin)))
+
+        if fmax is None:
+            k = k_nyquist
+        else:    
+            k = int(np.ceil(np.log2(fmax/fmin)))
+            k = min(k, k_nyquist)
+
+        h0 = int(2**k)
+        b = bins_per_octave
+        fbins = k * b
+
+        h = audio_signal.rate * winstep
+        r = int(np.ceil(h / h0))
+        h = int(r * h0)
+
+        c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
+        c = np.abs(c)
+        if decibel:
+            c = to_decibel(c)
+    
+        image = np.swapaxes(c, 0, 1)
+        
+        tres = h / audio_signal.rate
+
+        return image, tres
+
+    def copy(self):
+        """ Make a deep copy of the spectrogram.
+
+            Returns:
+                spec: CQTSpectrogram
+                    Spectrogram copy.
+        """
+        spec = super().copy()
+        spec.bins_per_octave = self.bins_per_octave
+        return spec
+
+    def _find_fbin(self, f, truncate=False, roundup=True):
+        """ Find bin corresponding to given frequency.
+
+            Returns -1, if f < f_min.
+            Returns N, if f > f_max, where N is the number of frequency bins.
+
+            Args:
+                f: float
+                   Frequency in Hz 
+                truncate: bool
+                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
+                roundup: bool
+                    Return lower or higher bin number, if value coincides with a bin boundary
+
+            Returns:
+                bin: int
+                     Bin number
+        """
+        bin = self.bins_per_octave * np.log2(f / self.fmin)
+        bin = int(bin)
+
+        if truncate:
+            bin = max(bin, 0)
+            bin = min(bin, self.fbins())
+
+        return bin
+
+    def _fbin_low(self, bin):
+        """ Get the lower frequency value of the specified frequency bin.
+
+            Args:
+                bin: int
+                    Bin number
+        """
+        f = 2**(bin / self.bins_per_octave) * self.fmin
+        return f
+
+    def fmax(self):
+        """ Get upper range of frequency axis
+
+            Returns:
+                fmax: float
+                    Maximum frequency in Hz
+        """
+        fmax = self._fbin_low(self.fbins())
+        return fmax
+
+    @classmethod
+    def from_wav(cls, path, spec_config=None, step_size=0.01, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
+        """ Create CQT spectrogram directly from wav file.
+
+            The arguments offset and duration can be used to select a segment of the audio file.
+
+            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
+            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
+            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
+            the audio is padded with zeros.
+
+            Note that if spec_config is specified, the following arguments are ignored: 
+            sampling_rate, bins_per_octave, step_size, duration, fmin, fmax, cqt.
+
+            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+
+            TODO: Align implementation with the rest of the module.
+
+            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
+        
+            Args:
+                path: str
+                    Complete path to wav file 
+                spec_config: SpectrogramConfiguration
+                    Spectrogram configuration
+                step_size: float
+                    Step size in seconds 
+                fmin: float
+                    Minimum frequency in Hz
+                fmax: float
+                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
+                bins_per_octave: int
+                    Number of bins per octave
+                sampling_rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
+                offset: float
+                    Start time of spectrogram in seconds.
+                duration: float
+                    Duration of spectrogrma in seconds.
+                channel: int
+                    Channel to read from (for stereo recordings).
+                decibel: bool
+                    Use logarithmic (decibel) scale.
+
+            Returns:
+                spec: CQTSpectrogram
+                    CQT spectrogram
+
+            Example:
+                >>> # load spectrogram from wav file
+                >>> from ketos.audio_processing.spectrogram import CQTSpectrogram
+                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step_size=0.01, fmin=10, fmax=800, bins_per_octave=16)
+                >>> # show
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
+        """
+        if spec_config is not None:
+            step_size = spec_config.step_size
+            fmin = spec_config.low_frequency_cut
+            fmax = spec_config.high_frequency_cut
+            bins_per_octave = spec_config.bins_per_octave
+            sampling_rate=spec_config.rate
+            duration = spec_config.length
+
+        # ensure offset is non-negative
+        offset = max(0, offset)
+
+        # ensure selected segment does not exceed file duration
+        file_duration = librosa.get_duration(filename=path)
+        if duration is None:
+            duration = file_duration - offset
+
+        # assert that segment is non-empty
+        assert offset < file_duration, 'Selected audio segment is empty'
+
+        # load audio
+        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset, duration=duration, mono=False)
+
+        # select channel
+        if np.ndim(x) == 2:
+            x = x[channel]
+
+        # check that loaded audio segment has the expected length.
+        # if this is not the case, load the entire audio file and 
+        # select the segment of interest manually. 
+        N = int(sr * duration)
+        if len(x) != N:
+            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
+            if np.ndim(x) == 2:
+                x = x[channel]
+
+            start = int(offset * sr)
+            num_samples = int(duration * sr)
+            stop = min(len(x), start + num_samples)
+            x = x[start:stop]
+
+        # if the segment is shorted than expected, pad with zeros
+        N = round(sr * duration)
+        if len(x) < N:
+            z = np.zeros(N-len(x))
+            x = np.concatenate([x,z])
+
+        # parse file name
+        fname = os.path.basename(path)
+
+        # create audio signal
+        a = AudioSignal(rate=sr, data=x, tag=fname, tstart=offset)
+
+        # create CQT spectrogram
+        spec = cls(audio_signal=a, fmin=fmin, fmax=fmax, winstep=step_size, bins_per_octave=bins_per_octave,\
+                hamming=True, decibel=decibel)
+
+        return spec
+
+
+    def plot(self, label=None, pred=None, feat=None, conf=None):
+        """ Plot the CQT spectrogram with proper axes ranges and labels.
+
+            Optionally, also display selected label, binary predictions, features, and confidence levels.
+
+            All plotted quantities share the same time axis, and are assumed to span the 
+            same period of time as the spectrogram.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                spec: Spectrogram
+                    spectrogram to be plotted
+                label: int
+                    Label of interest
+                pred: 1d array
+                    Binary prediction for each time bin in the spectrogram
+                feat: 2d array
+                    Feature vector for each time bin in the spectrogram
+                conf: 1d array
+                    Confidence level of prediction for each time bin in the spectrogram
+            
+            Returns:
+                fig: matplotlib.figure.Figure
+                    A figure object.
+        """
+        fig = super().plot(label, pred, feat, conf)
+
+        i = np.arange(0, self.fbins(), self.bins_per_octave)
+        if i[-1] != self.fbins():
+            i = np.concatenate((i, [self.fbins()]))
+
+        ticks = self.fmin + i * (self.fmax() - self.fmin) / self.fbins()
+        labels = 2**(i / self.bins_per_octave) * self.fmin
+        labels_str = list()
+        for l in labels.tolist():
+            labels_str.append('{0:.1f}'.format(l))            
+
+        plt.yticks(ticks, labels_str)
+
         return fig

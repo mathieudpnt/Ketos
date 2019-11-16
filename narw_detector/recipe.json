@@ -1,0 +1,1 @@
+{"block_list": [2, 2, 2, 2], "n_classes": 2, "initial_filters": 16, "optimizer": {"name": "Adam", "parameters": {"lr": 0.001, "beta_1": 0.9, "beta_2": 0.999, "decay": 0.01}}, "loss_function": {"name": "FScoreLoss", "parameters": {}}, "metrics": [{"name": "CategoricalAccuracy", "parameters": {}}]}

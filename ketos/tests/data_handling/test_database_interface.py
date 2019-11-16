@@ -31,7 +31,7 @@ import tables
 import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
-from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram
+from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -142,6 +142,33 @@ def test_write_spec_TypeError(sine_audio):
        
     assert tbl.nrows == 0
     
+    h5file.close()
+    os.remove(fpath)
+
+@pytest.mark.test_write_spec
+def test_write_spec_cqt(sine_audio):
+    """Test if CQT spectrograms are written with appropriate encoding"""
+    # create cqt spectrogram    
+    spec = CQTSpectrogram(audio_signal=sine_audio, fmin=1, fmax=8000, winstep=0.1, bins_per_octave=32)
+    # add annotation
+    spec.annotate(labels=(1,2), boxes=((1,2,300,400),(1.5,2.5,300.5,400.5)))
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
+    h5file = tables.open_file(fpath, 'w')
+    # create table
+    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
+    # write spectrogram to table
+    di.write_spec(table=tbl, spec=spec) 
+    h5file.close()
+    # re-open
+    h5file = tables.open_file(fpath, 'r')
+    tbl = h5file.get_node("/group_1/table_1")
+    # check
+    assert int(tbl.attrs.freq_res) == -32
+    assert tbl.nrows == 1
+    assert tbl[0]['labels'].decode() == '[1,2]'
+    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,300.0,400.0],[1.5,2.5,300.5,400.5]]'
+    # clean
     h5file.close()
     os.remove(fpath)
 
@@ -374,12 +401,32 @@ def test_create_spec_database_with_default_args():
 
     fil.close()
 
+def test_create_spec_database_with_cqt_specs():
+
+    output_file = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
+    input_dir = os.path.join(path_to_assets, 'wav_files/')
+
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, cqt=True, bins_per_octave=16)
+
+    path = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
+    fil = tables.open_file(path, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert specs[0].bins_per_octave == 16
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert specs[0].bins_per_octave == 16
+
+    fil.close()
+
 def test_create_spec_database_with_size_limit():
 
     output_file = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
     input_dir = os.path.join(path_to_assets, 'wav_files/')
 
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=5E6)
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=10E6)
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
     fil = tables.open_file(path, 'r')
@@ -413,8 +460,24 @@ def test_create_spec_database_with_annotations():
     # create database
     di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile)
 
-    path = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
-    fil = tables.open_file(path, 'r')
+    fil = tables.open_file(output_file, 'r')
+    tbl = di.open_table(fil, "/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 2
+    assert len(specs[0].labels) == 1
+    assert specs[0].labels[0] == 1
+    tbl = di.open_table(fil, "/subf/spec")
+    specs = di.load_specs(tbl)
+    assert len(specs) == 1
+    assert len(specs[0].labels) == 0
+
+    fil.close()
+
+    # create database with cqt specs
+    output_file = os.path.join(path_to_assets, 'tmp/db3_spec_cqt.h5')
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile, cqt=True)
+
+    fil = tables.open_file(output_file, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
@@ -516,3 +579,36 @@ def test_spec_writer_change_directory(sine_audio):
     assert len(specs) == 3
     specs = di.load_specs(fil.root.home.whale)
     assert len(specs) == 2
+    fil.close()
+
+def test_two_spec_writers_simultaneously(sine_audio):
+    # init two spec writers
+    out1 = os.path.join(path_to_assets, 'tmp/db10.h5')
+    writer1 = di.SpecWriter(output_file=out1)
+    out2 = os.path.join(path_to_assets, 'tmp/db11.h5')
+    writer2 = di.SpecWriter(output_file=out2)
+    # create spec
+    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    # write 
+    writer1.cd('/home/fish')
+    writer1.write(spec=spec)
+    writer1.write(spec=spec)
+    writer1.write(spec=spec)
+    writer2.cd('/home/whale')
+    writer2.write(spec=spec)
+    writer2.write(spec=spec)
+    # close
+    writer1.close()
+    writer2.close()
+    # check file 1
+    fil1 = tables.open_file(out1, 'r')
+    assert '/home/fish' in fil1
+    specs = di.load_specs(fil1.root.home.fish)
+    assert len(specs) == 3
+    fil1.close()
+    # check file 2
+    fil2 = tables.open_file(out2, 'r')
+    assert '/home/whale' in fil2
+    specs = di.load_specs(fil2.root.home.whale)
+    assert len(specs) == 2
+    fil2.close()

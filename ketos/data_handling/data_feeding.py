@@ -40,6 +40,7 @@ from ketos.data_handling.database_interface import parse_labels
 from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
+
 class BatchGenerator():
     """ Creates batches to be fed to a model
 
@@ -85,6 +86,11 @@ class BatchGenerator():
             return_batch_ids: bool
                 If False, each batch will consist of X and Y. If True, the instance indices 
                 (as they are in the hdf5_table) will be included ((ids, X, Y)).
+            filter: str
+                A valid PyTables query. If provided, the Batch Generator will query the hdf5
+                database before defining the batches and only the matching records will be used.
+                Only relevant when data is passed through the hdf5_table argument. If both 'filter'
+                and 'indices' are passed, 'indices' is ignored.
 
         Attr:
             data: pytables table (instance of table.Table()) 
@@ -98,7 +104,7 @@ class BatchGenerator():
             batch_indices: list of tuples (int,int)
                 A list of (start,end) indices for each batch. These indices refer to the 'entry_indices' attribute.
             batch_count: int
-                The current batch within the epoch
+                The current batch within the epoch. This will be the batch yielded on the next call to 'next()'.
             from_memory: bool
                 True if the data are loaded from memory rather than an HDF5 table.
 
@@ -144,7 +150,7 @@ class BatchGenerator():
             >>> h5.close()
     """
     def __init__(self, batch_size, hdf5_table=None, x=None, y=None, indices=None, instance_function=None, x_field='data', y_field='boxes',\
-                    shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+                    shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None):
 
         self.from_memory = x is not None and y is not None
 
@@ -157,7 +163,7 @@ class BatchGenerator():
                 self.indices = np.arange(len(self.x), dtype=int) 
             else:
                 self.indices = indices
-
+            
             self.n_instances = len(self.indices)
         else:
             assert hdf5_table is not None, 'hdf5_table or x,y must be specified'
@@ -170,6 +176,8 @@ class BatchGenerator():
             else:
                 self.n_instances = len(indices)
                 self.indices = indices
+            if filter is not None:
+                self.indices = self.data.get_where_list(self.filter)
 
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -178,7 +186,8 @@ class BatchGenerator():
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
 
-        self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+        #self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+        self.n_batches = int(self.n_instances // self.batch_size)
 
         self.entry_indices = self.__update_indices__()
 
@@ -214,14 +223,15 @@ class BatchGenerator():
         
         """
         ids = self.entry_indices
-        n_complete_batches = int(self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
-        last_batch_size = self.n_instances % n_complete_batches
+        n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
+        extra_instances = self.n_instances % n_complete_batches
     
-        list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(self.n_batches)]
-        if last_batch_size > 0:
-            last_batch_ids = list(ids[-last_batch_size:])
-            list_of_indices.append(last_batch_ids)
-
+        list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_complete_batches)]
+        if extra_instances > 0:
+            #last_batch_size = self.batch_size + extra_instances
+            extra_instance_ids = list(ids[-extra_instances:])
+            list_of_indices[-1]=list_of_indices[-1] + extra_instance_ids
+        
         return list_of_indices
 
     def __iter__(self):
@@ -256,6 +266,248 @@ class BatchGenerator():
             return (batch_ids,X,Y)
         else:
             return (X, Y)
+
+
+class SiameseBatchGenerator():
+    """ Creates paired batches to be fed to a Siamese network or similar model
+
+        Instances of this class are python generators. They will load one batch at 
+        a time from a HDF5 database, which is particularly useful when working with 
+        larger than memory datasets. Yield (X1,X2,Y) or (ids1, ids2,X1,X2,Y) if 'return_batch_ids' 
+        is True. X1 and X2 are paired batches of data as a np.array of shape (batch_size,mx,nx) where 
+        mx,nx are the shape of an instance of the input ('x_field') in the database. Similarly, Y is an 
+        np.array of shape[0]=batch_size with the corresponding labels.
+
+        The pairs (X1[n], X2[n]) can either belong to the same class, in which case the corresponding label will be Y[n]=1,
+        or to different classes (Y[n]=0).
+
+        
+        Args:
+            hdf5_table: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            batch_size: int
+                The number of instance pairs in each batch. 
+            n_batches: int
+                The number of batches to be generated.
+            instance_function: function
+                A function to be applied to the batch, transforming the instances. Must accept 
+                'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
+            x_field: str
+                The name of the column containing the X data in the hdf5_table
+            y_field: str
+                The name of the column containing the Y labels in the hdf5_table
+            classes: list
+                The list of classes to be used when creating pairs of instances.
+                The list items must be values found in the 'y_field' field of the dataset. 
+            shuffle: bool
+                If True, instances are selected randomly (without replacement). If False, 
+                instances are selected in the order the appear in the database
+            refresh_on_epoch: bool
+                If True, and shuffle is also True, resampling is performed at the end of 
+                each epoch resulting in different batches for every epoch. If False, the 
+                same batches are used in all epochs.
+                Has no effect if shuffle is False.
+            return_batch_ids: bool
+                If False, each batch will consist of X and Y. If True, the instance indices 
+                (as they are in the hdf5_table) will be included ((ids, X, Y)).
+            filter: str
+                A valid PyTables query. If provided, the Batch Generator will query the hdf5
+                database before defining the batches and only the matching records will be used.
+                Only relevant when data is passed through the hdf5_table argument. If both 'filter'
+                and 'indices' are passed, 'indices' is ignored.
+
+        Attr:
+            data: pytables table (instance of table.Table()) 
+                The HDF5 table containing the data
+            batch_size: int
+                The number of instances in each batch.
+            n_same: int
+                The number of intances belonging to the same class in each batch
+            n_diff: int
+                The number of intances belonging to different classes in each batch
+            n_instances: int
+                The number of intances (rows) in the hdf5_table
+            n_batches: int
+                The number of batches of size 'batch_size' for each epoch
+            classes: list
+                The list of classes to be used when creating pairs of instances.
+                The list items must be values found in the 'y_field' field of the dataset. 
+            class_coord:dictionary of lists of ints
+                A dictionary where keys are the classes and values are lists of ints indicating the index number for
+                all intances in the database that belong to the same class.
+            batch_count: int
+                The current batch within the epoch. This will be the batch yielded on the next call to 'next()'.
+           
+
+        Examples:
+            >>> from tables import open_file
+            >>> from ketos.data_handling.database_interface import open_table
+            >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
+            >>> train_data = open_table(h5, "/train/species1")
+            >>> train_generator = SiameseBatchGenerator(hdf5_table=train_data, y_field="labels", batch_size=3, n_batches = 4, classes = [b'[]', b'[1]']) #create a batch generator 
+            >>> #Run 2 epochs. 
+            >>> n_epochs = 2    
+            >>> for e in range(n_epochs):
+            ...    for batch_num in range(train_generator.n_batches):
+            ...        batch_X1, batch_X2, batch_Y = next(train_generator)   
+            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
+            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:0, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            >>> #Applying a custom function to the batch
+            >>> #Takes the mean of each instance in X; leaves Y untouched
+            >>> def apply_to_batch(X,Y):
+            ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
+            ...    return (X,Y)
+            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
+            >>> X,Y = next(train_generator)                
+            >>> #Now each X instance is one single number, instead of a (2413,201) matrix
+            >>> #A batch of size 3 is an array of the 3 means
+            >>> X.shape
+            (3,)
+            >>> #Here is how one X instance looks like
+            >>> X[0]
+            7694.1147
+            >>> #Y is the same as before 
+            >>> Y.shape
+            (3,)
+            >>> h5.close()
+    """
+    
+    def __init__(self, hdf5_table, batch_size, n_batches, instance_function=None, x_field='data', y_field='sp', classes=[1,2], shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False):
+        self.data = hdf5_table
+        self.batch_size = batch_size
+        self.x_field = x_field
+        self.y_field = y_field
+        self.classes = classes
+        self.class_coord = self.__get_class_coordinates__()        
+        self.n_instances = self.data.nrows
+        self.n_batches = n_batches
+        self.n_same = int(self.batch_size/2)
+        self.n_diff = int(self.batch_size/2)
+        self.shuffle = shuffle
+        self.instance_function = instance_function
+        self.batch_count = 0
+        self.refresh_on_epoch_end = refresh_on_epoch_end
+        self.return_batch_ids = return_batch_ids
+
+
+    def __get_class_coordinates__(self):
+        """ Get the index for every instance of each class specified in the 'classes' attribute.
+
+            Returns:
+                class_cood: dictionary
+                    Each key is one of the classes and the corresponding value is a list (of ints) indicating
+                    the indices for instances of that class within the dataset.
+
+        """
+        class_coord = {}
+        for input_class in self.classes:
+            condition = "{} == {}".format(self.y_field, input_class)
+            class_coord[input_class] = self.data.get_where_list(condition)
+            
+        return class_coord
+
+
+    def __get_same_pair__(self, chosen_class):
+        """ Randomly select 2 instances of the same class.
+
+            Args:
+                chosen_class: int or same type as items in self.classes
+                The class to which both selected instances belong
+            
+            Return: 
+                tuple (of ints)
+                A tuple with 3 ints: the index for the first instance, the index for the second instance and 1,
+                indicating the two instances belong to the same class.
+        """
+
+        first_input = np.random.choice(self.class_coord[chosen_class])
+        second_input = np.random.choice(self.class_coord[chosen_class])
+        target = 1
+
+        return (first_input, second_input, target)
+
+    def __get_diff_pair__(self, chosen_class):
+        """ Randomly select 2 instances of the different class.
+             The first belonging the the specified class.
+
+            Args:
+                chosen_class: int or same type as items in self.classes
+                The class to which the first selected instances belongs
+            
+            Return: 
+                tuple (of ints)
+                A tuple with 3 ints: the index for the first instance, the index for the second instance and 0,
+                indicating the two instances belong to the different classes.
+        """    
+        first_input = np.random.choice(self.class_coord[chosen_class])
+        other_classes = [c for c in self.classes if c != chosen_class]
+        second_class = np.random.choice(other_classes)
+        second_input = np.random.choice(self.class_coord[second_class])
+        target = 0
+
+        return (first_input, second_input, target)
+
+    def __get_batch_indices__(self):
+        """Selects the indices for one batch
+
+
+            Returns:
+                list_of_indices: list of tuples
+                    A list of tuples, each containing
+                     three integer values: the coodinates (row number) for the first input,
+                     the coordinates for the second input and the target value (1 if the inputs
+                     belong to the same class, 0 if not).
+        
+        """
+        
+        list_of_indices=[]
+        for same in range(self.n_same):
+            same_chosen_class = np.random.choice(self.classes)
+            list_of_indices.append(self.__get_same_pair__(chosen_class=same_chosen_class))
+        for diff in range(self.n_diff):
+            diff_chosen_class = np.random.choice(self.classes)
+            list_of_indices.append(self.__get_diff_pair__(chosen_class=diff_chosen_class))
+        return list_of_indices
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """         
+            Return: tuple
+            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indeces (ids, X, Y) 
+        """
+
+        batch_ids = self.__get_batch_indices__()
+        input1_ids = [ids[0] for ids in batch_ids]
+        input2_ids = [ids[1] for ids in batch_ids]
+        input1_arrays = self.data.read_coordinates(input1_ids)[:][self.x_field]
+        input2_arrays = self.data.read_coordinates(input2_ids)[:][self.x_field]
+        labels = np.array([ids[2] for ids in batch_ids])
+
+
+        n_inputs, width, height = input1_arrays.shape
+        input_batch_1 = input1_arrays.reshape((n_inputs, width, height, 1))
+        input_batch_2 = input2_arrays.reshape((n_inputs, width, height, 1))
+        labels_batch = labels.reshape(labels.shape[0], 1)
+
+        if self.shuffle:
+            shuffle_ids = np.random.choice(list(range(n_inputs)), size=n_inputs, replace=False)
+            input_batch_1 = input_batch_1[shuffle_ids]
+            input_batch_2 = input_batch_2[shuffle_ids]
+            labels_batch = labels_batch[shuffle_ids]
+
+        return input_batch_1, input_batch_2, labels_batch        
+        
 
 class ActiveLearningBatchGenerator():
     """ Creates batch generators to be used in active learning.
@@ -487,7 +739,7 @@ class ActiveLearningBatchGenerator():
         
         """
         # number of instances from previous session with poor performace 
-        num_poor = len(self.poor_indices)
+        num_poor = len(np.unique(self.poor_indices))
 
         # number of examples kept from previous session
         num_keep = int(min(num_poor, self.max_keep * self.session_size))
@@ -533,7 +785,7 @@ class ActiveLearningBatchGenerator():
         # get indices for new session
         session_indices = self.__get_session_indices__()
 
-        # refresh is_poor array
+        # refresh poor_indices array
         self.poor_indices = np.array([], dtype=int)
 
         # create batch generator

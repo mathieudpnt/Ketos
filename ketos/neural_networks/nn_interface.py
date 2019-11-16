@@ -1,155 +1,36 @@
-# ================================================================================ #
-#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
-#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
-#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
-#   Team: Data Analytics                                                           #
-#   Project: ketos                                                                 #
-#   Project goal: The ketos library provides functionalities for handling          #
-#   and processing acoustic data and applying deep neural networks to sound        #
-#   detection and classification tasks.                                            #
-#                                                                                  #
-#   License: GNU GPLv3                                                             #
-#                                                                                  #
-#       This program is free software: you can redistribute it and/or modify       #
-#       it under the terms of the GNU General Public License as published by       #
-#       the Free Software Foundation, either version 3 of the License, or          #
-#       (at your option) any later version.                                        #
-#                                                                                  #
-#       This program is distributed in the hope that it will be useful,            #
-#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
-#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
-#       GNU General Public License for more details.                               # 
-#                                                                                  #
-#       You should have received a copy of the GNU General Public License          #
-#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
-# ================================================================================ #
-
-""" resnet sub-module within the ketos.neural_networks module
-
-    This module provides classes that to implement Residual Networks (ResNets).
-
-    Contents:
-        ResNetBlock class:
-        ResNet class:
-"""
-
-import os
 import tensorflow as tf
-import numpy as np
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
-from .nn_interface import RecipeCompat
-import json
-from zipfile import ZipFile
-from glob import glob
-from shutil import rmtree
-
-class ResNetBlock(tf.keras.Model):
-    def __init__(self, channels, strides=1, residual_path=False):
-        super(ResNetBlock, self).__init__()
-
-        self.channels = channels
-        self.strides = strides
-        self.residual_path = residual_path
-        self.conv_1 = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(3,3), strides=self.strides,
-                                                padding="same", use_bias=False,
-                                                kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
-        self.conv_2 = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(3,3), strides=1,
-                                                padding="same", use_bias=False,
-                                                kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
-
-        if residual_path == True:
-            self.conv_down = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(1,1), strides=self.strides,
-                                                padding="same", use_bias=False,
-                                                kernel_initializer=tf.random_normal_initializer())
-            self.batch_norm_down = tf.keras.layers.BatchNormalization()
-        
-        self.dropout = tf.keras.layers.Dropout(0.0)
-
-    def call(self,inputs, training=None):
-        residual = inputs
-
-        x = self.batch_norm_1(inputs, training=training)
-        x = tf.nn.relu(x)
-        x = self.conv_1(x)
-        x = self.dropout(x)
-        x = self.batch_norm_2(x, training=training)
-        x = tf.nn.relu(x)
-        x = self.conv_2(x)
-        x = self.dropout(x)
-
-        if self.residual_path:
-            residual = self.batch_norm_down(inputs, training=training)
-            residual = tf.nn.relu(residual)
-            residual = self.conv_down(residual)
-            x = self.dropout(x)
-
-        x = x + residual
-        return x
 
 
-class ResNetArch(tf.keras.Model):
+class RecipeCompat():
+    def __init__(self, name, func, **kwargs):
+        self.name = name
+        self.func = func(**kwargs)
+        self.args = kwargs
 
-    def __init__(self, block_list, n_classes, initial_filters=16, **kwargs):
-        super(ResNetArch, self).__init__(**kwargs)
+    def __call__(self, *args, **kwargs):
+        result = self.func(*args, **kwargs)
+        return result
 
-        self.n_blocks = len(block_list)
-        self.n_classes = n_classes
-        self.block_list = block_list
-        self.input_channels = initial_filters
-        self.output_channels = initial_filters
-        self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_channels, kernel_size=(3,3), strides=1,
-                                                padding="same", use_bias=False,
-                                                kernel_initializer=tf.random_normal_initializer())
 
-        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
-        for block_id in range(self.n_blocks):
-            for layer_id in range(self.block_list[block_id]):
-                #Frst layer of every block except the first
-                if block_id != 0 and layer_id == 0:
-                    block = ResNetBlock(self.output_channels, strides=2, residual_path=True)
-                
-                else:
-                    if self.input_channels != self.output_channels:
-                        residual_path = True
-                    else:
-                        residual_path = False
-                    block = ResNetBlock(self.output_channels, residual_path=residual_path)
+class NNInterface():
+    """ General interface for neural network architectures in the ketos.neural_networks module.
 
-                self.input_channels = self.output_channels
+        This class implements common methods for neural network models.
 
-                self.blocks.add(block)
-            
-            self.output_channels *= 2
+    Args:
+        neural_network: 
+            An instance of one of the architectures available in the neural_networks module.
+        data_input: data_feeder
+            An object containing or able to read the data.
 
-        self.batch_norm_final = tf.keras.layers.BatchNormalization()
-        self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
-        self.fully_connected = tf.keras.layers.Dense(self.n_classes)
-        self.softmax = tf.keras.layers.Softmax()
     
-    def call(self, inputs, training=None):
+    """
 
-        output = self.conv_initial(inputs)
+    
 
-        output = self.blocks(output, training=training)
-        output = self.batch_norm_final(output, training=training)
-        output = tf.nn.relu(output)
-        output = self.average_pool(output)
-        output = self.fully_connected(output)
-        output = self.softmax(output)
-
-        return output
-
-
-<<<<<<< HEAD
-class ResNetInterface():
-
-=======
-
-class ResNetInterface():
 
     valid_optimizers = {'Adam':tf.keras.optimizers.Adam}
     valid_losses = {'FScoreLoss':FScoreLoss}
@@ -296,36 +177,8 @@ class ResNetInterface():
 
         return instance
 
-    @classmethod
-    def load_model(cls, model_file, new_model_folder, overwrite=True):
-        #tmp_dir = "ketos_tmp_model_files"
-        try:
-            os.makedirs(new_model_folder)
-        except FileExistsError:
-            if overwrite == True:
-                rmtree(new_model_folder)
-                os.makedirs(new_model_folder)
-            else:
-                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
-
-        with ZipFile(model_file, 'r') as zip:
-            zip.extractall(path=new_model_folder)
-        recipe = cls.read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
-        model_instance = cls.load(recipe,  os.path.join(new_model_folder, "checkpoints"))
-
-        #rmtree(tmp_dir)
-
-        return model_instance
-
-
-        
-            
 
     
-
-
-    
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
     @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
@@ -339,23 +192,15 @@ class ResNetInterface():
 
         return instance
 
-    def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics):
-        self.block_list = block_list
-        self.n_classes = n_classes
-        self.initial_filters = initial_filters
+    def __init__(self, optimizer, loss_function, metrics):
+        
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
 
-<<<<<<< HEAD
-        self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
-        self.compile_model()
-        self.metrics_names = self.model.metrics_names
-=======
-        self.model=ResNetArch(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
+        self.model=None
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
 
         
         self.log_dir = None
@@ -365,18 +210,8 @@ class ResNetInterface():
         self.val_generator = None
         self.test_generator = None
 
-<<<<<<< HEAD
-    def compile_model(self):
-        self.model.compile(optimizer=self.optimizer,
-                            loss = self.loss_function,
-                            metrics = self.metrics)
-
-=======
     def write_recipe(self):
         recipe = {}
-        recipe['block_list'] = self.block_list
-        recipe['n_classes'] = self.n_classes
-        recipe['initial_filters'] = self.initial_filters
         recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
@@ -411,7 +246,6 @@ class ResNetInterface():
                             loss = self.loss_function,
                             metrics = self.metrics)
         self.metrics_names = self.model.metrics_names
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
 
     def set_train_generator(self, train_generator):
         self.train_generator = train_generator
@@ -434,15 +268,9 @@ class ResNetInterface():
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
         tensorboard_callback.set_model(self.model)
         
-<<<<<<< HEAD
-
-    def print_metrics(self, metric_values):
-        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
-=======
     def print_metrics(self, metric_values):
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in range(len(self.metrics_names))]
         #import pdb; pdb.set_trace()
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
         print(''.join(message))
 
     def name_logs(self, logs, prefix="train_"):
@@ -450,13 +278,6 @@ class ResNetInterface():
         for l in zip(self.metrics_names, logs):
             named_logs[prefix+l[0]] = l[1]
         return named_logs
-<<<<<<< HEAD
-        
-
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=True):
-        for epoch in range(n_epochs):
-            #Reset the metric accumulators
-=======
 
     def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False):
         for epoch in range(n_epochs):
@@ -469,17 +290,11 @@ class ResNetInterface():
             val_recall = 0
             val_f_score = 0
             val_accuracy = 0
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
             self.model.reset_metrics()
                 
             for train_batch_id in range(self.train_generator.n_batches):
                 train_X, train_Y = next(self.train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
-<<<<<<< HEAD
-                if verbose == True:
-                    print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
-                    self.print_metrics(train_result)
-=======
 
                 train_set_pred = self.model.predict(train_X)
                 train_f_p_r = precision_recall_accuracy_f(y_true=train_Y, y_pred=train_set_pred, f_beta=0.5)
@@ -512,7 +327,6 @@ class ResNetInterface():
                     )
                     
 
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
             if log_tensorboard == True:
                 self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
             if validate == True:
@@ -521,11 +335,6 @@ class ResNetInterface():
                     val_result = self.model.test_on_batch(val_X, val_Y, 
                                                 # return accumulated metrics
                                                 reset_metrics=False)
-<<<<<<< HEAD
-                if verbose == True:
-                    print("\nval: ")
-                    self.print_metrics(val_result)
-=======
                     
 
                     val_set_pred = self.model.predict(val_X)
@@ -557,28 +366,17 @@ class ResNetInterface():
                 # if verbose == True:
                 #     print("\nval: ")
                 #     self.print_metrics(val_result)
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
                 if log_tensorboard == True:
                     self.tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
 
             
-<<<<<<< HEAD
-            if epoch % 5:
-                checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
-                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
-=======
             # if epoch % 5:
             #     checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
             #     self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
         
         if log_tensorboard == True:
             self.tensorboard_callback.on_train_end(None)
 
-<<<<<<< HEAD
-    
-
-=======
         
     def run(self, input, return_raw_output=False):
         input = self.transform_input(input)
@@ -606,4 +404,3 @@ class ResNetInterface():
     
     
     
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323

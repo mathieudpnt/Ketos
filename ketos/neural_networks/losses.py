@@ -24,56 +24,37 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" seq2seq sub-module within the ketos.neural_networks module
+""" losses sub-module within the ketos.neural_networks module
 
-    This module provides a sequence to sequence neural network.
+    This module provides loss functions
 
     Contents:
-        seq2seq object:
-        
+        FScoreLoss class:
 """
 
 import tensorflow as tf
+import numpy as np
 
-class Seq2Seq(tf.keras.Model):
-    def __init__(self, input_shape,
-            temporal_conv_settings = [{'filters':196,'kernel_size':15,'strides':4},
-                                      {'filters':196,'kernel_size':15,'strides':2},
-                                      {'filters':196,'kernel_size':15,'strides':2}],
-            seq_settings = [{'n_units':128}, {'n_units':128}]):
-        super(Seq2Seq, self).__init__()
+class FScoreLoss(tf.keras.losses.Loss):
 
-        self.in_shape = input_shape
-        self.temporal_conv_settings = temporal_conv_settings
-        self.seq_settings = seq_settings
-        
-        self.conv_block = tf.keras.models.Sequential(name="conv_block")
-        for i,layer in enumerate(self.temporal_conv_settings):
-            
-            self.conv_block.add(tf.keras.layers.Conv1D(filters=layer['filters'], kernel_size=layer['kernel_size'], strides=layer['strides']))
-            self.conv_block.add(tf.keras.layers.BatchNormalization())
-            self.conv_block.add(tf.keras.layers.Activation('relu'))
-            self.conv_block.add(tf.keras.layers.Dropout(0.8))
-            
-        self.seq_block = tf.keras.models.Sequential(name="seq_block")
-        for layer in self.seq_settings:
-            self.seq_block.add(tf.keras.layers.GRU(units=layer['n_units'], return_sequences=True))
-            self.seq_block.add(tf.keras.layers.Dropout(0.8))
-            self.seq_block.add(tf.keras.layers.BatchNormalization())
+    def __init__(self, beta=1.0, **kwargs):
+        super(FScoreLoss, self).__init__(**kwargs)
+        self.beta = beta
 
-        self.final_dropout = tf.keras.layers.Dropout(0.8)
-        self.final_block = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(1, activation='sigmoid'),
+    def call(self, y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.dtypes.cast(y_true, y_pred.dtype)
 
-        input_shape=(295,self.seq_settings[-1]['n_units']))
+        epsilon = 0.000001
 
-    def call(self, inputs, training=True):
-        output = self.conv_block(inputs)
-        output = self.seq_block(output)
-        output = self.final_dropout(output)
-        output = self.final_block(output)
+        tp = tf.math.reduce_sum(y_true*y_pred)
+        tn = tf.math.reduce_sum((1-y_true)*(1-y_pred))
+        fp = tf.math.reduce_sum((1-y_true)*y_pred)
+        fn = tf.math.reduce_sum(y_true*(1-y_pred))
 
-        return output
+        p = tp / (tp + fp + epsilon)
+        r = tp / (tp + fn + epsilon)
 
-
-
-
+        f = (1.0 + self.beta**2)*p*r / ((self.beta**2*p)+r+epsilon)
+        f = tf.where(tf.math.is_nan(f), tf.zeros_like(f), f)
+        return 1 - tf.math.reduce_mean(f)
