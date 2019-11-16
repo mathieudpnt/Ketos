@@ -2,6 +2,12 @@ Change log
 ==========
 
 
+**Version 1.1.4** (November 16, 2019)
+
+ * Added option to specify padding mode for SpecProvider. 
+ * Bug fix in SpecProvider: Loop over all segments.
+
+
 **Version 1.1.3** (November 15, 2019)
 
  * Added option to specify resampling type in MagSpectrogram.from_wav method 
