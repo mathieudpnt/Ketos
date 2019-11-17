@@ -144,10 +144,6 @@ class ResNetArch(tf.keras.Model):
         return output
 
 
-<<<<<<< HEAD
-class ResNetInterface():
-
-=======
 
 class ResNetInterface():
 
@@ -325,7 +321,6 @@ class ResNetInterface():
 
 
     
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
     @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
@@ -347,15 +342,9 @@ class ResNetInterface():
         self.loss_function = loss_function
         self.metrics = metrics
 
-<<<<<<< HEAD
-        self.model=ResNet(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
-        self.compile_model()
-        self.metrics_names = self.model.metrics_names
-=======
         self.model=ResNetArch(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
 
         
         self.log_dir = None
@@ -365,13 +354,6 @@ class ResNetInterface():
         self.val_generator = None
         self.test_generator = None
 
-<<<<<<< HEAD
-    def compile_model(self):
-        self.model.compile(optimizer=self.optimizer,
-                            loss = self.loss_function,
-                            metrics = self.metrics)
-
-=======
     def write_recipe(self):
         recipe = {}
         recipe['block_list'] = self.block_list
@@ -411,7 +393,6 @@ class ResNetInterface():
                             loss = self.loss_function,
                             metrics = self.metrics)
         self.metrics_names = self.model.metrics_names
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
 
     def set_train_generator(self, train_generator):
         self.train_generator = train_generator
@@ -434,15 +415,9 @@ class ResNetInterface():
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
         tensorboard_callback.set_model(self.model)
         
-<<<<<<< HEAD
-
-    def print_metrics(self, metric_values):
-        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in len(self.metrics_names)]
-=======
     def print_metrics(self, metric_values):
         message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in range(len(self.metrics_names))]
         #import pdb; pdb.set_trace()
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
         print(''.join(message))
 
     def name_logs(self, logs, prefix="train_"):
@@ -450,13 +425,6 @@ class ResNetInterface():
         for l in zip(self.metrics_names, logs):
             named_logs[prefix+l[0]] = l[1]
         return named_logs
-<<<<<<< HEAD
-        
-
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=True):
-        for epoch in range(n_epochs):
-            #Reset the metric accumulators
-=======
 
     def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False):
         for epoch in range(n_epochs):
@@ -469,17 +437,11 @@ class ResNetInterface():
             val_recall = 0
             val_f_score = 0
             val_accuracy = 0
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
             self.model.reset_metrics()
                 
             for train_batch_id in range(self.train_generator.n_batches):
                 train_X, train_Y = next(self.train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
-<<<<<<< HEAD
-                if verbose == True:
-                    print("train: ","Epoch:{} - batch:{}".format(epoch, train_batch_id))
-                    self.print_metrics(train_result)
-=======
 
                 train_set_pred = self.model.predict(train_X)
                 train_f_p_r = precision_recall_accuracy_f(y_true=train_Y, y_pred=train_set_pred, f_beta=0.5)
@@ -512,7 +474,6 @@ class ResNetInterface():
                     )
                     
 
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
             if log_tensorboard == True:
                 self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
             if validate == True:
@@ -521,11 +482,6 @@ class ResNetInterface():
                     val_result = self.model.test_on_batch(val_X, val_Y, 
                                                 # return accumulated metrics
                                                 reset_metrics=False)
-<<<<<<< HEAD
-                if verbose == True:
-                    print("\nval: ")
-                    self.print_metrics(val_result)
-=======
                     
 
                     val_set_pred = self.model.predict(val_X)
@@ -557,28 +513,17 @@ class ResNetInterface():
                 # if verbose == True:
                 #     print("\nval: ")
                 #     self.print_metrics(val_result)
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
                 if log_tensorboard == True:
                     self.tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
 
             
-<<<<<<< HEAD
-            if epoch % 5:
-                checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
-                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
-=======
             # if epoch % 5:
             #     checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
             #     self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
         
         if log_tensorboard == True:
             self.tensorboard_callback.on_train_end(None)
 
-<<<<<<< HEAD
-    
-
-=======
         
     def run(self, input, return_raw_output=False):
         input = self.transform_input(input)
@@ -606,4 +551,3 @@ class ResNetInterface():
     
     
     
->>>>>>> 0f20104a723409d3a9967d3596f5228abd649323
