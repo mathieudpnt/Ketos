@@ -177,7 +177,26 @@ class NNInterface():
 
         return instance
 
+    @classmethod
+    def load_model(cls, model_file, new_model_folder, overwrite=True):
+        #tmp_dir = "ketos_tmp_model_files"
+        try:
+            os.makedirs(new_model_folder)
+        except FileExistsError:
+            if overwrite == True:
+                rmtree(new_model_folder)
+                os.makedirs(new_model_folder)
+            else:
+                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
 
+        with ZipFile(model_file, 'r') as zip:
+            zip.extractall(path=new_model_folder)
+        recipe = cls.read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
+        model_instance = cls.load(recipe,  os.path.join(new_model_folder, "checkpoints"))
+
+        #rmtree(tmp_dir)
+
+        return model_instance
     
     @classmethod
     def build_from_recipe(cls, recipe):
