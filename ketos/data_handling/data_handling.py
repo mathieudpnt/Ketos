@@ -1319,15 +1319,15 @@ class AnnotationTableReader():
 
         The csv file should have at least the following columns:
 
-            "filename": file name
-            "label": label value (0, 1, 2, ...)
-            "start": start time in seconds measured from the beginning of the audio file
-            "end": end time in seconds
+           * "filename": file name
+           * "label": label value (0, 1, 2, ...)
+           * "start": start time in seconds measured from the beginning of the audio file
+           * "end": end time in seconds
 
         In addition, it can the following two optional columns:
 
-            "flow": frequency lower boundary in Hz
-            "fhigh": frequency upper boundary in Hz
+           * "flow": frequency lower boundary in Hz
+           * "fhigh": frequency upper boundary in Hz
 
         Args:
             path: str
@@ -1456,28 +1456,35 @@ class SpecProvider():
                 spectrogram.
             bins_per_octave: int
                 Number of bins per octave. Only applicable if cqt is True.
+            pad: bool
+                If True (default), audio files will be padded with zeros at the end to produce an 
+                integer number of spectrogram if necessary. If False, audio files 
+                will be truncated at the end.
 
             Example:
     """
     def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32):
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
 
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
                 bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt], pad=True)
 
         if spec_config.length is not None:
             assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
 
         self.spec_config = spec_config
         self.channel = channel
+        self.pad = pad
 
         # get all wav files in the folder, including any subfolders
         if path[-3:].lower() == 'wav':
+            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
             self.files = [path]
         else:
             self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
 
         # file ID
         self.fid = -1
@@ -1503,7 +1510,8 @@ class SpecProvider():
         self.sid += 1
 
         # if this was the last segment, jump to the next file
-        if self.sid == self.num_segs:
+        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
+        if self.sid == self.num_segs or self.time >= file_duration:
             self._next_file()
 
         return spec
@@ -1576,7 +1584,11 @@ class SpecProvider():
         if self.spec_config.length is None:
             self.num_segs = 1
         else:
-            self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            if self.pad:
+                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            else:
+                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
+                self.num_segs = max(1, self.num_segs)
 
         # reset segment ID and time
         self.sid = 0
