@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 import ketos.data_handling.data_handling as dh
 from ketos.neural_networks.neural_networks import DataHandler, DataUse, class_confidences
-from tensorflow import reset_default_graph
+from tensorflow.compat.v1 import reset_default_graph
 
 
 @pytest.mark.test_DataHandler

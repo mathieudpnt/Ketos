@@ -34,7 +34,7 @@ import ketos.audio_processing.audio_processing as ap
 from ketos.neural_networks.cnn import BasicCNN
 from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
-from tensorflow import reset_default_graph
+from tensorflow.compat.v1 import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 

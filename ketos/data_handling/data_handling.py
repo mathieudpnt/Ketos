@@ -1469,7 +1469,7 @@ class SpecProvider():
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
                 bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt], pad=True)
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
 
         if spec_config.length is not None:
             assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
@@ -1587,9 +1587,28 @@ class SpecProvider():
             if self.pad:
                 self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
             else:
+                x = (duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)
                 self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
-                self.num_segs = max(1, self.num_segs)
+                self.num_segs += 1
 
         # reset segment ID and time
         self.sid = 0
         self.time = 0
+
+
+# this function transforms a batch of data (x,y), loaded from a 
+# hdf5 database with default ketos format, to the format expected 
+# by ResNet 
+from ketos.data_handling.database_interface import parse_labels
+from ketos.neural_networks.resnet import ResNetInterface
+def resnet_batch_transform(x,y):
+    X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
+    y = [parse_labels(z) for z in y]
+    for i in range(len(y)):
+        if y[i] == []:
+            y[i] = 0
+        else:
+            y[i] = 1
+
+    Y = np.array([ResNetInterface.to1hot(sp) for sp in y])
+    return (X,Y)
