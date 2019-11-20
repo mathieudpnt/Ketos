@@ -2,6 +2,11 @@ Change log
 ==========
 
 
+**Version 1.1.5** (November 20, 2019)
+
+ * Specify tensorflow version 1.12.0 in setup file.
+
+
 **Version 1.1.4** (November 16, 2019)
 
  * Added option to specify padding mode for SpecProvider. 
