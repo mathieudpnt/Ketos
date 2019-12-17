@@ -612,3 +612,7 @@ def test_two_spec_writers_simultaneously(sine_audio):
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
+
+def test_standardize_annotations(annot_table_file):
+    df = di.standardize_annotations(path=annot_table_file, signal_labels=[1,'k'], backgr_labels=[-99])
+    print(df)

@@ -332,3 +332,31 @@ def prepare_database(database, x_column, y_column, divisions):
                         "test_x": stacked_test["x"],
                         "test_y": stacked_test["y"]}
     return stacked_datasets
+
+
+@pytest.fixture
+def annot_table():
+    filename = ['f1.wav', 'f1.wav', 'f2.wav', 'f3.wav']
+    start = np.arange(4)
+    stop = start + 1
+    label = [1, 2, 'k', -99]
+    tbl = pd.DataFrame({'filename': filename, 'start': start, 'stop': stop, 'label': label})
+    return tbl
+
+@pytest.fixture
+def annot_table_file(annot_table):
+    """Create an annotations table csv file with the 'annot_table()' fixture
+    
+       The file is saved as tests/assets/annot_001.csv.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+       Yields:
+            csv_file : str
+                A string containing the path to the .csv file.
+    """
+    csv_file = os.path.join(path_to_assets, "annot_001.csv")
+    tbl = annot_table
+    tbl.to_csv(csv_file, index=False)
+    yield csv_file
+    os.remove(csv_file)
