@@ -29,6 +29,7 @@
 import pytest
 import os
 import ketos.data_handling.annotation_table as at
+import pandas as pd
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -36,7 +37,37 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-def test_standardize(annot_table_file):
-    df, d = at.standardize(filename=annot_table_file, signal_labels=[1,'k'], backgr_labels=[-99])
-    print(df)
-    print(d)
+def test_trim():
+    standard = ['filename','start','stop','label','fmin','fmax']
+    extra = ['A','B','C']
+    df = pd.DataFrame(columns=extra)
+    df = at.trim(df)
+    assert len(df.columns) == 0
+    df = pd.DataFrame(columns=standard+extra)
+    df = at.trim(df)
+    assert sorted(df.columns.values) == sorted(standard)
+
+def test_missing_columns():
+    standard = ['filename','start','stop','label','fmin','fmax']
+    df = pd.DataFrame(columns=standard)
+    assert len(at.missing_columns(df)) == 0
+    df = pd.DataFrame(columns=standard[:-1])
+    assert len(at.missing_columns(df)) == 0
+    df = pd.DataFrame(columns=standard[1:])
+    assert sorted(at.missing_columns(df)) == sorted(['filename'])
+
+def test_create_label_dict():
+    l1 = [0, 'gg', -17, 'whale']
+    l2 = [-33, 1, 'boat']
+    l3 = [999]
+    d = at.create_label_dict(l1, l2, l3)
+    expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
+    assert d == expected
+
+def test_standardize_from_file(annot_table_file):
+    df, d = at.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
+    d_expected = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
+    assert d == d_expected
+    assert sorted(df.columns.values) == sorted(['filename', 'start', 'stop', 'label'])
+    assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 0, -1])
+

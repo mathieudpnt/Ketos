@@ -91,8 +91,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     df = trim(df)
 
     # check that dataframe has minimum required columns
-    has_required_columns(df)    
-
+    mis = missing_columns(df)
+    assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
+    
     # create list of unique labels in input table
     labels = list(set(df['label'].values)) 
 
@@ -128,17 +129,59 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     return table_std, label_dict
 
 def trim(table):
+    """ Keep only columns named 
+
+            'filename', 'start', 'stop', 'label', 'fmin', 'fmax'
+
+        Args:
+            table: pandas DataFrame
+                Annotation table. 
+
+        Returns:
+            table: pandas DataFrame
+                Annotation table, after removal of columns.
+    """
     keep_cols = ['filename', 'start', 'stop', 'label', 'fmin', 'fmax']
     drop_cols = [x for x in table.columns.values if x not in keep_cols]
     table = table.drop(drop_cols, axis=1)
     return table
 
-def has_required_columns(table):
+def missing_columns(table):
+    """ Check if the table has the required columns:
+
+            'filename', 'start', 'stop', 'label'
+
+        Args:
+            table: pandas DataFrame
+                Annotation table. 
+
+        Returns:
+            mis: list
+                List of missing columns, if any
+    """
     required_cols = ['filename', 'start', 'stop', 'label']
-    for x in required_cols:
-        assert x in table.columns.values, 'Column {0} missing from input table'.format(x)
+    mis = [x for x in required_cols if x not in table.columns.values]
+    return mis
 
 def create_label_dict(signal_labels, backgr_labels, ignore_labels):
+    """ Create label dictionary, following the convetion:
+
+            * signal_labels are mapped to 1,2,3,...
+            * backgr_labels are mapped to 0
+            * ignore_labels are mapped to -1
+
+        Args:
+            signal_labels: list
+                Labels of interest. Will be mapped to 1,2,3,...
+            backgr_labels: list
+                Labels will be grouped into a common "background" class (0).
+            ignore_labels: list
+                Labels will be grouped into a common "ignore" class (-1).
+
+        Returns:
+            label_dict: dict
+                Dict that maps old labels to new labels.
+    """
     label_dict = dict()    
     for l in ignore_labels: label_dict[l] = -1
     for l in backgr_labels: label_dict[l] = 0

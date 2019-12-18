@@ -336,22 +336,29 @@ def prepare_database(database, x_column, y_column, divisions):
 
 @pytest.fixture
 def annot_table():
-    filename = ['f1.wav', 'f1.wav', 'f2.wav', 'f3.wav']
-    start = np.arange(4)
+    """ Create an annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 'k', -99, 'whale', 'zebra']
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
     stop = start + 1
-    label = [1, 2, 'k', -99]
-    tbl = pd.DataFrame({'filename': filename, 'start': start, 'stop': stop, 'label': label})
+    tbl = pd.DataFrame({'fname': filename, 'start': start, 'STOP': stop, 'label': label})
     return tbl
 
 @pytest.fixture
 def annot_table_file(annot_table):
-    """Create an annotations table csv file with the 'annot_table()' fixture
+    """ Create an annotations table csv file with the 'annot_table()' fixture
     
-       The file is saved as tests/assets/annot_001.csv.
-       When the tests using this fixture are done, 
-       the file is deleted.
+        The file is saved as tests/assets/annot_001.csv.
+        When the tests using this fixture are done, 
+        the file is deleted.
 
-       Yields:
+        Yields:
             csv_file : str
                 A string containing the path to the .csv file.
     """
