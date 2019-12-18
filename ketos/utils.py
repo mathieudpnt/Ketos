@@ -454,3 +454,23 @@ def get_member(cls, member_name):
 
     s = ", ".join(name for name, _ in cls.__members__.items())
     raise ValueError("Unknown value \'{0}\'. Select between: {1}".format(member_name, s))
+
+def str_is_int(s, signed=True):
+    """ Check if a given string represents a (signed) integer.
+
+        Args:
+            s: str
+                Input string.
+            signed: bool
+                Check if string represents a signed integer (default) or unsigned.
+
+        Returns:
+            res: bool
+                Result of check
+    """
+    if signed:
+        res = s.isdigit() or (s.startswith('-') and s[1:].isdigit()) or (s.startswith('+') and s[1:].isdigit())
+    else:
+        res = s.isdigit()
+         
+    return res

@@ -30,7 +30,8 @@
 import pytest
 import numpy as np
 import pandas as pd
-from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values, detect_peaks
+from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
+    detect_peaks, str_is_int
 
 
 @pytest.mark.test_tostring
@@ -104,3 +105,10 @@ def test_detect_peaks():
     # try again, but this time require multiplicity 2
     peaks = detect_peaks(df=df, multiplicity=2, prominence=2.0)
     assert np.all(peaks == [0, 0, 0, 0, 0])
+
+def test_str_is_int():
+    assert str_is_int('5')
+    assert str_is_int('-5')
+    assert str_is_int('+5')
+    assert not str_is_int('-5', signed=False)
+    assert not str_is_int('5.')
