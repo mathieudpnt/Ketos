@@ -47,23 +47,29 @@ from ketos.utils import str_is_int
 
 
 def unfold(table, sep=','):
-    
+    """ Unfolds rows containing multiple labels.
+
+        Args:
+            table: pandas DataFrame
+                Annotation table.
+            sep: str
+                Character used to separate multiple labels.
+
+        Returns:
+            : pandas DataFrame
+                Unfolded table
+    """
     df = table    
-
-    # cast label column to str
     df = df.astype({'label': 'str'})
-
-    new_df = pd.DataFrame(df['label'].str.split(sep).tolist(), index=df['filename']).stack()
-    new_df = new_df.reset_index([0, 'filename'])
-    new_df.columns = ['filename', 'label']
-
-#    df = df.drop(['label'], axis=1)
-#    df = df.set_index('filename')
-
-    return new_df
+    s = df.label.str.split(",").apply(pd.Series, 1).stack()
+    s.index = s.index.droplevel(-1)
+    s.name = 'label'
+    del df['label']
+    df = df.join(s)
+    return df
 
 def rename_columns(table, mapper):
-    """ Renams the table headings to conform with the ketos naming convention.
+    """ Renames the table headings to conform with the ketos naming convention.
 
         Args:
             table: pandas DataFrame
@@ -79,7 +85,7 @@ def rename_columns(table, mapper):
     return table.rename(columns=mapper)
 
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
-    backgr_labels=[], unfold_labels=False, trim_table=False):
+    backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False):
     """ Standardize the annotation table format.
 
         The table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -111,6 +117,8 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
             unfold_labels: bool
                 Should be set to True if any of the rows have multiple labels. 
                 Shoudl be set to False otherwise (default).
+            label_sep: str
+                Character used to separate multiple labels. Only relevant if unfold_labels is set to True. Default is ",".
             trim_table: bool
                 Keep only the columns prescribed by the Ketos annotation format.
 
@@ -132,6 +140,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     # rename columns
     if mapper is not None:
         df = df.rename(columns=mapper)
+
+    if unfold_labels:
+        df = unfold(df, sep=label_sep)
 
     # cast label column to str
     df = df.astype({'label': 'str'})

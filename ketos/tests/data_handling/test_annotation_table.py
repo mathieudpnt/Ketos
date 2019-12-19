@@ -30,6 +30,7 @@ import pytest
 import os
 import ketos.data_handling.annotation_table as at
 import pandas as pd
+import numpy as np
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -66,7 +67,9 @@ def test_create_label_dict():
 
 def test_unfold(annot_table_mult_labels):
     df = at.unfold(annot_table_mult_labels)
-    print(df)
+    df_expected = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'time_start':[0,0,1], 'time_stop':[1,1,2]})
+    for name in df.columns.values:
+        assert np.all(df[name].values == df_expected[name].values)
 
 def test_standardize_from_file(annot_table_file):
     df, d = at.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
