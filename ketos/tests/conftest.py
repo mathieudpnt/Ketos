@@ -347,7 +347,24 @@ def annot_table():
     filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
     start = np.arange(N)
     stop = start + 1
-    tbl = pd.DataFrame({'fname': filename, 'start': start, 'STOP': stop, 'label': label})
+    tbl = pd.DataFrame({'fname': filename, 'label': label, 'time_start': start, 'STOP': stop})
+    return tbl
+
+@pytest.fixture
+def annot_table_mult_labels():
+    """ Create an annotations table as a pandas DataFrame with 
+        multiple labels per row.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = ['1,2', 3]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    stop = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
     return tbl
 
 @pytest.fixture

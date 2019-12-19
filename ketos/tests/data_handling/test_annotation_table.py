@@ -38,7 +38,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 def test_trim():
-    standard = ['filename','start','stop','label','fmin','fmax']
+    standard = ['filename','label','time_start','time_stop','freq_min','freq_max']
     extra = ['A','B','C']
     df = pd.DataFrame(columns=extra)
     df = at.trim(df)
@@ -48,7 +48,7 @@ def test_trim():
     assert sorted(df.columns.values) == sorted(standard)
 
 def test_missing_columns():
-    standard = ['filename','start','stop','label','fmin','fmax']
+    standard = ['filename','label','time_start','time_stop','freq_min','freq_max']
     df = pd.DataFrame(columns=standard)
     assert len(at.missing_columns(df)) == 0
     df = pd.DataFrame(columns=standard[:-1])
@@ -64,10 +64,14 @@ def test_create_label_dict():
     expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
     assert d == expected
 
+def test_unfold(annot_table_mult_labels):
+    df = at.unfold(annot_table_mult_labels)
+    print(df)
+
 def test_standardize_from_file(annot_table_file):
-    df, d = at.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
+    df, d = at.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
     d_expected = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
     assert d == d_expected
-    assert sorted(df.columns.values) == sorted(['filename', 'start', 'stop', 'label'])
+    assert sorted(df.columns.values) == sorted(['filename', 'time_start', 'time_stop', 'label'])
     assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 0, -1])
 

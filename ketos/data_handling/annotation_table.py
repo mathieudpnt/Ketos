@@ -27,6 +27,17 @@
 """ annotation_table module within the ketos library
 
     This module provides functions to create and modify annotation tables. 
+
+    A Ketos annotation table always contains the columns 'filename' and 'label'.
+
+    For call-level annotations, the table also contains the columns 'time_start' 
+    and 'time_stop', giving the start and end time of the call measured in seconds 
+    since the beginning of the file. 
+    
+    The table may also contain the columns 'freq_min' and 'freq_max', giving the 
+    minimum and maximum frequencies of the call in Hz, but this is not required.
+    
+    The user may add any number of additional columns.
 """
 
 import os
@@ -35,19 +46,53 @@ import pandas as pd
 from ketos.utils import str_is_int
 
 
-def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None, backgr_labels=[]):
+def unfold(table, sep=','):
+    
+    df = table    
+
+    # cast label column to str
+    df = df.astype({'label': 'str'})
+
+    new_df = pd.DataFrame(df['label'].str.split(sep).tolist(), index=df['filename']).stack()
+    new_df = new_df.reset_index([0, 'filename'])
+    new_df.columns = ['filename', 'label']
+
+#    df = df.drop(['label'], axis=1)
+#    df = df.set_index('filename')
+
+    return new_df
+
+def rename_columns(table, mapper):
+    """ Renams the table headings to conform with the ketos naming convention.
+
+        Args:
+            table: pandas DataFrame
+                Annotation table.
+            mapper: dict
+                Dictionary mapping the headings of the input table to the 
+                standard ketos headings.
+
+        Returns:
+            : pandas DataFrame
+                Table with new headings
+    """
+    return table.rename(columns=mapper)
+
+def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
+    backgr_labels=[], unfold_labels=False, trim_table=False):
     """ Standardize the annotation table format.
 
         The table can be passed as a pandas DataFrame or as the filename of a csv file.
 
-        The table headings are renamed to conform with the ketos standard naming convention: 
-        'filename', 'start', 'stop', 'fmin', 'fmax', 'label'
+        Each row can only have a single label value. If your annotation table has several 
+        label values per row (e.g. as a comma-separated list of values), use 
+        :func:`data_handling.annotation_table.unfold` first to unfold the multiple labels.
 
-        The signal labels are mapped to integers 1,2,3,...,N
+        The table headings are renamed to conform with the ketos standard naming convention, following the 
+        name mapping specified by the user. 
 
-        The background labels are mapped to 0.
-
-        Any remaining labels are mapped to -1.        
+        Signal labels are mapped to integers 1,2,3,... while background labels are mapped to 0, 
+        and any remaining labels are mapped to -1.        
 
         Args:
             table: pandas DataFrame
@@ -58,12 +103,16 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
                 Separator. Only relevant if filename is specified. Default is ",".
             mapper: dict
                 Dictionary mapping the headings of the input table to the 
-                standard ketos headings (filename, start, stop, fmin, fmax, 
-                label).
+                standard ketos headings.
             signal_labels: list
                 Labels of interest. Will be mapped to 1,2,3,...
             backgr_labels: list
                 Labels will be grouped into a common "background" class (0).
+            unfold_labels: bool
+                Should be set to True if any of the rows have multiple labels. 
+                Shoudl be set to False otherwise (default).
+            trim_table: bool
+                Keep only the columns prescribed by the Ketos annotation format.
 
         Returns:
             table_std: pandas DataFrame
@@ -88,7 +137,8 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     df = df.astype({'label': 'str'})
 
     # keep only relevant columns
-    df = trim(df)
+    if trim_table:
+        df = trim(df)
 
     # check that dataframe has minimum required columns
     mis = missing_columns(df)
@@ -129,9 +179,7 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     return table_std, label_dict
 
 def trim(table):
-    """ Keep only columns named 
-
-            'filename', 'start', 'stop', 'label', 'fmin', 'fmax'
+    """ Keep only the columns prescribed by the Ketos annotation format.
 
         Args:
             table: pandas DataFrame
@@ -141,15 +189,13 @@ def trim(table):
             table: pandas DataFrame
                 Annotation table, after removal of columns.
     """
-    keep_cols = ['filename', 'start', 'stop', 'label', 'fmin', 'fmax']
+    keep_cols = ['filename', 'label', 'time_start', 'time_stop', 'freq_min', 'freq_max']
     drop_cols = [x for x in table.columns.values if x not in keep_cols]
     table = table.drop(drop_cols, axis=1)
     return table
 
 def missing_columns(table):
-    """ Check if the table has the required columns:
-
-            'filename', 'start', 'stop', 'label'
+    """ Check if the table has the minimum required columns.
 
         Args:
             table: pandas DataFrame
@@ -157,9 +203,9 @@ def missing_columns(table):
 
         Returns:
             mis: list
-                List of missing columns, if any
+                List of missing columns, if any.
     """
-    required_cols = ['filename', 'start', 'stop', 'label']
+    required_cols = ['filename', 'label']
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
 
