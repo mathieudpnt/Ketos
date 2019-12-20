@@ -224,7 +224,8 @@ class BatchGenerator():
         """
         ids = self.entry_indices
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
-        extra_instances = self.n_instances % n_complete_batches
+        #extra_instances = self.n_instances % n_complete_batches
+        extra_instances = self.n_instances % self.batch_size
     
         list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_complete_batches)]
         if extra_instances > 0:
