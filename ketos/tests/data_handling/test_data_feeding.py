@@ -402,9 +402,9 @@ def test_active_learning_batch_generator_load_from_memory():
     ids, _, _ = next(generator)
     assert ids == [0,1,2]
     ids, _, _ = next(generator)
-    assert ids == [3,4,5]
+    assert ids == [3,4,5,6]
     ids, _, _ = next(generator)
-    assert ids == [6]
+    
 
     generator = next(a)
 
