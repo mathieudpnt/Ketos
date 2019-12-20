@@ -33,7 +33,6 @@ import pandas as pd
 import ketos.audio_processing.audio_processing as ap
 from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
-from tensorflow.compat.v1 import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
