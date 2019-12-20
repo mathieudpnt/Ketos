@@ -78,3 +78,12 @@ def test_standardize_from_file(annot_table_file):
     assert sorted(df.columns.values) == sorted(['filename', 'time_start', 'time_stop', 'label'])
     assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 0, -1])
 
+def test_label_occurrence(annot_table_std):
+    df = annot_table_std
+    oc = at.label_occurrence(df)
+    oc_expected = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
+    assert oc == oc_expected
+
+def test_trainify(annot_table_std):
+    df = annot_table_std
+    df_new = at.trainify(df, seg_len=1)

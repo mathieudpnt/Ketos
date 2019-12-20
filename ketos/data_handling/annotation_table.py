@@ -205,18 +205,23 @@ def trim(table):
     table = table.drop(drop_cols, axis=1)
     return table
 
-def missing_columns(table):
+def missing_columns(table, has_time=False):
     """ Check if the table has the minimum required columns.
 
         Args:
             table: pandas DataFrame
                 Annotation table. 
+            has_time: bool
+                Require time information for each annotation, i.e. start and stop times.
 
         Returns:
             mis: list
                 List of missing columns, if any.
     """
     required_cols = ['filename', 'label']
+    if has_time:
+        required_cols = required_cols + ['time_start', 'time_stop']
+
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
 
@@ -249,30 +254,57 @@ def create_label_dict(signal_labels, backgr_labels, ignore_labels):
 
     return label_dict
 
-
-def trainify(table, seg_len, balance=None):
-    """ Generate an annotation table suitable for training a machine-learning model.
+def label_occurrence(table):
+    """ Identify the unique labels occurring in the table and determine how often 
+        each label occurs.
 
         The input table must have the standardized Ketos format, see 
-        :func:`data_handling.annotation_table.standardize`.
+        :func:`data_handling.annotation_table.standardize`. In particular, each 
+        annotation should have only a single label value.
 
         Args:
             table: pandas DataFrame
-                Input annotation table.
+                Input table.
+
+        Results:
+            occurrence: dict
+                Dictionary where the labels are the keys and the values are the occurrences.
+    """
+    occurrence = table.groupby('label').size().to_dict()
+    return occurrence
+
+
+def trainify(table, seg_len, balance=None, map_orig=False):
+    """ Generate an annotation table suitable for training a machine-learning model.
+
+        The input table must have the standardized Ketos format and contain call-level 
+        annotations, see :func:`data_handling.annotation_table.standardize`.
+
+        option to query by string ...
+
+        Args:
+            table: pandas DataFrame
+                Input table with call-level annotations.
             seg_len: float
                 Segment length in seconds.
             balance: str
-                Class balancing method. Options are: None, 'down', 'up'.            
+                Class balancing method. Options are: None, 'down', 'up'.   
+            map_orig: bool
+                Include the original time-frequency bounding box in the 
+                output table. This makes it possible to map the new annotations 
+                to the original ones. Default is False.
 
         Results:
             table_train: pandas DataFrame
                 Output annotation table.
     """
+    df = table
+
+    # check that input table has expected format
+    mis = missing_columns(df, has_time=True)
+    assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
+
+    #x = label_occurrence(df)
+
     table_train = table
     return table_train
-
-##def create(path, seg_len, columns=None, balancing_method=None, labels=None, backgr_labels=0,\
-##    rndm_backgr=None):
-##    """ Create an annotation table
-##    """
-##    return None

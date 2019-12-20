@@ -335,6 +335,22 @@ def prepare_database(database, x_column, y_column, divisions):
 
 
 @pytest.fixture
+def annot_table_std():
+    """ Create a standardized annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 3, 0, 0, -1]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    stop = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    return tbl
+
+@pytest.fixture
 def annot_table():
     """ Create an annotations table as a pandas DataFrame.
 
