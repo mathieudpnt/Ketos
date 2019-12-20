@@ -109,15 +109,11 @@ def test_last_batch():
     ids, X, _ = next(train_generator)
     assert ids == [0,1,2,3,4,5]
     assert X.shape == (6, 2413, 201)
-    #Second batch
+    #Second batch; Last batch ( will have the remaining instances)
     ids, X, _ = next(train_generator)
-    assert ids == [6,7,8,9,10,11]
-    assert X.shape == (6, 2413, 201)
-    #last batch
-    ids, X, _ = next(train_generator)
-    assert ids == [12,13,14]
-    assert X.shape == (3, 2413, 201)
-
+    assert ids == [6,7,8,9,10,11,12, 13, 14]
+    assert X.shape == (9, 2413, 201)
+    
     h5.close()
 
 @pytest.mark.test_BatchGenerator
@@ -127,13 +123,13 @@ def test_use_only_subset_of_data():
     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') #create the database handle  
     train_data = open_table(h5, "/train/species1")
 
-    train_generator = BatchGenerator(hdf5_table=train_data, indices=[1,3,5,7,9,11,13], batch_size=4, return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(hdf5_table=train_data, indices=[1,3,5,7,9,11,13, 14], batch_size=4, return_batch_ids=True) #create a batch generator 
     #First batch
     ids, X, _ = next(train_generator)
     assert ids == [1,3,5,7]
     #Second batch
     ids, X, _ = next(train_generator)
-    assert ids == [9,11,13]
+    assert ids == [9,11,13, 14]
 
     h5.close()
 
@@ -152,13 +148,10 @@ def test_multiple_epochs():
     assert X.shape == (6, 2413, 201)
     #Epoch 0, batch 1
     ids, X, _ = next(train_generator)
-    assert ids == [6,7,8,9,10,11]
-    assert X.shape == (6, 2413, 201)
-    #Epoch 0 batch2
-    ids, X, _ = next(train_generator)
-    assert ids == [12,13,14]
-    assert X.shape == (3, 2413, 201)
-
+    assert ids == [6,7,8,9,10,11,12,13,14]
+    assert X.shape == (9, 2413, 201)
+    
+    
     #Epoch 1, batch 0
     ids, X, _ = next(train_generator)
     assert ids == [0,1,2,3,4,5]
@@ -181,13 +174,10 @@ def test_load_from_memory():
     assert X.shape == (6, 32, 16)
     #Epoch 0, batch 1
     ids, X, _ = next(generator)
-    assert ids == [6,7,8,9,10,11]
-    assert X.shape == (6, 32, 16)
-    #Epoch 0 batch2
-    ids, X, _ = next(generator)
-    assert ids == [12,13,14]
-    assert X.shape == (3, 32, 16)
-
+    assert ids == [6,7,8,9,10,11,12,13,14]
+    assert X.shape == (9, 32, 16)
+    
+    
     #Epoch 1, batch 0
     ids, X, _ = next(generator)
     assert ids == [0,1,2,3,4,5]
@@ -215,12 +205,9 @@ def test_shuffle():
         assert X.shape == (6, 2413, 201)
         #batch 1
         ids, X, _ = next(train_generator)
-        assert ids == [5, 2, 4, 0, 11, 7]
-        assert X.shape == (6, 2413, 201)
-        #batch 2
-        ids, X, _ = next(train_generator)
-        assert ids ==  [3, 14, 8]
-        assert X.shape == (3, 2413, 201)
+        assert ids == [5, 2, 4, 0, 11, 7, 3, 14, 8]
+        assert X.shape == (9, 2413, 201)
+       
     
     h5.close()
 
@@ -237,9 +224,9 @@ def test_refresh_on_epoch_end():
     
     train_generator = BatchGenerator(hdf5_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
 
-    expected_ids = {'epoch_1':([9, 1, 12, 13, 6, 10],[5, 2, 4, 0, 11, 7],[3, 14, 8]),
-                     'epoch_2': ([0, 2, 1, 14, 10, 3],[13, 12, 5, 8, 11, 7],[6, 4, 9]),    
-                     'epoch_3': ([7, 13, 1, 0, 11, 9],[5, 8, 2, 12, 4, 6],[10, 14, 3])}
+    expected_ids = {'epoch_1':([9, 1, 12, 13, 6, 10],[5, 2, 4, 0, 11, 7,3, 14, 8]),
+                     'epoch_2': ([0, 2, 1, 14, 10, 3],[13, 12, 5, 8, 11, 7, 6, 4, 9]),    
+                     'epoch_3': ([7, 13, 1, 0, 11, 9],[5, 8, 2, 12, 4, 6, 10, 14, 3])}
                      
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
         #batch 0
@@ -249,9 +236,7 @@ def test_refresh_on_epoch_end():
         #batch 1
         ids, X, _ = next(train_generator)
         assert ids == expected_ids[epoch][1]
-        #batch 2
-        ids, X, _ = next(train_generator)
-        assert ids == expected_ids[epoch][2]
+       
     
     h5.close()
 
@@ -353,9 +338,8 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     ids, _, _ = next(generator)
     assert ids == [0,1,2]
     ids, _, _ = next(generator)
-    assert ids == [3,4,5]
-    ids, _, _ = next(generator)
-    assert ids == [6]
+    assert ids == [3,4,5,6]
+    
 
     generator = next(a)
 
@@ -365,15 +349,11 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     a.update_performance(indices=[7,8,9], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
 
     ids, _, Y = next(generator)
-    assert ids == [10,11,12]
-    assert Y == [1,1,1]
+    assert ids == [10,11,12,13]
+    assert Y == [1,1,1,1]
     a.update_performance(indices=[10,11,12], predictions=[1,1,1], confidences=[1.0,1.0,1.0])
 
-    ids, _, Y = next(generator)
-    assert ids == [13]
-    assert Y == 1
-    a.update_performance(indices=[13], predictions=[0], confidences=[1.0])
-
+    
     generator = next(a)
 
     ids1, _, Y = next(generator)
@@ -381,15 +361,12 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     a.update_performance(indices=ids1, predictions=[1,0,0])
 
     ids2, _, Y = next(generator)
-    assert Y == [1,1,1]
-    a.update_performance(indices=ids2, predictions=[0,0,0])
+    assert Y == [1,1,1,1]
+    a.update_performance(indices=ids2, predictions=[0,0,0,0])
 
-    ids3, _, Y = next(generator)
-    assert Y == 1
-    a.update_performance(indices=ids3, predictions=[1])
-
-    ids = np.concatenate((ids1, ids2, ids3))
-    assert 13 in ids
+    
+    ids = np.concatenate((ids1, ids2))
+    assert 14 in ids
 
     wrong_ids = [ids1[1], ids1[2], ids2[0], ids2[1], ids2[2]]
 
@@ -397,8 +374,8 @@ def test_active_learning_batch_generator_max_keep_nonzero():
 
     ids1, _, _ = next(generator)
     ids2, _, _ = next(generator)
-    ids3, _, _ = next(generator)
-    ids = np.concatenate((ids1, ids2, ids3))
+    
+    ids = np.concatenate((ids1, ids2))
 
     # check how many of the wrong predictiosn were kept
     # since max_keep = 0.3 and session_size = 7, it should be int(0.3*7) = 2
@@ -468,3 +445,7 @@ def test_active_learning_batch_generator_splits_into_training_and_validation():
     assert Y.shape[1] == 2
 
     h5.close()
+
+# def test_open_db_as_apend():
+#      h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'a') 
+
