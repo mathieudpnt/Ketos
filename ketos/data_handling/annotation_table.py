@@ -90,9 +90,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
 
         The table can be passed as a pandas DataFrame or as the filename of a csv file.
 
-        Each row can only have a single label value. If your annotation table has several 
-        label values per row (e.g. as a comma-separated list of values), use 
-        :func:`data_handling.annotation_table.unfold` first to unfold the multiple labels.
+        The table may have either a single label per row, in which case unfold_labels should be set 
+        to False, or multiple labels per row (e.g. as a comma-separated list of values), in which 
+        case unfold_labels should be set to True.
 
         The table headings are renamed to conform with the ketos standard naming convention, following the 
         name mapping specified by the user. 
@@ -249,6 +249,27 @@ def create_label_dict(signal_labels, backgr_labels, ignore_labels):
 
     return label_dict
 
+
+def trainify(table, seg_len, balance=None):
+    """ Generate an annotation table suitable for training a machine-learning model.
+
+        The input table must have the standardized Ketos format, see 
+        :func:`data_handling.annotation_table.standardize`.
+
+        Args:
+            table: pandas DataFrame
+                Input annotation table.
+            seg_len: float
+                Segment length in seconds.
+            balance: str
+                Class balancing method. Options are: None, 'down', 'up'.            
+
+        Results:
+            table_train: pandas DataFrame
+                Output annotation table.
+    """
+    table_train = table
+    return table_train
 
 ##def create(path, seg_len, columns=None, balancing_method=None, labels=None, backgr_labels=0,\
 ##    rndm_backgr=None):
