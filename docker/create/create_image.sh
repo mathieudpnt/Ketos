@@ -6,13 +6,13 @@ cp ../../requirements.txt .
 cp ../../../meridian-rtd-theme/dist/sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
 
 # build image
-docker build --tag=ketos_v1.0.9 .
+docker build --tag=ketos_v2.0.0b0 .
 
 # tag image
-docker tag ketos_v1.0.9 oliskir/ketos:v1.0.9
+docker tag ketos_v1.0.9 oliskir/ketos:v2.0.0b0
 
 # push image to repository
-docker push oliskir/ketos:v1.0.9
+docker push oliskir/ketos:v2.0.0b0
 
 # clean
 rm -rf ketos
