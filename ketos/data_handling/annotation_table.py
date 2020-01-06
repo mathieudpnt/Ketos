@@ -110,8 +110,11 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
             mapper: dict
                 Dictionary mapping the headings of the input table to the 
                 standard ketos headings.
-            signal_labels: list
+            signal_labels: list, or list of lists
                 Labels of interest. Will be mapped to 1,2,3,...
+                Several labels can be mapped to the same integer by using nested lists. For example, 
+                signal_labels=[A,[B,C]] would result in A being mapped to 1 and B and C both being mapped 
+                to 2.
             backgr_labels: list
                 Labels will be grouped into a common "background" class (0).
             unfold_labels: bool
@@ -233,8 +236,11 @@ def create_label_dict(signal_labels, backgr_labels, ignore_labels):
             * ignore_labels are mapped to -1
 
         Args:
-            signal_labels: list
+            signal_labels: list, or list of lists
                 Labels of interest. Will be mapped to 1,2,3,...
+                Several labels can be mapped to the same integer by using nested lists. For example, 
+                signal_labels=[A,[B,C]] would result in A being mapped to 1 and B and C both being mapped 
+                to 2.
             backgr_labels: list
                 Labels will be grouped into a common "background" class (0).
             ignore_labels: list
@@ -249,7 +255,13 @@ def create_label_dict(signal_labels, backgr_labels, ignore_labels):
     for l in backgr_labels: label_dict[l] = 0
     num = 1
     for l in signal_labels:
-        label_dict[l] = num
+        if isinstance(l, list):
+            for ll in l:
+                label_dict[ll] = num
+
+        else:
+            label_dict[l] = num
+
         num += 1
 
     return label_dict

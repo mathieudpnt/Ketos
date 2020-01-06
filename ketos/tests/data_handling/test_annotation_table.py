@@ -65,6 +65,14 @@ def test_create_label_dict():
     expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
     assert d == expected
 
+def test_create_label_dict_can_handle_nested_list():
+    l1 = [0, 'gg', [-17, 'whale']]
+    l2 = [-33, 1, 'boat']
+    l3 = [999]
+    d = at.create_label_dict(l1, l2, l3)
+    expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 3}
+    assert d == expected
+
 def test_unfold(annot_table_mult_labels):
     df = at.unfold(annot_table_mult_labels)
     df_expected = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'time_start':[0,0,1], 'time_stop':[1,1,2]})
