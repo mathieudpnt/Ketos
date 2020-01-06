@@ -291,7 +291,7 @@ def cast_to_str(labels, nested=False):
             labels: list
                 Input labels
             nested: bool
-                Indicate if the input list, contains (or may contain) sublists.
+                Indicate if the input list contains (or may contain) sublists.
                 False by default. If True, a flattened version of the 
                 list is also returned.
 
@@ -322,6 +322,8 @@ def cast_to_str(labels, nested=False):
                 labels_str.append(str(x))
 
         return labels_str, labels_str_flat
+
+
 
 
 def trainify(table, seg_len, balance=None, map_orig=False):
