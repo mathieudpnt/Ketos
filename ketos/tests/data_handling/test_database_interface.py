@@ -83,6 +83,11 @@ def test_create_table():
     h5file.close()
     os.remove(fpath)
 
+# def test_open_db():
+#     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+#     h5file = tables.open_file(fpath, 'a')
+
+
 @pytest.mark.test_create_table
 def test_create_table_existing():
     """Test if a table is open when it already exists"""
