@@ -165,19 +165,15 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
         signal_labels = [x for x in labels if x not in backgr_labels]
 
     # cast to str
-    backgr_labels = [str(x) for x in backgr_labels]
-    signal_labels = [str(x) for x in signal_labels]
-
-    # check for labeling conflict
-    common_labels = [x for x in backgr_labels if x in signal_labels]
-    assert len(common_labels) == 0, 'Duplication of labels in signal_labels and backgr_labels'
+    backgr_labels = cast_to_str(backgr_labels)
+    signal_labels, signal_labels_flat = cast_to_str(signal_labels, nested=True)
 
     # separate out background labels, if any
     for x in backgr_labels:
         assert x in labels, 'label {0} not found in input table'.format(x)
     
     # ignore remaining labels
-    ignore_labels = [x for x in labels if x not in signal_labels and x not in backgr_labels]
+    ignore_labels = [x for x in labels if x not in signal_labels_flat and x not in backgr_labels]
 
     # create label dictionary and apply to label column in DataFrame
     _label_dict = create_label_dict(signal_labels, backgr_labels, ignore_labels)
@@ -284,6 +280,48 @@ def label_occurrence(table):
     """
     occurrence = table.groupby('label').size().to_dict()
     return occurrence
+
+def cast_to_str(labels, nested=False):
+    """ Convert every label to str format. 
+
+        If nested is set to True, a flattened version of the input 
+        list is also returned.
+
+        Args:
+            labels: list
+                Input labels
+            nested: bool
+                Indicate if the input list, contains (or may contain) sublists.
+                False by default. If True, a flattened version of the 
+                list is also returned.
+
+        Results:
+            labels_str: list
+                Labels converted to str format
+            labels_str_flat: list
+                Flattened list of labels. Only returned if nested is set to True.
+    """
+    if not nested:
+        labels_str = [str(x) for x in labels]
+        return labels_str
+
+    else:
+        labels_str = []
+        labels_str_flat = []
+        for x in labels:
+            if isinstance(x, list):
+                sublist = []
+                for xx in x:
+                    labels_str_flat.append(str(xx))
+                    sublist.append(str(xx))
+
+                labels_str.append(sublist)
+
+            else:
+                labels_str_flat.append(str(x))
+                labels_str.append(str(x))
+
+        return labels_str, labels_str_flat
 
 
 def trainify(table, seg_len, balance=None, map_orig=False):

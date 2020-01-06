@@ -86,6 +86,13 @@ def test_standardize_from_file(annot_table_file):
     assert sorted(df.columns.values) == sorted(['filename', 'time_start', 'time_stop', 'label'])
     assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 0, -1])
 
+def test_standardize_with_nested_list(annot_table_file):
+    df, d = at.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[[1,'whale'],'k'], backgr_labels=[-99])
+    d_expected = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
+    assert d == d_expected
+    assert sorted(df.columns.values) == sorted(['filename', 'time_start', 'time_stop', 'label'])
+    assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 1, -1])
+
 def test_label_occurrence(annot_table_std):
     df = annot_table_std
     oc = at.label_occurrence(df)
