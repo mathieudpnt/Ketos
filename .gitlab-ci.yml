@@ -1,4 +1,4 @@
-image: oliskir/ketos:v1.0.9
+image: meridiancfi/ketos:v2.0.0-beta
 
 stages:
 - build
