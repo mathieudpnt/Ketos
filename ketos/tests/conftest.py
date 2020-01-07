@@ -31,10 +31,8 @@ import numpy as np
 import scipy.signal as sg
 import pandas as pd
 import ketos.audio_processing.audio_processing as ap
-from ketos.neural_networks.cnn import BasicCNN
 from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
-from tensorflow.compat.v1 import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -238,27 +236,6 @@ def database_prepared_for_NN_2_classes():
                                 divisions=divisions)    
     return prepared
 
-
-@pytest.fixture
-def trained_BasicCNN(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_BasicCNN")         
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, batch_size=1, num_labels=2)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
-    network.train()
-    network.save(path_to_meta)
-    test_acc = network.accuracy_on_test()
-    meta = path_to_meta + ".meta"
-    reset_default_graph()
-    return meta, path_to_saved_model, test_acc
 
 @pytest.fixture
 def sine_audio(sine_wave):

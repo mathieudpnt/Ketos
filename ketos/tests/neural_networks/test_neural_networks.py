@@ -32,10 +32,9 @@ import numpy as np
 import pandas as pd
 import ketos.data_handling.data_handling as dh
 from ketos.neural_networks.neural_networks import DataHandler, DataUse, class_confidences
-from tensorflow.compat.v1 import reset_default_graph
+#from tensorflow.compat.v1 import reset_default_graph
 
 
-@pytest.mark.test_DataHandler
 def test_initialize_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -44,7 +43,6 @@ def test_initialize_DataHandler(database_prepared_for_NN_2_classes):
     print(y.shape)
     _ = DataHandler(train_x=x, train_y=y)
 
-@pytest.mark.test_DataHandler
 def test_set_data_to_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -63,7 +61,6 @@ def test_set_data_to_DataHandler(database_prepared_for_NN_2_classes):
     assert np.all(x == network.images[DataUse.TEST])
     assert np.all(y == network.labels[DataUse.TEST])    
 
-@pytest.mark.test_DataHandler
 def test_add_data_to_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -76,7 +73,6 @@ def test_add_data_to_DataHandler(database_prepared_for_NN_2_classes):
     assert 2 * y.shape[0] == network.labels[DataUse.TRAINING].shape[0]
     assert y.shape[1:] == network.labels[DataUse.TRAINING].shape[1:]
     
-@pytest.mark.test_DataHandler
 def test_get_data_from_DataHandler(database_prepared_for_NN_2_classes):
     d = database_prepared_for_NN_2_classes
     x = d["train_x"]
@@ -87,7 +83,6 @@ def test_get_data_from_DataHandler(database_prepared_for_NN_2_classes):
     assert x.shape == xx.shape
     assert y.shape == yy.shape
 
-@pytest.mark.test_class_confidences
 def test_class_confidences(data_classified_by_nn):
     _,_,w = data_classified_by_nn
     conf = class_confidences(class_weights=w)

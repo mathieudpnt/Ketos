@@ -1596,19 +1596,3 @@ class SpecProvider():
         self.time = 0
 
 
-# this function transforms a batch of data (x,y), loaded from a 
-# hdf5 database with default ketos format, to the format expected 
-# by ResNet 
-from ketos.data_handling.database_interface import parse_labels
-from ketos.neural_networks.resnet import ResNetInterface
-def resnet_batch_transform(x,y):
-    X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-    y = [parse_labels(z) for z in y]
-    for i in range(len(y)):
-        if y[i] == []:
-            y[i] = 0
-        else:
-            y[i] = 1
-
-    Y = np.array([ResNetInterface.to1hot(sp) for sp in y])
-    return (X,Y)

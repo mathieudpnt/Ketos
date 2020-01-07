@@ -40,25 +40,21 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 
-@pytest.mark.test_to_decibel
 def test_to_decibel_returns_decibels():
     x = 7
     y = ap.to_decibel(x)
     assert y == 20 * np.log10(x) 
 
-@pytest.mark.test_to_decibel
 def test_to_decibel_can_handle_arrays():
     x = np.array([7,8])
     y = ap.to_decibel(x)
     assert np.all(y == 20 * np.log10(x))
 
-@pytest.mark.test_to_decibel
 def test_to_decibel_returns_inf_if_input_is_negative():
     x = -7
     y = ap.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-@pytest.mark.test_blur_img
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
     img_median = ap.blur_image(img,5,gaussian=False)
@@ -68,12 +64,10 @@ def test_uniform_image_is_unchanged_by_blurring():
     img_gaussian = ap.blur_image(img,9,gaussian=True)
     np.testing.assert_array_equal(img, img_gaussian)
             
-@pytest.mark.test_blur_img
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
     ap.blur_image(img,13,gaussian=False)
 
-@pytest.mark.test_apply_median_filter
 def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
     img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=1)
@@ -86,7 +80,6 @@ def test_median_filter_works_as_expected():
     img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=15)
     assert img_fil[2,2] == 0
     
-@pytest.mark.test_apply_preemphasis
 def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     sig = np.array([1,2,3,4,5], np.float32)
     sig_new = ap.apply_preemphasis(sig,coeff=0)
@@ -130,14 +123,12 @@ def test_prepare_for_binary_cnn():
     assert y.shape == (2*q,)
     assert np.sum(y) == q
 
-@pytest.mark.test_append_specs
 def test_append_specs():
     img = np.ones(shape=(20,30))
     s = Spectrogram(image=img)       
     merged = ap.append_specs([s,s,s])
     assert merged.image.shape[0] == 3 * s.image.shape[0]
 
-@pytest.mark.test_filter_isolated_cells
 def test_filter_isolated_spots_removes_single_pixels():
     img = np.array([[0,0,1,1,0,0],
                     [0,0,0,1,0,0],
@@ -163,7 +154,6 @@ def test_filter_isolated_spots_removes_single_pixels():
 
     assert np.array_equal(filtered_img, expected)
 
-@pytest.mark.test_estimate_audio_signal
 def test_estimate_audio_signal(sine_audio):
     n_fft = 20000
     hop = 2000

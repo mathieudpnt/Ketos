@@ -224,7 +224,8 @@ class BatchGenerator():
         """
         ids = self.entry_indices
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
-        extra_instances = self.n_instances % n_complete_batches
+        #extra_instances = self.n_instances % n_complete_batches
+        extra_instances = self.n_instances % self.batch_size
     
         list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_complete_batches)]
         if extra_instances > 0:
@@ -342,42 +343,25 @@ class SiameseBatchGenerator():
         Examples:
             >>> from tables import open_file
             >>> from ketos.data_handling.database_interface import open_table
-            >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
-            >>> train_data = open_table(h5, "/train/species1")
-            >>> train_generator = SiameseBatchGenerator(hdf5_table=train_data, y_field="labels", batch_size=3, n_batches = 4, classes = [b'[]', b'[1]']) #create a batch generator 
+            >>> h5 = open_file("ketos/tests/assets/humpback.h5", 'r') # create the database handle  
+            >>> train_data = open_table(h5, "/train/mel_specs")
+            >>> train_generator = SiameseBatchGenerator(hdf5_table=train_data, y_field="labels", batch_size=3, n_batches = 4, classes = [b'[0]', b'[1]']) #create a batch generator 
             >>> #Run 2 epochs. 
             >>> n_epochs = 2    
             >>> for e in range(n_epochs):
             ...    for batch_num in range(train_generator.n_batches):
             ...        batch_X1, batch_X2, batch_Y = next(train_generator)   
-            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
-            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            >>> #Applying a custom function to the batch
-            >>> #Takes the mean of each instance in X; leaves Y untouched
-            >>> def apply_to_batch(X,Y):
-            ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
-            ...    return (X,Y)
-            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
-            >>> X,Y = next(train_generator)                
-            >>> #Now each X instance is one single number, instead of a (2413,201) matrix
-            >>> #A batch of size 3 is an array of the 3 means
-            >>> X.shape
-            (3,)
-            >>> #Here is how one X instance looks like
-            >>> X[0]
-            7694.1147
-            >>> #Y is the same as before 
-            >>> Y.shape
-            (3,)
+            ...        print("epoch:{0}, batch {1} |  X1 batch shape: {2}, X2 batch shape: {3} Y batch shape: {4}".format(e, batch_num, batch_X1.shape, batch_X2.shape, batch_Y.shape))
+            epoch:0, batch 0 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:0, batch 1 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:0, batch 2 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:0, batch 3 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:1, batch 0 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:1, batch 1 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:1, batch 2 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+            epoch:1, batch 3 |  X1 batch shape: (2, 65, 20, 1), X2 batch shape: (2, 65, 20, 1) Y batch shape: (2, 1)
+
+            
             >>> h5.close()
     """
     
@@ -484,7 +468,7 @@ class SiameseBatchGenerator():
     def __next__(self):
         """         
             Return: tuple
-            A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indeces (ids, X, Y) 
+            A batch of instances (X1,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
         """
 
         batch_ids = self.__get_batch_indices__()
