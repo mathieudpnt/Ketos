@@ -33,7 +33,6 @@ import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values, detect_peaks
 
 
-@pytest.mark.test_tostring
 def test_tostring():
     box = (1,2,3)
     s = tostring(box)
@@ -48,20 +47,17 @@ def test_tostring():
     s = tostring(box)
     assert s == '[[1,2,3],[1,2]]'
 
-@pytest.mark.test_octave_bands
 def test_octave_bands():
     fc, fmin, fmax = octave_bands(1, 3)
     assert fc[0] == 62.5
     assert fc[1] == 125.
     assert fc[2] == 250.
 
-@pytest.mark.test_morlet_func
 def test_morlet_func_single_time():
     time = 0.5
     f = morlet_func(time=time, frequency=10, width=3, displacement=0)
     assert f == pytest.approx(0.42768108, abs=1E-5) 
 
-@pytest.mark.test_morlet_func
 def test_morlet_func_multiple_times():
     time = np.array([-1., 0., 0.5])
     f = morlet_func(time=time, frequency=10, width=3, displacement=0)
@@ -69,20 +65,17 @@ def test_morlet_func_multiple_times():
     assert f[1] == pytest.approx(0.43366254, abs=1E-5) 
     assert f[2] == pytest.approx(0.42768108, abs=1E-5) 
 
-@pytest.mark.test_morlet_func
 def test_morlet_func_with_dfdt_nonzero():
     time = 0.5
     f = morlet_func(time=time, frequency=10, width=3, displacement=0, dfdt=0.5)
     assert f == pytest.approx(0.302416, abs=1E-5) 
 
-@pytest.mark.test_random_floats
 def test_random_floats():
     x = random_floats(3, 0.4, 7.2)
     assert x[0] == pytest.approx(3.23574963, abs=1e-5)
     assert x[1] == pytest.approx(5.29820656, abs=1e-5)
     assert x[2] == pytest.approx(0.40077775, abs=1e-5)
 
-@pytest.mark.test_nearest_values
 def test_nearest_values():
     x = np.array([1.0, 4.0, 5.1, 6.0, 0.2, 0.3, 10.0])
     y = nearest_values(x=x, i=3, n=3)

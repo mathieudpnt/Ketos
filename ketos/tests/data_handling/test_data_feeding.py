@@ -41,7 +41,6 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-@pytest.mark.test_BatchGenerator
 def test_one_batch():
     """ Test if one batch has the expected shape and contents
     """
@@ -62,7 +61,6 @@ def test_one_batch():
     h5.close()
 
 
-@pytest.mark.test_BatchGenerator
 def test_labels_as_Y():
     """ Test if batch generator returns labels instead of boxes
     """
@@ -78,7 +76,6 @@ def test_labels_as_Y():
     h5.close()
     
 
-@pytest.mark.test_BatchGenerator
 def test_batch_sequence_same_as_db():
     """ Test if batches are generated with instances in the same order as they appear in the database
     """
@@ -96,7 +93,6 @@ def test_batch_sequence_same_as_db():
     h5.close()
 
 
-@pytest.mark.test_BatchGenerator
 def test_last_batch():
     """ Test if last batch has the expected number of instances
     """
@@ -116,7 +112,6 @@ def test_last_batch():
     
     h5.close()
 
-@pytest.mark.test_BatchGenerator
 def test_use_only_subset_of_data():
     """ Test that only the indices specified are used
     """
@@ -133,7 +128,6 @@ def test_use_only_subset_of_data():
 
     h5.close()
 
-@pytest.mark.test_BatchGenerator
 def test_multiple_epochs():
     """ Test if batches are as expected after the first epoch
     """
@@ -159,7 +153,6 @@ def test_multiple_epochs():
 
     h5.close()
 
-@pytest.mark.test_BatchGenerator
 def test_load_from_memory():
     """ Test if batch generator can work with data loaded from memory
     """
@@ -183,7 +176,6 @@ def test_load_from_memory():
     assert ids == [0,1,2,3,4,5]
     assert X.shape == (6, 32, 16)
 
-@pytest.mark.test_BatchGenerator
 def test_shuffle():
     """Test shuffle argument.
         Instances should be shuffled before divided into batches, but the order should be consistent across epochs if
@@ -212,7 +204,6 @@ def test_shuffle():
     h5.close()
 
 
-@pytest.mark.test_BatchGenerator
 def test_refresh_on_epoch_end():
     """ Test if batches are generated with randomly selected instances for each epoch
     """
@@ -240,7 +231,6 @@ def test_refresh_on_epoch_end():
     
     h5.close()
 
-@pytest.mark.test_BatchGenerator
 def test_instance_function():
     """ Test if the function passed as 'instance_function' is applied to the batch
     """
@@ -260,7 +250,6 @@ def test_instance_function():
     h5.close()
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_max_keep_zero():
     """ Test can start first training session
     """
@@ -324,7 +313,6 @@ def test_active_learning_batch_generator_max_keep_zero():
     h5.close()
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_max_keep_nonzero():
     """ Test can start first training session
     """
@@ -388,7 +376,6 @@ def test_active_learning_batch_generator_max_keep_nonzero():
     h5.close()
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_load_from_memory():
     """ Test can start first and second training session
     """
@@ -412,7 +399,6 @@ def test_active_learning_batch_generator_load_from_memory():
     assert ids == [7,8,9]
 
 
-@pytest.mark.test_ActiveLearningBatchGenerator
 def test_active_learning_batch_generator_splits_into_training_and_validation():
     """ Test can split into training and validation data
     """
