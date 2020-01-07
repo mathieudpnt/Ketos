@@ -43,6 +43,7 @@ import datetime
 import datetime_glob
 import re
 from ketos.data_handling.parsing import SpectrogramConfiguration
+import soundfile
 
 
 def rel_path_unix(path, start=None):
@@ -593,7 +594,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         if verbose:
             print("Creating segment......", path_to_seg)
-        librosa.output.write_wav(path_to_seg, sig, rate)
+        soundfile.write(path_to_seg, sig, rate)
 
 def _filter_annotations_by_filename(annotations, filename):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
@@ -744,7 +745,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     """
     out_seg = os.path.join(save_to, name)
     sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
-    librosa.output.write_wav(out_seg, sig, rate)
+    soundfile.write(out_seg, sig, rate)
 
 
 def segs_from_annotations(annotations, save_to):
