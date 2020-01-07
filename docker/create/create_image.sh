@@ -9,7 +9,7 @@ cp ../../../meridian-rtd-theme/dist/sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
 docker build --tag=ketos_v2.0.0b0 .
 
 # tag image
-docker tag ketos_vv2.0.0b0 meridiancfi/ketos:v2.0.0b0
+docker tag ketos_v2.0.0b0 meridiancfi/ketos:v2.0.0b0
 
 # push image to repository
 docker push meridiancfi/ketos:v2.0.0b0
