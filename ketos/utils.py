@@ -476,13 +476,6 @@ def str_is_int(s, signed=True):
          
     return res
 
-def union(x):
-    """ Union of a list of intervals e.g. [(1,2),(3,4)] """
-    intervals = [Interval(begin, end) for (begin, end) in x]
-    u = Union(*intervals)
-    return [list(u.args[:2])] if isinstance(u, Interval) \
-        else list(u.args)
-
 def complement(a,b):
     """ Compute the complement set of multiple of intervals.
 

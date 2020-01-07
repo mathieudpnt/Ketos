@@ -43,7 +43,7 @@
 import os
 import numpy as np
 import pandas as pd
-from ketos.utils import str_is_int
+from ketos.utils import str_is_int, complement
 
 
 def unfold(table, sep=','):
@@ -389,8 +389,6 @@ def complement(annotated, file_duration, discarded=None):
             table_compl: pandas DataFrame
                 Output table.
     """    
-    from ketos.utils import union, complement
-
     if discarded is None:
         df = annotated
     else:
