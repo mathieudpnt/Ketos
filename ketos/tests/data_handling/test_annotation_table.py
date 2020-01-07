@@ -106,4 +106,9 @@ def test_create_ml_table(annot_table_std):
 def test_complement(annot_table_std, file_duration_table):
     df = annot_table_std
     dur = file_duration_table
-    df_new = at.create_ml_table(df, dur)
+    df_new = at.complement(df, dur)
+    df_expected = pd.DataFrame()
+    df_expected['filename'] = ['f0.wav','f1.wav','f1.wav','f2.wav','f2.wav','f3.wav','f4.wav','f5.wav']
+    df_expected['time_start'] = [6.3, 0., 7.3, 0., 8.3, 0., 0., 0.]
+    df_expected['time_stop']  = [30.0, 1., 31., 2., 32., 33., 34., 35.]
+    assert df_expected.values.tolist() == df_new.values.tolist()

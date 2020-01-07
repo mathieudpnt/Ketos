@@ -389,4 +389,24 @@ def complement(annotated, file_duration, discarded=None):
             table_compl: pandas DataFrame
                 Output table.
     """    
-    return annotated
+    from ketos.utils import union, complement
+
+    if discarded is None:
+        df = annotated
+    else:
+        df = pd.concat([annotated, discarded])
+
+    filename, time_start, time_stop = [], [], []
+    for i, ri in file_duration.iterrows():
+        fname = ri['filename']
+        dur = ri['duration']
+        dfi = df[df['filename']==fname]
+        intervals = dfi[['time_start','time_stop']].values.tolist()
+        c = complement([0, dur], intervals)
+        for x in c:
+            filename.append(fname)
+            time_start.append(x[0])
+            time_stop.append(x[1])
+
+    df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
+    return df_out

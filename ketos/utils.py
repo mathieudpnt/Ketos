@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 from functools import reduce
+from sympy import Interval, Union, Complement
 
 def factors(n):    
     """ Returns sorted set of all divisors of n
@@ -474,3 +475,35 @@ def str_is_int(s, signed=True):
         res = s.isdigit()
          
     return res
+
+def union(x):
+    """ Union of a list of intervals e.g. [(1,2),(3,4)] """
+    intervals = [Interval(begin, end) for (begin, end) in x]
+    u = Union(*intervals)
+    return [list(u.args[:2])] if isinstance(u, Interval) \
+        else list(u.args)
+
+def complement(a,b):
+    """ Compute the complement set of multiple of intervals.
+
+        Args:
+            a: interval
+                Set with respect to which the complement is computed, e.g. [0., 100.]
+            b: list of intervals
+                Intervals with respect to which the complement is computed, e.g. [[1.2, 7.0],[14.4,18.0]]
+    
+        Returns:
+            list of intervals that comprise the complement set.
+    """
+    a = Interval(a[0], a[1])
+    b = [Interval(begin, end) for (begin, end) in b]
+    u = Union(*b)
+    c = Complement(a, u)
+    if isinstance(c, Interval):
+        return [list(c.args[:2])]
+
+    elif isinstance(c, Union):
+        return [interval.args[:2] for interval in list(c.args)]
+
+    else:
+        return []

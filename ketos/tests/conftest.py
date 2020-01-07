@@ -358,9 +358,9 @@ def annot_table_std():
     """
     label = [1, 2, 3, 0, 0, -1]
     N = len(label)
-    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    filename = ['f{0}.wav'.format(x%3) for x in np.arange(N)]
     start = np.arange(N)
-    stop = start + 1
+    stop = start + 3.3
     tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
     return tbl
 
