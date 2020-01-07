@@ -102,3 +102,8 @@ def test_label_occurrence(annot_table_std):
 def test_create_ml_table(annot_table_std):
     df = annot_table_std
     df_new = at.create_ml_table(df, annot_len=1)
+
+def test_complement(annot_table_std, file_duration_table):
+    df = annot_table_std
+    dur = file_duration_table
+    df_new = at.create_ml_table(df, dur)

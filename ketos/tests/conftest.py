@@ -335,6 +335,20 @@ def prepare_database(database, x_column, y_column, divisions):
 
 
 @pytest.fixture
+def file_duration_table():
+    """ Create a table of file durations as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                File duration table
+    """
+    N = 6
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    duration = [x + 30.0 for x in np.arange(N)]
+    tbl = pd.DataFrame({'filename': filename, 'duration': duration})
+    return tbl
+
+@pytest.fixture
 def annot_table_std():
     """ Create a standardized annotations table as a pandas DataFrame.
 

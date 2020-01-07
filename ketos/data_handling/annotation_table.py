@@ -323,7 +323,8 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, long_annot="split", keep_index=False):
+def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, long_annot="split",\
+    keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
         The input table must have the standardized Ketos format and contain call-level 
@@ -355,7 +356,7 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
                 in the input table from which the new annotation was generated.
 
         Results:
-            table_train: pandas DataFrame
+            table_ml: pandas DataFrame
                 Output annotation table.
     """
     df = table
@@ -366,5 +367,26 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
 
     #x = label_occurrence(df)
 
-    table_train = table
-    return table_train
+    table_ml = table
+    return table_ml
+
+def complement(annotated, file_duration, discarded=None):
+    """ Create a table listing all the segments of a data set that have 
+        not been annotated or discarded.
+
+        The input tables must have the standardized Ketos format and contain call-level 
+        annotations, see :func:`data_handling.annotation_table.standardize`.
+
+        Args:
+            annotated: pandas DataFrame
+                Table with annotated segments.
+            file_duration: pandas DataFrame
+                Table with file durations in seconds.
+            discarded: pandas DataFrame
+                Table with discarded segments.
+
+        Results:
+            table_compl: pandas DataFrame
+                Output table.
+    """    
+    return annotated
