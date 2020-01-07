@@ -14,7 +14,7 @@ after_script:
 run-tests:
  type: test
  script:
-  - pytest --doctest-modules
+  - pytest --doctest-modules --ignore=docs
 
 create-docs:
  type: deploy
