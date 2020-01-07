@@ -99,6 +99,6 @@ def test_label_occurrence(annot_table_std):
     oc_expected = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
     assert oc == oc_expected
 
-def test_trainify(annot_table_std):
+def test_create_ml_table(annot_table_std):
     df = annot_table_std
-    df_new = at.trainify(df, seg_len=1)
+    df_new = at.create_ml_table(df, annot_len=1)

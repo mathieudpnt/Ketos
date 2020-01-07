@@ -172,11 +172,11 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     for x in backgr_labels:
         assert x in labels, 'label {0} not found in input table'.format(x)
     
-    # ignore remaining labels
-    ignore_labels = [x for x in labels if x not in signal_labels_flat and x not in backgr_labels]
+    # discard remaining labels
+    discard_labels = [x for x in labels if x not in signal_labels_flat and x not in backgr_labels]
 
     # create label dictionary and apply to label column in DataFrame
-    _label_dict = create_label_dict(signal_labels, backgr_labels, ignore_labels)
+    _label_dict = create_label_dict(signal_labels, backgr_labels, discard_labels)
     df['label'] = df['label'].apply(lambda x: _label_dict.get(x))
 
     # cast integer dict keys from str back to int
@@ -224,12 +224,12 @@ def missing_columns(table, has_time=False):
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
 
-def create_label_dict(signal_labels, backgr_labels, ignore_labels):
+def create_label_dict(signal_labels, backgr_labels, discard_labels):
     """ Create label dictionary, following the convetion:
 
             * signal_labels are mapped to 1,2,3,...
             * backgr_labels are mapped to 0
-            * ignore_labels are mapped to -1
+            * discard_labels are mapped to -1
 
         Args:
             signal_labels: list, or list of lists
@@ -239,15 +239,15 @@ def create_label_dict(signal_labels, backgr_labels, ignore_labels):
                 to 2.
             backgr_labels: list
                 Labels will be grouped into a common "background" class (0).
-            ignore_labels: list
-                Labels will be grouped into a common "ignore" class (-1).
+            discard_labels: list
+                Labels will be grouped into a common "discard" class (-1).
 
         Returns:
             label_dict: dict
                 Dict that maps old labels to new labels.
     """
     label_dict = dict()    
-    for l in ignore_labels: label_dict[l] = -1
+    for l in discard_labels: label_dict[l] = -1
     for l in backgr_labels: label_dict[l] = 0
     num = 1
     for l in signal_labels:
@@ -323,28 +323,36 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-
-
-
-def trainify(table, seg_len, balance=None, map_orig=False):
-    """ Generate an annotation table suitable for training a machine-learning model.
+def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, long_annot="split", keep_index=False):
+    """ Generate an annotation table suitable for training/testing a machine-learning model.
 
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.annotation_table.standardize`.
 
-        option to query by string ...
+        The generated annotations have uniform length given by the annot_len argument. 
 
         Args:
             table: pandas DataFrame
                 Input table with call-level annotations.
-            seg_len: float
-                Segment length in seconds.
-            balance: str
-                Class balancing method. Options are: None, 'down', 'up'.   
-            map_orig: bool
-                Include the original time-frequency bounding box in the 
-                output table. This makes it possible to map the new annotations 
-                to the original ones. Default is False.
+            annot_len: float
+                Output annotation length in seconds.
+            overlap: float
+                Minimum required overlap between the generated annotation and the original 
+                annotation, expressed as a fraction of annot_len.   
+            step_size: float
+                Produce multiple instances of the same annotation by shifting the annotation 
+                window in steps of length step_size (in seconds) both forward and backward in 
+                time. The default value is 0.
+            long_annot: str
+                Specify how to handle cases in which the length of the original annotation 
+                exceeds the desired output length. Available options: 
+                    * discard: Discard all annotations longer than the output length
+                    * crop: Crop the original annotation to achieve the desired length
+                    * split: Split the original annotation into multiple annotations
+                Note that the option `crop` is only available if the step_size is 0. 
+            keep_index: bool
+                For each generated annotation, include the index of the original annotation 
+                in the input table from which the new annotation was generated.
 
         Results:
             table_train: pandas DataFrame
