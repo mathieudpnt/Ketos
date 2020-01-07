@@ -1,5 +1,5 @@
 import tensorflow as tf
-import .nn_interface
+from .nn_interface import NNInterface
 
 
 vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
@@ -71,9 +71,9 @@ class CNN(tf.keras.Model):
         return output
 
 
-class CNNInterface(nn_interface.NNInterface):
+class CNNInterface(NNInterface):
     
-   @classmethod
+    @classmethod
     def build_from_recipe(cls, recipe):
         convolutional_layers = recipe['convolutional_layers']
         fully_connected_layers = recipe['fully_connected_layers']
