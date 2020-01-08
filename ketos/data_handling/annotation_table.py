@@ -435,6 +435,21 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     # create complement
     c = complement(table=table, file_duration=file_duration)
 
-    # randomly select segments of uniform length, uniformly distributed across the 
-    # annotation-free parts of the data set.
+    # compute lengths, and discard segments shorter than requested length
+    c['length'] = c['time-stop'] - c['time_start'] - annot_len
+    c = c[c['length'] >= 0]
+
+    # cumulative length 
+    cumsum = c['length'].cumsum.values
+    len_tot = cumsum[-1]
+
+    # output
+    filename, time_start, time_stop = [], [], []
+
+    # randomply sample
+    times = np.random.random_sample(num) * len_tot
+    for t in times:
+        idx = np.where(t > cumsum) - 1
+
+
     return c
