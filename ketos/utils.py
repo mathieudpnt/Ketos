@@ -476,27 +476,30 @@ def str_is_int(s, signed=True):
          
     return res
 
-def complement(a,b):
-    """ Compute the complement set of multiple of intervals.
+def complement_intervals(a, b):
+    """ Compute the complement of multiple of intervals.
 
         Args:
-            a: interval
+            a: list 
                 Set with respect to which the complement is computed, e.g. [0., 100.]
-            b: list of intervals
+            b: list of lists or tuples
                 Intervals with respect to which the complement is computed, e.g. [[1.2, 7.0],[14.4,18.0]]
     
         Returns:
-            list of intervals that comprise the complement set.
+            c list of tuples
+                Intervals that comprise the complement set.
     """
     a = Interval(a[0], a[1])
     b = [Interval(begin, end) for (begin, end) in b]
     u = Union(*b)
     c = Complement(a, u)
     if isinstance(c, Interval):
-        return [list(c.args[:2])]
+        c = [list(c.args[:2])]
 
     elif isinstance(c, Union):
-        return [interval.args[:2] for interval in list(c.args)]
+        c = [interval.args[:2] for interval in list(c.args)]
 
     else:
-        return []
+        c = []
+
+    return c

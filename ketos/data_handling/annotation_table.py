@@ -43,7 +43,7 @@
 import os
 import numpy as np
 import pandas as pd
-from ketos.utils import str_is_int, complement
+from ketos.utils import str_is_int, complement_intervals
 
 
 def unfold(table, sep=','):
@@ -370,37 +370,31 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
     table_ml = table
     return table_ml
 
-def complement(annotated, file_duration, discarded=None):
-    """ Create a table listing all the segments of a data set that have 
-        not been annotated or discarded.
+def complement(table, file_duration):
+    """ Create a table listing all segments that have not been annotated or discarded.
 
-        The input tables must have the standardized Ketos format and contain call-level 
-        annotations, see :func:`data_handling.annotation_table.standardize`.
+        The annotation table must conform to the standard Ketos format and 
+        contain call-level annotations, see :func:`data_handling.annotation_table.standardize`.
 
         Args:
-            annotated: pandas DataFrame
-                Table with annotated segments.
+            table: pandas DataFrame
+                Annotation table.
             file_duration: pandas DataFrame
-                Table with file durations in seconds.
-            discarded: pandas DataFrame
-                Table with discarded segments.
+                Table with file durations in seconds. 
+                Should contain columns named 'filename' and 'duration'.
 
         Results:
             table_compl: pandas DataFrame
                 Output table.
-    """    
-    if discarded is None:
-        df = annotated
-    else:
-        df = pd.concat([annotated, discarded])
-
+    """   
+    df = table
     filename, time_start, time_stop = [], [], []
-    for i, ri in file_duration.iterrows():
+    for _, ri in file_duration.iterrows():
         fname = ri['filename']
         dur = ri['duration']
         dfi = df[df['filename']==fname]
         intervals = dfi[['time_start','time_stop']].values.tolist()
-        c = complement([0, dur], intervals)
+        c = complement_intervals([0, dur], intervals)
         for x in c:
             filename.append(fname)
             time_start.append(x[0])

@@ -31,7 +31,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
-    detect_peaks, str_is_int
+    detect_peaks, str_is_int, complement_intervals
 
 
 def test_tostring():
@@ -105,3 +105,9 @@ def test_str_is_int():
     assert str_is_int('+5')
     assert not str_is_int('-5', signed=False)
     assert not str_is_int('5.')
+
+def test_complement_intervals():
+    a = (0,100)
+    b = [(1,5),(25,50),(20,70)]
+    c = complement_intervals(a, b)
+    assert c == [(0,1),(5,20),(70,100)]
