@@ -332,6 +332,8 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
 
         The generated annotations have uniform length given by the annot_len argument. 
 
+        TODO: Complete implementation of this method
+
         Args:
             table: pandas DataFrame
                 Input table with call-level annotations.
@@ -402,3 +404,37 @@ def complement(table, file_duration):
 
     df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
     return df_out
+
+def create_rndm_backgr(table, file_duration, annot_len, num):
+    """ Create background annotations of uniform length, randomly distributed across the 
+        data set and not overlapping with any other annotations.
+
+        The random sampling is performed without regard to already created background 
+        annotations. Therefore, it is in principle possible that some of the created 
+        annotations will overlap, although in practice this will only occur with very 
+        small probability, unless the number of requested annotations (num) is very 
+        large and/or the (annotation-free parts of) the data set have limited size.
+
+        TODO: Complete implementation of this method
+
+        Args:
+            table: pandas DataFrame
+                Annotation table.
+            file_duration: pandas DataFrame
+                Table with file durations in seconds. 
+                Should contain columns named 'filename' and 'duration'.
+            annot_len: float
+                Output annotation length in seconds.
+            num: int
+                Number of annotations to be created.
+
+        Returns:
+            table_backgr: pandas DataFrame
+                Output annotation table.
+    """
+    # create complement
+    c = complement(table=table, file_duration=file_duration)
+
+    # randomly select segments of uniform length, uniformly distributed across the 
+    # annotation-free parts of the data set.
+    return c
