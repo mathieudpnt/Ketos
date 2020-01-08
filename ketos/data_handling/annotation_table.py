@@ -323,7 +323,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, discard_long=False,\
+def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, discard_long=False,\
     discard_mixed=True, keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
@@ -368,6 +368,8 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, dis
     df = table.copy()
     N = len(df)
 
+    df['orig_index'] = df.index.copy()
+        
     # check that input table has expected format
     mis = missing_columns(df, has_time=True)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
@@ -385,8 +387,15 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, dis
     else:
         df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - annot_len)
 
+    # create multiple time-shited instances of every annotation
     if step_size > 0:
-        print(' *** Step size > 0 not yet implemented ***')
+        df_tmp = df.copy()
+        for index,row in df.iterrows():
+            t = row['time_start_new']
+            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, overlap=overlap, step_size=step_size)
+            df_tmp = pd.concat([df_tmp, df_shift])
+
+        df = df_tmp.sort_values(by=['orig_index','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
     if discard_mixed:
         print(' *** Discard mixed not yet implemented ***')
@@ -396,9 +405,69 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, dis
     df = df.rename(columns={"time_start_new": "time_start"})
     df['time_stop'] = df['time_start'] + annot_len
 
-    # keep or reset index
+    # keep old index
     if not keep_index:
-        df = df.reset_index()
+        df = df.drop(['orig_index'], axis=1)
+
+    df = df.reset_index()
+    return df
+
+def time_shift(annot, time_ref, annot_len, overlap, step_size):
+    """ Create multiple instances of the same annotation by stepping in time, both 
+        forward and backward.
+
+        Args:
+            annot: pandas Series
+                Reference annotation. Must contain the labels 'time_start' and 'time_stop'.
+            time_ref: float
+                Reference time used as starting point for the stepping.
+            annot_len: float
+                Output annotation length in seconds.
+            overlap: float
+                Minimum required overlap between the generated annotation and the original 
+                annotation, expressed as a fraction of annot_len.   
+            step_size: float
+                Produce multiple instances of the same annotation by shifting the annotation 
+                window in steps of length step_size (in seconds) both forward and backward in 
+                time. The default value is 0.
+
+        Results:
+            df: pandas DataFrame
+                Output annotation table.
+    """
+    row = annot.copy()
+    row['time_start_new'] = np.nan
+    
+    t = time_ref
+    t1 = row['time_start']
+    t2 = row['time_stop']
+
+    t_min = t1 - (1 - overlap) * annot_len
+    t_max = t2 - overlap * annot_len
+
+    num_steps_back = int(np.floor((t - t_min) / step_size))
+    num_steps_forw = int(np.floor((t_max - t) / step_size))
+
+    num_steps = num_steps_back + num_steps_forw
+    if num_steps == 0:
+        return pd.DataFrame(columns=row.index) #return empty DataFrame
+
+    rows_new = []
+
+    # step backwards
+    for i in range(num_steps_back):
+        ri = row.copy()
+        ri['time_start_new'] = t - (i + 1) * step_size
+        rows_new.append(ri)
+
+    # step forwards
+    for i in range(num_steps_forw):
+        ri = row.copy()
+        ri['time_start_new'] = t + (i + 1) * step_size
+        rows_new.append(ri)
+
+    # create DataFrame
+    df = pd.DataFrame(rows_new)
 
     return df
 
