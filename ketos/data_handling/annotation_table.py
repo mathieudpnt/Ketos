@@ -540,13 +540,16 @@ def complement(table, file_duration):
                 Output table.
     """   
     df = table
+
     filename, time_start, time_stop = [], [], []
+
     for _, ri in file_duration.iterrows():
         fname = ri['filename']
         dur = ri['duration']
         dfi = df[df['filename']==fname]
         intervals = dfi[['time_start','time_stop']].values.tolist()
         c = complement_intervals([0, dur], intervals)
+
         for x in c:
             filename.append(fname)
             time_start.append(x[0])
@@ -579,6 +582,38 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
         Returns:
             table_backgr: pandas DataFrame
                 Output annotation table.
+
+        Example:
+            >>> import pandas as pd
+            >>> import numpy as np
+            >>> from ketos.data_handling.annotation_table import create_ml_table
+            >>> 
+            >>> #Ensure reproducible results by fixing the random number generator seed.
+            >>> np.random.seed(3)
+            >>> 
+            >>> #Load and inspect the annotations.
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> print(df)
+                filename  time_start  time_stop  label
+            0  file1.wav         7.0        8.1      1
+            1  file1.wav         8.5       12.5      0
+            2  file1.wav        13.1       14.0      1
+            3  file2.wav         2.2        3.1      1
+            4  file2.wav         5.8        6.8      1
+            5  file2.wav         9.0       13.0      0
+            >>>
+            >>> #Enter file durations into a pandas DataFrame
+            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav'], 'duration':[30.,20.]})
+            >>> 
+            >>> #Create randomly sampled background annotations with fixed 3.0-s length.
+            >>> df_bgr = create_rndm_backgr(df, file_duration=file_dur, annot_len=3.0, num=5) 
+            >>> print(df_bgr.round(2))
+                filename  time_start  time_stop
+            0  file1.wav       21.57      24.57
+            1  file1.wav       24.87      27.87
+            2  file1.wav       16.11      19.11
+            3  file1.wav       20.73      23.73
+            4  file2.wav       14.75      17.75
     """
     # create complement
     c = complement(table=table, file_duration=file_duration)
@@ -590,6 +625,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     # cumulative length 
     cs = c['length'].cumsum().values.astype(float)
     len_tot = cs[-1]
+    cs = np.concatenate(([0],cs))
 
     # output
     filename, time_start, time_stop = [], [], []
@@ -597,13 +633,17 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     # randomply sample
     times = np.random.random_sample(num) * len_tot
     for t in times:
-        idx = np.argmax(t < cs)
+        idx = np.argmax(t < cs) - 1
         row = c.iloc[idx]
         filename.append(row['filename'])
-        t1 = row['time_start']
+        t1 = row['time_start'] + t - cs[idx]
         t2 = t1 + annot_len
         time_start.append(t1)
         time_stop.append(t2)
+
+    # ensure that type is float
+    time_start = np.array(time_start, dtype=float)
+    time_stop = np.array(time_stop, dtype=float)
 
     df = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})    
 

@@ -128,10 +128,12 @@ def test_create_ml_table_step(annot_table_std):
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
 def test_create_rndm_backgr(annot_table_std, file_duration_table):
+    np.random.seed(1)
     df = annot_table_std
     dur = file_duration_table 
-    df_bgr = at.create_rndm_backgr(table=df, file_duration=dur, annot_len=2.0, num=3)
-    assert len(df_bgr) == 3
+    num = 5
+    df_bgr = at.create_rndm_backgr(table=df, file_duration=dur, annot_len=2.0, num=num)
+    assert len(df_bgr) == num
     df_c = at.complement(df, dur)
     num_ok = 0
     for i,ri in df_bgr.iterrows():
@@ -142,7 +144,7 @@ def test_create_rndm_backgr(annot_table_std, file_duration_table):
                 and ri['time_stop'] <= rj['time_stop']:
                 num_ok += 1
 
-    assert num_ok == 3
+    assert num_ok == num
 
 def test_complement(annot_table_std, file_duration_table):
     df = annot_table_std
