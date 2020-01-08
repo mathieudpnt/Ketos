@@ -323,21 +323,22 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, discard_long=False,\
-    discard_mixed=True, keep_index=False):
+def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
+    discard_long=False, keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.annotation_table.standardize`.
 
-        The generated annotations have uniform length given by the annot_len argument. Note that 
-        the generated annotations may have negative start times and/or stop times that exceed 
-        the file duration.
+        The generated annotations have uniform length given by the annot_len argument. 
+        
+        Note that the generated annotations may have negative start times and/or stop times 
+        that exceed the file duration.
 
         Annotations longer than the specified length will be cropped, unless the step_size 
         is set to a value larger than 0.
 
-        TODO: Complete implementation of this method
+        Annotations with label -1 are discarded.
 
         Args:
             table: pandas DataFrame
@@ -346,7 +347,9 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
                 Output annotation length in seconds.
             overlap: float
                 Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of annot_len.   
+                annotation, expressed as a fraction of annot_len. This requirement is imposed 
+                on all annotations (labeled 1,2,3,...) except background annotations (labeled 0). 
+                For background annotations, maximum possible overlap (i.e. 1.0) is always required.
             step_size: float
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
@@ -355,8 +358,6 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
                 Center annotations. Default is False.
             discard_long: bool
                 Discard all annotations longer than the output length. Default is False.
-            discard_midex: bool
-                Discard any generated annotation that comprises multiple different labels. Default is True.
             keep_index: bool
                 For each generated annotation, include the index of the original annotation 
                 in the input table from which the new annotation was generated.
@@ -364,6 +365,45 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
         Results:
             table_ml: pandas DataFrame
                 Output annotation table.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.annotation_table import create_ml_table
+            >>> 
+            >>> #Load and inspect the annotations.
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> print(df)
+                filename  time_start  time_stop  label
+            0  file1.wav         7.0        8.1      1
+            1  file1.wav         8.5       12.5      0
+            2  file1.wav        13.1       14.0      1
+            3  file2.wav         2.2        3.1      1
+            4  file2.wav         5.8        6.8      1
+            5  file2.wav         9.0       13.0      0
+            >>>
+            >>> #Create a table with fixed-length annotations, suitable for 
+            >>> #building training/test data for a Machine Learning model.
+            >>> #Set the length to 3.0 sec and require a minimum overlap of 
+            >>> #0.16*3.0=0.48 sec between generated and original annotations.
+            >>> #Also, create multiple time-shifted versions of the same annotation
+            >>> #using a step size of 1.0 sec both backward and forward in time.     
+            >>> df_ml = create_ml_table(df, annot_len=3.0, overlap=0.16, step_size=1.0, center=True, keep_index=True) 
+            >>> print(df_ml.round(2))
+                index   filename label  time_start  time_stop orig_index
+            0       0  file1.wav     1        5.05       8.05          0
+            1       1  file1.wav     1        6.05       9.05          0
+            2       2  file1.wav     1        7.05      10.05          0
+            3       3  file1.wav     0        9.00      12.00          1
+            4       4  file1.wav     1       11.05      14.05          2
+            5       5  file1.wav     1       12.05      15.05          2
+            6       6  file1.wav     1       13.05      16.05          2
+            7       7  file2.wav     1        0.15       3.15          3
+            8       8  file2.wav     1        1.15       4.15          3
+            9       9  file2.wav     1        2.15       5.15          3
+            10     10  file2.wav     1        3.80       6.80          4
+            11     11  file2.wav     1        4.80       7.80          4
+            12     12  file2.wav     1        5.80       8.80          4
+            13     13  file2.wav     0        9.50      12.50          5
     """
     df = table.copy()
     N = len(df)
@@ -373,6 +413,8 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
     # check that input table has expected format
     mis = missing_columns(df, has_time=True)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
+
+    # discard annotations with label -1
 
     # annotation lengths
     df['length'] = df['time_stop'] - df['time_start']
@@ -390,15 +432,17 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
     # create multiple time-shited instances of every annotation
     if step_size > 0:
         df_tmp = df.copy()
-        for index,row in df.iterrows():
+        for _,row in df.iterrows():
             t = row['time_start_new']
-            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, overlap=overlap, step_size=step_size)
+            if row['label'] == 0:
+                ovl = 1
+            else:
+                ovl = overlap
+ 
+            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, overlap=ovl, step_size=step_size)
             df_tmp = pd.concat([df_tmp, df_shift])
 
         df = df_tmp.sort_values(by=['orig_index','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
-
-    if discard_mixed:
-        print(' *** Discard mixed not yet implemented ***')
 
     # drop old/temporary columns, and rename others
     df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
@@ -408,6 +452,12 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False, disc
     # keep old index
     if not keep_index:
         df = df.drop(['orig_index'], axis=1)
+    else:
+        # re-order columns so orig_index appears last
+        cols = df.columns.values.tolist()
+        p = cols.index('orig_index')
+        cols_new = cols[:p] + cols[p+1:] + ['orig_index']
+        df = df[cols_new]
 
     df = df.reset_index()
     return df
@@ -472,7 +522,8 @@ def time_shift(annot, time_ref, annot_len, overlap, step_size):
     return df
 
 def complement(table, file_duration):
-    """ Create a table listing all segments that have not been annotated or discarded.
+    """ Create a table listing all segments that have not been annotated (label 0,1,2,3,...) 
+        or discarded (label -1).
 
         The annotation table must conform to the standard Ketos format and 
         contain call-level annotations, see :func:`data_handling.annotation_table.standardize`.

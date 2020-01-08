@@ -119,12 +119,13 @@ def test_create_ml_table_center(annot_table_std):
 def test_create_ml_table_step(annot_table_std):
     df = annot_table_std
     N = len(df)
+    K = len(df[df['label']==0])
     df_new = at.create_ml_table(df, annot_len=1, center=True, overlap=0, step_size=0.5)
     M = len(df_new)
-    assert M == (2 * int((3.3/2+0.5)/0.5) + 1) * N
+    assert M == (N - K) * (2 * int((3.3/2+0.5)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
     df_new = at.create_ml_table(df, annot_len=1, center=True, overlap=0.4, step_size=0.5)
     M = len(df_new)
-    assert M == (2 * int((3.3/2+0.5-0.4)/0.5) + 1) * N
+    assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
 def test_create_rndm_backgr(annot_table_std, file_duration_table):
     df = annot_table_std
