@@ -436,12 +436,12 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     c = complement(table=table, file_duration=file_duration)
 
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['time-stop'] - c['time_start'] - annot_len
+    c['length'] = c['time_stop'] - c['time_start'] - annot_len
     c = c[c['length'] >= 0]
 
     # cumulative length 
-    cumsum = c['length'].cumsum.values
-    len_tot = cumsum[-1]
+    cs = c['length'].cumsum().values.astype(float)
+    len_tot = cs[-1]
 
     # output
     filename, time_start, time_stop = [], [], []
@@ -449,7 +449,14 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     # randomply sample
     times = np.random.random_sample(num) * len_tot
     for t in times:
-        idx = np.where(t > cumsum) - 1
+        idx = np.argmax(t < cs)
+        row = c.iloc[idx]
+        filename.append(row['filename'])
+        t1 = row['time_start']
+        t2 = t1 + annot_len
+        time_start.append(t1)
+        time_stop.append(t2)
 
+    df = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})    
 
-    return c
+    return df

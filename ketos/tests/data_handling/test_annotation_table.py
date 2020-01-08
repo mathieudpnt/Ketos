@@ -101,7 +101,24 @@ def test_label_occurrence(annot_table_std):
 
 def test_create_ml_table(annot_table_std):
     df = annot_table_std
-    df_new = at.create_ml_table(df, annot_len=1)
+    _ = at.create_ml_table(df, annot_len=1)
+
+def test_create_rndm_backgr(annot_table_std, file_duration_table):
+    df = annot_table_std
+    dur = file_duration_table 
+    df_bgr = at.create_rndm_backgr(table=df, file_duration=dur, annot_len=2.0, num=3)
+    assert len(df_bgr) == 3
+    df_c = at.complement(df, dur)
+    num_ok = 0
+    for i,ri in df_bgr.iterrows():
+        assert ri['time_stop'] - ri['time_start'] == 2.0
+        for j,rj in df_c.iterrows():
+            if ri['filename'] == rj['filename'] and ri['time_start'] >= rj['time_start'] \
+                and ri['time_stop'] <= rj['time_stop']:
+                num_ok += 1
+
+    assert num_ok == 3
+
 
 def test_complement(annot_table_std, file_duration_table):
     df = annot_table_std
