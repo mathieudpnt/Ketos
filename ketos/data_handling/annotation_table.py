@@ -323,14 +323,19 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, long_annot="split",\
-    keep_index=False):
+def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, discard_long=False,\
+    discard_mixed=True, keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.annotation_table.standardize`.
 
-        The generated annotations have uniform length given by the annot_len argument. 
+        The generated annotations have uniform length given by the annot_len argument. Note that 
+        the generated annotations may have negative start times and/or stop times that exceed 
+        the file duration.
+
+        Annotations longer than the specified length will be cropped, unless the step_size 
+        is set to a value larger than 0.
 
         TODO: Complete implementation of this method
 
@@ -346,13 +351,12 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
-            long_annot: str
-                Specify how to handle cases in which the length of the original annotation 
-                exceeds the desired output length. Available options: 
-                    * discard: Discard all annotations longer than the output length
-                    * crop: Crop the original annotation to achieve the desired length
-                    * split: Split the original annotation into multiple annotations
-                Note that the option `crop` is only available if the step_size is 0. 
+            center: bool
+                Center annotations. Default is False.
+            discard_long: bool
+                Discard all annotations longer than the output length. Default is False.
+            discard_midex: bool
+                Discard any generated annotation that comprises multiple different labels. Default is True.
             keep_index: bool
                 For each generated annotation, include the index of the original annotation 
                 in the input table from which the new annotation was generated.
@@ -361,16 +365,42 @@ def create_ml_table(table, annot_len, coverage=0, step_size=0, center=False, lon
             table_ml: pandas DataFrame
                 Output annotation table.
     """
-    df = table
+    df = table.copy()
+    N = len(df)
 
     # check that input table has expected format
     mis = missing_columns(df, has_time=True)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
 
-    #x = label_occurrence(df)
+    # annotation lengths
+    df['length'] = df['time_stop'] - df['time_start']
 
-    table_ml = table
-    return table_ml
+    # discard annotations longer than the requested length
+    if discard_long:
+        df = df[df['length'] <= annot_len]
+
+    # alignment of new annotations relative to original ones
+    if center:
+        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - annot_len)
+    else:
+        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - annot_len)
+
+    if step_size > 0:
+        print(' *** Step size > 0 not yet implemented ***')
+
+    if discard_mixed:
+        print(' *** Discard mixed not yet implemented ***')
+
+    # drop old/temporary columns, and rename others
+    df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
+    df = df.rename(columns={"time_start_new": "time_start"})
+    df['time_stop'] = df['time_start'] + annot_len
+
+    # keep or reset index
+    if not keep_index:
+        df = df.reset_index()
+
+    return df
 
 def complement(table, file_duration):
     """ Create a table listing all segments that have not been annotated or discarded.
@@ -413,9 +443,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
         annotations. Therefore, it is in principle possible that some of the created 
         annotations will overlap, although in practice this will only occur with very 
         small probability, unless the number of requested annotations (num) is very 
-        large and/or the (annotation-free parts of) the data set have limited size.
-
-        TODO: Complete implementation of this method
+        large and/or the (annotation-free part of) the data set is small in size.
 
         Args:
             table: pandas DataFrame

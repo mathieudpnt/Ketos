@@ -99,9 +99,28 @@ def test_label_occurrence(annot_table_std):
     oc_expected = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
     assert oc == oc_expected
 
-def test_create_ml_table(annot_table_std):
+def test_create_ml_table_center(annot_table_std):
     df = annot_table_std
-    _ = at.create_ml_table(df, annot_len=1)
+    # request length shorter than annotations
+    df_new = at.create_ml_table(df, annot_len=1, center=True)
+    for i,r in df_new.iterrows():
+        t1 = r['time_start']
+        t2 = r['time_stop']
+        assert pytest.approx(t1, i + 0.5 * 3.3 - 0.5, abs=0.00001)
+        assert pytest.approx(t2, i + 0.5 * 3.3 + 0.5, abs=0.00001)
+    # request length longer than annotations
+    df_new = at.create_ml_table(df, annot_len=5, center=True)
+    for i,r in df_new.iterrows():
+        t1 = r['time_start']
+        t2 = r['time_stop']
+        assert pytest.approx(t1, i + 0.5 * 3.3 - 2.5, abs=0.00001)
+        assert pytest.approx(t2, i + 0.5 * 3.3 + 2.5, abs=0.00001)
+
+def test_create_ml_table_step(annot_table_std):
+    df = annot_table_std
+    df_new = at.create_ml_table(df, annot_len=1, center=True)
+
+    print(df_new)
 
 def test_create_rndm_backgr(annot_table_std, file_duration_table):
     df = annot_table_std
@@ -111,14 +130,14 @@ def test_create_rndm_backgr(annot_table_std, file_duration_table):
     df_c = at.complement(df, dur)
     num_ok = 0
     for i,ri in df_bgr.iterrows():
-        assert ri['time_stop'] - ri['time_start'] == 2.0
+        dt = ri['time_stop'] - ri['time_start']
+        assert pytest.approx(dt, 2.0, abs=0.001)
         for j,rj in df_c.iterrows():
             if ri['filename'] == rj['filename'] and ri['time_start'] >= rj['time_start'] \
                 and ri['time_stop'] <= rj['time_stop']:
                 num_ok += 1
 
     assert num_ok == 3
-
 
 def test_complement(annot_table_std, file_duration_table):
     df = annot_table_std
