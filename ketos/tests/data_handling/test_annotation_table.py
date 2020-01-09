@@ -103,6 +103,7 @@ def test_create_ml_table_center(annot_table_std):
     df = annot_table_std
     # request length shorter than annotations
     df_new = at.create_ml_table(df, annot_len=1, center=True)
+    assert len(df_new[df_new.label==-1]) == 0
     for i,r in df_new.iterrows():
         t1 = r['time_start']
         t2 = r['time_stop']
