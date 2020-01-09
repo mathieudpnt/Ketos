@@ -323,7 +323,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
+def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
     discard_long=False, keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
@@ -345,15 +345,16 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
                 Input table with call-level annotations.
             annot_len: float
                 Output annotation length in seconds.
-            overlap: float
-                Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of annot_len. This requirement is imposed 
-                on all annotations (labeled 1,2,3,...) except background annotations (labeled 0). 
-                For background annotations, maximum possible overlap (i.e. 1.0) is always required.
             step_size: float
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
+            overlap: float
+                Minimum required overlap between the generated annotation and the original 
+                annotation, expressed as a fraction of annot_len. Only used if step_size > 0. 
+                The requirement is imposed on all annotations (labeled 1,2,3,...) except 
+                background annotations (labeled 0) which are always required to have an 
+                overlap of 1.0.
             center: bool
                 Center annotations. Default is False.
             discard_long: bool
@@ -387,7 +388,7 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
             >>> #0.16*3.0=0.48 sec between generated and original annotations.
             >>> #Also, create multiple time-shifted versions of the same annotation
             >>> #using a step size of 1.0 sec both backward and forward in time.     
-            >>> df_ml = create_ml_table(df, annot_len=3.0, overlap=0.16, step_size=1.0, center=True, keep_index=True) 
+            >>> df_ml = create_ml_table(df, annot_len=3.0, step_size=1.0, overlap=0.16, center=True, keep_index=True) 
             >>> print(df_ml.round(2))
                 index   filename label  time_start  time_stop orig_index
             0       0  file1.wav     1        5.05       8.05          0
@@ -464,7 +465,7 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
     df = df.reset_index()
     return df
 
-def time_shift(annot, time_ref, annot_len, overlap, step_size):
+def time_shift(annot, time_ref, annot_len, step_size, overlap):
     """ Create multiple instances of the same annotation by stepping in time, both 
         forward and backward.
 
@@ -475,13 +476,13 @@ def time_shift(annot, time_ref, annot_len, overlap, step_size):
                 Reference time used as starting point for the stepping.
             annot_len: float
                 Output annotation length in seconds.
-            overlap: float
-                Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of annot_len.   
             step_size: float
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
+            overlap: float
+                Minimum required overlap between the generated annotation and the original 
+                annotation, expressed as a fraction of annot_len.   
 
         Results:
             df: pandas DataFrame

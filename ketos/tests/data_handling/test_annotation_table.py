@@ -123,17 +123,21 @@ def test_create_ml_table_removes_discarded_annotations(annot_table_std):
     assert len(df_new[df_new.label==-1]) == 0
 
 def test_create_ml_table_enforces_overlap(annot_table_std):
+    np.random.seed(3)
     df = annot_table_std
-    # request length shorter than annotations
-    df_new = at.create_ml_table(df, annot_len=1.2, overlap=0.4, keep_index=True)
+    # requested length: 5.0 sec
+    # all annotations have length: 3.3 sec  (3.3/5.0=0.66)
+    annot_len = 5.0
+    overlap = 0.5
+    df_new = at.create_ml_table(df, annot_len=annot_len, overlap=overlap, keep_index=True)
     for i,r in df_new.iterrows():
         t1 = r['time_start']
         t2 = r['time_stop']
         idx = r['orig_index']
         t1_orig = df.loc[idx]['time_start']
         t2_orig = df.loc[idx]['time_stop']
-        assert t2 >= t1_orig + 0.4*1.2
-        assert t1 <= t2_orig - 0.4*1.2
+        assert t2 >= t1_orig + overlap * annot_len
+        assert t1 <= t2_orig - overlap * annot_len
 
 def test_create_ml_table_step(annot_table_std):
     df = annot_table_std
