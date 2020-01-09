@@ -36,8 +36,7 @@ import math
 import errno
 import tables
 from subprocess import call
-import scipy.io.wavfile as wave
-import ketos.external.wavfile as wave_bit
+import soundfile as sf
 from ketos.utils import tostring
 import datetime
 import datetime_glob
@@ -262,10 +261,8 @@ def read_wave(file, channel=0):
             >>> len(data)/rate
             120.832
     """
-    try:
-        rate, signal, _ = wave_bit.read(file)
-    except TypeError:
-        rate, signal = wave.read(file)
+    signal, rate = sf.read(file)
+    
            
     if len(signal.shape) == 2:
         data = signal[:, channel]
