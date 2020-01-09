@@ -406,8 +406,6 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
             13     13  file2.wav     0        9.50      12.50          5
     """
     df = table.copy()
-    N = len(df)
-
     df['orig_index'] = df.index.copy()
         
     # check that input table has expected format
@@ -416,6 +414,9 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
 
     # discard annotations with label -1
     df = df[df['label'] != -1]
+
+    # number of annotations
+    N = len(df)
 
     # annotation lengths
     df['length'] = df['time_stop'] - df['time_start']
