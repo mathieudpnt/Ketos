@@ -475,7 +475,7 @@ def parse_seg_name(seg_name):
 
     """
     id, labels = None, None
-    pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
+    pattern=re.compile(r'id_(.+)_(.+)_l_\[(.+)\].*')
     if not pattern.match(seg_name):
        raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
