@@ -415,6 +415,7 @@ def create_ml_table(table, annot_len, overlap=0, step_size=0, center=False,\
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
 
     # discard annotations with label -1
+    df = df[df['label'] != -1]
 
     # annotation lengths
     df['length'] = df['time_stop'] - df['time_start']
