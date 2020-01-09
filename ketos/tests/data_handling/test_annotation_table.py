@@ -118,7 +118,7 @@ def test_create_ml_table_center(annot_table_std):
 
 def test_create_ml_table_step(annot_table_std):
     df = annot_table_std
-    N = len(df)
+    N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
     df_new = at.create_ml_table(df, annot_len=1, center=True, overlap=0, step_size=0.5)
     M = len(df_new)
