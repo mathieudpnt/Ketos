@@ -24,19 +24,15 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" annotation_table module within the ketos library
+""" annotation_table module within the ketos library.
 
     This module provides functions to create and modify annotation tables. 
-
     A Ketos annotation table always contains the columns 'filename' and 'label'.
-
     For call-level annotations, the table also contains the columns 'time_start' 
     and 'time_stop', giving the start and end time of the call measured in seconds 
     since the beginning of the file. 
-    
     The table may also contain the columns 'freq_min' and 'freq_max', giving the 
-    minimum and maximum frequencies of the call in Hz, but this is not required.
-    
+    minimum and maximum frequencies of the call in Hz, but this is not required.    
     The user may add any number of additional columns.
 """
 
