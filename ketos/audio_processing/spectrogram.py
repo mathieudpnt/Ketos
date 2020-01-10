@@ -1797,7 +1797,6 @@ class Spectrogram(AnnotationHandler):
             >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
             >>> # show image
             >>> spec.plot()
-
             <Figure size 600x400 with 2 Axes>
             
             >>> plt.show()
