@@ -36,13 +36,13 @@ import math
 import errno
 import tables
 from subprocess import call
-import scipy.io.wavfile as wave
-import ketos.external.wavfile as wave_bit
+import soundfile as sf
 from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
 from ketos.data_handling.parsing import SpectrogramConfiguration
+import soundfile
 
 
 def rel_path_unix(path, start=None):
@@ -261,10 +261,8 @@ def read_wave(file, channel=0):
             >>> len(data)/rate
             120.832
     """
-    try:
-        rate, signal, _ = wave_bit.read(file)
-    except TypeError:
-        rate, signal = wave.read(file)
+    signal, rate = sf.read(file)
+    
            
     if len(signal.shape) == 2:
         data = signal[:, channel]
@@ -477,7 +475,7 @@ def parse_seg_name(seg_name):
 
     """
     id, labels = None, None
-    pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
+    pattern=re.compile(r'id_(.+)_(.+)_l_\[(.+)\].*')
     if not pattern.match(seg_name):
        raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
@@ -593,7 +591,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         if verbose:
             print("Creating segment......", path_to_seg)
-        librosa.output.write_wav(path_to_seg, sig, rate)
+        soundfile.write(path_to_seg, sig, rate)
 
 def _filter_annotations_by_filename(annotations, filename):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
@@ -744,7 +742,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     """
     out_seg = os.path.join(save_to, name)
     sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
-    librosa.output.write_wav(out_seg, sig, rate)
+    soundfile.write(out_seg, sig, rate)
 
 
 def segs_from_annotations(annotations, save_to):
