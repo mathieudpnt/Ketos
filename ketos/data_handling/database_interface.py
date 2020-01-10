@@ -47,6 +47,25 @@ from psutil import virtual_memory
 
 
 def open_file(path, mode):
+    """ Open an HDF5 database file.
+
+        Wrapper function around tables.open_file: 
+        https://www.pytables.org/usersguide/libref/top_level.html
+        
+        Args:
+            path: str
+                The file's full path.
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    * ’r’: Read-only; no data can be modified.
+                    * ’w’: Write; a new file is created (an existing file with the same name would be deleted).
+                    * ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    * ’r+’: It is similar to ‘a’, but the file must already exist.
+
+        Returns:
+            h5file: table.File object
+                The h5file.
+    """
     h5file = tables.open_file(path, mode)
     return h5file
 
@@ -160,7 +179,6 @@ def create_table_new(h5file, path, name, description, chunkshape=None, verbose=F
         table = h5file.create_table(group, "{0}".format(name), description, filters=filters, chunkshape=chunkshape)
 
     return table
-
 
 def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
     """ Create a new table.
