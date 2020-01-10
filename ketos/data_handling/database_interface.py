@@ -171,6 +171,103 @@ def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None,
 
     return table
 
+
+def table_description_new(data_shape, annot_type='weak', num_annot=1, freq_range=False, track_source=True, filename_len=100):
+    """ Create HDF5 table structure description.
+
+        The annotation type must be specified as either 'weak' or 'strong'.
+
+        An audio segment or spectrogram is said to be 'weakly annotated', if it is  assigned a single 
+        (integer) label, and is said to be 'strongly annotated', if it is assigned one or several 
+        labels, each accompanied by a start and stop time, and potentially also a minimum and maximum 
+        frequecy.
+
+        Args:
+            data_shape: tuple (ints) or numpy array
+                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
+                to be stored in the table. Optionally, a third integer can be added if the 
+                spectrogram has multiple channels (n_rows, n_cols, n_channels). 
+                If a numpy array is provided, the shape is deduced from this array.
+            annot_type: str
+                The annotation type. Permitted values are 'weak' and 'strong'. 
+            num_annot: int
+                Maximum number of annotations allowed per audio signal or spectrogram. 
+                Only used for strong annotations.
+            freq_range: bool
+                Set to True, if your annotations include frequency range. Otherwise, 
+                set to False (default). Only used for strong annotations.
+            track_source: bool
+                If True, the name of the wav file from which the audio signal or 
+                spectrogram was generated, and the placement within that file, is 
+                saved to the table. Default is True.
+            filename_len: int
+                Maximum allowed length of filename. Only used if track_source is True.
+
+        Attr:
+            data: Float32Col  
+                Column to store arrays with shape defined by the 'shape' argument
+            label: UInt8Col
+                Column to store integer labels
+            time_start: Float64Col
+                Column to store annotation start time in seconds.
+            time_stop: Float64Col
+                Column to store annotation stop time in seconds.
+            freq_min: Float32Col
+                Column to store annotation minimum frequency in Hz.
+            freq_max: Float32Col
+                Column to store annotation maximum frequency in Hz.
+            filename: StringCol
+                Column to store filenames
+            offset: Float64Col
+                Column temporal offset in seconds with respect to beginning of wav file.
+
+        Results:
+            TableDescription: class (tables.IsDescription)
+                The class describing the table structure, to be used when creating tables to store audio signals or spectrograms.
+
+    """
+#        Examples:
+#            >>> import numpy as np
+#            >>> from ketos.data_handling.database_interface import table_description_new
+#            >>> 
+#            >>> #Create an 64 x 20 spectrogram
+#            >>> spec = np.random.random_sample((64,20))
+#            >>>
+#            >>> #Create a table description for weakly labelled spectrograms of this shape
+#            >>> descr =  table_description_new(spec)
+#            >>>
+#            >>> #Inspect the table structure
+#            >>> descr.columns
+#            >>> {'filename': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'offset': Float64Col(shape=(), dflt=0.0, pos=None), 'label': UInt8Col(shape=(), dflt=0, pos=None)}
+    assert annot_type in ['weak','strong'], 'Invalid annotation type. Permitted types are weak and strong.'
+
+    if isinstance(data_shape, np.ndarray):
+        data_shape = data_shape.shape
+
+    class TableDescription_new(tables.IsDescription):
+            data = tables.Float32Col(data_shape)
+
+            if annot_type == 'weak':
+                label = tables.UInt8Col()
+
+            elif annot_type == 'strong':
+                label = tables.UInt8Col(num_annot)
+
+                time_start = tables.Float64Col(num_annot)
+                time_stop = tables.Float64Col(num_annot)
+
+                if freq_range:
+                    freq_min = tables.Float32Col(num_annot)
+                    freq_max = tables.Float32Col(num_annot)
+
+            if track_source:
+                filename = tables.StringCol(filename_len)
+                offset = tables.Float64Col()
+    
+    return TableDescription_new
+
+
+
 def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
     """ Create the class that describes the table structure for the HDF5 database.
 
@@ -217,8 +314,6 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
             >>> descr =  table_description(shape=(64,20))
             >>> descr.columns
             {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
-
-
     """
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(id_len)
