@@ -372,7 +372,7 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
             >>> from ketos.data_handling.annotation_table import create_ml_table
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1
@@ -470,8 +470,8 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
         forward and backward.
 
         Args:
-            annot: pandas Series
-                Reference annotation. Must contain the labels 'time_start' and 'time_stop'.
+            annot: pandas Series or dict
+                Reference annotation. Must contain the labels/keys 'time_start' and 'time_stop'.
             time_ref: float
                 Reference time used as starting point for the stepping.
             annot_len: float
@@ -486,9 +486,36 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
 
         Results:
             df: pandas DataFrame
-                Output annotation table.
+                Output annotation table. The start times of the new, shifted annotations are 
+                stored in the column 'time_start_new'.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.annotation_table import time_shift
+            >>> 
+            >>> #Create a single 2-s long annotation
+            >>> annot = {'filename':'file1.wav', 'label':1, 'time_start':12.0, 'time_stop':14.0}
+            >>>
+            >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
+            >>> #overlap by at least 50% with the original 2-s annotation 
+            >>> df = time_shift(annot, time_ref=13.0, annot_len=1.0, step_size=0.2, min_overlap=0.5)
+            >>> print(df.round(2))
+                filename  label  time_start  time_stop  time_start_new
+            0  file1.wav      1        12.0       14.0            11.6
+            1  file1.wav      1        12.0       14.0            11.8
+            2  file1.wav      1        12.0       14.0            12.0
+            3  file1.wav      1        12.0       14.0            12.2
+            4  file1.wav      1        12.0       14.0            12.4
+            5  file1.wav      1        12.0       14.0            12.6
+            6  file1.wav      1        12.0       14.0            12.8
+            7  file1.wav      1        12.0       14.0            13.2
+            8  file1.wav      1        12.0       14.0            13.4
     """
-    row = annot.copy()
+    if isinstance(annot, dict):
+        row = pd.Series(annot)
+    elif isinstance(annot, pd.Series):
+        row = annot.copy()
+    
     row['time_start_new'] = np.nan
     
     t = time_ref
@@ -521,6 +548,9 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
 
     # create DataFrame
     df = pd.DataFrame(rows_new)
+
+    # sort according to new start time
+    df = df.sort_values(by=['time_start_new'], axis=0, ascending=[True]).reset_index(drop=True)
 
     return df
 
@@ -595,7 +625,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
             >>> np.random.seed(3)
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1
