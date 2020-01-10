@@ -24,19 +24,15 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" annotation_table module within the ketos library
+""" annotation_table module within the ketos library.
 
     This module provides functions to create and modify annotation tables. 
-
     A Ketos annotation table always contains the columns 'filename' and 'label'.
-
     For call-level annotations, the table also contains the columns 'time_start' 
     and 'time_stop', giving the start and end time of the call measured in seconds 
     since the beginning of the file. 
-    
     The table may also contain the columns 'freq_min' and 'freq_max', giving the 
-    minimum and maximum frequencies of the call in Hz, but this is not required.
-    
+    minimum and maximum frequencies of the call in Hz, but this is not required.    
     The user may add any number of additional columns.
 """
 
@@ -323,7 +319,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
+def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_index=False):
     """ Generate an annotation table suitable for training/testing a machine-learning model.
 
@@ -349,7 +345,7 @@ def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
-            overlap: float
+            min_overlap: float
                 Minimum required overlap between the generated annotation and the original 
                 annotation, expressed as a fraction of annot_len. Only used if step_size > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
@@ -372,7 +368,7 @@ def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
             >>> from ketos.data_handling.annotation_table import create_ml_table
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1
@@ -388,7 +384,7 @@ def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
             >>> #0.16*3.0=0.48 sec between generated and original annotations.
             >>> #Also, create multiple time-shifted versions of the same annotation
             >>> #using a step size of 1.0 sec both backward and forward in time.     
-            >>> df_ml = create_ml_table(df, annot_len=3.0, step_size=1.0, overlap=0.16, center=True, keep_index=True) 
+            >>> df_ml = create_ml_table(df, annot_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_index=True) 
             >>> print(df_ml.round(2))
                 index   filename label  time_start  time_stop orig_index
             0       0  file1.wav     1        5.05       8.05          0
@@ -440,9 +436,9 @@ def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
             if row['label'] == 0:
                 ovl = 1
             else:
-                ovl = overlap
+                ovl = min_overlap
  
-            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, overlap=ovl, step_size=step_size)
+            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, min_overlap=ovl, step_size=step_size)
             df_tmp = pd.concat([df_tmp, df_shift])
 
         df = df_tmp.sort_values(by=['orig_index','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
@@ -465,13 +461,17 @@ def create_ml_table(table, annot_len, step_size=0, overlap=0, center=False,\
     df = df.reset_index()
     return df
 
-def time_shift(annot, time_ref, annot_len, step_size, overlap):
+def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
     """ Create multiple instances of the same annotation by stepping in time, both 
         forward and backward.
 
+        The new instances are returned in a pandas DataFrame with the same columns as the 
+        input annotation, plus a column named 'time_start_new' containing the start times 
+        of the new instances.
+
         Args:
-            annot: pandas Series
-                Reference annotation. Must contain the labels 'time_start' and 'time_stop'.
+            annot: pandas Series or dict
+                Reference annotation. Must contain the labels/keys 'time_start' and 'time_stop'.
             time_ref: float
                 Reference time used as starting point for the stepping.
             annot_len: float
@@ -480,23 +480,50 @@ def time_shift(annot, time_ref, annot_len, step_size, overlap):
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
-            overlap: float
+            min_overlap: float
                 Minimum required overlap between the generated annotation and the original 
                 annotation, expressed as a fraction of annot_len.   
 
         Results:
             df: pandas DataFrame
-                Output annotation table.
+                Output annotation table. The start times of the time-shifted annotations are 
+                stored in the column 'time_start_new'.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.annotation_table import time_shift
+            >>> 
+            >>> #Create a single 2-s long annotation
+            >>> annot = {'filename':'file1.wav', 'label':1, 'time_start':12.0, 'time_stop':14.0}
+            >>>
+            >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
+            >>> #overlap by at least 50% with the original 2-s annotation 
+            >>> df = time_shift(annot, time_ref=13.0, annot_len=1.0, step_size=0.2, min_overlap=0.5)
+            >>> print(df.round(2))
+                filename  label  time_start  time_stop  time_start_new
+            0  file1.wav      1        12.0       14.0            11.6
+            1  file1.wav      1        12.0       14.0            11.8
+            2  file1.wav      1        12.0       14.0            12.0
+            3  file1.wav      1        12.0       14.0            12.2
+            4  file1.wav      1        12.0       14.0            12.4
+            5  file1.wav      1        12.0       14.0            12.6
+            6  file1.wav      1        12.0       14.0            12.8
+            7  file1.wav      1        12.0       14.0            13.2
+            8  file1.wav      1        12.0       14.0            13.4
     """
-    row = annot.copy()
+    if isinstance(annot, dict):
+        row = pd.Series(annot)
+    elif isinstance(annot, pd.Series):
+        row = annot.copy()
+    
     row['time_start_new'] = np.nan
     
     t = time_ref
     t1 = row['time_start']
     t2 = row['time_stop']
 
-    t_min = t1 - (1 - overlap) * annot_len
-    t_max = t2 - overlap * annot_len
+    t_min = t1 - (1 - min_overlap) * annot_len
+    t_max = t2 - min_overlap * annot_len
 
     num_steps_back = int(np.floor((t - t_min) / step_size))
     num_steps_forw = int(np.floor((t_max - t) / step_size))
@@ -522,6 +549,9 @@ def time_shift(annot, time_ref, annot_len, step_size, overlap):
     # create DataFrame
     df = pd.DataFrame(rows_new)
 
+    # sort according to new start time
+    df = df.sort_values(by=['time_start_new'], axis=0, ascending=[True]).reset_index(drop=True)
+
     return df
 
 def complement(table, file_duration):
@@ -541,6 +571,22 @@ def complement(table, file_duration):
         Results:
             table_compl: pandas DataFrame
                 Output table.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.annotation_table import complement
+            >>> #Create annotation table
+            >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'time_start':[2.0, 7.5], 'time_stop':[3.1, 9.0]})
+            >>> #Create file duration table
+            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav'], 'duration':[10.0, 20.0]})
+            >>> #Create complement table
+            >>> df_c = complement(df, dur)
+            >>> print(df_c.round(2))
+                filename  time_start  time_stop
+            0  file1.wav         0.0        2.0
+            1  file1.wav         3.1        7.5
+            2  file1.wav         9.0       10.0
+            3  file2.wav         0.0       20.0
     """   
     df = table
 
@@ -557,6 +603,10 @@ def complement(table, file_duration):
             filename.append(fname)
             time_start.append(x[0])
             time_stop.append(x[1])
+
+    # ensure that type is float
+    time_start = np.array(time_start, dtype=float)
+    time_stop = np.array(time_stop, dtype=float)
 
     df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
     return df_out
@@ -595,7 +645,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
             >>> np.random.seed(3)
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1

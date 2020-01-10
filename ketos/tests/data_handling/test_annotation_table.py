@@ -129,7 +129,7 @@ def test_create_ml_table_enforces_overlap(annot_table_std):
     # all annotations have length: 3.3 sec  (3.3/5.0=0.66)
     annot_len = 5.0
     overlap = 0.5
-    df_new = at.create_ml_table(df, annot_len=annot_len, overlap=overlap, keep_index=True)
+    df_new = at.create_ml_table(df, annot_len=annot_len, min_overlap=overlap, keep_index=True)
     for i,r in df_new.iterrows():
         t1 = r['time_start']
         t2 = r['time_stop']
@@ -143,10 +143,10 @@ def test_create_ml_table_step(annot_table_std):
     df = annot_table_std
     N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
-    df_new = at.create_ml_table(df, annot_len=1, center=True, overlap=0, step_size=0.5)
+    df_new = at.create_ml_table(df, annot_len=1, center=True, min_overlap=0, step_size=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
-    df_new = at.create_ml_table(df, annot_len=1, center=True, overlap=0.4, step_size=0.5)
+    df_new = at.create_ml_table(df, annot_len=1, center=True, min_overlap=0.4, step_size=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
