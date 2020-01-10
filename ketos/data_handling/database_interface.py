@@ -212,7 +212,7 @@ def table_description_weak_annot():
 
     return TableDescription
 
-def table_description_strong_annot(data_shape, freq_range=False):
+def table_description_strong_annot(freq_range=False):
     """ Table descriptions for strong annotations.
 
         Args:
