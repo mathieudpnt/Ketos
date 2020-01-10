@@ -63,15 +63,16 @@ def test_open_existing_table():
     assert tbl.nrows == 15
     # clean
     h5file.close()
-   
 
 def test_create_table():
     """Test if a table and its group are created"""
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
+    # create table description
+    descr_data, _ = di.table_description_new((32,64))
     # create table
-    _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=(20,60))
+    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
     assert isinstance(group, tables.group.Group)
     table = h5file.get_node("/group_1/table_1")
@@ -79,11 +80,6 @@ def test_create_table():
     # clean
     h5file.close()
     os.remove(fpath)
-
-# def test_open_db():
-#     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-#     h5file = tables.open_file(fpath, 'a')
-
 
 def test_create_table_existing():
     """Test if a table is open when it already exists"""
@@ -99,7 +95,6 @@ def test_create_table_existing():
     # clean
     h5file.close()
     
-
 def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
@@ -170,7 +165,6 @@ def test_write_spec_cqt(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
 def test_extract(sine_audio):
     """ Test if annotations are correctly extracted from spectrograms"""
     # create spectrogram    
@@ -209,8 +203,6 @@ def test_extract(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
-
 def test_parse_labels(sine_audio):
     """Test if labels with the expected format are correctly parsed"""
     # create spectrogram    
@@ -241,7 +233,6 @@ def test_parse_labels(sine_audio):
     h5file.close()
     os.remove(fpath)
     
-
 def test_parse_boxes(sine_audio):
     """Test if boxes with the expected format are correctly parsed"""
     # create spectrogram    
@@ -271,7 +262,6 @@ def test_parse_boxes(sine_audio):
 
     h5file.close()
     os.remove(fpath)
-
 
 def test_filter_by_label(sine_audio):
     """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
@@ -315,7 +305,6 @@ def test_filter_by_label(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
 def test_filter_by_label_raises(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
     # open h5 file
@@ -341,8 +330,6 @@ def test_filter_by_label_raises(sine_audio):
         di.filter_by_label(table=tbl, label=[1.0,2])
    
     h5file.close()
-
-
 
 def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 

@@ -46,6 +46,10 @@ from sys import getsizeof
 from psutil import virtual_memory
 
 
+def open_file(path, mode):
+    h5file = tables.open_file(path, mode)
+    return h5file
+
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
         
@@ -75,8 +79,7 @@ def open_table(h5file, table_path):
             >>> # with 15 items (rows)
             >>> data.nrows
             15
-            >>> h5file.close()
-        
+            >>> h5file.close()       
     """
     try:
        table = h5file.get_node(table_path)
@@ -87,6 +90,77 @@ def open_table(h5file, table_path):
         table = None
 
     return table
+
+def create_table_new(h5file, path, name, description, chunkshape=None, verbose=False):
+    """ Create a new table.
+        
+        If the table already exists, open it.
+
+        Args:
+            h5file: tables.file.File object
+                HDF5 file handler.
+            path: str
+                The group where the table will be located. Ex: '/features/spectrograms'
+            name: str
+                The name of the table.
+            table_description: class (tables.IsDescription)
+                The class describing the table structure.            
+            chunkshape: tuple
+                The chunk shape to be used for compression
+
+        Returns:
+            table: table.Table object
+                The created/open table.    
+
+        Examples:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_file, table_description_new, create_table_new
+            >>> # Open a connection to the database
+            >>> h5file = open_file("ketos/tests/assets/tmp/database1.h5", 'w')
+            >>> # Create table descriptions for weakly labeled spectrograms with shape (32,64)
+            >>> descr_data, descr_annot = table_description_new((32,64))
+            >>> # Create 'table_data' within 'group1'
+            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr_data) 
+            >>> # Show the table description, with the field names (columns)
+            >>> # and information about types and shapes
+            >>> my_table
+            /group1/table_data (Table(0,), fletcher32, shuffle, zlib(1)) ''
+              description := {
+              "data": Float32Col(shape=(32, 64), dflt=0.0, pos=0),
+              "filename": StringCol(itemsize=100, shape=(), dflt=b'', pos=1),
+              "id": UInt32Col(shape=(), dflt=0, pos=2),
+              "offset": Float64Col(shape=(), dflt=0.0, pos=3)}
+              byteorder := 'little'
+              chunkshape := (15,)
+            >>> # Close the HDF5 database file
+            >>> h5file.close()            
+    """
+    try:
+       group = h5file.get_node(path)
+    
+    except tables.NoSuchNodeError:
+        if verbose:
+            print("group '{0}' not found. Creating it now...".format(path))
+    
+        if path.endswith('/'): 
+            path = path[:-1]
+
+        group_name = os.path.basename(path)
+        path_to_group = path.split(group_name)[0]
+        if path_to_group.endswith('/'): 
+            path_to_group = path_to_group[:-1]
+        
+        group = h5file.create_group(path_to_group, group_name, createparents=True)
+        
+    try:
+        table = h5file.get_node("{0}/{1}".format(path, name))
+    
+    except tables.NoSuchNodeError:    
+        filters = tables.Filters(complevel=1, fletcher32=True)
+        table = h5file.create_table(group, "{0}".format(name), description, filters=filters, chunkshape=chunkshape)
+
+    return table
+
 
 def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
     """ Create a new table.
@@ -284,7 +358,7 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
             >>> spec = np.random.random_sample((64,20))
             >>>
             >>> #Create a table description for weakly labeled spectrograms of this shape
-            >>> descr_data, descr_annot =  table_description_new(spec)
+            >>> descr_data, descr_annot = table_description_new(spec)
             >>>
             >>> #Inspect the table structure
             >>> cols = descr_data.columns
