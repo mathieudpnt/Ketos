@@ -39,7 +39,6 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-@pytest.mark.test_open_table
 def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
@@ -53,7 +52,6 @@ def test_open_non_existing_table():
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_open_table
 def test_open_existing_table():
     """ Test if the expected table is open """
     # open h5 file
@@ -67,7 +65,6 @@ def test_open_existing_table():
     h5file.close()
    
 
-@pytest.mark.test_create_table
 def test_create_table():
     """Test if a table and its group are created"""
     # open h5 file
@@ -83,7 +80,11 @@ def test_create_table():
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_create_table
+# def test_open_db():
+#     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+#     h5file = tables.open_file(fpath, 'a')
+
+
 def test_create_table_existing():
     """Test if a table is open when it already exists"""
     # open h5 file
@@ -99,7 +100,6 @@ def test_create_table_existing():
     h5file.close()
     
 
-@pytest.mark.test_write_spec
 def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
@@ -127,7 +127,6 @@ def test_write_spec(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_write_spec
 def test_write_spec_TypeError(sine_audio):
     """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
     sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
@@ -145,7 +144,6 @@ def test_write_spec_TypeError(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_write_spec
 def test_write_spec_cqt(sine_audio):
     """Test if CQT spectrograms are written with appropriate encoding"""
     # create cqt spectrogram    
@@ -173,7 +171,6 @@ def test_write_spec_cqt(sine_audio):
     os.remove(fpath)
 
 
-@pytest.mark.test_extract
 def test_extract(sine_audio):
     """ Test if annotations are correctly extracted from spectrograms"""
     # create spectrogram    
@@ -214,7 +211,6 @@ def test_extract(sine_audio):
 
 
 
-@pytest.mark.test_parse_labels
 def test_parse_labels(sine_audio):
     """Test if labels with the expected format are correctly parsed"""
     # create spectrogram    
@@ -246,7 +242,6 @@ def test_parse_labels(sine_audio):
     os.remove(fpath)
     
 
-@pytest.mark.test_parse_boxes
 def test_parse_boxes(sine_audio):
     """Test if boxes with the expected format are correctly parsed"""
     # create spectrogram    
@@ -278,7 +273,6 @@ def test_parse_boxes(sine_audio):
     os.remove(fpath)
 
 
-@pytest.mark.filter_by_label
 def test_filter_by_label(sine_audio):
     """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
     # create spectrogram  
@@ -322,7 +316,6 @@ def test_filter_by_label(sine_audio):
     os.remove(fpath)
 
 
-@pytest.mark.filter_by_label
 def test_filter_by_label_raises(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
     # open h5 file
@@ -351,7 +344,6 @@ def test_filter_by_label_raises(sine_audio):
 
 
 
-@pytest.mark.load_specs
 def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
 
@@ -366,7 +358,6 @@ def test_load_specs_no_index_list():
     
     h5file.close()
 
-@pytest.mark.load_specs
 def test_load_specs_with_index_list():
     """Test if load_specs loads the spectrograms specified by index_list""" 
 

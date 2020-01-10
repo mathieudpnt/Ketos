@@ -58,7 +58,6 @@ def frequency_band_without_name_json():
     j = '{"frequency_bands": [{"range": ["11.0Hz", "22.1Hz"]}]}'
     return j
 
-@pytest.mark.test_parse_spectrogram_configuration
 def test_parse_complete_spectrogram_config(spectr_config_json_complete):
     data = json.loads(spectr_config_json_complete)
     cfg = jp.parse_spectrogram_configuration(data['spectrogram'])
@@ -73,7 +72,6 @@ def test_parse_complete_spectrogram_config(spectr_config_json_complete):
     assert cfg.overlap == 0.2
     assert cfg.type == 'Mag'
 
-@pytest.mark.test_parse_spectrogram_configuration
 def test_parse_partial_spectrogram_config(spectr_config_json_partial):
     data = json.loads(spectr_config_json_partial)
     cfg = jp.parse_spectrogram_configuration(data['spectrogram'])
@@ -86,7 +84,6 @@ def test_parse_partial_spectrogram_config(spectr_config_json_partial):
     assert cfg.overlap == None
     assert cfg.type == None
 
-@pytest.mark.test_parse_frequency_bands
 def test_parse_one_frequency_band(one_frequency_band_json):
     data = json.loads(one_frequency_band_json)
     band_name, freq_interval = jp.parse_frequency_bands(data['frequency_bands'])
@@ -95,7 +92,6 @@ def test_parse_one_frequency_band(one_frequency_band_json):
     assert freq_interval[0].low == 11.0
     assert freq_interval[0].high == 22.1
 
-@pytest.mark.test_parse_frequency_bands
 def test_parse_two_frequency_bands(two_frequency_bands_json):
     data = json.loads(two_frequency_bands_json)
     band_name, freq_interval = jp.parse_frequency_bands(data['frequency_bands'])
@@ -104,7 +100,6 @@ def test_parse_two_frequency_bands(two_frequency_bands_json):
     assert freq_interval[1].low == 9000.0
     assert freq_interval[1].high == 10000.0
 
-@pytest.mark.test_parse_frequency_bands
 def test_parse_frequency_band_without_name(frequency_band_without_name_json):
     data = json.loads(frequency_band_without_name_json)
     with pytest.raises(AssertionError):

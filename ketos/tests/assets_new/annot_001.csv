@@ -1,0 +1,8 @@
+filename,time_start,time_stop,label
+file1.wav,7.0,8.1,1
+file1.wav,8.5,12.5,0
+file1.wav,13.1,14.0,1
+file2.wav,2.2,3.1,1
+file2.wav,5.8,6.8,1
+file2.wav,9.0,13.0,0
+

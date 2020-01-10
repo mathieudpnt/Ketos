@@ -35,6 +35,7 @@ import os
 import ast
 import math
 import numpy as np
+import pandas as pd
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
 from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
@@ -43,6 +44,7 @@ from ketos.data_handling.parsing import SpectrogramConfiguration
 from tqdm import tqdm
 from sys import getsizeof
 from psutil import virtual_memory
+
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -215,8 +217,6 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
             >>> descr =  table_description(shape=(64,20))
             >>> descr.columns
             {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
-
-
     """
     class TableDescription(tables.IsDescription):
             id = tables.StringCol(id_len)

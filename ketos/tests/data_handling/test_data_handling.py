@@ -55,7 +55,6 @@ today = datetime.datetime.today()
     (1.0,2,np.array([0,1])),
     (0.0,2,np.array([1,0])),
     ])
-@pytest.mark.test_to1hot
 def test_to1hot_works_with_floats_and_ints(input, depth, expected):
     one_hot = dh.to1hot(input, depth)
     assert (one_hot == expected).all()
@@ -67,7 +66,6 @@ def test_to1hot_works_with_floats_and_ints(input, depth, expected):
     (1,2,np.array([0,1])),
     (1,10,np.array([0,1,0,0,0,0,0,0,0,0])),
     ])
-@pytest.mark.test_to1hot
 def test_to1hot_output_has_correct_depth(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
     assert len(one_hot) == depth
@@ -79,7 +77,6 @@ def test_to1hot_output_has_correct_depth(input,depth, expected):
     (1.0,2,np.array([0,1])),
     (5.0,10,np.array([0,0,0,0,0,1,0,0,0,0])),
     ])
-@pytest.mark.test_to1hot
 def test_to1hot_works_with_multiple_categories(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
     assert (one_hot == expected).all()
@@ -95,7 +92,6 @@ def test_to1hot_works_with_multiple_categories(input,depth, expected):
      np.array([[1., 0., 0.],
                [0., 1., 0.]])),
     ])
-@pytest.mark.test_to1hot
 def test_to1hot_works_with_multiple_input_values_at_once(input,depth, expected):
     one_hot = dh.to1hot(input,depth)
     assert (one_hot == expected).all()
@@ -110,14 +106,14 @@ def test_to1hot_works_with_multiple_input_values_at_once(input,depth, expected):
                 [0.0, 1.0],
                 [1.0, 0.0]]),)
     ])
-@pytest.mark.test_to1hot
+
 def test_to1hot_works_when_when_applying_to_DataFrame(input,depth, expected):
      
     one_hot = input["label"].apply(dh.to1hot,depth=depth)
     for i in range(len(one_hot)):
         assert (one_hot[i] == expected[i]).all()
 
-@pytest.mark.test_find_wave_files
+
 def test_find_wave_files():
     dir = os.path.join(path_to_assets,'test_find_wave_files')
     #delete directory and files within
@@ -181,7 +177,7 @@ def test_find_wave_files_from_multiple_folders():
     (np.array([0.0,1.0]),1),
     (np.array([1.0,0.0]),0),
     ])
-@pytest.mark.test_from1hot
+
 def test_from1hot_works_with_floats_and_ints(input, expected):
     one_hot = dh.from1hot(input)
     assert one_hot == expected
@@ -193,7 +189,7 @@ def test_from1hot_works_with_floats_and_ints(input, expected):
     (np.array([0,1]),1),
     (np.array([0,0,0,0,0,1,0,0,0,0]),5),
     ])
-@pytest.mark.test_from1hot
+
 def test_from1hot_works_with_multiple_categories(input, expected):
     one_hot = dh.from1hot(input)
     assert one_hot == expected
@@ -207,17 +203,17 @@ def test_from1hot_works_with_multiple_categories(input, expected):
     (np.array([[1., 0., 0.],
                [0., 1., 0.]]), np.array([0,1])),
     ])
-@pytest.mark.test_from1hot
+
 def test_from1hot_works_with_multiple_input_values_at_once(input, expected):
     one_hot = dh.from1hot(input)
     assert (one_hot == expected).all()
 
-@pytest.mark.test_read_wave
+
 def test_read_wave_file(sine_wave_file):
     rate, data = dh.read_wave(sine_wave_file)
     assert rate == 44100
 
-@pytest.mark.test_parse_datetime
+
 def test_parse_datetime_with_urban_sharks_format():
     fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
@@ -233,7 +229,7 @@ def test_parse_datetime_with_urban_sharks_format():
     assert dt.minute == 5
     assert dt.second == 28
 
-@pytest.mark.test_parse_datetime
+
 def test_parse_datetime_with_non_matching_format():
     fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
@@ -244,7 +240,6 @@ def test_parse_datetime_with_non_matching_format():
     assert dt == None
 
 
-@pytest.mark.parse_seg_name
 def test_parse_seg_name():
     id,labels = dh.parse_seg_name('id_rb001_89_l_[0].wav')
     assert id == 'rb001_89'
@@ -263,7 +258,6 @@ def test_parse_seg_name():
     assert labels == '[1,2]' 
 
 
-@pytest.mark.test_divide_audio_into_segments
 def test_creates_correct_number_of_segments():
     audio_file = path_to_assets + "/2min.wav"
     annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
@@ -286,7 +280,6 @@ def test_creates_correct_number_of_segments():
     shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
-@pytest.mark.test_divide_audio_into_segments
 def test_start_end_args():
     audio_file = path_to_assets+ "/2min.wav"
     _= pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
@@ -308,7 +301,6 @@ def test_start_end_args():
 
     shutil.rmtree(path_to_tmp + "/2s_segs")
 
-@pytest.mark.test_divide_audio_into_segments
 def test_seg_labels_are_correct():
     audio_file = path_to_assets+ "/2min.wav"
     annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
@@ -335,7 +327,6 @@ def test_seg_labels_are_correct():
     shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
-@pytest.mark.test_divide_audio_into_segments
 def test_creates_segments_without_annotations():
     audio_file = path_to_assets+ "/2min.wav"
     
@@ -353,7 +344,6 @@ def test_creates_segments_without_annotations():
     shutil.rmtree(path_to_tmp + "/2s_segs")
 
 
-@pytest.mark.test_seg_from_time_tag
 def test_seg_from_time_tag():
 
     
@@ -374,7 +364,6 @@ def test_seg_from_time_tag():
     assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
 
-@pytest.mark.test_seg_from_annotations
 def test_segs_from_annotations():
     audio_file_path = os.path.join(path_to_assets,'2min.wav')
     annotations = pd.DataFrame({'filename':[audio_file_path,audio_file_path,audio_file_path],
@@ -410,7 +399,7 @@ def test_segs_from_annotations():
     (99.0,103.0,'[2]'),
     (90.0,110.0,'[2, 1]'),
      ])
-@pytest.mark.test_get_labels
+
 def test_get_correct_labels(start,end,expected_label):
     audio_file="2min"
     annotations = pd.DataFrame({'filename':['2min.wav','2min.wav','2min.wav'],
@@ -422,7 +411,7 @@ def test_get_correct_labels(start,end,expected_label):
     print(label)
     assert label == expected_label
     
-@pytest.mark.test_filter_annotations_by_filename
+
 def test_filter_annotations_by_filename():
      annotations = pd.DataFrame({'filename':['2min_01.wav','2min_01.wav','2min_02.wav','2min_02.wav','2min_02.wav'],
                                  'label':[1,2,1,1,1], 'start':[5.0, 100.5, 105.0, 80.0, 90.0],
@@ -441,9 +430,8 @@ def test_filter_annotations_by_filename():
      annot_03 = dh._filter_annotations_by_filename(annotations,'2min_03')               
      assert annot_03.empty
  
-@pytest.mark.test_pad_signal
-def test_pad_signal():
 
+def test_pad_signal():
     sig=np.ones((100))
     rate = 50 
     desired_length = 3.0

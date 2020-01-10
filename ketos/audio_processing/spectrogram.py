@@ -710,6 +710,7 @@ class Spectrogram(AnnotationHandler):
                 >>> # show the spectrogram with the annotation that has label=1
                 >>> fig = spec.plot(label=1)
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_label1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_label1.png
 
@@ -1124,6 +1125,7 @@ class Spectrogram(AnnotationHandler):
                 >>> # show the spectrogram with the annotation that has label=1
                 >>> fig = spec.plot(label=1)
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
+                >>> plt.close(fig)
                 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
                 
@@ -1131,6 +1133,7 @@ class Spectrogram(AnnotationHandler):
                 >>> spec.crop(tlow=2.1, thigh=5.6, flow=275, fhigh=406, keep_time=True)
                 >>> fig = spec.plot(label=1)
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
 
@@ -1252,6 +1255,7 @@ class Spectrogram(AnnotationHandler):
                 >>> # show the spectrogram with the annotation that has label=1
                 >>> fig = spec.plot(label=1)
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
+                >>> plt.close(fig)
                 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
                 
@@ -1260,8 +1264,10 @@ class Spectrogram(AnnotationHandler):
                 >>> # display the extracted region and what is left
                 >>> fig = roi[0].plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_extracted.png")
+                >>> plt.close(fig)
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_left.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_extracted.png
 
@@ -1340,10 +1346,13 @@ class Spectrogram(AnnotationHandler):
                 >>> # display the segments
                 >>> fig = segs[0].plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/segs_1.png")
+                >>> plt.close(fig)
                 >>> fig = segs[1].plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/segs_2.png")
+                >>> plt.close(fig)
                 >>> fig = segs[2].plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/segs_3.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/segs_1.png
 
@@ -1642,11 +1651,13 @@ class Spectrogram(AnnotationHandler):
                 >>> # show spectrogram as is
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
+                >>> plt.close(fig)
                 >>> # tonal noise reduction
                 >>> spec.tonal_noise_reduction()
                 >>> # show modified spectrogram
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
 
@@ -1789,6 +1800,7 @@ class Spectrogram(AnnotationHandler):
             <Figure size 600x400 with 2 Axes>
             
             >>> plt.show()
+            >>> plt.close()
             >>> # apply very small amount (0.01 sec) of horizontal blur
             >>> # and significant amount of vertical blur (30 Hz)  
             >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
@@ -1797,6 +1809,7 @@ class Spectrogram(AnnotationHandler):
             <Figure size 600x400 with 2 Axes>
 
             >>> plt.show()
+            >>> plt.close()
             
             .. image:: ../../_static/morlet_spectrogram.png
 
@@ -1867,6 +1880,7 @@ class Spectrogram(AnnotationHandler):
                     the effect.
 
             Example:
+                >>> import matplotlib.pyplot as plt
                 >>> # read audio file
                 >>> from ketos.audio_processing.audio import AudioSignal
                 >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
@@ -1883,11 +1897,13 @@ class Spectrogram(AnnotationHandler):
                 >>> # show orignal spectrogram
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/grunt1_orig.png")
+                >>> plt.close(fig)
                 >>> # place the tonal-noise-corrected and cropped spectrogram on top of 
                 >>> # the original spectrogram, shifted by 1.8 seconds
                 >>> spec.add(spec_copy, delay=1.8)
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/grunt1_added.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
 
@@ -2906,8 +2922,9 @@ class CQTSpectrogram(Spectrogram):
                 Use logarithmic (decibel) scale.
             tag: str
                 Identifier, typically the name of the wave file used to generate the spectrogram.
-                If no tag is provided, the tag from the audio_signal will be used.
+                If no tag is provided, the tag from the audio_signal will be used. 
     """
+
     def __init__(self, audio_signal=None, image=np.zeros((2,2)), fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
                  flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
 

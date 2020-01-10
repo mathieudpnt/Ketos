@@ -1,4 +1,4 @@
-image: oliskir/ketos:v1.0.9
+image: meridiancfi/ketos:v2.0.0b0
 
 stages:
 - build
@@ -14,7 +14,7 @@ after_script:
 run-tests:
  type: test
  script:
-  - pytest --doctest-modules
+  - pytest --doctest-modules --ignore=docs
 
 create-docs:
  type: deploy

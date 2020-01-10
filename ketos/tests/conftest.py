@@ -31,10 +31,8 @@ import numpy as np
 import scipy.signal as sg
 import pandas as pd
 import ketos.audio_processing.audio_processing as ap
-from ketos.neural_networks.cnn import BasicCNN
 from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
-from tensorflow.compat.v1 import reset_default_graph
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -240,27 +238,6 @@ def database_prepared_for_NN_2_classes():
 
 
 @pytest.fixture
-def trained_BasicCNN(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_BasicCNN")         
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, batch_size=1, num_labels=2)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
-    network.train()
-    network.save(path_to_meta)
-    test_acc = network.accuracy_on_test()
-    meta = path_to_meta + ".meta"
-    reset_default_graph()
-    return meta, path_to_saved_model, test_acc
-
-@pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave
     today = datetime.datetime.today()
@@ -332,3 +309,85 @@ def prepare_database(database, x_column, y_column, divisions):
                         "test_x": stacked_test["x"],
                         "test_y": stacked_test["y"]}
     return stacked_datasets
+
+
+@pytest.fixture
+def file_duration_table():
+    """ Create a table of file durations as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                File duration table
+    """
+    N = 6
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    duration = [x + 30.0 for x in np.arange(N)]
+    tbl = pd.DataFrame({'filename': filename, 'duration': duration})
+    return tbl
+
+@pytest.fixture
+def annot_table_std():
+    """ Create a standardized annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 3, 0, 0, -1]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x%3) for x in np.arange(N)]
+    start = np.arange(N, dtype=float)
+    stop = start + 3.3
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    return tbl
+
+@pytest.fixture
+def annot_table():
+    """ Create an annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 'k', -99, 'whale', 'zebra']
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    stop = start + 1
+    tbl = pd.DataFrame({'fname': filename, 'label': label, 'time_start': start, 'STOP': stop})
+    return tbl
+
+@pytest.fixture
+def annot_table_mult_labels():
+    """ Create an annotations table as a pandas DataFrame with 
+        multiple labels per row.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = ['1,2', 3]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    stop = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    return tbl
+
+@pytest.fixture
+def annot_table_file(annot_table):
+    """ Create an annotations table csv file with the 'annot_table()' fixture
+    
+        The file is saved as tests/assets/annot_001.csv.
+        When the tests using this fixture are done, 
+        the file is deleted.
+
+        Yields:
+            csv_file : str
+                A string containing the path to the .csv file.
+    """
+    csv_file = os.path.join(path_to_assets, "annot_001.csv")
+    tbl = annot_table
+    tbl.to_csv(csv_file, index=False)
+    yield csv_file
+    os.remove(csv_file)
