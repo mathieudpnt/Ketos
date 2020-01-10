@@ -225,20 +225,25 @@ def table_description_new(data_shape, annot_type='weak', num_annot=1, freq_range
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure, to be used when creating tables to store audio signals or spectrograms.
 
+        Examples:
+            >>> import numpy as np
+            >>> from ketos.data_handling.database_interface import table_description_new
+            >>> 
+            >>> #Create an 64 x 20 spectrogram
+            >>> spec = np.random.random_sample((64,20))
+            >>>
+            >>> #Create a table description for weakly labelled spectrograms of this shape
+            >>> descr =  table_description_new(spec)
+            >>>
+            >>> #Inspect the table structure
+            >>> cols = descr.columns
+            >>> for key in sorted(cols.keys()):
+            ...     print("%s: %s" % (key, cols[key]))
+            data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+            filename: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+            label: UInt8Col(shape=(), dflt=0, pos=None)
+            offset: Float64Col(shape=(), dflt=0.0, pos=None)
     """
-#        Examples:
-#            >>> import numpy as np
-#            >>> from ketos.data_handling.database_interface import table_description_new
-#            >>> 
-#            >>> #Create an 64 x 20 spectrogram
-#            >>> spec = np.random.random_sample((64,20))
-#            >>>
-#            >>> #Create a table description for weakly labelled spectrograms of this shape
-#            >>> descr =  table_description_new(spec)
-#            >>>
-#            >>> #Inspect the table structure
-#            >>> descr.columns
-#            >>> {'filename': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'offset': Float64Col(shape=(), dflt=0.0, pos=None), 'label': UInt8Col(shape=(), dflt=0, pos=None)}
     assert annot_type in ['weak','strong'], 'Invalid annotation type. Permitted types are weak and strong.'
 
     if isinstance(data_shape, np.ndarray):
@@ -312,17 +317,25 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
             >>> from ketos.data_handling.database_interface import table_description
             >>> # create a table description with shape (64,20)
             >>> descr =  table_description(shape=(64,20))
-            >>> descr.columns
-            {'id': StringCol(itemsize=25, shape=(), dflt=b'', pos=None), 'labels': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'data': Float32Col(shape=(64, 20), dflt=0.0, pos=None), 'boxes': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'files': StringCol(itemsize=100, shape=(), dflt=b'', pos=None), 'file_vector': UInt8Col(shape=(64,), dflt=0, pos=None), 'time_vector': Float32Col(shape=(64,), dflt=0.0, pos=None)}
+            >>> cols = descr.columns
+            >>> for key in sorted(cols.keys()):
+            ...     print("%s: %s" % (key, cols[key]))
+            boxes: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+            data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+            file_vector: UInt8Col(shape=(64,), dflt=0, pos=None)
+            files: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+            id: StringCol(itemsize=25, shape=(), dflt=b'', pos=None)
+            labels: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+            time_vector: Float32Col(shape=(64,), dflt=0.0, pos=None)
     """
     class TableDescription(tables.IsDescription):
-            id = tables.StringCol(id_len, pos=0)
-            labels = tables.StringCol(labels_len, pos=1)
-            data = tables.Float32Col(shape, pos=2)
-            boxes = tables.StringCol(boxes_len, pos=3) 
-            files = tables.StringCol(files_len, pos=4)
-            file_vector = tables.UInt8Col(shape[0], pos=5)
-            time_vector = tables.Float32Col(shape[0], pos=6)
+            id = tables.StringCol(id_len)
+            labels = tables.StringCol(labels_len)
+            data = tables.Float32Col(shape)
+            boxes = tables.StringCol(boxes_len) 
+            files = tables.StringCol(files_len)
+            file_vector = tables.UInt8Col(shape[0])
+            time_vector = tables.Float32Col(shape[0])
     
     return TableDescription
 
