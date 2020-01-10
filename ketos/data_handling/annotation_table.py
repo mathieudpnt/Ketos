@@ -469,6 +469,10 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
     """ Create multiple instances of the same annotation by stepping in time, both 
         forward and backward.
 
+        The new instances are returned in a pandas DataFrame with the same columns as the 
+        input annotation, plus a column named 'time_start_new' containing the start times 
+        of the new instances.
+
         Args:
             annot: pandas Series or dict
                 Reference annotation. Must contain the labels/keys 'time_start' and 'time_stop'.
@@ -486,7 +490,7 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
 
         Results:
             df: pandas DataFrame
-                Output annotation table. The start times of the new, shifted annotations are 
+                Output annotation table. The start times of the time-shifted annotations are 
                 stored in the column 'time_start_new'.
 
         Example:
@@ -571,6 +575,22 @@ def complement(table, file_duration):
         Results:
             table_compl: pandas DataFrame
                 Output table.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.annotation_table import complement
+            >>> #Create annotation table
+            >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'time_start':[2.0, 7.5], 'time_stop':[3.1, 9.0]})
+            >>> #Create file duration table
+            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav'], 'duration':[10.0, 20.0]})
+            >>> #Create complement table
+            >>> df_c = complement(df, dur)
+            >>> print(df_c.round(2))
+                filename  time_start  time_stop
+            0  file1.wav         0.0        2.0
+            1  file1.wav         3.1        7.5
+            2  file1.wav         9.0       10.0
+            3  file2.wav         0.0       20.0
     """   
     df = table
 
@@ -587,6 +607,10 @@ def complement(table, file_duration):
             filename.append(fname)
             time_start.append(x[0])
             time_stop.append(x[1])
+
+    # ensure that type is float
+    time_start = np.array(time_start, dtype=float)
+    time_stop = np.array(time_stop, dtype=float)
 
     df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
     return df_out
