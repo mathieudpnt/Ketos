@@ -1,6 +1,7 @@
 import tensorflow as tf
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
+import numpy as np
 
 
 class RecipeCompat():
@@ -55,15 +56,14 @@ class NNInterface():
         This class implements common methods for neural network models.
 
     Args:
-        neural_network: 
-            An instance of one of the architectures available in the neural_networks module.
-        data_input: data_feeder
-            An object containing or able to read the data.
 
-    
+        optimizer: a tensorflow(-compatible) optimizer (from tensorflow.keras.optimizers)
+                
+        loss_function: a tensorflow(-compatible) loss function (from tensorflow.keras.losses or ketos.neural_networks.losses)
+
+        metrics: a list of tensorflow(-compatible) (from tensorflow.keras.metrics or ketos.neural_networks.metrics)
+            
     """
-
-    
 
 
     valid_optimizers = {'Adam':tf.keras.optimizers.Adam}
@@ -73,7 +73,34 @@ class NNInterface():
 
     @classmethod
     def to1hot(cls, class_label, n_classes=2):
-        one_hot = np.zeros(2)
+        """ Create the one hot representation of class_label 
+
+            Args:
+                class_label: int
+                    An integer number representing the a class label
+                n_class: int
+                    The number of classes available
+            
+            Returns:
+                one_hot: numpy.array
+                    The one hot representation of the class_label in a 1 x n_classes array.
+
+            Examples:
+                >>> NNInterface.to1hot(class_label=0, n_classes=2)
+                array([1., 0.])
+
+                >>> NNInterface.to1hot(class_label=1, n_classes=2)
+                array([0., 1.])
+
+                >>> NNInterface.to1hot(class_label=1, n_classes=3)
+                array([0., 1., 0.])
+
+                >>> NNInterface.to1hot(class_label=1, n_classes=5)
+                array([0., 1., 0., 0., 0.])
+
+
+        """
+        one_hot = np.zeros(n_classes)
         one_hot[class_label]=1.0
         return one_hot
     
