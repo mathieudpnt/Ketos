@@ -23,18 +23,17 @@ class RecipeCompat():
 
         Examples:
           >>> # Example Metric
-          >>>  p = tf.keras.metrics.Precision()
-          >>>  dec_p = RecipeCompat("precision", p)
+          >>> p = tf.keras.metrics.Precision
+          >>> dec_p = RecipeCompat("precision", p)
 
-          >>>  #Example Optimizer
-          >>>  opt = tf.keras.optimizers.Adam()
-          >>>  dec_opt = RecipeCompat("adam", opt, learning_rate=0.001)
+          >>> # Example Optimizer
+          >>> opt = tf.keras.optimizers.Adam
+          >>> dec_opt = RecipeCompat("adam", opt, learning_rate=0.001)
 
-          >>>  # Example Loss
-          >>>  loss = tf.keras.losses.BinaryCrossentropy()
-          >>>  dec_loss = RecipeCompat('binary_crossentropy', loss, from_logits=True)
-
-
+          >>> # Example Loss
+          >>> loss = tf.keras.losses.BinaryCrossentropy
+          >>> dec_loss = RecipeCompat('binary_crossentropy', loss, from_logits=True)
+    
     """
     def __repr__(self):
         return "{0} ketos recipe".format(self.name)
