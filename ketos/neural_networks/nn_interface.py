@@ -4,6 +4,41 @@ from .metrics import precision_recall_accuracy_f
 
 
 class RecipeCompat():
+    """ Makes a loss function, metric or optimizer compatible with the Ketos recipe format.
+
+
+        The resulting object can be included in a ketos recipe and read by the NNInterface (or it's subclasses)
+
+        Args:
+            name: str
+                The name to be used in the recipe
+            func: constructor
+                The loss function, metric or optimizer constructor function
+            kwargs
+                Any keyword arguments to be passed to the constructor (func)
+
+        Returns:
+             A RecipeCompat object
+
+
+        Examples:
+          >>> # Example Metric
+          >>>  p = tf.keras.metrics.Precision()
+          >>>  dec_p = RecipeCompat("precision", p)
+
+          >>>  #Example Optimizer
+          >>>  opt = tf.keras.optimizers.Adam()
+          >>>  dec_opt = RecipeCompat("adam", opt, learning_rate=0.001)
+
+          >>>  # Example Loss
+          >>>  loss = tf.keras.losses.BinaryCrossentropy()
+          >>>  dec_loss = RecipeCompat('binary_crossentropy', loss, from_logits=True)
+
+
+    """
+    def __repr__(self):
+        return "{0} ketos recipe".format(self.name)
+
     def __init__(self, name, func, **kwargs):
         self.name = name
         self.func = func(**kwargs)
