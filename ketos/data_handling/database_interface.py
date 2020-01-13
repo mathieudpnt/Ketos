@@ -154,6 +154,9 @@ def create_table_new(h5file, path, name, description, chunkshape=None, verbose=F
             >>> # Close the HDF5 database file
             >>> h5file.close()            
     """
+    if path.endswith('/'): 
+        path = path[:-1]
+
     try:
        group = h5file.get_node(path)
     
@@ -161,9 +164,6 @@ def create_table_new(h5file, path, name, description, chunkshape=None, verbose=F
         if verbose:
             print("group '{0}' not found. Creating it now...".format(path))
     
-        if path.endswith('/'): 
-            path = path[:-1]
-
         group_name = os.path.basename(path)
         path_to_group = path.split(group_name)[0]
         if path_to_group.endswith('/'): 
@@ -283,11 +283,11 @@ def table_description_data(data_shape, track_source=True, filename_len=100):
                 The class describing the table structure.
     """
     class TableDescription(tables.IsDescription):
-            id = tables.UInt32Col()
-            data = tables.Float32Col(data_shape)
-            if track_source:
-                filename = tables.StringCol(filename_len)
-                offset = tables.Float64Col()
+        id = tables.UInt32Col()
+        data = tables.Float32Col(data_shape)
+        if track_source:
+            filename = tables.StringCol(filename_len)
+            offset = tables.Float64Col()
 
     return TableDescription
 
@@ -299,8 +299,8 @@ def table_description_weak_annot():
                 The class describing the table structure.
     """
     class TableDescription(tables.IsDescription):
-            data_id = tables.UInt32Col()
-            label = tables.UInt8Col()
+        data_id = tables.UInt32Col()
+        label = tables.UInt8Col()
 
     return TableDescription
 
@@ -317,13 +317,13 @@ def table_description_strong_annot(freq_range=False):
                 The class describing the table structure.
     """
     class TableDescription(tables.IsDescription):
-            data_id = tables.UInt32Col()
-            label = tables.UInt8Col()
-            time_start = tables.Float64Col()
-            time_stop = tables.Float64Col()
-            if freq_range:
-                freq_min = tables.Float32Col()
-                freq_max = tables.Float32Col()
+        data_id = tables.UInt32Col()
+        label = tables.UInt8Col()
+        time_start = tables.Float64Col()
+        time_stop = tables.Float64Col()
+        if freq_range:
+            freq_min = tables.Float32Col()
+            freq_max = tables.Float32Col()
 
     return TableDescription
 
@@ -503,7 +503,6 @@ def write_spec_attrs(table, spec):
             table: tables.Table
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
-
             spec: instance of :class:`spectrogram.MagSpectrogram', \
                 :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
                 :class:`spectrogram.CQTSpectrogram'    
@@ -517,7 +516,7 @@ def write_spec_attrs(table, spec):
 
         Examples:
             >>> import tables
-            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_new, write_spec_attrs
+            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_data, write_spec_attrs
             >>> from ketos.audio_processing.spectrogram import MagSpectrogram
             >>> from ketos.audio_processing.audio import AudioSignal
             >>>
@@ -528,10 +527,10 @@ def write_spec_attrs(table, spec):
             >>>
             >>> # Open a connection to a new HDF5 database file
             >>> h5file = open_file("ketos/tests/assets/tmp/database2.h5", 'w')
-            >>> # Create table descriptions for weakly labeled spectrograms
-            >>> descr_data, descr_annot = table_description_new(spec)
+            >>> # Create table descriptions for storing the spectrogram data
+            >>> descr = table_description_data(spec.image.shape)
             >>> # Create 'table_data' within 'group1'
-            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr_data) 
+            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr) 
             >>> # Write spectrogram attributes to the table
             >>> write_spec_attrs(my_table, spec)
             >>>
@@ -569,6 +568,171 @@ def write_spec_attrs(table, spec):
     elif isinstance(spec, MelSpectrogram):
         table.attrs.type = 'Mel'
         table.attrs.freq_res = spec.fres
+
+def write_spec_annot(spec, table, id):
+    """ Write a spectrogram's annotations to a HDF5 table.
+
+        Args:
+            spec: instance of :class:`spectrogram.MagSpectrogram', \
+                :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
+                :class:`spectrogram.CQTSpectrogram'    
+                The spectrogram object the annotations of which will be stored in the table.
+            table: tables.Table
+                Table in which the annotations will be stored.
+                (described by table_description_data()).
+            id: int
+                Spectrogram unique identifier.
+
+        Raises:
+            TypeError: if spec is not an Spectrogram object    
+
+        Returns:
+            None.
+    """
+    try:
+        assert(isinstance(spec, Spectrogram))
+    except AssertionError:
+        raise TypeError("spec must be an instance of Spectrogram")      
+
+    write_time = ("time_start" in table.colnames)
+    write_freq = ("freq_min" in table.colnames)
+
+    for box,label in zip(spec.boxes, spec.labels):
+        row = table.row
+
+        row["data_id"] = id
+        row["label"] = label
+
+        if write_time:
+            row["time_start"] = box[0]
+            row["time_stop"] = box[1]
+
+        if write_freq:
+            row["freq_min"] = box[2]
+            row["freq_max"] = box[3]
+
+        row.append()
+
+def write_spec_data(spec, table, id=None):
+    """ Write spectrogram to a HDF5 table.
+
+        Args:
+            spec: instance of :class:`spectrogram.MagSpectrogram', \
+                :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
+                :class:`spectrogram.CQTSpectrogram'    
+                The spectrogram object to be stored in the table.
+            table: tables.Table
+                Table in which the spectrogram will be stored.
+                (described by table_description_data()).
+            id: int
+                Spectrogram unique identifier. Optional
+
+        Raises:
+            TypeError: if spec is not an Spectrogram object    
+
+        Returns:
+            id: int
+                Unique identifier given to spectrogram.
+    """
+    try:
+        assert(isinstance(spec, Spectrogram))
+    except AssertionError:
+        raise TypeError("spec must be an instance of Spectrogram")      
+
+    write_source = ("filename" in table.colnames)
+
+    row = table.row
+    
+    if id is None:
+        id = table.nrows
+
+    row['id'] = id   
+    row['data'] = spec.get_data()
+
+    if write_source:
+        row['filename'] = spec.tag
+        row['offset'] = spec.tmin
+
+    row.append()
+
+    return id
+
+def write_spec_new(spec, table_data, table_annot=None, id=None):
+    """ Write the spectrogram and its annotations to HDF5 tables.
+
+        Note: If the id argument is not specified, the row number will 
+        will be used as a unique identifier for the spectrogram.
+
+        Note: If table_annot is not specified, the annotation data 
+        will not be written to file.        
+
+        Args:
+            spec: instance of :class:`spectrogram.MagSpectrogram', \
+                :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
+                :class:`spectrogram.CQTSpectrogram'    
+                The spectrogram object to be stored in the table.
+            table_data: tables.Table
+                Table in which the spectrogram will be stored.
+                (described by table_description_data()).
+            table_annot: tables.Table
+                Table in which the annotations will be stored.
+                (described by table_description_weak_annot() or table_description_strong_annot()).
+            id: int
+                Spectrogram unique identifier. Optional.
+
+        Raises:
+            TypeError: if spec is not an Spectrogram object    
+
+        Returns:
+            None.
+
+        Examples:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_data, write_spec_new
+            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>>
+            >>> # Create an AudioSignal object from a .wav file
+            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> # Use that signal to create a spectrogram
+            >>> spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
+            >>> # Add a single annotation
+            >>> spec.annotate(1, [0.,2.])
+            >>>
+            >>> # Open a connection to a new HDF5 database file
+            >>> h5file = open_file("ketos/tests/assets/tmp/database2.h5", 'w')
+            >>> # Create table descriptions for storing the spectrogram data
+            >>> descr_data, descr_annot = table_description_new(spec, annot_type='strong')
+            >>> # Create tables
+            >>> tbl_data = create_table_new(h5file, "/group1/", "table_data", descr_data) 
+            >>> tbl_annot = create_table_new(h5file, "/group1/", "table_annot", descr_annot) 
+            >>> # Write spectrogram and its annotation to the tables
+            >>> write_spec_new(spec, tbl_data, tbl_annot)
+            >>> # flush memory to ensure data is put in the tables
+            >>> tbl_data.flush()
+            >>> tbl_annot.flush()
+            >>>
+            >>> # Check that the spectrogram data have been saved 
+            >>> tbl_data.nrows
+            1
+            >>> tbl_annot.nrows
+            1
+            >>> # Check annotation data
+            >>> tbl_annot[0]['label']
+            1
+            >>> tbl_annot[0]['time_start']
+            0.0
+            >>> tbl_annot[0]['time_stop']
+            2.0
+            >>> # Check audio source data
+            >>> tbl_data[0]['filename'].decode()
+            '2min.wav'
+            >>> h5file.close()
+    """
+    id = write_spec_data(spec, table=table_data, id=id)
+
+    if table_annot is not None:
+        write_spec_annot(spec, table=table_annot, id=id)
 
 def write_spec(table, spec, id=None):
     """ Write data into the HDF5 table.
@@ -1331,6 +1495,8 @@ class SpecWriter():
         """        
         if self.file is not None:
 
+            # TODO: loop over tables and apply table.flush() to each one before closing HDF5 file
+
             actual_fname = self.file.filename
             self.file.close()
             self.file = None
@@ -1364,7 +1530,6 @@ class SpecWriter():
                 tbl: tables.Table
                     Table
         """        
-
         if path == '/':
             x = path + name
         elif path[-1] == '/':

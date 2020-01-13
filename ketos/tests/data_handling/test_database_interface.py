@@ -71,13 +71,39 @@ def test_create_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_data, _ = di.table_description_new((32,64))
-    # create table
+    descr_data, descr_annot = di.table_description_new((32,64))
+    # create data table
     _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
     assert isinstance(group, tables.group.Group)
     table = h5file.get_node("/group_1/table_1")
     assert isinstance(table, tables.table.Table)    
+    # create annotation table
+    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    group = h5file.get_node("/group_1")
+    assert isinstance(group, tables.group.Group)
+    table = h5file.get_node("/group_1/table_2")
+    assert isinstance(table, tables.table.Table)    
+    # clean
+    h5file.close()
+    os.remove(fpath)
+
+def test_add_row_to_annot_table():
+    """Test if we can add a row to the annotation table"""
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
+    h5file = di.open_file(fpath, 'w')
+    # create table description
+    descr_annot = di.table_description_weak_annot()
+    # create annotation table
+    table = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    # add a row
+    row = table.row
+    row['label'] = 12
+    row['data_id'] = 3
+    row.append()
+    table.flush()
+    assert table.nrows == 1
     # clean
     h5file.close()
     os.remove(fpath)
@@ -100,26 +126,42 @@ def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    spec.tag = 'file.wav'
+    spec.tmin = 0.1
     # add annotation
     spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
-    h5file = tables.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for storing the spectrogram data
+    descr_data, descr_annot = di.table_description_new(spec, annot_type='strong')
+    # Create tables
+    tbl_data = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
+    tbl_annot = di.create_table_new(h5file, "/group1/", "table_annot", descr_annot) 
     # write spectrogram to table
-    di.write_spec(table=tbl, spec=spec) # should return None after writing spectrogram to table
+    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
     # write spectrogram to table with id
-    di.write_spec(table=tbl, spec=spec, id='123%')
-
-    assert tbl[0]['id'].decode() == ''
-    assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
-
-    assert tbl[1]['id'].decode() == '123%'
-    assert tbl[1]['labels'].decode() == '[1,2]'
-    assert tbl[1]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
-
+    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot, id=7)
+    tbl_data.flush()
+    tbl_annot.flush()
+    x = tbl_annot[0]
+    assert x['data_id'] == 0
+    assert x['label'] == 1
+    assert x['time_start'] == 1.
+    assert x['time_stop'] == 2.
+    x = tbl_annot[1]
+    assert x['data_id'] == 0
+    assert x['label'] == 2
+    assert x['time_start'] == 1.5
+    assert x['time_stop'] == 2.5
+    x = tbl_annot[2]
+    assert x['data_id'] == 7
+    assert x['label'] == 1
+    assert x['time_start'] == 1.
+    assert x['time_stop'] == 2.
+    x = tbl_data[0]
+    assert x['filename'].decode() == 'file.wav'
+    assert x['offset'] == 0.1
     h5file.close()
     os.remove(fpath)
 
@@ -597,7 +639,8 @@ def test_write_spec_attrs():
     # Use that signal to create a spectrogram
     spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
     # Open a connection to a new HDF5 database file
-    h5file = di.open_file(os.path.join(path_to_assets, "tmp/database3.h5"), 'w')
+    fpath = os.path.join(path_to_assets, "tmp/database3.h5")
+    h5file = di.open_file(fpath, 'w')
     # Create table descriptions for weakly labeled spectrograms
     descr_data, descr_annot = di.table_description_new(spec)
     # Create 'table_data' within 'group1'
@@ -610,3 +653,5 @@ def test_write_spec_attrs():
     assert my_table.attrs.time_res == 0.05
     assert my_table.attrs.type == 'Mag'
     h5file.close()
+    os.remove(fpath)
+

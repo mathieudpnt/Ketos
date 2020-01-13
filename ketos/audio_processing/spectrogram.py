@@ -2326,7 +2326,7 @@ class MagSpectrogram(Spectrogram):
         elif audio_signal is not None:
             self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
             if tag is '':
-                tag = audio_signal.tag
+                self.tag = audio_signal.tag
 
             self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
             self.tmin = audio_signal.tmin
