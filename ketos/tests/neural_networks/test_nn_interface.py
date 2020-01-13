@@ -12,3 +12,4 @@ from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 def test_to1hot(class_label, n_classes, expected):
     encoded =  NNInterface.to1hot(class_label, n_classes) 
     assert(encoded == expected).all()
+    assert  NNInterface.to1hot(class_label=1.2, n_classes=2) 
