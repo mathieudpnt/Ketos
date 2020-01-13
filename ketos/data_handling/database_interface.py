@@ -327,7 +327,6 @@ def table_description_strong_annot(freq_range=False):
 
     return TableDescription
 
-
 def table_description_new(data_shape, annot_type='weak', track_source=True, filename_len=100, freq_range=False):
     """ Create HDF5 table structure description.
 
@@ -344,11 +343,13 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
         the data table and one for the annotation table.
 
         Args:
-            data_shape: tuple (ints) or numpy array
+            data_shape: tuple (ints) or numpy array or :class:`spectrogram.Spectrogram'
                 The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
                 to be stored in the table. Optionally, a third integer can be added if the 
                 spectrogram has multiple channels (n_rows, n_cols, n_channels). 
                 If a numpy array is provided, the shape is deduced from this array.
+                If an instance of the Spectrogram class is provided, the shape is deduced from 
+                the image attribute.
             annot_type: str
                 The annotation type. Permitted values are 'weak' and 'strong'. The default 
                 value is 'weak'.
@@ -372,7 +373,7 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
             >>> import numpy as np
             >>> from ketos.data_handling.database_interface import table_description_new
             >>> 
-            >>> #Create an 64 x 20 spectrogram
+            >>> #Create a 64 x 20 image
             >>> spec = np.random.random_sample((64,20))
             >>>
             >>> #Create a table description for weakly labeled spectrograms of this shape
@@ -408,6 +409,8 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
 
     if isinstance(data_shape, np.ndarray):
         data_shape = data_shape.shape
+    elif isinstance(data_shape, Spectrogram):
+        data_shape = data_shape.image.shape
 
     tbl_descr_data = table_description_data(data_shape=data_shape,  track_source=track_source, filename_len=filename_len)
 
@@ -484,6 +487,88 @@ def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len
             time_vector = tables.Float32Col(shape[0])
     
     return TableDescription
+
+def write_spec_attrs(table, spec):
+    """ Writes the spectrogram attributes into the HDF5 table.
+
+        The attributes include,
+
+            * Time resolution in seconds (time_res)
+            * Minimum frequency in Hz (freq_min)
+            * Spectrogram type (type)
+            * Frequency resolution in Hz (freq_res) or, in the case of
+              CQT spectrograms, the number of bins per octave (bins_per_octave).
+
+        Args:
+            table: tables.Table
+                Table in which the spectrogram will be stored
+                (described by spec_description()).
+
+            spec: instance of :class:`spectrogram.MagSpectrogram', \
+                :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
+                :class:`spectrogram.CQTSpectrogram'    
+                The spectrogram object to be stored in the table.
+
+        Raises:
+            TypeError: if spec is not an Spectrogram object    
+
+        Returns:
+            None.
+
+        Examples:
+            >>> import tables
+            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_new, write_spec_attrs
+            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>>
+            >>> # Create an AudioSignal object from a .wav file
+            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> # Use that signal to create a spectrogram
+            >>> spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
+            >>>
+            >>> # Open a connection to a new HDF5 database file
+            >>> h5file = open_file("ketos/tests/assets/tmp/database2.h5", 'w')
+            >>> # Create table descriptions for weakly labeled spectrograms
+            >>> descr_data, descr_annot = table_description_new(spec)
+            >>> # Create 'table_data' within 'group1'
+            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr_data) 
+            >>> # Write spectrogram attributes to the table
+            >>> write_spec_attrs(my_table, spec)
+            >>>
+            >>> # The table now has the following attributes
+            >>> my_table.attrs.freq_min
+            0
+            >>> round(my_table.attrs.freq_res, 3)
+            4.975
+            >>> my_table.attrs.time_res
+            0.05
+            >>> my_table.attrs.type
+            'Mag'
+            >>> h5file.close()
+    """
+    try:
+        assert(isinstance(spec, Spectrogram))
+    except AssertionError:
+        raise TypeError("spec must be an instance of Spectrogram")      
+
+    table.attrs.time_res = spec.tres
+    table.attrs.freq_min = spec.fmin
+
+    if isinstance(spec, CQTSpectrogram):
+        table.attrs.type = 'CQT'
+        table.attrs.bins_per_octave = spec.bins_per_octave
+    
+    elif isinstance(spec, MagSpectrogram):
+        table.attrs.type = 'Mag'
+        table.attrs.freq_res = spec.fres
+    
+    elif isinstance(spec, PowerSpectrogram):
+        table.attrs.type = 'Pow'
+        table.attrs.freq_res = spec.fres
+
+    elif isinstance(spec, MelSpectrogram):
+        table.attrs.type = 'Mel'
+        table.attrs.freq_res = spec.fres
 
 def write_spec(table, spec, id=None):
     """ Write data into the HDF5 table.

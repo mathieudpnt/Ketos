@@ -32,6 +32,7 @@ import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
 from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
+from ketos.audio_processing.audio import AudioSignal
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -590,3 +591,22 @@ def test_two_spec_writers_simultaneously(sine_audio):
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
+
+def test_write_spec_attrs():
+    audio = AudioSignal.from_wav(os.path.join(path_to_assets, '2min.wav'))
+    # Use that signal to create a spectrogram
+    spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
+    # Open a connection to a new HDF5 database file
+    h5file = di.open_file(os.path.join(path_to_assets, "tmp/database3.h5"), 'w')
+    # Create table descriptions for weakly labeled spectrograms
+    descr_data, descr_annot = di.table_description_new(spec)
+    # Create 'table_data' within 'group1'
+    my_table = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
+    # Write spectrogram attributes to the table
+    di.write_spec_attrs(my_table, spec)
+    # The table now has the following attributes
+    assert my_table.attrs.freq_min == 0
+    assert pytest.approx(my_table.attrs.freq_res, 4.975, abs=0.001)
+    assert my_table.attrs.time_res == 0.05
+    assert my_table.attrs.type == 'Mag'
+    h5file.close()
