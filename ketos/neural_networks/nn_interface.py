@@ -406,6 +406,19 @@ class NNInterface():
 
     @classmethod
     def read_recipe_file(cls, json_file):
+        """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
+
+            When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
+
+            Args:
+                json_file:str
+                    Path to the .json file.
+
+            Returns:
+                recipe_dict: dict
+                    A recipe dictionary that can be used to rebuild a model.
+        
+        """
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
