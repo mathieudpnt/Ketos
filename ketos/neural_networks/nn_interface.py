@@ -270,6 +270,21 @@ class NNInterface():
 
     @classmethod
     def optimizer_to_recipe(cls, optimizer):
+        """ Creates a recipe-compatible optimizer object
+
+            Used creating a ketos recipe that can be used to recreate the model
+
+            Args:
+                optimizer: instance of RecipeCompat
+                    An optimizer wrapped in a RecipeCompat object
+            Returns:
+                recipe_optimizer: dict 
+                    A dictionary with the 'name' and 'parameters' keys.
+
+            Raises:
+                ValueError if the optimizer name is not included in the valid_optimizers class attribute.
+
+        """
         name = optimizer.name
         kwargs = optimizer.args
 
@@ -413,14 +428,12 @@ class NNInterface():
     
     @classmethod
     def build_from_recipe(cls, recipe):
-        block_list = recipe['block_list']
-        n_classes = recipe['n_classes']
-        initial_filters = recipe['initial_filters']
+       
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
 
-        instance = cls(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
 
