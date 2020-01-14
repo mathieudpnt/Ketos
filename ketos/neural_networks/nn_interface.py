@@ -98,16 +98,59 @@ class NNInterface():
                 >>> NNInterface.to1hot(class_label=1, n_classes=5)
                 array([0., 1., 0., 0., 0.])
 
-
         """
         one_hot = np.zeros(n_classes)
         one_hot[class_label]=1.0
         return one_hot
     
     @classmethod
-    def transform_train_batch(cls,x,y):
+    def transform_train_batch(cls, x, y, n_classes=2):
+        """ Transforms a training batch into the format expected by the network.
+
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of in put arrays and parsing or one hot encoding of the labels.
+
+            Args:
+                x:numpy.array
+                    The batch of inputs.
+                y:numpy:array
+                    The batch of labels.
+                    Each label must be represented as on integer, ranging from zero to n_classes
+                n_classes:int
+                    The number of possible classes for one hot encoding.
+                    
+                
+
+            Returns:
+                X:numpy.array
+                    The transformed batch of inputs
+                Y:numpy.array
+                    The transformed batch of labels
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> inputs = np.random.rand(10,5,5)
+                >>> inputs.shape
+                (10, 5, 5)
+
+                    
+                >>> # Create a batch of 10 ninary (0 or 1)
+                >>> labels = np.random.choice([0,1], size=10)
+                >>> labels.shape
+                (10,)
+
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_train_batch(inputs, labels)
+                >>> transformed_inputs.shape
+                (10, 5, 5, 1)
+
+                >>> transformed_labels.shape
+                (10, 2)
+                
+        """
+
         X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([cls.to1hot(sp) for sp in y])
+        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
         return (X,Y)
 
     @classmethod
