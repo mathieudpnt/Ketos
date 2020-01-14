@@ -30,8 +30,7 @@
     with audio files and spectrograms.
 
     Contents:
-        AnnotationHandler class:
-        AudioSourceHandler class 
+        AnnotationHandler class
 """
 
 import numpy as np
@@ -46,27 +45,53 @@ ureg = UnitRegistry()
 Q_ = ureg.Quantity
 
 
-def _convert_to_sec(x):
-    """ Convert a time interval specified as a string with SI units, 
+def convert_to_sec(x):
+    """ Convert a time duration specified as a string with SI units, 
         e.g. "22min" to a float with units of seconds.
-    """
-    return _convert(x, 's')
 
-def _convert_to_Hz(x):
+        Args:
+            x: str
+                Time duration specified as a string with SI units, e.g. "22min"
+
+        Returns:
+            : float
+                Time duration in seconds.
+    """
+    return convert(x, 's')
+
+def convert_to_Hz(x):
     """ Convert a frequency specified as a string with SI units, 
         e.g. "11kHz" to a float with units of Hz.
-    """
-    return _convert(x, 'Hz')
 
-def _convert(x, u):
+        Args:
+            x: str
+                Frequency specified as a string with SI units, e.g. "11kHz"
+
+        Returns:
+            : float
+                Frequency in Hz.
+    """
+    return convert(x, 'Hz')
+
+def convert(x, unit):
     """ Convert a quantity specified as a string with SI units, 
         e.g. "7kg" to a float with the specified unit, e.g. 'g'.
 
         If the input is not a string, the output will be the same 
         as the input.
+
+        Args:
+            x: str
+                Value given as a string with SI units, e.g. "11kHz"
+            unit: str
+                Desired conversion unit "Hz"
+
+        Returns:
+            y : float
+                Value in specified unit.
     """
     if isinstance(x, str):
-        x = Q_(x).m_as(u)
+        x = Q_(x).m_as(unit)
     
     return x
 
@@ -164,10 +189,10 @@ class AnnotationHandler():
                     and 'high', containing one or several annotations. 
         """        
         if label is not None:        
-            start = _convert_to_sec(start)
-            stop = _convert_to_sec(stop)
-            low = _convert_to_Hz(low)
-            high = _convert_to_Hz(high)
+            start = convert_to_sec(start)
+            stop = convert_to_sec(stop)
+            low = convert_to_Hz(low)
+            high = convert_to_Hz(high)
             df = {'start':start, 'stop':stop, 'low':low, 'high':high, 'label':label}
 
         self._add(df)
@@ -194,10 +219,10 @@ class AnnotationHandler():
                     or as a string with an SI unit, for example, '3.1kHz'
         """
         # convert to desired units
-        low = _convert_to_Hz(low)
-        high = _convert_to_Hz(high)
-        start = _convert_to_sec(start)
-        stop = _convert_to_sec(stop)
+        low = convert_to_Hz(low)
+        high = convert_to_Hz(high)
+        start = convert_to_sec(start)
+        stop = convert_to_sec(stop)
 
         # crop min frequency
         if low is not None:
@@ -237,7 +262,7 @@ class AnnotationHandler():
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
         """      
-        delta_time = _convert_to_sec(delta_time)
+        delta_time = convert_to_sec(delta_time)
         
         self._df['start'] = self._df['start'] + delta_time
         self._df['_dl'] = np.maximum(0, -self._df['start'])
@@ -280,9 +305,9 @@ class AnnotationHandler():
             step_size = window_size
         
         # convert to seconds
-        window_size = _convert_to_sec(window_size)
-        step_size = _convert_to_sec(step_size)
-        start = _convert_to_sec(start)
+        window_size = convert_to_sec(window_size)
+        step_size = convert_to_sec(step_size)
+        start = convert_to_sec(start)
 
         # find overlap between annotations and segments
         iA = np.maximum(0, np.ceil((self._df['start'] - start - window_size) / step_size))
@@ -324,120 +349,5 @@ class AnnotationHandler():
                     ans[idx].add(df=r)
                 else:
                     ans[idx] = self.__class__(df=r)
-
-        return ans
-    
-
-class AudioSourceHandler(AnnotationHandler):
-    """ Class for handling audio source tags.
-    
-        An audio source tag is characterized by 
-        
-         * start and stop time in seconds 
-         * label (typically the filename)
-         * offset in seconds
-         
-        The AnnotationHandler stores audio source tags in a pandas DataFrame 
-        and offers methods to add/get tags and perform various manipulations 
-        such as cropping, shifting, and segmenting.
-
-        Args:
-            df: pandas DataFrame
-                DataFrame with columns 'start', 'stop', 'label', and 'offset' containing 
-                one or several audio source tags, to be passed on to the handler module.
-    """
-    def __init__(self, df=None):
-
-        super().__init__(label_type='str', df=df)
-        
-        if 'offset' not in self._df.columns:
-            self._df['offset'] = pd.Series(dtype='float')
-            
-        self._get_cols.append('offset')
-        self._get_cols.remove('low')
-        self._get_cols.remove('high')
-        
-    def add(self, start=0, stop=None, label=None, offset=0, df=None):
-        """ Add an audio source tag or a collection of such tags to the handler module.
-        
-            Individual tags may be added using the arguments 'start', 'stop', 
-            'offset', 'label'.
-
-            Groups of tags may be added by first collecting them in a pandas 
-            DataFrame or dictionary and then adding them using the 'df' argument.
-
-            Args:
-                start: str or float
-                    Start time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                start: str or float
-                    Stop time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                offset: str or float
-                    Start time within the original audio source. Can be specified either 
-                    as a float, in which case the unit will be assumed to be seconds, or 
-                    as a string with an SI unit, for example, '22min'.
-                label: str
-                    Unique identifier of the audio source, typically a filename.
-                df: pandas DataFrame or dict
-                    DataFrame with columns 'start', 'stop', 'label' and optionally also 'low' 
-                    and 'high', containing one or several annotations. 
-        """        
-        super().add(start=start, stop=stop, label=label, df=df)
-        
-        if df is None:
-            offset = _convert_to_sec(offset)
-            self._df['offset'].iloc[-1] = offset
-
-    def crop(self, start=0, stop=None):
-        """ Crop audio tags.
-        
-            Args:
-                start: float or str
-                    Lower edge of time cropping interval. Can be specified either as 
-                    a float, in which case the unit will be assumed to be seconds, 
-                    or as a string with an SI unit, for example, '22min'
-                stop: float or str
-                    Upper edge of time cropping interval. Can be specified either as 
-                    a float, in which case the unit will be assumed to be seconds, 
-                    or as a string with an SI unit, for example, '22min'
-        """        
-        super().crop(start, stop)        
-        self._df['offset'] = self._df['offset'] + self._df['_dl']
-        
-    def segment(self, num_segs, window_size, step_size=None, start=0):
-        """ Divide the time axis into (potentially overlapping) segments of fixed duration.
-
-            Args:
-                num_segs: int
-                    Number of segments
-                window_size: float or str
-                    Duration of each segment. Can be specified either as 
-                    a float, in which case the unit will be assumed to be seconds, 
-                    or as a string with an SI unit, for example, '22min'
-                step_size: float or str
-                    Step size. Can be specified either as a float, in which 
-                    case the unit will be assumed to be seconds, 
-                    or as a string with an SI unit, for example, '22min'.
-                    If no value is specified, the step size is set equal to 
-                    the window size, implying non-overlapping segments.
-                start: float or str
-                    Start time for the first segment. Can be specified either as 
-                    a float, in which case the unit will be assumed to be seconds, 
-                    or as a string with an SI unit, for example, '22min'.
-                    Negative times are permitted. 
-                    
-            Returns:
-                ans: dict
-                    Dictionary in which the keys are the indices of those 
-                    segments that have annotations, and the items are the 
-                    annotation handlers.
-        """
-        ans = super().segment(num_segs, window_size, step_size, start)
-
-        for _, an in ans.items():
-            an._df['offset'] = an._df['offset'] + an._df['_dl']
 
         return ans

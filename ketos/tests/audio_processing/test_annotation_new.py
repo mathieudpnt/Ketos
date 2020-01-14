@@ -31,7 +31,7 @@ import pytest
 import unittest
 import numpy as np
 import pandas as pd
-from ketos.audio_processing.annotation_new import AnnotationHandler, AudioSourceHandler
+from ketos.audio_processing.annotation_new import AnnotationHandler
 
 
 def test_empty_annotation_handler_has_correct_columns():
@@ -153,54 +153,3 @@ def test_segment_annotations_with_nonzero_start_time():
     assert np.allclose(a['start'], [0.0])
     assert np.allclose(a['stop'], [0.5])
     assert np.array_equal(a['label'], [1])
-
-def test_audio_source_handler_has_correct_columns():
-    handler = AudioSourceHandler()
-    a = handler.get()
-    unittest.TestCase().assertCountEqual(list(a.columns), ['start', 'stop', 'offset', 'label'])
-
-def test_add_audio_tags():
-    handler = AudioSourceHandler()
-    handler.add(start=0.0, stop=4.1, label='test1.wav')
-    handler.add(4.1, 8.3, 'test2.wav', offset=700.)
-    tags = handler.get()
-    assert len(tags) == 2
-    assert np.allclose(tags['offset'], [0.0, 700.])
-
-def test_crop_audio_tags():
-    handler = AudioSourceHandler()
-    handler.add(start=0.0, stop=4.1, label='test1.wav')
-    handler.add(4.1, 8.3, 'test2.wav', offset=700.)
-    handler.crop(2.0, 10.0)
-    tags = handler.get()
-    assert len(tags) == 2
-    assert np.allclose(tags['start'], [0.0, 2.1])
-    assert np.allclose(tags['stop'], [2.1, 6.3])
-    assert np.allclose(tags['offset'], [2.0, 700.])
-
-def test_segment_audio_tags():
-    handler = AudioSourceHandler()
-    handler.add(start=0.2, stop=1.1, label='test1.wav')
-    handler.add(1.1, 2.0, 'test2.wav', offset=700.)
-    ann = handler.segment(num_segs=4, window_size=1.0, step_size=0.5)
-    assert len(ann) == 4
-    a = ann[0].get()
-    assert np.allclose(a['start'], [0.2])
-    assert np.allclose(a['stop'], [1.0])
-    assert np.array_equal(a['offset'], [0.0])
-    assert np.array_equal(a['label'], ['test1.wav'])
-    a = ann[1].get()
-    assert np.allclose(a['start'], [0.0, 0.6])
-    assert np.allclose(a['stop'], [0.6, 1.0])
-    assert np.array_equal(a['offset'], [0.3, 700.])
-    assert np.array_equal(a['label'], ['test1.wav', 'test2.wav'])
-    a = ann[2].get()
-    assert np.allclose(a['start'], [0.0, 0.1])
-    assert np.allclose(a['stop'], [0.1, 1.0])
-    assert np.array_equal(a['offset'], [0.8, 700.])
-    assert np.array_equal(a['label'], ['test1.wav', 'test2.wav'])
-    a = ann[3].get()
-    assert np.allclose(a['start'], [0.0])
-    assert np.allclose(a['stop'], [0.5])
-    assert np.array_equal(a['offset'], [700.4])
-    assert np.array_equal(a['label'], ['test2.wav'])
