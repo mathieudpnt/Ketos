@@ -319,6 +319,21 @@ class NNInterface():
 
     @classmethod
     def metrics_from_recipe(cls, metrics):
+        """ Creates metrics from a recipe-compatible metrics object
+
+            Used when building a model from a recipe. The metrics have usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
+
+            Args:
+                metrics: list of instances of RecipeCompat
+                    A list of  RecipeCompat objects wrapping metrics
+            Returns:
+                built_optimizer: 
+                    A tensorflow-compatible list metrics ready to be used for training the neural network.
+
+            Raises:
+                ValueError if any of the metric names is not included in the valid_metrics class attribute.
+
+        """
         
         built_metrics = []
         for m in metrics:
