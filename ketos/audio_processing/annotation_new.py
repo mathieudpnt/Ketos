@@ -102,29 +102,27 @@ class AnnotationHandler():
         An annotation is characterized by 
         
          * start and stop time in seconds 
-         * low and high frequency in Hz (optional)
-         * label
+         * minimum and maximum frequency in Hz (optional)
+         * label (integer)
          
         The AnnotationHandler stores annotations in a pandas DataFrame and offers 
         methods to add/get annotations and perform various manipulations such as 
         cropping, shifting, and segmenting.
 
         Args:
-            label_type: str
-                Label type. Default is int.
             df: pandas DataFrame
-                DataFrame with columns 'start', 'stop', 'label' and optionally also 'low' 
-                and 'high', containing annotations that will be handed over to 
-                the annotation handler.
+                Annotations to be passed on to the handler.
+                Must contain the columns 'label', 'time_start', and 'time_stop', and 
+                optionally also 'freq_min' and 'freq_max'.
     """
-    def __init__(self, label_type='int', df=None):
+    def __init__(self, df=None):
         
         # columns that will be returned to the user via the 'get' method
-        self._get_cols = ['start', 'stop', 'low', 'high', 'label']
+        self._get_cols = ['label', 'time_start', 'time_stop', 'freq_min', 'freq_max']
         
         # initialize empty DataFrame
-        self._df = pd.DataFrame(columns=['start', 'stop', 'low', 'high', '_dl', '_dr'], dtype='float')
-        self._df['label'] = pd.Series(dtype=label_type)
+        self._df = pd.DataFrame(columns=['label', 'time_start', 'time_stop', 'freq_min', 'freq_max', '_dl', '_dr'], dtype='float')
+        self._df['label'] = pd.Series(dtype='int')
 
         # note: the columns '_dl' and '_dr' are used to keep track of the amount of cropping 
         # applied to every annotation from the left (_dl) and right (_dr) in the most recent 
@@ -149,106 +147,110 @@ class AnnotationHandler():
         
             Args:
                 df: pandas DataFrame
-                    DataFrame with columns 'start', 'stop', 'label' and optionally also 'low' 
-                    and 'high', containing one or several annotations. 
+                    Must contain the columns 'label', 'time_start', and 'time_stop', and 
+                    optionally also 'freq_min' and 'freq_max'.
         """        
         self._df = self._df.append(df, sort=False, ignore_index=True)
         self._df['_dl'][np.isnan(self._df['_dl'])] = 0
         self._df['_dr'][np.isnan(self._df['_dr'])] = 0
 
-    def add(self, start=None, stop=None, low=None, high=None, label=None, df=None):
+    def add(self, label=None, time_start=None, time_stop=None, freq_min=None, freq_max=None, df=None):
         """ Add an annotation or a collection of annotations to the handler module.
         
-            Individual annotations may be added using the arguments 'start', 'stop', 
-            'low', 'high', 'label'.
+            Individual annotations may be added using the arguments time_range and 
+            freq_range.
             
             Groups of annotations may be added by first collecting them in a pandas 
             DataFrame or dictionary and then adding them using the 'df' argument.
         
             Args:
-                start: str or float
+                label: int
+                    Integer label.
+                time_start: str or float
                     Start time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
-                start: str or float
+                time_start: str or float
                     Stop time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
-                low: str or float
+                freq_min: str or float
                     Lower frequency. Can be specified either as a float, in which case the 
                     unit will be assumed to be Hz, or as a string with an SI unit, 
                     for example, '3.1kHz'.
-                high: str or float
+                freq_max: str or float
                     Upper frequency. Can be specified either as a float, in which case the 
                     unit will be assumed to be Hz, or as a string with an SI unit, 
                     for example, '3.1kHz'.
-                label: int
-                    Integer label.
                 df: pandas DataFrame or dict
-                    DataFrame with columns 'start', 'stop', 'label' and optionally also 'low' 
-                    and 'high', containing one or several annotations. 
+                    DataFrame with columns 'label', 'time_start', 'time_stop', and optionally 
+                    also 'freq_min' and 'freq_max', containing one or several annotations. 
         """        
-        if label is not None:        
-            start = convert_to_sec(start)
-            stop = convert_to_sec(stop)
-            low = convert_to_Hz(low)
-            high = convert_to_Hz(high)
-            df = {'start':start, 'stop':stop, 'low':low, 'high':high, 'label':label}
+        if label is not None:
+            assert time_start is not None and time_stop is not None, 'time range must be specified'         
+            
+            time_start = convert_to_sec(time_start)
+            time_stop = convert_to_sec(time_stop)
+            
+            freq_min = convert_to_Hz(freq_min)
+            freq_max = convert_to_Hz(freq_max)
+
+            df = {'label':label, 'time_start':time_start, 'time_stop':time_stop, 'freq_min':freq_min, 'freq_max':freq_max}
 
         self._add(df)
         
-    def crop(self, start=0, stop=None, low=None, high=None):
+    def crop(self, time_start=0, time_stop=None, freq_min=None, freq_max=None):
         """ Crop annotations along the time and/or frequency dimension.
         
             Args:
-                start: float or str
+                time_start: float or str
                     Lower edge of time cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
-                stop: float or str
+                time_stop: float or str
                     Upper edge of time cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
-                low: float or str
+                freq_min: float or str
                     Lower edge of frequency cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be Hz, 
                     or as a string with an SI unit, for example, '3.1kHz'
-                high: float or str
+                freq_max: float or str
                     Upper edge of frequency cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be Hz, 
                     or as a string with an SI unit, for example, '3.1kHz'
         """
         # convert to desired units
-        low = convert_to_Hz(low)
-        high = convert_to_Hz(high)
-        start = convert_to_sec(start)
-        stop = convert_to_sec(stop)
+        freq_min = convert_to_Hz(freq_min)
+        freq_max = convert_to_Hz(freq_max)
+        time_start = convert_to_sec(time_start)
+        time_stop = convert_to_sec(time_stop)
 
         # crop min frequency
-        if low is not None:
-            self._df['low'][self._df['low'] < low] = low
+        if freq_min is not None:
+            self._df['freq_min'][self._df['freq_min'] < freq_min] = freq_min
 
         # crop max frequency
-        if high is not None:
-            self._df['high'][self._df['high'] < high] = high
+        if freq_max is not None:
+            self._df['freq_max'][self._df['freq_max'] < freq_max] = freq_max
 
         # crop stop time
-        if stop is not None:
-            dr = -np.maximum(0, self._df['stop'] - stop)
+        if time_stop is not None:
+            dr = -np.maximum(0, self._df['time_stop'] - time_stop)
             self._df['_dr'] = dr
-            self._df['stop'] = self._df['stop'] + dr
+            self._df['time_stop'] = self._df['time_stop'] + dr
 
         # crop start time
-        if start > 0:
-            self.shift(-start)
+        if time_start > 0:
+            self.shift(-time_start)
 
         # remove annotations that were fully cropped along the time dimension
-        if start > 0 or stop is not None:
-            self._df = self._df[self._df['stop'] > self._df['start']]
+        if time_start > 0 or time_stop is not None:
+            self._df = self._df[self._df['time_stop'] > self._df['time_start']]
 
         # remove annotations that were fully cropped along the frequency dimension
-        if low is not None or high is not None:
-            self._df = self._df[(self._df['high'] > self._df['low'])]
+        if freq_min is not None or freq_max is not None:
+            self._df = self._df[(self._df['freq_max'] > self._df['freq_min'])]
             
     def shift(self, delta_time=0):
         """ Shift all annotations by a fixed amount along the time dimension.
@@ -264,17 +266,18 @@ class AnnotationHandler():
         """      
         delta_time = convert_to_sec(delta_time)
         
-        self._df['start'] = self._df['start'] + delta_time
-        self._df['_dl'] = np.maximum(0, -self._df['start'])
-        self._df['start'][self._df['start'] < 0] = 0
+        self._df['time_start'] = self._df['time_start'] + delta_time
+        self._df['_dl'] = np.maximum(0, -self._df['time_start'])
+        self._df['time_start'][self._df['time_start'] < 0] = 0
         
-        self._df['stop'] = self._df['stop'] + delta_time
-        self._df['stop'][self._df['stop'] < 0] = 0
+        self._df['time_stop'] = self._df['time_stop'] + delta_time
+        self._df['time_stop'][self._df['time_stop'] < 0] = 0
 
-        self._df = self._df[self._df['stop'] > self._df['start']]
+        self._df = self._df[self._df['time_stop'] > self._df['time_start']]
         
-    def segment(self, num_segs, window_size, step_size=None, start=0):
-        """ Divide the time axis into (potentially overlapping) segments of fixed duration.
+    def segment(self, num_segs, window_size, step_size=None, time_start=0):
+        """ Divide the time axis into segments of uniform length, which may or may 
+            not be overlapping.
 
             Args:
                 num_segs: int
@@ -289,7 +292,7 @@ class AnnotationHandler():
                     or as a string with an SI unit, for example, '22min'.
                     If no value is specified, the step size is set equal to 
                     the window size, implying non-overlapping segments.
-                start: float or str
+                time_start: float or str
                     Start time for the first segment. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'.
@@ -307,12 +310,12 @@ class AnnotationHandler():
         # convert to seconds
         window_size = convert_to_sec(window_size)
         step_size = convert_to_sec(step_size)
-        start = convert_to_sec(start)
+        time_start = convert_to_sec(time_start)
 
         # find overlap between annotations and segments
-        iA = np.maximum(0, np.ceil((self._df['start'] - start - window_size) / step_size))
+        iA = np.maximum(0, np.ceil((self._df['time_start'] - time_start - window_size) / step_size))
         iA = iA.astype(int, copy=False)
-        iB = np.minimum(num_segs - 1, np.floor((self._df['stop'] - start) / step_size))
+        iB = np.minimum(num_segs - 1, np.floor((self._df['time_stop'] - time_start) / step_size))
         iB = iB.astype(int, copy=False)
 
         # loop over annotations
@@ -321,17 +324,17 @@ class AnnotationHandler():
             
             # segments that overlap with this annotation
             i = np.arange(iA[index], iB[index] + 1)
-            a = start + i * step_size
+            a = time_start + i * step_size
             b = a + window_size         
             n = len(i)
 
             # left and right cuts
-            dl = np.maximum(0, a - row['start'])
-            dr = -np.maximum(0, row['stop'] - b)
+            dl = np.maximum(0, a - row['time_start'])
+            dr = -np.maximum(0, row['time_stop'] - b)
 
             # crop/shift
-            b = np.minimum(b, row['stop']) - a
-            a = np.maximum(a, row['start']) - a
+            b = np.minimum(b, row['time_stop']) - a
+            a = np.maximum(a, row['time_start']) - a
 
             # create/fill annotation handlers for each segment
             for j in range(n):
@@ -340,8 +343,8 @@ class AnnotationHandler():
                     continue
 
                 r = row.copy()
-                r['start'] = a[j]
-                r['stop'] = b[j]
+                r['time_start'] = a[j]
+                r['time_stop'] = b[j]
                 r['_dl'] = dl[j]
                 r['_dr'] = dr[j]
                 idx = i[j]
