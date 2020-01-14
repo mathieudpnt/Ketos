@@ -412,7 +412,7 @@ class NNInterface():
 
             Args:
                 json_file:str
-                    Path to the .json file.
+                    Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
 
             Returns:
                 recipe_dict: dict
@@ -434,6 +434,24 @@ class NNInterface():
 
     @classmethod
     def write_recipe_file(cls, json_file, recipe):
+        """ Write a recipe dictionary into a .json file
+
+            Args:
+                json_file: str
+                    Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
+                
+                recipe:dict
+                    A recipe dictionary containing the optimizer, loss function and metrics 
+                    in addition to other parameters necessary to build an instance of the neural network.
+
+            Examples:
+                recipe = {"optimizer": RecipeCompat('adam',tf.keras.optimizers.Adam),
+                            "loss_function":RecipeCompat('categorical_cross_entropy',tf.keras.losses.CategoricalCrossEntropy),
+                            "metrics":[RecipeCompat('categorical+accuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            "another_parameter:32}
+
+                   
+        """
         with open(json_file, 'w') as json_recipe:
             json.dump(recipe, json_recipe)
 
