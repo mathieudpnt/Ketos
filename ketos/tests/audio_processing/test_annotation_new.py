@@ -31,7 +31,7 @@ import pytest
 import unittest
 import numpy as np
 import pandas as pd
-from ketos.audio_processing.annotation_new import AnnotationHandler
+from ketos.audio_processing.annotation_new import AnnotationHandler, stack_handlers
 
 
 def test_empty_annotation_handler_has_correct_columns():
@@ -103,53 +103,80 @@ def test_crop_annotations_along_time_axis():
     assert np.allclose(a['time_stop'], [1.2, 3.3, 5], atol=1e-08) 
     assert np.array_equal(a['label'], [2, 3, 4]) 
 
-def test_segment_annotations():
-    handler = AnnotationHandler()
-    handler.add(1, 0.2, 1.1, 0, 100)
-    handler.add(2, 3.1, 4.7, 0, 100)
+#def test_segment_annotations():
+ #   handler = AnnotationHandler()
+#    handler.add(1, 0.2, 1.1, 0, 100)
+#    handler.add(2, 1.3, 2.7, 0, 100)
     # divided into 1.0-second long segments with 50% overlap
-    ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5)
+#    ann = handler.segment(num_segs=10, window_size=1.0, step_size=0.5)
     # the segments overlapping with the two annotations are:
     # 0) 0.0-1.0, 1) 0.5-1.5, 2) 1.0-2.0, 5) 2.5-3.5, 6) 3.0-4.0, 
     # 7) 3.5-4.5, 8) 4.0-5.0, 9) 4.5-5.5
-    assert len(ann) == 8
+##    assert len(ann) == 8
     # check 1st segment
-    a = ann[0].get()
-    assert np.allclose(a['time_start'], [0.2])
-    assert np.allclose(a['time_stop'], [1.0])
-    assert np.array_equal(a['label'], [1]) 
+##    a = ann[0].get()
+##    assert np.allclose(a['time_start'], [0.2])
+##    assert np.allclose(a['time_stop'], [1.0])
+##    assert np.array_equal(a['label'], [1]) 
     # check 2nd segment
-    a = ann[1].get()
-    assert np.allclose(a['time_start'], [0.0])
-    assert np.allclose(a['time_stop'], [0.6])
-    assert np.array_equal(a['label'], [1]) 
+##    a = ann[1].get()
+##    assert np.allclose(a['time_start'], [0.0])
+##    assert np.allclose(a['time_stop'], [0.6])
+##    assert np.array_equal(a['label'], [1]) 
     # check 8th segment
-    a = ann[9].get()
-    assert np.allclose(a['time_start'], [0.0])
-    assert np.allclose(a['time_stop'], [0.2])
-    assert np.array_equal(a['label'], [2])
+##    a = ann[9].get()
+##    assert np.allclose(a['time_start'], [0.0])
+##    assert np.allclose(a['time_stop'], [0.2])
+##    assert np.array_equal(a['label'], [2])
 
-def test_segment_annotations_with_nonzero_start_time():
-    handler = AnnotationHandler()
-    handler.add(1, 0.2, 1.1, 0, 100)
+#def test_segment_annotations_with_nonzero_start_time():
+#    handler = AnnotationHandler()
+#    handler.add(1, 0.2, 1.1, 0, 100)
     # divided into 1.0-second long segments with 50% overlap, and start 
     # time set to -0.9 seconds
-    ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5, time_start='-0.9sec')
+##    ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5, offset='-0.9sec')
     # the segments overlapping with the two annotations are:
     # 1) -0.4-0.6, 2) 0.1-1.1, 3) 0.6-1.6
-    assert len(ann) == 3
+##    assert len(ann) == 3
     # check 1st segment
-    a = ann[1].get()
-    assert np.allclose(a['time_start'], [0.6])
-    assert np.allclose(a['time_stop'], [1.0])
-    assert np.array_equal(a['label'], [1]) 
+##    a = ann[1].get()
+##    assert np.allclose(a['time_start'], [0.6])
+##    assert np.allclose(a['time_stop'], [1.0])
+##    assert np.array_equal(a['label'], [1]) 
     # check 2nd segment
-    a = ann[2].get()
-    assert np.allclose(a['time_start'], [0.1])
-    assert np.allclose(a['time_stop'], [1.0])
-    assert np.array_equal(a['label'], [1]) 
+##    a = ann[2].get()
+##    assert np.allclose(a['time_start'], [0.1])
+##    assert np.allclose(a['time_stop'], [1.0])
+##    assert np.array_equal(a['label'], [1]) 
     # check 3rd segment
-    a = ann[3].get()
-    assert np.allclose(a['time_start'], [0.0])
-    assert np.allclose(a['time_stop'], [0.5])
-    assert np.array_equal(a['label'], [1])
+##    a = ann[3].get()
+##    assert np.allclose(a['time_start'], [0.0])
+##    assert np.allclose(a['time_stop'], [0.5])
+##    assert np.array_equal(a['label'], [1])
+
+def test_segment_stacked_annotations():
+    h1 = AnnotationHandler()
+    h1.add(1, 0.2, 1.1, 0, 100)
+    h1.add(2, 1.3, 2.7, 0, 100)
+    h2 = AnnotationHandler()
+    h2.add(13, 0.25, 1.15, 0, 200)
+    h2.add(14, 1.35, 2.75, 0, 200)
+    handler = stack_handlers([h1,h2])
+    # divided into 1.0-second long segments with 50% overlap
+    ann = handler.segment(num_segs=10, window_size=1.0, step_size=0.5)
+
+def test_stack_handlers():
+    h1 = AnnotationHandler()
+    h1.add(1, 0.2, 1.1, 50, 200)
+    h2 = AnnotationHandler()
+    h2.add(1, 0.1, 0.8, 20, 100)
+    h2.add(2, 3.1, 4.7, 0, 30)
+    h3 = AnnotationHandler()
+    h3.add(4, 0.4, 0.9)
+    h3.add(12, 2.9, 3.2)
+    h3.add(17, 3.3, 4.1)
+    h = stack_handlers([h1,h2,h3]) #stacked handler
+    assert h.num_sets() == 3
+    h0val = np.sort(h.get(set_id=0).to_numpy())
+    expected = np.sort(np.array([1, 0.2, 1.1, 50, 200]))
+    assert np.all(h0val == expected) # check that annotations match for handler #0

@@ -95,6 +95,47 @@ def convert(x, unit):
     
     return x
 
+def _ensure_multi_index(df):
+    """ Ensure the DataFrame has at least two indexing levels.
+
+        Args: 
+            df: pandas DataFrame
+                Input DataFrame
+
+        Returns: 
+            df: pandas DataFrame
+                Output DataFrame
+    """
+    if df.index.nlevels == 1:
+        df = pd.concat([df], axis=1, keys=[0]).stack(0).swaplevel(0,1)
+
+    return df
+
+def stack_handlers(handlers):
+    """ Create a handler to manage a stack of annotation sets.
+
+        The annotation sets will be indexed in the order they 
+        are provided.
+
+        Args:
+            handlers: list(AnnotationHandler)
+                Annotation handlers
+
+        Returns: 
+            handler: AnnotationHandler
+                Stacked annotation handler
+    """
+    dfs = []
+    N = len(handlers)
+    for i,h in enumerate(handlers):
+        df = h.get()
+        dfs.append(df)
+
+    df = pd.concat(dfs, sort=False, axis=1, keys=np.arange(N, dtype=int))
+    df = df.stack(0)
+    df = df.swaplevel(0,1)
+    handler = AnnotationHandler(df)
+    return handler
 
 class AnnotationHandler():
     """ Class for handling annotations of acoustic data.
@@ -109,6 +150,8 @@ class AnnotationHandler():
         methods to add/get annotations and perform various manipulations such as 
         cropping, shifting, and segmenting.
 
+        Multi-indexing is used for handling several, stacked annotation sets.
+
         Args:
             df: pandas DataFrame
                 Annotations to be passed on to the handler.
@@ -117,26 +160,54 @@ class AnnotationHandler():
     """
     def __init__(self, df=None):
         
-        # columns that will be returned to the user via the 'get' method
-        self._get_cols = ['label', 'time_start', 'time_stop', 'freq_min', 'freq_max']
+        if df is None:
+            # initialize empty DataFrame
+            self._df = pd.DataFrame(columns=['label', 'time_start', 'time_stop', 'freq_min', 'freq_max'], dtype='float')
+            self._df['label'] = pd.Series(dtype='int')
         
-        # initialize empty DataFrame
-        self._df = pd.DataFrame(columns=['label', 'time_start', 'time_stop', 'freq_min', 'freq_max', '_dl', '_dr'], dtype='float')
-        self._df['label'] = pd.Series(dtype='int')
+        else:
+            self._df = df
+            self._df = self._df.astype({'label': int})
 
-        # note: the columns '_dl' and '_dr' are used to keep track of the amount of cropping 
-        # applied to every annotation from the left (_dl) and right (_dr) in the most recent 
-        # manipulation.
+        # ensure multi-index
+        self._df = _ensure_multi_index(self._df)
 
-        # fill DataFrame
-        if df is not None:
-            self._add(df)
-        
-    def get(self):
-        """ Get all annotations being managed by the handler module.
+    def copy(self):
+        handler = self.__class__(self._df.copy())
+        return handler
+
+    def num_sets(self):
+        """ Get number of seperate annotation sets managed by the handler.
+
+            Returns:
+                num: int
+                    Number of annotation sets
+        """
+        ids = np.unique(self._df.index.get_level_values(0).values)
+        num = len(ids)
+        return num
+
+    def num_annotations(self, set_id=None):
+        """ Get number of annotations managed by the handler.
+
+            Returns:
+                num: int
+                    Unique identifier of the annotation set. If None is specified, 
+                    the total number of annotations is returned.
+        """
+        num = len(self.get(set_id=set_id))
+        return num
+
+    def get(self, set_id=None):
+        """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
             the handler module to manage the annotations.
+
+            Args:
+                set_id: int
+                    Unique identifier of the annotation set. If None is specified, 
+                    all annotations are returned.
 
             Returns:
                 ans: pandas DataFrame
@@ -155,27 +226,62 @@ class AnnotationHandler():
                    label  time_start  time_stop  freq_min  freq_max
                 0      1        60.0      120.0       NaN       NaN
                 1      2       660.0      720.0       NaN       NaN
-        """        
-        ans = self._df[self._get_cols]
+        """
+        ans = self._df
+
+        if self.num_sets() == 1:
+            ans = ans.loc[0]
+        else:
+            if set_id is not None:
+                ans = ans.loc[set_id]
+
         return ans
-    
-    def _add(self, df):
+
+    def _next_index(self, set_id=0):
+        """ Get the next available index for the selected annotation set.
+
+            Args:
+                set_id: int
+                    Unique identifier of the annotation set.
+
+            Returns:
+                idx, int
+                    Next available index.
+        """
+        if len(self._df) == 0:
+            idx = 0
+
+        else:
+            idx = self._df.loc[set_id].index.values[-1] + 1
+
+        return idx
+
+    def _add(self, df, set_id=0):
         """ Add annotations to the handler module.
         
             Args:
-                df: pandas DataFrame
-                    Must contain the columns 'label', 'time_start', and 'time_stop', and 
-                    optionally also 'freq_min' and 'freq_max'.
+                df: pandas DataFrame or dict
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                set_id: int
+                    Unique identifier of the annotation set.
 
             Returns: 
                 None
         """
-        self._df = self._df.append(df, sort=False, ignore_index=True)
-        self._df['_dl'][np.isnan(self._df['_dl'])] = 0
-        self._df['_dr'][np.isnan(self._df['_dr'])] = 0
+        if isinstance(df, dict):
+            df = pd.DataFrame(df, index=pd.Index([0]))
+        
+        next_index = self._next_index()
+        new_indices = pd.Index(np.arange(next_index, next_index + len(df), dtype=int))
+        df = df.set_index(new_indices)
+        df = _ensure_multi_index(df)
+        self._df = pd.concat([self._df, df], sort=False)
+
         self._df = self._df.astype({'label': 'int'}) #cast label column to int
 
-    def add(self, label=None, time_start=None, time_stop=None, freq_min=None, freq_max=None, df=None):
+    def add(self, label=None, time_start=None, time_stop=None, freq_min=None, freq_max=None, df=None, set_id=0):
         """ Add an annotation or a collection of annotations to the handler module.
         
             Individual annotations may be added using the arguments time_range and 
@@ -204,8 +310,11 @@ class AnnotationHandler():
                     unit will be assumed to be Hz, or as a string with an SI unit, 
                     for example, '3.1kHz'.
                 df: pandas DataFrame or dict
-                    DataFrame with columns 'label', 'time_start', 'time_stop', and optionally 
-                    also 'freq_min' and 'freq_max', containing one or several annotations. 
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                set_id: int
+                    Unique identifier of the annotation set.
 
             Returns: 
                 None
@@ -236,10 +345,14 @@ class AnnotationHandler():
             
             freq_min = convert_to_Hz(freq_min)
             freq_max = convert_to_Hz(freq_max)
+            if freq_min is None:
+                freq_min = np.nan
+            if freq_max is None:
+                freq_max = np.nan
 
-            df = {'label':label, 'time_start':time_start, 'time_stop':time_stop, 'freq_min':freq_min, 'freq_max':freq_max}
+            df = {'label':[label], 'time_start':[time_start], 'time_stop':[time_stop], 'freq_min':[freq_min], 'freq_max':[freq_max]}
 
-        self._add(df)
+        self._add(df, set_id)
         
     def crop(self, time_start=0, time_stop=None, freq_min=None, freq_max=None):
         """ Crop annotations along the time and/or frequency dimension.
@@ -306,7 +419,6 @@ class AnnotationHandler():
         # crop stop time
         if time_stop is not None:
             dr = -np.maximum(0, self._df['time_stop'] - time_stop)
-            self._df['_dr'] = dr
             self._df['time_stop'] = self._df['time_stop'] + dr
 
         # crop start time
@@ -338,7 +450,6 @@ class AnnotationHandler():
         delta_time = convert_to_sec(delta_time)
         
         self._df['time_start'] = self._df['time_start'] + delta_time
-        self._df['_dl'] = np.maximum(0, -self._df['time_start'])
         self._df['time_start'][self._df['time_start'] < 0] = 0
         
         self._df['time_stop'] = self._df['time_stop'] + delta_time
@@ -346,7 +457,7 @@ class AnnotationHandler():
 
         self._df = self._df[self._df['time_stop'] > self._df['time_start']]
         
-    def segment(self, num_segs, window_size, step_size=None, time_start=0):
+    def segment(self, num_segs, window_size, step_size=None, offset=0):
         """ Divide the time axis into segments of uniform length, which may or may 
             not be overlapping.
 
@@ -363,7 +474,7 @@ class AnnotationHandler():
                     or as a string with an SI unit, for example, '22min'.
                     If no value is specified, the step size is set equal to 
                     the window size, implying non-overlapping segments.
-                time_start: float or str
+                offset: float or str
                     Start time for the first segment. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'.
@@ -392,47 +503,31 @@ class AnnotationHandler():
         # convert to seconds
         window_size = convert_to_sec(window_size)
         step_size = convert_to_sec(step_size)
-        time_start = convert_to_sec(time_start)
+        offset = convert_to_sec(offset)
 
-        # find overlap between annotations and segments
-        iA = np.maximum(0, np.ceil((self._df['time_start'] - time_start - window_size) / step_size))
-        iA = iA.astype(int, copy=False)
-        iB = np.minimum(num_segs - 1, np.floor((self._df['time_stop'] - time_start) / step_size))
-        iB = iB.astype(int, copy=False)
+        # crop times
+        time_start = offset + step_size * np.arange(num_segs)
+        time_stop = time_start + window_size
 
-        # loop over annotations
-        ans = {}
-        for index, row in self._df.iterrows():
-            
-            # segments that overlap with this annotation
-            i = np.arange(iA[index], iB[index] + 1)
-            a = time_start + i * step_size
-            b = a + window_size         
-            n = len(i)
+        # loop over segments
+        handlers = []
+        for t1,t2 in zip(time_start, time_stop):
+            h = self.copy() # create a copy
+            h.crop(t1, t2) # crop 
+            if h.num_annotations() > 0:
+                h._df['offset'] = t1 # index with offset
+                handlers.append(h)
+        
+        # stack handlers
+        handler = stack_handlers(handlers)
 
-            # left and right cuts
-            dl = np.maximum(0, a - row['time_start'])
-            dr = -np.maximum(0, row['time_stop'] - b)
+        print()
+        print(handler._df)
 
-            # crop/shift
-            b = np.minimum(b, row['time_stop']) - a
-            a = np.maximum(a, row['time_start']) - a
+        df = handler._df
+        df = df.swaplevel(0,1)
+        df = df.swaplevel(1,2)
 
-            # create/fill annotation handlers for each segment
-            for j in range(n):
-                
-                if b[j] <= a[j]:
-                    continue
+        print(df)
 
-                r = row.copy()
-                r['time_start'] = a[j]
-                r['time_stop'] = b[j]
-                r['_dl'] = dl[j]
-                r['_dr'] = dr[j]
-                idx = i[j]
-                if idx in ans:
-                    ans[idx].add(df=r)
-                else:
-                    ans[idx] = self.__class__(df=r)
-
-        return ans
+        return None
