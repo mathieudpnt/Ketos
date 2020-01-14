@@ -272,7 +272,7 @@ class NNInterface():
     def optimizer_to_recipe(cls, optimizer):
         """ Creates a recipe-compatible optimizer object
 
-            Used creating a ketos recipe that can be used to recreate the model
+            Used when creating a ketos recipe that can be used to recreate the model.
 
             Args:
                 optimizer: instance of RecipeCompat
@@ -322,6 +322,21 @@ class NNInterface():
 
     @classmethod
     def loss_function_to_recipe(cls, loss_function):
+        """ Creates a recipe-compatible loss_function object
+
+            Used when creating a ketos recipe that can be used to recreate the model.
+
+            Args:
+                loss_function: instance of RecipeCompat
+                    A loss-function wrapped in a RecipeCompat object
+            Returns:
+                recipe_optimizer: dict 
+                    A dictionary with the 'name' and 'parameters' keys.
+
+            Raises:
+                ValueError if the loss_function name is not included in the valid_losses class attribute.
+
+        """
         name = loss_function.name
         kwargs = loss_function.args
 
