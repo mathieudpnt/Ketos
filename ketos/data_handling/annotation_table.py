@@ -321,8 +321,9 @@ def cast_to_str(labels, nested=False):
 
 def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_index=False):
-    """ Generate an annotation table suitable for training/testing a machine-learning model.
-
+    """ Generate an annotation table suitable for building a training/test dataset 
+        consisting of integer-labeled samples.
+        
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.annotation_table.standardize`.
 
