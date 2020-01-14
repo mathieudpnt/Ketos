@@ -130,7 +130,6 @@ class AnnotationHandler():
 
         # fill DataFrame
         if df is not None:
-            df = df.astype({'label': 'int'}) #cast label column to int
             self._add(df)
         
     def get(self):
@@ -375,6 +374,17 @@ class AnnotationHandler():
                     Dictionary in which the keys are the indices of those 
                     segments that have annotations, and the items are the 
                     annotation handlers.
+
+            Example:
+                >>> from ketos.audio_processing.annotation_new import AnnotationHandler
+                >>> # Initialize an empty annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, time_start='1s', time_stop='3s')
+                >>> handler.add(label=2, time_start='5.2s', time_stop='7.0s')
+                >>> # Apply segmentation
+                >>> annots = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', time_start='0.1s')
+                >>> # Inspect the annotations
         """              
         if step_size is None:
             step_size = window_size
