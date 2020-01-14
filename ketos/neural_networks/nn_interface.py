@@ -243,7 +243,7 @@ class NNInterface():
 
     @classmethod
     def optimizer_from_recipe(cls, optimizer):
-        """ Create an optimizer from a recipe compatible optimizer object
+        """ Creates an optimizer from a recipe-compatible optimizer object
 
             Used when building a model from a recipe. The optmizer has usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
 
@@ -252,7 +252,7 @@ class NNInterface():
                     A RecipeCompat object wrapping an optimizer 
             Returns:
                 built_optimizer: 
-                    A tensorflow compatible optimizer ready to be used for training the neural network.
+                    A tensorflow-compatible optimizer ready to be used for training the neural network.
 
             Raises:
                 ValueError if the optimizer name is not included in the valid_optimizers class attribute.
@@ -281,6 +281,21 @@ class NNInterface():
 
     @classmethod
     def loss_function_from_recipe(cls, loss_function):
+        """ Creates  a loss function from a recipe-compatible loss function object
+
+            Used when building a model from a recipe. The loss_function has usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
+
+            Args:
+                loss_function: instance of RecipeCompat
+                    A RecipeCompat object wrapping a loss function
+            Returns:
+                built_optimizer: 
+                    A tensorflow-compatible loss function ready to be used for training the neural network.
+
+            Raises:
+                ValueError if the loss function name is not included in the valid_losses class attribute.
+
+        """
         name = loss_function['name']
         kwargs = loss_function['parameters']
 
