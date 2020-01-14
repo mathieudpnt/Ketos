@@ -149,13 +149,13 @@ class AnnotationHandler():
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
                 >>> handler.add(label=1, time_start='1min', time_stop='2min')
-                >>> handler.add(label=1, time_start='11min', time_stop='12min')
+                >>> handler.add(label=2, time_start='11min', time_stop='12min')
                 >>> # Retrieve the annotations
                 >>> annot = handler.get()
                 >>> print(annot)
                    label  time_start  time_stop  freq_min  freq_max
-                0    1.0        60.0      120.0       NaN       NaN
-                1    1.0       660.0      720.0       NaN       NaN
+                0      1        60.0      120.0       NaN       NaN
+                1      2       660.0      720.0       NaN       NaN
         """        
         ans = self._df[self._get_cols]
         return ans
@@ -170,10 +170,11 @@ class AnnotationHandler():
 
             Returns: 
                 None
-        """        
+        """
         self._df = self._df.append(df, sort=False, ignore_index=True)
         self._df['_dl'][np.isnan(self._df['_dl'])] = 0
         self._df['_dr'][np.isnan(self._df['_dr'])] = 0
+        self._df = self._df.astype({'label': 'int'}) #cast label column to int
 
     def add(self, label=None, time_start=None, time_stop=None, freq_min=None, freq_max=None, df=None):
         """ Add an annotation or a collection of annotations to the handler module.
@@ -223,10 +224,10 @@ class AnnotationHandler():
                 >>> annot = handler.get()
                 >>> print(annot)
                    label  time_start  time_stop  freq_min  freq_max
-                0    1.0         4.0        6.0       NaN       NaN
-                1    2.0         8.0       12.0       NaN       NaN
-                2    1.0        60.0      120.0       NaN       NaN
-                3    3.0       660.0      720.0       NaN       NaN
+                0      1         4.0        6.0       NaN       NaN
+                1      2         8.0       12.0       NaN       NaN
+                2      1        60.0      120.0       NaN       NaN
+                3      3       660.0      720.0       NaN       NaN
         """        
         if label is not None:
             assert time_start is not None and time_stop is not None, 'time range must be specified'         
@@ -243,7 +244,7 @@ class AnnotationHandler():
         
     def crop(self, time_start=0, time_stop=None, freq_min=None, freq_max=None):
         """ Crop annotations along the time and/or frequency dimension.
-        
+
             Args:
                 time_start: float or str
                     Lower edge of time cropping interval. Can be specified either as 
@@ -264,6 +265,30 @@ class AnnotationHandler():
         
             Returns: 
                 None
+
+            Example:
+                >>> from ketos.audio_processing.annotation_new import AnnotationHandler
+                >>> # Initialize an empty annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, time_start='1min', time_stop='2min', freq_min='20Hz', freq_max='200Hz')
+                >>> handler.add(label=2, time_start='180s', time_stop='300s', freq_min='60Hz', freq_max='1000Hz')
+                >>> # Crop the annotations in time
+                >>> handler.crop(time_start='30s', time_stop='4min')
+                >>> # Inspect the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  time_start  time_stop  freq_min  freq_max
+                0      1        30.0       90.0      20.0     200.0
+                1      2       150.0      210.0      60.0    1000.0
+                >>> # Note how all the start and stop times are shifted by -30 s due to the cropping operation.
+                >>> # Crop the annotations in frequency
+                >>> handler.crop(freq_min='50Hz')
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  time_start  time_stop  freq_min  freq_max
+                0      1        30.0       90.0      50.0     200.0
+                1      2       150.0      210.0      60.0    1000.0
         """
         # convert to desired units
         freq_min = convert_to_Hz(freq_min)
