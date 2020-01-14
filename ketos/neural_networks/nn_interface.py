@@ -206,6 +206,29 @@ class NNInterface():
 
     @classmethod
     def transform_output(cls,output):
+        """ Transforms the network output 
+
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of an input and returning the class wih the highest score instead of a softmax vector.
+
+            Args:
+                output:np.array
+                    The output neural network output. An array of one or more vectors of float scores that each add to 1.0.
+            Returns:
+                transormed_output:tuple
+                    The transformed output, where the first value is the integer representing the highest  classs in the rank the second is the respective score
+
+            Example:
+                >>> import numpy as np
+                >>> output = np.array([[0.2,0.1,0.7]])  
+                >>> NNInterface.transform_output(output)
+                (array([2]), array([0.7]))
+
+                >>> output = np.array([[0.2,0.1,0.7],[0.05,0.65,0.3]])  
+                >>> NNInterface.transform_output(output)
+                (array([2, 1]), array([0.7 , 0.65]))
+
+        """
         max_class = np.argmax(output, axis=-1)
         if output.shape[0] == 1:
             max_class_conf = output[0][max_class]
