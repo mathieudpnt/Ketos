@@ -130,17 +130,35 @@ class AnnotationHandler():
 
         # fill DataFrame
         if df is not None:
+            df = df.astype({'label': 'int'}) #cast label column to int
             self._add(df)
         
     def get(self):
         """ Get all annotations being managed by the handler module.
         
-            returns:
+            Note: This returns a view (not a copy) of the pandas DataFrame used by 
+            the handler module to manage the annotations.
+
+            Returns:
                 ans: pandas DataFrame
                     Annotations 
+
+            Example:
+                >>> from ketos.audio_processing.annotation_new import AnnotationHandler
+                >>> # Initialize an empty instance of the annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, time_start='1min', time_stop='2min')
+                >>> handler.add(label=1, time_start='11min', time_stop='12min')
+                >>> # Retrieve the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  time_start  time_stop  freq_min  freq_max
+                0    1.0        60.0      120.0       NaN       NaN
+                1    1.0       660.0      720.0       NaN       NaN
         """        
-        res = self._df[self._get_cols]
-        return res
+        ans = self._df[self._get_cols]
+        return ans
     
     def _add(self, df):
         """ Add annotations to the handler module.
@@ -149,6 +167,9 @@ class AnnotationHandler():
                 df: pandas DataFrame
                     Must contain the columns 'label', 'time_start', and 'time_stop', and 
                     optionally also 'freq_min' and 'freq_max'.
+
+            Returns: 
+                None
         """        
         self._df = self._df.append(df, sort=False, ignore_index=True)
         self._df['_dl'][np.isnan(self._df['_dl'])] = 0
@@ -185,6 +206,27 @@ class AnnotationHandler():
                 df: pandas DataFrame or dict
                     DataFrame with columns 'label', 'time_start', 'time_stop', and optionally 
                     also 'freq_min' and 'freq_max', containing one or several annotations. 
+
+            Returns: 
+                None
+
+            Example:
+                >>> from ketos.audio_processing.annotation_new import AnnotationHandler
+                >>> # Create an annotation table containing two annotations
+                >>> annots = pd.DataFrame({'label':[1,2], 'time_start':[4.,8.], 'time_stop':[6.,12.]})
+                >>> # Initialize the annotation handler
+                >>> handler = AnnotationHandler(annots)
+                >>> # Add a couple of more annotations
+                >>> handler.add(label=1, time_start='1min', time_stop='2min')
+                >>> handler.add(label=3, time_start='11min', time_stop='12min')
+                >>> # Inspect the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  time_start  time_stop  freq_min  freq_max
+                0    1.0         4.0        6.0       NaN       NaN
+                1    2.0         8.0       12.0       NaN       NaN
+                2    1.0        60.0      120.0       NaN       NaN
+                3    3.0       660.0      720.0       NaN       NaN
         """        
         if label is not None:
             assert time_start is not None and time_stop is not None, 'time range must be specified'         
@@ -219,6 +261,9 @@ class AnnotationHandler():
                     Upper edge of frequency cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be Hz, 
                     or as a string with an SI unit, for example, '3.1kHz'
+        
+            Returns: 
+                None
         """
         # convert to desired units
         freq_min = convert_to_Hz(freq_min)
