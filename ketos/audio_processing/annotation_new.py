@@ -333,6 +333,8 @@ class AnnotationHandler():
                     Amount by which annotations will be shifted. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
+
+            Example:
         """      
         delta_time = convert_to_sec(delta_time)
         
