@@ -108,7 +108,7 @@ class NNInterface():
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
-            accomodate any transformations required. Common operations are reshaping of in put arrays and parsing or one hot encoding of the labels.
+            accomodate any transformations required. Common operations are reshaping of input arrays and parsing or one hot encoding of the labels.
 
             Args:
                 x:numpy.array
@@ -135,12 +135,12 @@ class NNInterface():
                 (10, 5, 5)
 
                     
-                >>> # Create a batch of 10 ninary (0 or 1)
+                >>> # Create a batch of 10 labels (0 or 1)
                 >>> labels = np.random.choice([0,1], size=10)
                 >>> labels.shape
                 (10,)
 
-                >>> transformed_inputs, transformed_labels = NNInterface.transform_train_batch(inputs, labels)
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_train_batch(inputs, labels, n_classes=2)
                 >>> transformed_inputs.shape
                 (10, 5, 5, 1)
 
@@ -155,6 +155,46 @@ class NNInterface():
 
     @classmethod
     def transform_input(cls,input):
+        """ Transforms a training input to the format expected by the network.
+
+            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of an input.
+
+            Args:
+                input:numpy.array
+                    An input instance. Must be of shape (n,m) or (1,n,m).
+
+            Raises:
+                ValueError if input does not have 2 or 3 dimensions.
+
+            Returns:
+                tranformed_input:numpy.array
+                    The transformed batch of inputs
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> batch_of_inputs = np.random.rand(10,5,5)
+                >>> selected_input = batch_of_inputs[0]
+                >>> selected_input.shape
+                (5, 5)
+                 
+                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                # The input can also have shape=(1,n,m)
+                >>> selected_input = batch_of_inputs[0:1]
+                >>> selected_input.shape
+                (1, 5, 5)
+                 
+                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                
+        """
         if input.ndim == 2:
             transformed_input = input.reshape(1,input.shape[0], input.shape[1],1)
         elif input.ndim == 3:
