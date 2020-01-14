@@ -258,7 +258,6 @@ def test_clip(sine_audio):
     assert segs[1].duration() == pytest.approx(0.4, abs=2./audio.rate)
     assert audio.duration() == pytest.approx(3.0-0.6, abs=2./audio.rate)
 
-@pytest.mark.test_resample
 def test_resampled_signal_has_correct_rate(sine_wave_file):
     signal = aud.AudioSignal.from_wav(sine_wave_file)
 
@@ -270,7 +269,6 @@ def test_resampled_signal_has_correct_rate(sine_wave_file):
     new_signal.resample(new_rate=2000)
     assert new_signal.rate == 2000
 
-@pytest.mark.test_resample
 def test_resampled_signal_has_correct_length(sine_wave_file):
     signal = aud.AudioSignal.from_wav(sine_wave_file)
 
@@ -284,7 +282,6 @@ def test_resampled_signal_has_correct_length(sine_wave_file):
     new_signal.resample(new_rate=2000)
     assert len(new_signal.data) == duration * new_signal.rate 
 
-@pytest.mark.test_resample
 def test_resampling_preserves_signal_shape(const_wave_file):
     signal = aud.AudioSignal.from_wav(const_wave_file)
     new_signal = signal.copy()
@@ -294,7 +291,6 @@ def test_resampling_preserves_signal_shape(const_wave_file):
     for i in range(n):
         assert signal.data[i] == new_signal.data[i]
 
-@pytest.mark.test_resample
 def test_resampling_preserves_signal_frequency(sine_wave_file):
     signal = aud.AudioSignal.from_wav(sine_wave_file)
     rate = signal.rate
@@ -311,7 +307,6 @@ def test_resampling_preserves_signal_frequency(sine_wave_file):
 
     assert freqHz == new_freqHz
 
-@pytest.mark.test_make_frames
 def test_signal_is_padded(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate
@@ -324,7 +319,6 @@ def test_signal_is_padded(sine_wave):
     assert frames[0, len(sig)] == 0
     assert frames[0, 2*len(sig)-1] == 0
 
-@pytest.mark.test_make_frames
 def test_can_make_overlapping_frames(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate
@@ -335,7 +329,6 @@ def test_can_make_overlapping_frames(sine_wave):
     assert frames.shape[0] == 3
     assert frames.shape[1] == len(sig)/2
 
-@pytest.mark.test_make_frames
 def test_can_make_non_overlapping_frames(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate
@@ -346,7 +339,6 @@ def test_can_make_non_overlapping_frames(sine_wave):
     assert frames.shape[0] == 2
     assert frames.shape[1] == len(sig)/4
 
-@pytest.mark.test_make_frames
 def test_first_frame_matches_original_signal(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate
@@ -358,7 +350,6 @@ def test_first_frame_matches_original_signal(sine_wave):
     for i in range(int(winlen*rate)):
         assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
 
-@pytest.mark.test_make_frames
 def test_window_length_can_exceed_duration(sine_wave):
     rate, sig = sine_wave
     duration = len(sig) / rate

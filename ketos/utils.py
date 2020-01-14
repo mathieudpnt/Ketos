@@ -33,6 +33,23 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
+from functools import reduce
+from sympy import Interval, Union, Complement
+
+def factors(n):    
+    """ Returns sorted set of all divisors of n
+
+        Args:
+            n: int
+                Integer number
+
+        Returns:
+            s: set
+                Sorted set of all divisors of n
+    """
+    s = set(reduce(list.__add__, 
+                ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
+    return s
 
 def ensure_dir(file_path):
     """ Ensure that destination directory exists.
@@ -438,3 +455,51 @@ def get_member(cls, member_name):
 
     s = ", ".join(name for name, _ in cls.__members__.items())
     raise ValueError("Unknown value \'{0}\'. Select between: {1}".format(member_name, s))
+
+def str_is_int(s, signed=True):
+    """ Check if a given string represents a (signed) integer.
+
+        Args:
+            s: str
+                Input string.
+            signed: bool
+                Check if string represents a signed integer (default) or unsigned.
+
+        Returns:
+            res: bool
+                Result of check
+    """
+    if signed:
+        res = s.isdigit() or (s.startswith('-') and s[1:].isdigit()) or (s.startswith('+') and s[1:].isdigit())
+    else:
+        res = s.isdigit()
+         
+    return res
+
+def complement_intervals(a, b):
+    """ Compute the complement of multiple of intervals.
+
+        Args:
+            a: list 
+                Set with respect to which the complement is computed, e.g. [0., 100.]
+            b: list of lists or tuples
+                Intervals with respect to which the complement is computed, e.g. [[1.2, 7.0],[14.4,18.0]]
+    
+        Returns:
+            c list of tuples
+                Intervals that comprise the complement set.
+    """
+    a = Interval(a[0], a[1])
+    b = [Interval(begin, end) for (begin, end) in b]
+    u = Union(*b)
+    c = Complement(a, u)
+    if isinstance(c, Interval):
+        c = [list(c.args[:2])]
+
+    elif isinstance(c, Union):
+        c = [interval.args[:2] for interval in list(c.args)]
+
+    else:
+        c = []
+
+    return c

@@ -32,6 +32,7 @@ import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
 from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
+from ketos.audio_processing.audio import AudioSignal
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -39,7 +40,6 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-@pytest.mark.test_open_table
 def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
@@ -53,7 +53,6 @@ def test_open_non_existing_table():
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_open_table
 def test_open_existing_table():
     """ Test if the expected table is open """
     # open h5 file
@@ -65,25 +64,50 @@ def test_open_existing_table():
     assert tbl.nrows == 15
     # clean
     h5file.close()
-   
 
-@pytest.mark.test_create_table
 def test_create_table():
     """Test if a table and its group are created"""
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
-    h5file = tables.open_file(fpath, 'w')
-    # create table
-    _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=(20,60))
+    h5file = di.open_file(fpath, 'w')
+    # create table description
+    descr_data, descr_annot = di.table_description_new((32,64))
+    # create data table
+    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
     assert isinstance(group, tables.group.Group)
     table = h5file.get_node("/group_1/table_1")
+    assert isinstance(table, tables.table.Table)    
+    # create annotation table
+    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    group = h5file.get_node("/group_1")
+    assert isinstance(group, tables.group.Group)
+    table = h5file.get_node("/group_1/table_2")
     assert isinstance(table, tables.table.Table)    
     # clean
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_create_table
+def test_add_row_to_annot_table():
+    """Test if we can add a row to the annotation table"""
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
+    h5file = di.open_file(fpath, 'w')
+    # create table description
+    descr_annot = di.table_description_weak_annot()
+    # create annotation table
+    table = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    # add a row
+    row = table.row
+    row['label'] = 12
+    row['data_id'] = 3
+    row.append()
+    table.flush()
+    assert table.nrows == 1
+    # clean
+    h5file.close()
+    os.remove(fpath)
+
 def test_create_table_existing():
     """Test if a table is open when it already exists"""
     # open h5 file
@@ -98,36 +122,49 @@ def test_create_table_existing():
     # clean
     h5file.close()
     
-
-@pytest.mark.test_write_spec
 def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    spec.tag = 'file.wav'
+    spec.tmin = 0.1
     # add annotation
     spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
-    h5file = tables.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for storing the spectrogram data
+    descr_data, descr_annot = di.table_description_new(spec, annot_type='strong')
+    # Create tables
+    tbl_data = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
+    tbl_annot = di.create_table_new(h5file, "/group1/", "table_annot", descr_annot) 
     # write spectrogram to table
-    di.write_spec(table=tbl, spec=spec) # should return None after writing spectrogram to table
+    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
     # write spectrogram to table with id
-    di.write_spec(table=tbl, spec=spec, id='123%')
-
-    assert tbl[0]['id'].decode() == ''
-    assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
-
-    assert tbl[1]['id'].decode() == '123%'
-    assert tbl[1]['labels'].decode() == '[1,2]'
-    assert tbl[1]['boxes'].decode() == '[[1.0,2.0,3.0,4.0],[1.5,2.5,3.5,4.5]]'
-
+    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot, id=7)
+    tbl_data.flush()
+    tbl_annot.flush()
+    x = tbl_annot[0]
+    assert x['data_id'] == 0
+    assert x['label'] == 1
+    assert x['time_start'] == 1.
+    assert x['time_stop'] == 2.
+    x = tbl_annot[1]
+    assert x['data_id'] == 0
+    assert x['label'] == 2
+    assert x['time_start'] == 1.5
+    assert x['time_stop'] == 2.5
+    x = tbl_annot[2]
+    assert x['data_id'] == 7
+    assert x['label'] == 1
+    assert x['time_start'] == 1.
+    assert x['time_stop'] == 2.
+    x = tbl_data[0]
+    assert x['filename'].decode() == 'file.wav'
+    assert x['offset'] == 0.1
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_write_spec
 def test_write_spec_TypeError(sine_audio):
     """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
     sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
@@ -145,7 +182,6 @@ def test_write_spec_TypeError(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-@pytest.mark.test_write_spec
 def test_write_spec_cqt(sine_audio):
     """Test if CQT spectrograms are written with appropriate encoding"""
     # create cqt spectrogram    
@@ -172,8 +208,6 @@ def test_write_spec_cqt(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
-@pytest.mark.test_extract
 def test_extract(sine_audio):
     """ Test if annotations are correctly extracted from spectrograms"""
     # create spectrogram    
@@ -212,9 +246,6 @@ def test_extract(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
-
-@pytest.mark.test_parse_labels
 def test_parse_labels(sine_audio):
     """Test if labels with the expected format are correctly parsed"""
     # create spectrogram    
@@ -245,8 +276,6 @@ def test_parse_labels(sine_audio):
     h5file.close()
     os.remove(fpath)
     
-
-@pytest.mark.test_parse_boxes
 def test_parse_boxes(sine_audio):
     """Test if boxes with the expected format are correctly parsed"""
     # create spectrogram    
@@ -277,8 +306,6 @@ def test_parse_boxes(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
-@pytest.mark.filter_by_label
 def test_filter_by_label(sine_audio):
     """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
     # create spectrogram  
@@ -321,8 +348,6 @@ def test_filter_by_label(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-
-@pytest.mark.filter_by_label
 def test_filter_by_label_raises(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
     # open h5 file
@@ -349,9 +374,6 @@ def test_filter_by_label_raises(sine_audio):
    
     h5file.close()
 
-
-
-@pytest.mark.load_specs
 def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
 
@@ -366,7 +388,6 @@ def test_load_specs_no_index_list():
     
     h5file.close()
 
-@pytest.mark.load_specs
 def test_load_specs_with_index_list():
     """Test if load_specs loads the spectrograms specified by index_list""" 
 
@@ -426,7 +447,7 @@ def test_create_spec_database_with_size_limit():
     output_file = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
     input_dir = os.path.join(path_to_assets, 'wav_files/')
 
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=5E6)
+    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=10E6)
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
     fil = tables.open_file(path, 'r')
@@ -612,3 +633,25 @@ def test_two_spec_writers_simultaneously(sine_audio):
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
+
+def test_write_spec_attrs():
+    audio = AudioSignal.from_wav(os.path.join(path_to_assets, '2min.wav'))
+    # Use that signal to create a spectrogram
+    spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
+    # Open a connection to a new HDF5 database file
+    fpath = os.path.join(path_to_assets, "tmp/database3.h5")
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for weakly labeled spectrograms
+    descr_data, descr_annot = di.table_description_new(spec)
+    # Create 'table_data' within 'group1'
+    my_table = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
+    # Write spectrogram attributes to the table
+    di.write_spec_attrs(my_table, spec)
+    # The table now has the following attributes
+    assert my_table.attrs.freq_min == 0
+    assert pytest.approx(my_table.attrs.freq_res, 4.975, abs=0.001)
+    assert my_table.attrs.time_res == 0.05
+    assert my_table.attrs.type == 'Mag'
+    h5file.close()
+    os.remove(fpath)
+

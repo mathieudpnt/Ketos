@@ -2,6 +2,64 @@ Change log
 ==========
 
 
+**Version 1.1.3** (November 15, 2019)
+
+ * Added option to specify resampling type in MagSpectrogram.from_wav method 
+ * Bug fix in SpecProvider: jump to next file if time exceeds file duration.
+
+
+**Version 1.1.2** (November 12, 2019)
+
+ * Added option for creating overlapping spectrograms in the create_spec_database method
+ * Added option for specifying batch size as an integer number of wav files in AudioSequenceReader
+ * Added option for generating spectrograms from a SpectrogramConfiguration object
+ * New SpecProvider class facilitates loading and computation of spectrograms from wave files
+
+
+**Version 1.1.1** (October 2, 2019)
+
+ * Fixed minor bug in spectrogram.get_label_vector method, occuring when annotation box goes beyond spectrogram time range.
+ * When annotations are added to a spectrogram with the spectrogram.annotate mehod, any annotation that is fully outside the spectrogram time range is ignored.
+ * When spectrograms are saved to a HDF5 database file using the database_interface.write_spec method, the time offset tmin is subtracted from all annotations, since this offset is lost when the spectrogram is saved.
+ * from_wav methods in spectrogram module do not merge stereo recordings into mono
+
+
+**Version 1.1.0** (August 13, 2019)
+
+ * New Jupyter Notebook tutorial demonstrating how to implement a simple boat detection program.
+ * AverageFilter added to spectrogram_filters module.
+
+
+**Version 1.0.9** (August 7, 2019)
+
+ * Fixed minor bug in spectrogram crop method.
+ * Updated to latest numpy version (1.17.0), which includes an enhanced Fast-Fourier-Transform (FFT) implementation.
+
+
+**Version 1.0.8** (July 24, 2019)
+
+ * New method for generating CQT spectrograms directly from audio file (*.wav) input.
+ * Spectrogram plot method provides correct labels for CQT spectrogram.
+ * If necessary, maximum frequency of CQT spectrogram is automatically reduced to ensure that it is below the Nyquist frequency. 
+ * Minor bug fix in _crop_image method in Spectrogram class
+
+
+**Version 1.0.7** (July 23, 2019)
+
+ * from_wav method in MagSpectrogram class raises an exception if the duration 
+   does not equal an integer number of steps.
+
+
+**Version 1.0.6** (July 23, 2019)
+
+ * New method for generating magnitude spectrograms directly from audio file (*.wav) input.
+
+
+**Version 1.0.5** (July 19, 2019)
+
+ * BasicCNN accepts multi-channel images as input.
+
+
 **Version 1.0.4** (June 26, 2019)
 
  * Option to add batch normalization layers to BasicCNN.
@@ -24,6 +82,7 @@ Change log
  * Improved implementation of ActiveLearningBatchGenerator; train_active method in BasicCNN modified accordingly.
  * Both BatchGenerator and ActiveLearningBatchGenerator can read either from memory or database.
  * New tutorial showing how to compute spectrograms and save them to a database.
+
 
 **Version 1.0.3** (June 21, 2019)
 

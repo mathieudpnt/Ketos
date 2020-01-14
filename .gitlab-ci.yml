@@ -1,4 +1,4 @@
-image: oliskir/ketos:v1.0.1
+image: meridiancfi/ketos:v2.0.0b0
 
 stages:
 - build
@@ -7,7 +7,6 @@ stages:
 - trig
 
 before_script:
-  - pip install psutil
 
 after_script:
   - rm -rf ketos/tests/assets/tmp/*
@@ -15,7 +14,7 @@ after_script:
 run-tests:
  type: test
  script:
-  - pytest --doctest-modules
+  - pytest --doctest-modules --ignore=docs
 
 create-docs:
  type: deploy

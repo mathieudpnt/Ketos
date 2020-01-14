@@ -36,12 +36,13 @@ import math
 import errno
 import tables
 from subprocess import call
-import scipy.io.wavfile as wave
-import ketos.external.wavfile as wave_bit
+import soundfile as sf
 from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
+from ketos.data_handling.parsing import SpectrogramConfiguration
+import soundfile
 
 
 def rel_path_unix(path, start=None):
@@ -260,10 +261,8 @@ def read_wave(file, channel=0):
             >>> len(data)/rate
             120.832
     """
-    try:
-        rate, signal, _ = wave_bit.read(file)
-    except TypeError:
-        rate, signal = wave.read(file)
+    signal, rate = sf.read(file)
+    
            
     if len(signal.shape) == 2:
         data = signal[:, channel]
@@ -476,7 +475,7 @@ def parse_seg_name(seg_name):
 
     """
     id, labels = None, None
-    pattern=re.compile('id_(.+)_(.+)_l_\[(.+)\].*')
+    pattern=re.compile(r'id_(.+)_(.+)_l_\[(.+)\].*')
     if not pattern.match(seg_name):
        raise ValueError("seg_name must follow the format  id_*_*_l_[*].")
 
@@ -592,7 +591,7 @@ def divide_audio_into_segs(audio_file, seg_duration, save_to, annotations=None, 
         sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=seg_duration)
         if verbose:
             print("Creating segment......", path_to_seg)
-        librosa.output.write_wav(path_to_seg, sig, rate)
+        soundfile.write(path_to_seg, sig, rate)
 
 def _filter_annotations_by_filename(annotations, filename):
     """ Filter the annotations DataFrame by the base of the original file name (without the path or extension)
@@ -743,7 +742,7 @@ def seg_from_time_tag(audio_file, start, end, name, save_to):
     """
     out_seg = os.path.join(save_to, name)
     sig, rate = librosa.load(audio_file, sr=None, offset=start, duration=end - start)
-    librosa.output.write_wav(out_seg, sig, rate)
+    soundfile.write(out_seg, sig, rate)
 
 
 def segs_from_annotations(annotations, save_to):
@@ -860,6 +859,13 @@ class AudioSequenceReader:
         alphabetically (if given as a folder name) or in the order provided (if given as a list 
         of file names).
 
+        OBS: Note that the AudioSequenceReader always loads entire wav files into memory, 
+        even when the requested batch size is smaller than the file size. This can cause 
+        problems if the wav files are very large.
+
+        TODO: If the file size is larger than the batch size, only load the relevant part of 
+        the wav file into memory, to avoid problems with very large wav files.
+        
         Args:
             source: str or list
                 File name, list of file names, or directory name 
@@ -879,7 +885,10 @@ class AudioSequenceReader:
                 Size of region (number of samples) used for smoothly joining audio signals 
             verbose: bool
                 If True, print progress messages during processing
-
+            batch_size_samples: int
+                Number of samples loaded for each batch.
+            batch_size_files: int
+                Number of wav files loaded for each batch. (Overwrites batch_size_samples.)
         
         Raises:
             AssertionError:
@@ -908,7 +917,8 @@ class AudioSequenceReader:
         40000
 
     """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False):
+    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False,\
+            batch_size_samples=None, batch_size_files=None):
         self.rate = rate
         self.n_smooth = n_smooth
         self.times = list()
@@ -919,18 +929,22 @@ class AudioSequenceReader:
         self.time = None
         self.eof = False
         self.verbose = verbose
+        self.batch_size_samples = batch_size_samples
+        self.batch_size_files = batch_size_files
         self.load(source=source, recursive_search=recursive_search, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
 
     def load(self, source, recursive_search=False, datetime_stamp=None, datetime_fmt=None):
         """
             Reset the reader and load new data.
             
+            OBS: These method does not actually load any audio data into memory, but merely 
+            creates a record of all the wav files to be processed.
+
             Args:
                 source: str or list
                     File name, list of file names, or directory name 
                 recursive_search: bool
                     If true, include wav files from all subdirectories
-
                 datetime_stamp: str
                     A default datetime to be used in case the file names do not contain datetime information.
                     Requires the format to be specified by the 'datetime_fmt' argument.
@@ -1013,6 +1027,7 @@ class AudioSequenceReader:
         # sort signals in chronological order
         def sorting(y):
             return y[1]
+
         self.files.sort(key=sorting)
 
         # reset the reader
@@ -1086,6 +1101,7 @@ class AudioSequenceReader:
                 n_smooth = self.n_smooth
             else:
                 n_smooth = 0
+
             t = self.batch.append(signal=self.signal, n_smooth=n_smooth, max_length=size) # add to existing batch
             if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
                 self.times.append(t) # collect times
@@ -1097,11 +1113,13 @@ class AudioSequenceReader:
         """
             Read next batch of audio files and merge into a single audio signal. 
             
-            If no maximum size is given, all loaded files will be read and merged.
+            If no maximum size is given, all loaded files will be read and merged, 
+            unless either batch_size_samples or batch_size_files has been specified 
+            at the time of initialization.  
             
             Args:
                 size: int
-                    Maximum batch size (number of samples) 
+                    Maximum batch size (number of samples).
                     
             Returns:
                 batch: TimeStampedAudioSignal
@@ -1126,17 +1144,35 @@ class AudioSequenceReader:
                 >>> len(seq2.data)
                 40000
         """
+        num_files = None
+
+        # ensure that size has type int
+        if size is not math.inf:
+            size = int(size)
+        
+        elif self.batch_size_files is not None:
+            num_files = self.batch_size_files
+
+        elif self.batch_size_samples is not None:
+            size = self.batch_size_samples
+
         if self.finished():
             return None
         
-        length = 0
-        
-        while length < size and not self.finished():
+        # batch size corresponds to certain number of wav files
+        if num_files is not None:
+            file_no = 0
+            while file_no < num_files and not self.finished():
+                self._add_to_batch(size=math.inf, new_batch=(file_no==0))
+                file_no += 1
 
-            self._add_to_batch(size, new_batch=(length==0))
-            
-            if self.batch is not None:
-                length = len(self.batch.data)
+        # batch size corresponds to certain number of samples
+        else:
+            length = 0        
+            while length < size and not self.finished():
+                self._add_to_batch(size=size, new_batch=(length==0))                
+                if self.batch is not None:
+                    length = len(self.batch.data)
 
         if self.finished() and self.verbose:
             print(' Successfully processed {0} files'.format(len(self.files)))
@@ -1281,15 +1317,15 @@ class AnnotationTableReader():
 
         The csv file should have at least the following columns:
 
-            "filename": file name
-            "label": label value (0, 1, 2, ...)
-            "start": start time in seconds measured from the beginning of the audio file
-            "end": end time in seconds
+           * "filename": file name
+           * "label": label value (0, 1, 2, ...)
+           * "start": start time in seconds measured from the beginning of the audio file
+           * "end": end time in seconds
 
         In addition, it can the following two optional columns:
 
-            "flow": frequency lower boundary in Hz
-            "fhigh": frequency upper boundary in Hz
+           * "flow": frequency lower boundary in Hz
+           * "fhigh": frequency upper boundary in Hz
 
         Args:
             path: str
@@ -1382,5 +1418,179 @@ class AnnotationTableReader():
             boxes.append(b)
 
         return labels, boxes
+
+
+class SpecProvider():
+    """ Compute spectrograms from raw audio (*.wav) files.
+
+        Note that if spec_config is specified, the following arguments are ignored: 
+        sampling_rate, window_size, step_size, length, overlap, flow, fhigh, cqt, bins_per_octave.
+
+        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+    
+        Args:
+            path: str
+                Full path to audio file (*.wav) or folder containing audio files
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            spec_config: SpectrogramConfiguration
+                Spectrogram configuration object.
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
+            window_size: float
+                Window size (seconds) used for computing the spectrogram
+            step_size: float
+                Step size (seconds) used for computing the spectrogram
+            length: float
+                Duration in seconds of individual spectrograms.
+            overlap: float
+                Overlap in seconds between consecutive spectrograms.
+            flow: float
+                Lower cut on frequency (Hz)
+            fhigh: float
+                Upper cut on frequency (Hz)
+            cqt: bool
+                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
+                spectrogram.
+            bins_per_octave: int
+                Number of bins per octave. Only applicable if cqt is True.
+            pad: bool
+                If True (default), audio files will be padded with zeros at the end to produce an 
+                integer number of spectrogram if necessary. If False, audio files 
+                will be truncated at the end.
+
+            Example:
+    """
+    def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
+
+        if spec_config is None:
+            spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
+                bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
+
+        if spec_config.length is not None:
+            assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
+
+        self.spec_config = spec_config
+        self.channel = channel
+        self.pad = pad
+
+        # get all wav files in the folder, including any subfolders
+        if path[-3:].lower() == 'wav':
+            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
+            self.files = [path]
+        else:
+            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
+
+        # file ID
+        self.fid = -1
+        self._next_file()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """ Compute next spectrogram.
+
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
+        """
+        # get spectrogram
+        spec = self.get(time=self.time, file_id=self.fid)
+
+        # increment time
+        self.time += spec.duration() - self.spec_config.overlap
+
+        # increment segment ID
+        self.sid += 1
+
+        # if this was the last segment, jump to the next file
+        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
+        if self.sid == self.num_segs or self.time >= file_duration:
+            self._next_file()
+
+        return spec
+
+    def reset(self):
+        """ Go back to the beginning of the first file.
+        """
+        self.jump(0)
+
+    def jump(self, file_id=0):
+        """ Go to the beginning of the selected file.
+
+            Args:
+                file_id: int
+                    File ID
+        """
+        self.fid = file_id - 1
+        self._next_file()
+
+    def get(self, time=0, file_id=0):
+        """ Compute spectrogram from specific file and time.
+
+            Args:
+                time: float
+                    Start time of the spectrogram in seconds, measured from the 
+                    beginning of the file.
+                file_id: int
+                    Integer file identifier.
+        
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
+        """
+        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
+
+        # file
+        f = self.files[file_id]
+
+        # compute spectrogram
+        if self.spec_config.type == 'CQT':
+            spec = CQTSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, channel=self.channel)
+
+        else:
+            spec = MagSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, adjust_duration=True, channel=self.channel)
+
+        return spec
+
+    def _next_file(self):
+        """ Jump to next file. 
+        """
+        # increment file ID
+        self.fid += 1
+
+        if self.fid == len(self.files):
+            self.fid = 0
+
+        # check if file exists
+        f = self.files[self.fid]
+        exists = os.path.exists(f)
+
+        # if not, jump to the next file
+        if not exists:
+            self._next_file()
+
+        # get duration
+        duration = librosa.get_duration(filename=f)
+
+        if self.spec_config.length is None:
+            self.num_segs = 1
+        else:
+            if self.pad:
+                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            else:
+                x = (duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)
+                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
+                self.num_segs += 1
+
+        # reset segment ID and time
+        self.sid = 0
+        self.time = 0
 
 
