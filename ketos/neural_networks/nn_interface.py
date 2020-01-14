@@ -378,9 +378,22 @@ class NNInterface():
 
     @classmethod
     def metrics_to_recipe(cls, metrics):
-        # name = metrics.name
-        # kwargs = metrics.parameters
+        """ Creates a recipe-compatible metrics object
 
+            Used when creating a ketos recipe that can be used to recreate the model
+
+            Args:
+                metrics: instance of RecipeCompat
+                    A list of RecipeCompat objects, each wrapping a metric.
+            Returns:
+                recipe_metrics: list of dicts
+                    A list dictionaries, each with 'name' and 'parameters' keys.
+
+            Raises:
+                ValueError if any of the metric names is not included in the valid_metrics class attribute.
+
+        """
+        
         recipe_metrics = []
         for m in metrics: 
             if m.name not in cls.valid_metrics.keys():
