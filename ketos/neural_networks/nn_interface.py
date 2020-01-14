@@ -243,6 +243,22 @@ class NNInterface():
 
     @classmethod
     def optimizer_from_recipe(cls, optimizer):
+        """ Create an optimizer from a recipe compatible optimizer object
+
+            Used when building a model from a recipe. The optmizer has usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
+
+            Args:
+                optimizer: instance of RecipeCompat
+                    A RecipeCompat object wrapping an optimizer 
+            Returns:
+                built_optimizer: 
+                    A tensorflow compatible optimizer ready to be used for training the neural network.
+
+            Raises:
+                ValueError if the optimizer name is not included in the valid_optimizers class attribute.
+
+        """
+
         name = optimizer['name']
         kwargs = optimizer['parameters']
 
