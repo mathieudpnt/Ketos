@@ -221,19 +221,24 @@ class AnnotationHandler():
         num = len(self.get(set_id=set_id))
         return num
 
-    def get(self, set_id=None, squeeze=True):
+    def get(self, set_id=None, squeeze=True, drop_freq=False, key_error=False):
         """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
             the handler module to manage the annotations.
 
-            Note: If the handler is managing a single annotation set, the level-0 
-            indexing of the DataFrame is dropped.
-
             Args:
                 set_id: int or tuple
                     Unique identifier of the annotation set. If None is specified, 
                     all annotations are returned.
+                squeeze: bool
+                    If the handler is managing a single annotation set, drop the 0th-level 
+                    index. Default is True. 
+                drop_freq: bool
+                    Drop the frequency columns.
+                key_error: bool
+                    If set to True, return error if the specified annotation set does not 
+                    exist. If set to False, return None. Default is False.  
 
             Returns:
                 ans: pandas DataFrame
@@ -259,7 +264,18 @@ class AnnotationHandler():
             ans = ans.loc[0]
 
         if set_id is not None:
+
+            if not key_error and set_id not in ans.index:
+                return None
+
             ans = ans.loc[set_id]
+
+        # ensure correct ordering of columns
+        cols = ['label', 'time_start', 'time_stop']
+        if not drop_freq: 
+            cols += ['freq_min', 'freq_max']
+        
+        ans = ans[cols]
 
         return ans
 
@@ -524,8 +540,30 @@ class AnnotationHandler():
                 >>> handler.add(label=1, time_start='1s', time_stop='3s')
                 >>> handler.add(label=2, time_start='5.2s', time_stop='7.0s')
                 >>> # Apply segmentation
-                >>> annots = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', time_start='0.1s')
+                >>> handler = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', offset='0.1s')
                 >>> # Inspect the annotations
+                >>> annots = handler.get(drop_freq=True)
+                >>> print(annots)
+                     label  time_start  time_stop
+                0 0      1         0.9        1.0
+                1 0      1         0.1        1.0
+                2 0      1         0.0        1.0
+                3 0      1         0.0        0.5
+                6 1      2         0.3        1.0
+                7 1      2         0.0        1.0
+                8 1      2         0.0        0.5
+                >>> # Note the double index, where the first index refers to the segment 
+                >>> # while the second index referes to the original annotation.
+                >>> # We can get the annotations for a single segment like this,
+                >>> annots3 = handler.get(set_id=3, drop_freq=True)
+                >>> print(annots3)
+                   label  time_start  time_stop
+                0      1         0.0        0.5
+                >>> # If we attempt to retrieve annotations for a segment that does not 
+                >>> # have any annotations, we get None,
+                >>> annots4 = handler.get(set_id=4, drop_freq=True)
+                >>> print(annots4)
+                None
         """              
         if step_size is None:
             step_size = window_size

@@ -117,31 +117,6 @@ def test_segment_annotations():
     assert np.all(expected == result)
     assert handler._df.index.nlevels == 3
 
-#def test_segment_annotations_with_nonzero_start_time():
-#    handler = AnnotationHandler()
-#    handler.add(1, 0.2, 1.1, 0, 100)
-    # divided into 1.0-second long segments with 50% overlap, and start 
-    # time set to -0.9 seconds
-##    ann = handler.segment(num_segs=20, window_size=1.0, step_size=0.5, offset='-0.9sec')
-    # the segments overlapping with the two annotations are:
-    # 1) -0.4-0.6, 2) 0.1-1.1, 3) 0.6-1.6
-##    assert len(ann) == 3
-    # check 1st segment
-##    a = ann[1].get()
-##    assert np.allclose(a['time_start'], [0.6])
-##    assert np.allclose(a['time_stop'], [1.0])
-##    assert np.array_equal(a['label'], [1]) 
-    # check 2nd segment
-##    a = ann[2].get()
-##    assert np.allclose(a['time_start'], [0.1])
-##    assert np.allclose(a['time_stop'], [1.0])
-##    assert np.array_equal(a['label'], [1]) 
-    # check 3rd segment
-##    a = ann[3].get()
-##    assert np.allclose(a['time_start'], [0.0])
-##    assert np.allclose(a['time_stop'], [0.5])
-##    assert np.array_equal(a['label'], [1])
-
 def test_stack_handlers():
     h1 = AnnotationHandler()
     h1.add(1, 0.2, 1.1, 50, 200)
