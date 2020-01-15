@@ -320,7 +320,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, discard_empty=False):
+def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, discard_empty=False, pad=True):
     """ Generate a selection table by stepping across the audio data, using a fixed 
         step size (select_step) and fixed selection window size (select_len). 
         
@@ -341,6 +341,9 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
             discard_empty: bool
                 If True, only selection that contain annotations will be used. 
                 If False (default), all selections are used.
+            pad: bool
+                If True (default), the last selection window is allowed to extend 
+                beyond the endpoint of the audio file.
 
         Returns:
             table_sel: pandas DataFrame
@@ -400,7 +403,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
             >>> from ketos.data_handling.selection_table import create_selections
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1

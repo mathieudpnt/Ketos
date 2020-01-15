@@ -79,6 +79,19 @@ def test_unfold(annot_table_mult_labels):
     for name in df.columns.values:
         assert np.all(df[name].values == df_expected[name].values)
 
+def test_standardize(annot_table_std):
+    df = annot_table_std
+    print(df)
+    df = df.set_index(['filename', df.index])
+    df = df.sort_index()
+    print('levels: ', df.index.nlevels)
+    print(df)
+    df['orig_index'] = df.index.get_level_values(1)
+    df.index = pd.MultiIndex.from_arrays(
+        [df.index.get_level_values(0), df.groupby(level=0).cumcount()],
+        names=['filename', 'id'])
+    print(df)
+
 def test_standardize_from_file(annot_table_file):
     df, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
     d_expected = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}

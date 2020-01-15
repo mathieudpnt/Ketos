@@ -378,7 +378,7 @@ def annot_table_mult_labels():
 def annot_table_file(annot_table):
     """ Create an annotations table csv file with the 'annot_table()' fixture
     
-        The file is saved as tests/assets/annot_001.csv.
+        The file is saved as tests/assets/tmp/annot_002.csv.
         When the tests using this fixture are done, 
         the file is deleted.
 
@@ -386,7 +386,7 @@ def annot_table_file(annot_table):
             csv_file : str
                 A string containing the path to the .csv file.
     """
-    csv_file = os.path.join(path_to_assets, "annot_001.csv")
+    csv_file = os.path.join(os.path.join(path_to_assets, "tmp"), "annot_002.csv")
     tbl = annot_table
     tbl.to_csv(csv_file, index=False)
     yield csv_file
