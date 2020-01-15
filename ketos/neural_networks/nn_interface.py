@@ -565,13 +565,29 @@ class NNInterface():
 
         return recipe
 
-
-
     def save_recipe(self, recipe_file):
+        """ Creates a recipe from an existing neural network instance and save it into a .joson file.
+
+            This method is a convenience method that wraps :func:`write_recipe` and :func:`write_recipe_file`
+
+            Args:
+                recipe_file:str
+                    Path to .json file in which the recipe will be saved.
+
+        """
         recipe = self.write_recipe()
         self.write_recipe_file(json_file=recipe_file, recipe=recipe)
 
     def save_model(self, model_file):
+        """ Save the current neural network instance as a ketos (.kt) model file.
+
+            The file includes the recipe necessary to build the network architecture and the current parameter weights.
+
+            Args:
+                model_file: str
+                    Path to the .kt file. 
+
+        """
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
@@ -585,10 +601,11 @@ class NNInterface():
 
         os.remove(recipe_path)
 
-
-
     
     def compile_model(self):
+        """ Compile the tensorflow model.
+
+        """
         self.model.compile(optimizer=self.optimizer.func,
                             loss = self.loss_function,
                             metrics = self.metrics)
