@@ -458,6 +458,18 @@ class NNInterface():
 
     @classmethod
     def load(cls, recipe, weights_path):
+        """ Load a model given a recipe dictionary and the saved weights.
+
+            If multiple versions of the model are available in the folder indicated by weights_path the latest will be selected. 
+
+            Args:
+                recipe: dict
+                    A dictionary containing the recipe
+                weights_path:str
+                    The path to the folder containing the saved weights.
+                    Saved weights are tensorflow chekpoint. The path should not include the checkpoint files, only the folder containing them. (e.g.: '/home/user/my_saved_models/model_a/')
+
+        """
         instance = cls.build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
         instance.model.load_weights(latest_checkpoint)
