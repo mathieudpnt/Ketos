@@ -418,6 +418,7 @@ class NNInterface():
                 recipe_dict: dict
                     A recipe dictionary that can be used to rebuild a model.
         
+        
         """
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
@@ -438,20 +439,19 @@ class NNInterface():
 
             Args:
                 json_file: str
-                    Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
+                    Path to the .json file (e.g.: '/home/user/ketos_recipes/my_recipe.json').
                 
                 recipe:dict
                     A recipe dictionary containing the optimizer, loss function and metrics 
                     in addition to other parameters necessary to build an instance of the neural network.
 
-            Examples:
-                recipe = {"optimizer": RecipeCompat('adam',tf.keras.optimizers.Adam),
-                            "loss_function":RecipeCompat('categorical_cross_entropy',tf.keras.losses.CategoricalCrossEntropy),
-                            "metrics":[RecipeCompat('categorical+accuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            "another_parameter:32}
+                    recipe = {"optimizer": RecipeCompat('adam',tf.keras.optimizers.Adam),
+                              "loss_function":RecipeCompat('categorical_cross_entropy',tf.keras.losses.CategoricalCrossEntropy),
+                              "metrics":[RecipeCompat('categorical_accuracy',tf.keras.metrics.CategoricalAccuracy)],
+                              "another_parameter:32}
 
-                   
         """
+
         with open(json_file, 'w') as json_recipe:
             json.dump(recipe, json_recipe)
 
