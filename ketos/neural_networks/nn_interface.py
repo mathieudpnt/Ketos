@@ -685,6 +685,20 @@ class NNInterface():
         print(''.join(message))
 
     def name_logs(self, logs, prefix="train_"):
+        """ Attach the prefix string to each log name.
+
+            Args:
+                logs:list
+                   List of log values
+                prefix:str
+                    Prefix to be added to the logged metric name
+        
+            Returns:
+                named_log: zip
+                    A zip iterator that yields a tuple: (prefix + log metric name, log value)
+        """
+
+
         named_logs = {}
         for l in zip(self.metrics_names, logs):
             named_logs[prefix+l[0]] = l[1]
