@@ -320,9 +320,13 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, select_annot=None):
+def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, discard_empty=False):
     """ Generate a selection table by stepping across the audio data, using a fixed 
-        step size (select_step) and fixed selection window size (select_len).
+        step size (select_step) and fixed selection window size (select_len). 
+        
+        Unlike the :func:`data_handling.selection_table.create_selections` method, selections 
+        created by this method are not characterized by a single, integer-valued 
+        label, but rather a list of annotations (which can have any length, including zero).
 
         Args:
             table: pandas DataFrame
@@ -334,9 +338,9 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
                 Selection length in seconds.
             select_step: float
                 Selection step size in seconds.
-            select_annot: list(int)
-                Keep only selection that contain annotations with these labels. 
-                If None is specified (default), all selections are used.
+            discard_empty: bool
+                If True, only selection that contain annotations will be used. 
+                If False (default), all selections are used.
 
         Returns:
             table_sel: pandas DataFrame
@@ -347,8 +351,9 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
 
 def create_selections(table, select_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_index=False):
-    """ Generate a selection table suitable for building a training/test dataset 
-        of integer-labeled, uniform-size samples.
+    """ Generate a selection table by defining intervals of fixed length around 
+        every annotated section of the audio data. Each selection created in this 
+        way is chracterized by a single, integer-valued, label.
 
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.selection_table.standardize`.
