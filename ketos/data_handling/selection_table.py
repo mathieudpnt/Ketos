@@ -24,9 +24,10 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" annotation_table module within the ketos library.
+""" selection_table module within the ketos library.
 
-    This module provides functions to create and modify annotation tables. 
+    This module provides functions for handling annotation tables and creating 
+    selection tables. 
     A Ketos annotation table always contains the columns 'filename' and 'label'.
     For call-level annotations, the table also contains the columns 'time_start' 
     and 'time_stop', giving the start and end time of the call measured in seconds 
@@ -263,7 +264,7 @@ def label_occurrence(table):
         each label occurs.
 
         The input table must have the standardized Ketos format, see 
-        :func:`data_handling.annotation_table.standardize`. In particular, each 
+        :func:`data_handling.selection_table.standardize`. In particular, each 
         annotation should have only a single label value.
 
         Args:
@@ -319,36 +320,36 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
+def create_selections(table, select_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_index=False):
-    """ Generate an annotation table suitable for building a training/test dataset 
+    """ Generate a selection table suitable for building a training/test dataset 
         of integer-labeled, uniform-size samples.
 
         The input table must have the standardized Ketos format and contain call-level 
-        annotations, see :func:`data_handling.annotation_table.standardize`.
+        annotations, see :func:`data_handling.selection_table.standardize`.
 
-        The generated annotations have uniform length given by the annot_len argument. 
+        The generated selections have uniform length given by the select_len argument. 
         
-        Note that the generated annotations may have negative start times and/or stop times 
+        Note that the selections may have negative start times and/or stop times 
         that exceed the file duration.
 
-        Annotations longer than the specified length will be cropped, unless the step_size 
-        is set to a value larger than 0.
+        Annotations longer than the specified selection length will be cropped, unless the 
+        step_size is set to a value larger than 0.
 
         Annotations with label -1 are discarded.
 
         Args:
             table: pandas DataFrame
                 Input table with call-level annotations.
-            annot_len: float
-                Output annotation length in seconds.
+            select_len: float
+                Selection length in seconds.
             step_size: float
                 Produce multiple instances of the same annotation by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of annot_len. Only used if step_size > 0. 
+                annotation, expressed as a fraction of select_len. Only used if step_size > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
@@ -362,11 +363,11 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
 
         Results:
             table_ml: pandas DataFrame
-                Output annotation table.
+                Output selection table.
 
         Example:
             >>> import pandas as pd
-            >>> from ketos.data_handling.annotation_table import create_ml_table
+            >>> from ketos.data_handling.selection_table import create_selections
             >>> 
             >>> #Load and inspect the annotations.
             >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
@@ -379,14 +380,14 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
             4  file2.wav         5.8        6.8      1
             5  file2.wav         9.0       13.0      0
             >>>
-            >>> #Create a table with fixed-length annotations, suitable for 
+            >>> #Create a table with fixed-length selections, suitable for 
             >>> #building training/test data for a Machine Learning model.
             >>> #Set the length to 3.0 sec and require a minimum overlap of 
             >>> #0.16*3.0=0.48 sec between generated and original annotations.
-            >>> #Also, create multiple time-shifted versions of the same annotation
+            >>> #Also, create multiple time-shifted versions of the same selection
             >>> #using a step size of 1.0 sec both backward and forward in time.     
-            >>> df_ml = create_ml_table(df, annot_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_index=True) 
-            >>> print(df_ml.round(2))
+            >>> df_sel = create_selections(df, select_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_index=True) 
+            >>> print(df_sel.round(2))
                 index   filename label  time_start  time_stop orig_index
             0       0  file1.wav     1        5.05       8.05          0
             1       1  file1.wav     1        6.05       9.05          0
@@ -421,13 +422,13 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
 
     # discard annotations longer than the requested length
     if discard_long:
-        df = df[df['length'] <= annot_len]
+        df = df[df['length'] <= select_len]
 
     # alignment of new annotations relative to original ones
     if center:
-        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - annot_len)
+        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - select_len)
     else:
-        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - annot_len)
+        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - select_len)
 
     # create multiple time-shited instances of every annotation
     if step_size > 0:
@@ -439,7 +440,7 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
             else:
                 ovl = min_overlap
  
-            df_shift = time_shift(annot=row, time_ref=t, annot_len=annot_len, min_overlap=ovl, step_size=step_size)
+            df_shift = time_shift(annot=row, time_ref=t, select_len=select_len, min_overlap=ovl, step_size=step_size)
             df_tmp = pd.concat([df_tmp, df_shift])
 
         df = df_tmp.sort_values(by=['orig_index','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
@@ -447,7 +448,7 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
     # drop old/temporary columns, and rename others
     df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
     df = df.rename(columns={"time_start_new": "time_start"})
-    df['time_stop'] = df['time_start'] + annot_len
+    df['time_stop'] = df['time_start'] + select_len
 
     # keep old index
     if not keep_index:
@@ -462,28 +463,28 @@ def create_ml_table(table, annot_len, step_size=0, min_overlap=0, center=False,\
     df = df.reset_index()
     return df
 
-def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
-    """ Create multiple instances of the same annotation by stepping in time, both 
+def time_shift(annot, time_ref, select_len, step_size, min_overlap):
+    """ Create multiple instances of the same selection by stepping in time, both 
         forward and backward.
 
-        The new instances are returned in a pandas DataFrame with the same columns as the 
+        The time-shifted instances are returned in a pandas DataFrame with the same columns as the 
         input annotation, plus a column named 'time_start_new' containing the start times 
-        of the new instances.
+        of the shifted instances.
 
         Args:
             annot: pandas Series or dict
                 Reference annotation. Must contain the labels/keys 'time_start' and 'time_stop'.
             time_ref: float
                 Reference time used as starting point for the stepping.
-            annot_len: float
+            length: float
                 Output annotation length in seconds.
             step_size: float
-                Produce multiple instances of the same annotation by shifting the annotation 
+                Produce multiple instances of the same selection by shifting the annotation 
                 window in steps of length step_size (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
-                Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of annot_len.   
+                Minimum required overlap between the selection intervals and the original 
+                annotation, expressed as a fraction of the selection length.   
 
         Results:
             df: pandas DataFrame
@@ -492,14 +493,14 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
 
         Example:
             >>> import pandas as pd
-            >>> from ketos.data_handling.annotation_table import time_shift
+            >>> from ketos.data_handling.selection_table import time_shift
             >>> 
             >>> #Create a single 2-s long annotation
             >>> annot = {'filename':'file1.wav', 'label':1, 'time_start':12.0, 'time_stop':14.0}
             >>>
             >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
             >>> #overlap by at least 50% with the original 2-s annotation 
-            >>> df = time_shift(annot, time_ref=13.0, annot_len=1.0, step_size=0.2, min_overlap=0.5)
+            >>> df = time_shift(annot, time_ref=13.0, select_len=1.0, step_size=0.2, min_overlap=0.5)
             >>> print(df.round(2))
                 filename  label  time_start  time_stop  time_start_new
             0  file1.wav      1        12.0       14.0            11.6
@@ -523,8 +524,8 @@ def time_shift(annot, time_ref, annot_len, step_size, min_overlap):
     t1 = row['time_start']
     t2 = row['time_stop']
 
-    t_min = t1 - (1 - min_overlap) * annot_len
-    t_max = t2 - min_overlap * annot_len
+    t_min = t1 - (1 - min_overlap) * select_len
+    t_max = t2 - min_overlap * select_len
 
     num_steps_back = int(np.floor((t - t_min) / step_size))
     num_steps_forw = int(np.floor((t_max - t) / step_size))
@@ -560,7 +561,7 @@ def complement(table, file_duration):
         or discarded (label -1).
 
         The annotation table must conform to the standard Ketos format and 
-        contain call-level annotations, see :func:`data_handling.annotation_table.standardize`.
+        contain call-level annotations, see :func:`data_handling.selection_table.standardize`.
 
         Args:
             table: pandas DataFrame
@@ -575,7 +576,7 @@ def complement(table, file_duration):
 
         Example:
             >>> import pandas as pd
-            >>> from ketos.data_handling.annotation_table import complement
+            >>> from ketos.data_handling.selection_table import complement
             >>> #Create annotation table
             >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'time_start':[2.0, 7.5], 'time_stop':[3.1, 9.0]})
             >>> #Create file duration table
@@ -612,14 +613,14 @@ def complement(table, file_duration):
     df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
     return df_out
 
-def create_rndm_backgr(table, file_duration, annot_len, num):
-    """ Create background annotations of uniform length, randomly distributed across the 
-        data set and not overlapping with any other annotations.
+def create_rndm_backgr_selections(table, file_duration, select_len, num):
+    """ Create background selections of uniform length, randomly distributed across the 
+        data set and not overlapping with any annotations, including those labelled 0.
 
         The random sampling is performed without regard to already created background 
-        annotations. Therefore, it is in principle possible that some of the created 
-        annotations will overlap, although in practice this will only occur with very 
-        small probability, unless the number of requested annotations (num) is very 
+        selections. Therefore, it is in principle possible that some of the created 
+        selections will overlap, although in practice this will only occur with very 
+        small probability, unless the number of requested selections (num) is very 
         large and/or the (annotation-free part of) the data set is small in size.
 
         Args:
@@ -628,19 +629,19 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
             file_duration: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
-            annot_len: float
-                Output annotation length in seconds.
+            select_len: float
+                Selection length in seconds.
             num: int
-                Number of annotations to be created.
+                Number of selections to be created.
 
         Returns:
             table_backgr: pandas DataFrame
-                Output annotation table.
+                Output selection table.
 
         Example:
             >>> import pandas as pd
             >>> import numpy as np
-            >>> from ketos.data_handling.annotation_table import create_ml_table
+            >>> from ketos.data_handling.selection_table import create_selections
             >>> 
             >>> #Ensure reproducible results by fixing the random number generator seed.
             >>> np.random.seed(3)
@@ -659,8 +660,8 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
             >>> #Enter file durations into a pandas DataFrame
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav'], 'duration':[30.,20.]})
             >>> 
-            >>> #Create randomly sampled background annotations with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr(df, file_duration=file_dur, annot_len=3.0, num=5) 
+            >>> #Create randomly sampled background selection with fixed 3.0-s length.
+            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, select_len=3.0, num=5) 
             >>> print(df_bgr.round(2))
                 filename  time_start  time_stop
             0  file1.wav       21.57      24.57
@@ -673,7 +674,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
     c = complement(table=table, file_duration=file_duration)
 
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['time_stop'] - c['time_start'] - annot_len
+    c['length'] = c['time_stop'] - c['time_start'] - select_len
     c = c[c['length'] >= 0]
 
     # cumulative length 
@@ -691,7 +692,7 @@ def create_rndm_backgr(table, file_duration, annot_len, num):
         row = c.iloc[idx]
         filename.append(row['filename'])
         t1 = row['time_start'] + t - cs[idx]
-        t2 = t1 + annot_len
+        t2 = t1 + select_len
         time_start.append(t1)
         time_stop.append(t2)
 
