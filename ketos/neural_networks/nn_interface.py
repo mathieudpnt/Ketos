@@ -549,6 +549,15 @@ class NNInterface():
         self.test_generator = None
 
     def write_recipe(self):
+        """ Create a recipe dictionary from a neural network instance.
+
+            The resulting recipe contains all the fields necessary to build  the same network architecture used by the instance calling this method.
+            When subclassing NNInterface to create interfaces for new neural networks, this method can be overwritten to match the recipe fields expected by :func:`build_from_recipe`
+
+            Returns:
+                recipe:dict
+                    A dictionary containing the recipe fields necessary to build the same network architecture used by the instance calling this method
+        """
         recipe = {}
         recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
