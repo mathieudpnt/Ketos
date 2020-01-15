@@ -320,6 +320,31 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
+def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, select_annot=None):
+    """ Generate a selection table by stepping across the audio data, using a fixed 
+        step size (select_step) and fixed selection window size (select_len).
+
+        Args:
+            table: pandas DataFrame
+                Annotation table.
+            file_duration: pandas DataFrame
+                Table with file durations in seconds. 
+                Should contain columns named 'filename' and 'duration'.
+            select_len: float
+                Selection length in seconds.
+            select_step: float
+                Selection step size in seconds.
+            select_annot: list(int)
+                Keep only selection that contain annotations with these labels. 
+                If None is specified (default), all selections are used.
+
+        Returns:
+            table_sel: pandas DataFrame
+                Output selection table.
+    """
+    table_sel = table
+    return table_sel
+
 def create_selections(table, select_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_index=False):
     """ Generate a selection table suitable for building a training/test dataset 
@@ -362,7 +387,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
                 in the input table from which the new annotation was generated.
 
         Results:
-            table_ml: pandas DataFrame
+            table_sel: pandas DataFrame
                 Output selection table.
 
         Example:
@@ -460,8 +485,8 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
         cols_new = cols[:p] + cols[p+1:] + ['orig_index']
         df = df[cols_new]
 
-    df = df.reset_index()
-    return df
+    table_sel = df.reset_index()
+    return table_sel
 
 def time_shift(annot, time_ref, select_len, step_size, min_overlap):
     """ Create multiple instances of the same selection by stepping in time, both 
@@ -703,3 +728,4 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
     df = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})    
 
     return df
+
