@@ -491,7 +491,7 @@ class NNInterface():
                 FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
 
         """
-        
+
         try:
             os.makedirs(new_model_folder)
         except FileExistsError:
@@ -511,6 +511,16 @@ class NNInterface():
     
     @classmethod
     def build_from_recipe(cls, recipe):
+        """ Build a model from a recipe dictionary
+
+            When subclassing NNInterface to create interfaces for new neural networks, the method
+            can be overwritten to include all the recipe fields relevant to the new class.
+
+            Args:
+                recipe:dict
+                    A recipe dictionary
+
+        """
        
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
