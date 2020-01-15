@@ -103,6 +103,20 @@ def test_crop_annotations_along_time_axis():
     assert np.allclose(a['time_stop'], [1.2, 3.3, 5], atol=1e-08) 
     assert np.array_equal(a['label'], [2, 3, 4]) 
 
+def test_segment_annotations():
+    handler = AnnotationHandler()
+    handler.add(1, 0.2, 1.1, 0, 100)
+    handler.add(2, 3.3, 4.7, 0, 100)
+    handler.add(3, 4.2, 5.1, 0, 100)
+    # divided into 1.0-second long segments with 50% overlap
+    handler = handler.segment(num_segs=10, window_size=1.0, step_size=0.5)
+    # 1st segment
+    a1 = handler.get(0)
+    expected = np.sort([100.0,0.0,1,0.2,1.0])
+    result = np.sort(a1.to_numpy())
+    assert np.all(expected == result)
+    assert handler._df.index.nlevels == 3
+
 #def test_segment_annotations_with_nonzero_start_time():
 #    handler = AnnotationHandler()
 #    handler.add(1, 0.2, 1.1, 0, 100)

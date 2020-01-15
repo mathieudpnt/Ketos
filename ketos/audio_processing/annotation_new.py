@@ -129,11 +129,12 @@ def stack_handlers(handlers, keys=None, level=0):
                 Stacked annotation handler
     """
     dfs = []
+    squeeze = (level==0)
     N = len(handlers)
 
     # collect pandas DataFrames from input handlers
     for h in handlers:
-        dfs.append(h.get())
+        dfs.append(h.get(squeeze=squeeze))
 
     if keys is None:
         keys = np.arange(N, dtype=int)
@@ -168,7 +169,10 @@ class AnnotationHandler():
         methods to add/get annotations and perform various manipulations such as 
         cropping, shifting, and segmenting.
 
-        Multi-indexing is used for handling several, stacked annotation sets.
+        Multiple levels of indexing is used for handling several, stacked annotation sets:
+
+            * level 0: annotation set
+            * level 1: individual annotation
 
         Args:
             df: pandas DataFrame
@@ -217,11 +221,14 @@ class AnnotationHandler():
         num = len(self.get(set_id=set_id))
         return num
 
-    def get(self, set_id=None):
+    def get(self, set_id=None, squeeze=True):
         """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
             the handler module to manage the annotations.
+
+            Note: If the handler is managing a single annotation set, the level-0 
+            indexing of the DataFrame is dropped.
 
             Args:
                 set_id: int or tuple
@@ -248,11 +255,11 @@ class AnnotationHandler():
         """
         ans = self._df
 
-        if self.num_sets() == 1:
+        if self.num_sets() == 1 and squeeze:
             ans = ans.loc[0]
-        else:
-            if set_id is not None:
-                ans = ans.loc[set_id]
+
+        if set_id is not None:
+            ans = ans.loc[set_id]
 
         return ans
 
@@ -540,7 +547,7 @@ class AnnotationHandler():
             if h.num_annotations() > 0:
                 handlers.append(h)
                 keys.append(i)
-        
+
         # stack handlers
         handler = stack_handlers(handlers, keys, level=1)
 
