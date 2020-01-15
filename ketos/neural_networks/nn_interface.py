@@ -605,6 +605,7 @@ class NNInterface():
     def compile_model(self):
         """ Compile the tensorflow model.
 
+            Uses the instance attributes optimizer, loss_function and metrics.
         """
         self.model.compile(optimizer=self.optimizer.func,
                             loss = self.loss_function,
@@ -612,12 +613,30 @@ class NNInterface():
         self.metrics_names = self.model.metrics_names
 
     def set_train_generator(self, train_generator):
+        """ Link a batch generator (used for training) to this instance.
+
+            Args:
+                train_generator: instance of BatchGenerator
+                    A batch generator that provides training data during the training loop 
+        """
         self.train_generator = train_generator
 
     def set_val_generator(self, val_generator):
+        """ Link a batch generator (used for validation) to this instance.
+
+            Args:
+                val_generator: instance of BatchGenerator
+                    A batch generator that provides validation data during the training loop 
+        """
         self.val_generator = val_generator
 
     def set_test_generator(self, test_generator):
+        """ Link a batch generator (used for testing) to this instance.
+
+            Args:
+                test_generator: instance of BatchGenerator
+                    A batch generator that provides testing data
+        """
         self.test_generator = test_generator
 
     def set_log_dir(self, log_dir):
