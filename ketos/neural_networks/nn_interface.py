@@ -804,6 +804,20 @@ class NNInterface():
 
         
     def run(self, input, return_raw_output=False):
+        """ Run the model on one input
+
+            Args:
+                input: numpy.array
+                    The input in the shape expected by :func:`transform_input`
+                return_raw_output:bool
+                    If False, the model output will be transformed by :func:`transform_output`.
+                    If true, the model output will be returned without any modifications.
+
+            Returns:
+                output
+                    The model output
+                
+        """
         input = self.transform_input(input)
         output = self.model.predict(input)
         
@@ -814,6 +828,22 @@ class NNInterface():
 
     
     def run_on_batch(self, input_batch, return_raw_output=False, transform_input=True):
+        """ Run the model on a batch of inputs
+
+            Args:
+                input_batch: numpy.array
+                    The  batch of inputs 
+                transform_input:bool
+                    If True, the input_batch is transformed by :func:`transform_input`
+                return_raw_output:bool
+                    If False, the model output will be transformed by :func:`transform_output`.
+                    If true, the model output will be returned without any modifications.
+
+            Returns:
+                output
+                    The corresponding batch of model outputs
+        """
+
         if transform_input == True:
             input_batch = self.transform_input(input_batch)
         output = self.model.predict(input_batch)
