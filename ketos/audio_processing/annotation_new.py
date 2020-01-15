@@ -95,7 +95,7 @@ def convert(x, unit):
     
     return x
 
-def _ensure_multi_index(df):
+def add_index_level(df, key=0):
     """ Ensure the DataFrame has at least two indexing levels.
 
         Args: 
@@ -106,12 +106,10 @@ def _ensure_multi_index(df):
             df: pandas DataFrame
                 Output DataFrame
     """
-    if df.index.nlevels == 1:
-        df = pd.concat([df], axis=1, keys=[0]).stack(0).swaplevel(0,1)
-
+    df = pd.concat([df], axis=1, keys=[key]).stack(0).swaplevel(0,1)
     return df
 
-def stack_handlers(handlers):
+def stack_handlers(handlers, keys=None, level=0):
     """ Create a handler to manage a stack of annotation sets.
 
         The annotation sets will be indexed in the order they 
@@ -120,6 +118,11 @@ def stack_handlers(handlers):
         Args:
             handlers: list(AnnotationHandler)
                 Annotation handlers
+            keys: list
+                Keys for indexing the sets. If None is specified, 
+                the keys are set to 0,1,2,...
+            level: int
+                Set index level. Default is 0.
 
         Returns: 
             handler: AnnotationHandler
@@ -127,13 +130,28 @@ def stack_handlers(handlers):
     """
     dfs = []
     N = len(handlers)
-    for i,h in enumerate(handlers):
-        df = h.get()
-        dfs.append(df)
 
-    df = pd.concat(dfs, sort=False, axis=1, keys=np.arange(N, dtype=int))
+    # collect pandas DataFrames from input handlers
+    for h in handlers:
+        dfs.append(h.get())
+
+    if keys is None:
+        keys = np.arange(N, dtype=int)
+
+    # concatenate and stack
+    df = pd.concat(dfs, sort=False, axis=1, keys=keys)
     df = df.stack(0)
-    df = df.swaplevel(0,1)
+
+    # specify order of indexing levels
+    num_lev = df.index.nlevels
+    order = np.arange(num_lev - 1, dtype=int)
+    order = np.insert(order, level, num_lev - 1)
+
+    # reorder levels and sort indices for faster slicing
+    df = df.reorder_levels(order)
+    df = df.sort_index()
+
+    # create stacked annotation handler
     handler = AnnotationHandler(df)
     return handler
 
@@ -170,7 +188,8 @@ class AnnotationHandler():
             self._df = self._df.astype({'label': int})
 
         # ensure multi-index
-        self._df = _ensure_multi_index(self._df)
+        if self._df.index.nlevels == 1:
+            self._df = add_index_level(self._df)
 
     def copy(self):
         handler = self.__class__(self._df.copy())
@@ -191,7 +210,7 @@ class AnnotationHandler():
         """ Get number of annotations managed by the handler.
 
             Returns:
-                num: int
+                num: int or tuple
                     Unique identifier of the annotation set. If None is specified, 
                     the total number of annotations is returned.
         """
@@ -205,7 +224,7 @@ class AnnotationHandler():
             the handler module to manage the annotations.
 
             Args:
-                set_id: int
+                set_id: int or tuple
                     Unique identifier of the annotation set. If None is specified, 
                     all annotations are returned.
 
@@ -241,7 +260,7 @@ class AnnotationHandler():
         """ Get the next available index for the selected annotation set.
 
             Args:
-                set_id: int
+                set_id: int or tuple
                     Unique identifier of the annotation set.
 
             Returns:
@@ -264,7 +283,7 @@ class AnnotationHandler():
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
                     'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
                     and 'freq_max'.
-                set_id: int
+                set_id: int or tuple
                     Unique identifier of the annotation set.
 
             Returns: 
@@ -273,10 +292,13 @@ class AnnotationHandler():
         if isinstance(df, dict):
             df = pd.DataFrame(df, index=pd.Index([0]))
         
-        next_index = self._next_index()
+        next_index = self._next_index(set_id)
         new_indices = pd.Index(np.arange(next_index, next_index + len(df), dtype=int))
         df = df.set_index(new_indices)
-        df = _ensure_multi_index(df)
+
+        if df.index.nlevels == 1:
+            df = add_index_level(df, key=set_id)
+
         self._df = pd.concat([self._df, df], sort=False)
 
         self._df = self._df.astype({'label': 'int'}) #cast label column to int
@@ -313,7 +335,7 @@ class AnnotationHandler():
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
                     'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
                     and 'freq_max'.
-                set_id: int
+                set_id: int or tuple
                     Unique identifier of the annotation set.
 
             Returns: 
@@ -481,10 +503,11 @@ class AnnotationHandler():
                     Negative times are permitted. 
                     
             Returns:
-                ans: dict
-                    Dictionary in which the keys are the indices of those 
-                    segments that have annotations, and the items are the 
-                    annotation handlers.
+                ans: AnnotationHandler
+                    Stacked annotation handler with three levels of indexing where 
+                        * level 0: annotation set
+                        * level 1: segment
+                        * level 2: individual annotation
 
             Example:
                 >>> from ketos.audio_processing.annotation_new import AnnotationHandler
@@ -510,24 +533,15 @@ class AnnotationHandler():
         time_stop = time_start + window_size
 
         # loop over segments
-        handlers = []
-        for t1,t2 in zip(time_start, time_stop):
+        handlers, keys = [], []
+        for i,(t1,t2) in enumerate(zip(time_start, time_stop)):
             h = self.copy() # create a copy
             h.crop(t1, t2) # crop 
             if h.num_annotations() > 0:
-                h._df['offset'] = t1 # index with offset
                 handlers.append(h)
+                keys.append(i)
         
         # stack handlers
-        handler = stack_handlers(handlers)
+        handler = stack_handlers(handlers, keys, level=1)
 
-        print()
-        print(handler._df)
-
-        df = handler._df
-        df = df.swaplevel(0,1)
-        df = df.swaplevel(1,2)
-
-        print(df)
-
-        return None
+        return handler
