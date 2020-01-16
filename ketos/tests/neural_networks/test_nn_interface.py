@@ -1,7 +1,21 @@
 import pytest
 import numpy as np
+import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 
+
+def test_RecipeCompat():
+    opt = RecipeCompat("sgd", tf.keras.optimizers.SGD, learning_rate=0.008, momentum=0.1)
+    assert opt.name == "sgd"
+    assert opt.args ==  {'learning_rate': 0.008, 'momentum': 0.1}
+    assert isinstance(opt.func, tf.keras.optimizers.SGD) 
+
+    metric = RecipeCompat("accuracy", tf.keras.metrics.Accuracy)
+    assert metric.name == "accuracy"
+    assert metric.args == {}
+    assert isinstance(metric.func, tf.keras.metrics.Accuracy) 
+
+ 
 
 @pytest.mark.parametrize("class_label,n_classes,expected",[
     (0,2,np.array([1.0,0.0])),
