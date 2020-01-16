@@ -61,10 +61,24 @@ def test_transform_input():
      output1 = NNInterface.transform_input(input1)
      output2 = NNInterface.transform_input(input2)
 
-     assert output1.shape ==(1,5,5,1)
-     assert output2.shape ==(1,5,5,1)
+     assert output1.shape == (1,5,5,1)
+     assert output2.shape == (1,5,5,1)
 
      assert np.array_equal(output1[0,:,:,0], input1)
      assert np.array_equal(output2[0,:,:,0], input2[0,:,:])
 
-     
+
+def test_transform_output():
+    output1 = np.array([[0.05,0.05,0.7, 0.1, 0.1]])
+    output2 = np.array([[0.05,0.05,0.7, 0.1, 0.1],[0.05,0.15,0.15,0.65,0.1]])
+
+    class1, score1 = NNInterface.transform_output(output1)
+    classes2, scores2 = NNInterface.transform_output(output2)
+
+    assert np.array_equal(class1, np.array([2])) 
+    assert np.array_equal(score1, np.array([0.7]))
+    
+    assert np.array_equal(classes2, np.array([2, 3])) 
+    assert np.array_equal(scores2, np.array([0.7, 0.65]))
+    
+    
