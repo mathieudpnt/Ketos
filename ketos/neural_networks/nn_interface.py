@@ -243,16 +243,21 @@ class NNInterface():
 
     @classmethod
     def optimizer_from_recipe(cls, optimizer):
-        """ Creates an optimizer from a recipe-compatible optimizer object
+        """ Create a recipe-compatible optimizer object from an optimizer dictionary
 
-            Used when building a model from a recipe. The optmizer has usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
-
+            Used when building a model from a recipe dictionary.
+            
             Args:
-                optimizer: instance of RecipeCompat
-                    A RecipeCompat object wrapping an optimizer 
+                optimizer: optimizer dictionay
+                    A dictionary with the following keys: {'name':..., 'parameters':{...}}.
+                    The 'name' value must be a valid name as defined in the `valid_optimizers` class attribute.
+                    The 'parameters' value is a dictionary of keyword arguments to be used when building the optimizer
+                    (e.g.: {'learning_rate':0.001, 'momentum': 0.01})
+
+
             Returns:
                 built_optimizer: 
-                    A tensorflow-compatible optimizer ready to be used for training the neural network.
+                    A recipe-compatible optimizer object.
 
             Raises:
                 ValueError if the optimizer name is not included in the valid_optimizers class attribute.
@@ -296,16 +301,21 @@ class NNInterface():
 
     @classmethod
     def loss_function_from_recipe(cls, loss_function):
-        """ Creates  a loss function from a recipe-compatible loss function object
+        """ Create a recipe-compatible loss object from a loss function dictionary
 
-            Used when building a model from a recipe. The loss_function has usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
+            Used when building a model from a recipe dictionary.
 
             Args:
-                loss_function: instance of RecipeCompat
-                    A RecipeCompat object wrapping a loss function
+                loss_function: loss function dictionay
+                    A dictionary with the following keys: {'name':..., 'parameters':{...}}.
+                    The 'name' value must be a valid name as defined in the `valid_losses` class attribute.
+                    The 'parameters' value is a dictionary of keyword arguments to be used when building the loss_function
+                    (e.g.: {'from_logits':True, 'label_smoothing':0.5})
+
+
             Returns:
-                built_optimizer: 
-                    A tensorflow-compatible loss function ready to be used for training the neural network.
+                built_loss: 
+                    A recipe-compatible loss function object.
 
             Raises:
                 ValueError if the loss function name is not included in the valid_losses class attribute.
@@ -349,16 +359,21 @@ class NNInterface():
 
     @classmethod
     def metrics_from_recipe(cls, metrics):
-        """ Creates metrics from a recipe-compatible metrics object
+        """ Create a list of recipe-compatible metric objects from a metrics dictionary
 
-            Used when building a model from a recipe. The metrics have usually been prepared by the :class:`ketos.nn_interface.RecipeCompat` class.
+            Used when building a model from a recipe dictionary.
 
             Args:
-                metrics: list of instances of RecipeCompat
-                    A list of  RecipeCompat objects wrapping metrics
+                metrics: list of metrics dictionaries
+                    a list of dictionaries with the following keys: {'name':..., 'parameters':{...}}.
+                    The 'name' value must be a valid name as defined in the `valid_metrics` class attribute.
+                    The 'parameters' value is a dictionary of keyword arguments to be used when building the metrics
+                    (e.g.: {'from_logits':True})
+
+
             Returns:
-                built_optimizer: 
-                    A tensorflow-compatible list metrics ready to be used for training the neural network.
+                built_metrics: 
+                    A list of recipe-compatible metric objects.
 
             Raises:
                 ValueError if any of the metric names is not included in the valid_metrics class attribute.
