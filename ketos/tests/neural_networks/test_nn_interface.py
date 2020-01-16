@@ -124,5 +124,13 @@ def test_optimizer_to_recipe():
     assert optimizer_dict['name'] == 'Adam'
     assert optimizer_dict['parameters'] == {'learning_rate':0.005}
 
+
+def test_loss_function_to_recipe():
+    recipe_compat_loss = RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, label_smoothing=0.3)
+    loss_dict = NNInterface.loss_to_recipe(recipe_compat_loss)
+
+    assert loss_dict['name'] == 'CategoricalCrossentropy'
+    assert optimizer_dict['parameters'] == {'laebl_smoothing':0.005}
+
     
     
