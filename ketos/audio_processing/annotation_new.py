@@ -161,7 +161,7 @@ class AnnotationHandler():
     
         An annotation is characterized by 
         
-         * start and stop time in seconds 
+         * start and end time in seconds 
          * minimum and maximum frequency in Hz (optional)
          * label (integer)
          
@@ -177,14 +177,14 @@ class AnnotationHandler():
         Args:
             df: pandas DataFrame
                 Annotations to be passed on to the handler.
-                Must contain the columns 'label', 'time_start', and 'time_stop', and 
+                Must contain the columns 'label', 'start', and 'end', and 
                 optionally also 'freq_min' and 'freq_max'.
     """
     def __init__(self, df=None):
         
         if df is None:
             # initialize empty DataFrame
-            self._df = pd.DataFrame(columns=['label', 'time_start', 'time_stop', 'freq_min', 'freq_max'], dtype='float')
+            self._df = pd.DataFrame(columns=['label', 'start', 'end', 'freq_min', 'freq_max'], dtype='float')
             self._df['label'] = pd.Series(dtype='int')
         
         else:
@@ -249,14 +249,14 @@ class AnnotationHandler():
                 >>> # Initialize an empty instance of the annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
-                >>> handler.add(label=1, time_start='1min', time_stop='2min')
-                >>> handler.add(label=2, time_start='11min', time_stop='12min')
+                >>> handler.add(label=1, start='1min', end='2min')
+                >>> handler.add(label=2, start='11min', end='12min')
                 >>> # Retrieve the annotations
                 >>> annot = handler.get()
                 >>> print(annot)
-                   label  time_start  time_stop  freq_min  freq_max
-                0      1        60.0      120.0       NaN       NaN
-                1      2       660.0      720.0       NaN       NaN
+                   label  start    end  freq_min  freq_max
+                0      1   60.0  120.0       NaN       NaN
+                1      2  660.0  720.0       NaN       NaN
         """
         ans = self._df
 
@@ -271,7 +271,7 @@ class AnnotationHandler():
             ans = ans.loc[set_id]
 
         # ensure correct ordering of columns
-        cols = ['label', 'time_start', 'time_stop']
+        cols = ['label', 'start', 'end']
         if not drop_freq: 
             cols += ['freq_min', 'freq_max']
         
@@ -304,7 +304,7 @@ class AnnotationHandler():
             Args:
                 df: pandas DataFrame or dict
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
-                    'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
                     and 'freq_max'.
                 set_id: int or tuple
                     Unique identifier of the annotation set.
@@ -326,7 +326,7 @@ class AnnotationHandler():
 
         self._df = self._df.astype({'label': 'int'}) #cast label column to int
 
-    def add(self, label=None, time_start=None, time_stop=None, freq_min=None, freq_max=None, df=None, set_id=0):
+    def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, set_id=0):
         """ Add an annotation or a collection of annotations to the handler module.
         
             Individual annotations may be added using the arguments time_range and 
@@ -338,11 +338,11 @@ class AnnotationHandler():
             Args:
                 label: int
                     Integer label.
-                time_start: str or float
+                start: str or float
                     Start time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
-                time_start: str or float
+                start: str or float
                     Stop time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
@@ -356,7 +356,7 @@ class AnnotationHandler():
                     for example, '3.1kHz'.
                 df: pandas DataFrame or dict
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
-                    'label', 'time_start', 'time_stop', and optionally also 'freq_min' 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
                     and 'freq_max'.
                 set_id: int or tuple
                     Unique identifier of the annotation set.
@@ -367,26 +367,26 @@ class AnnotationHandler():
             Example:
                 >>> from ketos.audio_processing.annotation_new import AnnotationHandler
                 >>> # Create an annotation table containing two annotations
-                >>> annots = pd.DataFrame({'label':[1,2], 'time_start':[4.,8.], 'time_stop':[6.,12.]})
+                >>> annots = pd.DataFrame({'label':[1,2], 'start':[4.,8.], 'end':[6.,12.]})
                 >>> # Initialize the annotation handler
                 >>> handler = AnnotationHandler(annots)
                 >>> # Add a couple of more annotations
-                >>> handler.add(label=1, time_start='1min', time_stop='2min')
-                >>> handler.add(label=3, time_start='11min', time_stop='12min')
+                >>> handler.add(label=1, start='1min', end='2min')
+                >>> handler.add(label=3, start='11min', end='12min')
                 >>> # Inspect the annotations
                 >>> annot = handler.get()
                 >>> print(annot)
-                   label  time_start  time_stop  freq_min  freq_max
-                0      1         4.0        6.0       NaN       NaN
-                1      2         8.0       12.0       NaN       NaN
-                2      1        60.0      120.0       NaN       NaN
-                3      3       660.0      720.0       NaN       NaN
+                   label  start    end  freq_min  freq_max
+                0      1    4.0    6.0       NaN       NaN
+                1      2    8.0   12.0       NaN       NaN
+                2      1   60.0  120.0       NaN       NaN
+                3      3  660.0  720.0       NaN       NaN
         """        
         if label is not None:
-            assert time_start is not None and time_stop is not None, 'time range must be specified'         
+            assert start is not None and end is not None, 'time range must be specified'         
             
-            time_start = convert_to_sec(time_start)
-            time_stop = convert_to_sec(time_stop)
+            start = convert_to_sec(start)
+            end = convert_to_sec(end)
             
             freq_min = convert_to_Hz(freq_min)
             freq_max = convert_to_Hz(freq_max)
@@ -395,19 +395,19 @@ class AnnotationHandler():
             if freq_max is None:
                 freq_max = np.nan
 
-            df = {'label':[label], 'time_start':[time_start], 'time_stop':[time_stop], 'freq_min':[freq_min], 'freq_max':[freq_max]}
+            df = {'label':[label], 'start':[start], 'end':[end], 'freq_min':[freq_min], 'freq_max':[freq_max]}
 
         self._add(df, set_id)
         
-    def crop(self, time_start=0, time_stop=None, freq_min=None, freq_max=None):
+    def crop(self, start=0, end=None, freq_min=None, freq_max=None):
         """ Crop annotations along the time and/or frequency dimension.
 
             Args:
-                time_start: float or str
+                start: float or str
                     Lower edge of time cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
-                time_stop: float or str
+                end: float or str
                     Upper edge of time cropping interval. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
@@ -428,30 +428,30 @@ class AnnotationHandler():
                 >>> # Initialize an empty annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
-                >>> handler.add(label=1, time_start='1min', time_stop='2min', freq_min='20Hz', freq_max='200Hz')
-                >>> handler.add(label=2, time_start='180s', time_stop='300s', freq_min='60Hz', freq_max='1000Hz')
+                >>> handler.add(label=1, start='1min', end='2min', freq_min='20Hz', freq_max='200Hz')
+                >>> handler.add(label=2, start='180s', end='300s', freq_min='60Hz', freq_max='1000Hz')
                 >>> # Crop the annotations in time
-                >>> handler.crop(time_start='30s', time_stop='4min')
+                >>> handler.crop(start='30s', end='4min')
                 >>> # Inspect the annotations
                 >>> annot = handler.get()
                 >>> print(annot)
-                   label  time_start  time_stop  freq_min  freq_max
-                0      1        30.0       90.0      20.0     200.0
-                1      2       150.0      210.0      60.0    1000.0
+                   label  start    end  freq_min  freq_max
+                0      1   30.0   90.0      20.0     200.0
+                1      2  150.0  210.0      60.0    1000.0
                 >>> # Note how all the start and stop times are shifted by -30 s due to the cropping operation.
                 >>> # Crop the annotations in frequency
                 >>> handler.crop(freq_min='50Hz')
                 >>> annot = handler.get()
                 >>> print(annot)
-                   label  time_start  time_stop  freq_min  freq_max
-                0      1        30.0       90.0      50.0     200.0
-                1      2       150.0      210.0      60.0    1000.0
+                   label  start    end  freq_min  freq_max
+                0      1   30.0   90.0      50.0     200.0
+                1      2  150.0  210.0      60.0    1000.0
         """
         # convert to desired units
         freq_min = convert_to_Hz(freq_min)
         freq_max = convert_to_Hz(freq_max)
-        time_start = convert_to_sec(time_start)
-        time_stop = convert_to_sec(time_stop)
+        start = convert_to_sec(start)
+        end = convert_to_sec(end)
 
         # crop min frequency
         if freq_min is not None:
@@ -462,17 +462,17 @@ class AnnotationHandler():
             self._df['freq_max'][self._df['freq_max'] < freq_max] = freq_max
 
         # crop stop time
-        if time_stop is not None:
-            dr = -np.maximum(0, self._df['time_stop'] - time_stop)
-            self._df['time_stop'] = self._df['time_stop'] + dr
+        if end is not None:
+            dr = -np.maximum(0, self._df['end'] - end)
+            self._df['end'] = self._df['end'] + dr
 
         # crop start time
-        if time_start > 0:
-            self.shift(-time_start)
+        if start > 0:
+            self.shift(-start)
 
         # remove annotations that were fully cropped along the time dimension
-        if time_start > 0 or time_stop is not None:
-            self._df = self._df[self._df['time_stop'] > self._df['time_start']]
+        if start > 0 or end is not None:
+            self._df = self._df[self._df['end'] > self._df['start']]
 
         # remove annotations that were fully cropped along the frequency dimension
         if freq_min is not None or freq_max is not None:
@@ -494,13 +494,13 @@ class AnnotationHandler():
         """      
         delta_time = convert_to_sec(delta_time)
         
-        self._df['time_start'] = self._df['time_start'] + delta_time
-        self._df['time_start'][self._df['time_start'] < 0] = 0
+        self._df['start'] = self._df['start'] + delta_time
+        self._df['start'][self._df['start'] < 0] = 0
         
-        self._df['time_stop'] = self._df['time_stop'] + delta_time
-        self._df['time_stop'][self._df['time_stop'] < 0] = 0
+        self._df['end'] = self._df['end'] + delta_time
+        self._df['end'][self._df['end'] < 0] = 0
 
-        self._df = self._df[self._df['time_stop'] > self._df['time_start']]
+        self._df = self._df[self._df['end'] > self._df['start']]
         
     def segment(self, num_segs, window_size, step_size=None, offset=0):
         """ Divide the time axis into segments of uniform length, which may or may 
@@ -537,28 +537,28 @@ class AnnotationHandler():
                 >>> # Initialize an empty annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
-                >>> handler.add(label=1, time_start='1s', time_stop='3s')
-                >>> handler.add(label=2, time_start='5.2s', time_stop='7.0s')
+                >>> handler.add(label=1, start='1s', end='3s')
+                >>> handler.add(label=2, start='5.2s', end='7.0s')
                 >>> # Apply segmentation
                 >>> handler = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', offset='0.1s')
                 >>> # Inspect the annotations
                 >>> annots = handler.get(drop_freq=True)
                 >>> print(annots)
-                     label  time_start  time_stop
-                0 0      1         0.9        1.0
-                1 0      1         0.1        1.0
-                2 0      1         0.0        1.0
-                3 0      1         0.0        0.5
-                6 1      2         0.3        1.0
-                7 1      2         0.0        1.0
-                8 1      2         0.0        0.5
+                     label  start  end
+                0 0      1    0.9  1.0
+                1 0      1    0.1  1.0
+                2 0      1    0.0  1.0
+                3 0      1    0.0  0.5
+                6 1      2    0.3  1.0
+                7 1      2    0.0  1.0
+                8 1      2    0.0  0.5
                 >>> # Note the double index, where the first index refers to the segment 
                 >>> # while the second index referes to the original annotation.
                 >>> # We can get the annotations for a single segment like this,
                 >>> annots3 = handler.get(set_id=3, drop_freq=True)
                 >>> print(annots3)
-                   label  time_start  time_stop
-                0      1         0.0        0.5
+                   label  start  end
+                0      1    0.0  0.5
                 >>> # If we attempt to retrieve annotations for a segment that does not 
                 >>> # have any annotations, we get None,
                 >>> annots4 = handler.get(set_id=4, drop_freq=True)
@@ -574,12 +574,12 @@ class AnnotationHandler():
         offset = convert_to_sec(offset)
 
         # crop times
-        time_start = offset + step_size * np.arange(num_segs)
-        time_stop = time_start + window_size
+        start = offset + step_size * np.arange(num_segs)
+        end = start + window_size
 
         # loop over segments
         handlers, keys = [], []
-        for i,(t1,t2) in enumerate(zip(time_start, time_stop)):
+        for i,(t1,t2) in enumerate(zip(start, end)):
             h = self.copy() # create a copy
             h.crop(t1, t2) # crop 
             if h.num_annotations() > 0:

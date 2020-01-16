@@ -37,30 +37,30 @@ from ketos.audio_processing.annotation_new import AnnotationHandler, stack_handl
 def test_empty_annotation_handler_has_correct_columns():
     handler = AnnotationHandler()
     a = handler.get()
-    unittest.TestCase().assertCountEqual(list(a.columns), ['label', 'time_start', 'time_stop', 'freq_min', 'freq_max'])
+    unittest.TestCase().assertCountEqual(list(a.columns), ['label', 'start', 'end', 'freq_min', 'freq_max'])
 
 def test_add_individual_annotations():
     handler = AnnotationHandler()
     # add annotation without units
-    handler.add(time_start=0.0, time_stop=4.1, label=1)
+    handler.add(start=0.0, end=4.1, label=1)
     a = handler.get()
     assert len(a) == 1
-    assert a['time_start'][0] == 0.0
-    assert a['time_stop'][0] == 4.1
+    assert a['start'][0] == 0.0
+    assert a['end'][0] == 4.1
     assert np.isnan(a['freq_min'][0])
     assert np.isnan(a['freq_max'][0])
     assert a['label'][0] == 1
     # add annotation with SI units
-    handler.add(time_start='2min', time_stop='5min', label=2)
+    handler.add(start='2min', end='5min', label=2)
     a = handler.get()
     assert len(a) == 2
-    assert a['time_start'][1] == 120
-    assert a['time_stop'][1] == 300
+    assert a['start'][1] == 120
+    assert a['end'][1] == 300
     assert np.isnan(a['freq_min'][1])
     assert np.isnan(a['freq_max'][1])
     assert a['label'][1] == 2
     # add annotation with frequency range
-    handler.add(time_start='2min', time_stop='5min', freq_min='200Hz', freq_max=3000, label=3)
+    handler.add(start='2min', end='5min', freq_min='200Hz', freq_max=3000, label=3)
     a = handler.get()
     assert len(a) == 3
     assert a['freq_min'][2] == 200
@@ -68,23 +68,23 @@ def test_add_individual_annotations():
 
 def test_add_annotations_as_dataframe():
     handler = AnnotationHandler()
-    df = pd.DataFrame({'time_start':[1,2], 'time_stop':[7,9], 'label':[14,11]})
+    df = pd.DataFrame({'start':[1,2], 'end':[7,9], 'label':[14,11]})
     handler.add(df=df)
     a = handler.get()
     assert len(a) == 2
-    assert a['time_start'][0] == 1
-    assert a['time_stop'][0] == 7
-    assert a['time_start'][1] == 2
-    assert a['time_stop'][1] == 9
+    assert a['start'][0] == 1
+    assert a['end'][0] == 7
+    assert a['start'][1] == 2
+    assert a['end'][1] == 9
 
 def test_add_annotations_as_dict():
     handler = AnnotationHandler()
-    df = {'time_start':1, 'time_stop':7, 'label':14}
+    df = {'start':1, 'end':7, 'label':14}
     handler.add(df=df)
     a = handler.get()
     assert len(a) == 1
-    assert a['time_start'][0] == 1
-    assert a['time_stop'][0] == 7
+    assert a['start'][0] == 1
+    assert a['end'][0] == 7
 
 def test_crop_annotations_along_time_axis():
     handler = AnnotationHandler()
@@ -99,8 +99,8 @@ def test_crop_annotations_along_time_axis():
     handler.crop(4, 9)
     a = handler.get()
     assert len(a) == 3
-    assert np.allclose(a['time_start'], [0, 1, 4], atol=1e-08) 
-    assert np.allclose(a['time_stop'], [1.2, 3.3, 5], atol=1e-08) 
+    assert np.allclose(a['start'], [0, 1, 4], atol=1e-08) 
+    assert np.allclose(a['end'], [1.2, 3.3, 5], atol=1e-08) 
     assert np.array_equal(a['label'], [2, 3, 4]) 
 
 def test_segment_annotations():
