@@ -275,7 +275,7 @@ class NNInterface():
 
     @classmethod
     def optimizer_to_recipe(cls, optimizer):
-        """ Creates a recipe-compatible optimizer object
+        """ Create an optimizer dictionary from a recipe-compatible optimizer object
 
             Used when creating a ketos recipe that can be used to recreate the model.
 
@@ -332,7 +332,7 @@ class NNInterface():
 
     @classmethod
     def loss_function_to_recipe(cls, loss_function):
-        """ Creates a recipe-compatible loss_function object
+        """ Create a loss function dictionary from a recipe-compatible loss function object
 
             Used when creating a ketos recipe that can be used to recreate the model.
 
@@ -393,12 +393,12 @@ class NNInterface():
 
     @classmethod
     def metrics_to_recipe(cls, metrics):
-        """ Creates a recipe-compatible metrics object
-
+        """ Create a metrics dictionary from a list of recipe-compatible metric objects
+         
             Used when creating a ketos recipe that can be used to recreate the model
 
             Args:
-                metrics: instance of RecipeCompat
+                metrics: list of RecipeCompat objects
                     A list of RecipeCompat objects, each wrapping a metric.
             Returns:
                 recipe_metrics: list of dicts
