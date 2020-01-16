@@ -31,6 +31,7 @@ import os
 import ketos.data_handling.selection_table as st
 import pandas as pd
 import numpy as np
+from io import StringIO
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -123,31 +124,31 @@ def test_label_occurrence(annot_table_std):
     oc_expected = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
     assert oc == oc_expected
 
-def test_create_selections_center(annot_table_std):
+def test_select_center(annot_table_std):
     df, d = st.standardize(annot_table_std)
     # request length shorter than annotations
-    df_new = st.create_selections(df, sel_len=1, center=True)
+    df_new = st.select(df, sel_len=1, center=True)
     assert len(df_new[df_new.label==-1]) == 0
     for idx,r in df_new.iterrows():
-        t1 = r['offset']
-        t2 = t1 + r['duration']
+        t1 = r.time_start
+        t2 = r.time_stop
         assert pytest.approx(t1, df['time_start'].loc[idx] + 0.5 * 3.3 - 0.5, abs=0.00001)
         assert pytest.approx(t2, df['time_start'].loc[idx] + 0.5 * 3.3 + 0.5, abs=0.00001)
     # request length longer than annotations
-    df_new = st.create_selections(df, sel_len=5, center=True)
+    df_new = st.select(df, sel_len=5, center=True)
     for idx,r in df_new.iterrows():
-        t1 = r['offset']
-        t2 = t1 + r['duration']
+        t1 = r.time_start
+        t2 = r.time_stop
         assert pytest.approx(t1, df['time_start'].loc[idx] + 0.5 * 3.3 - 2.5, abs=0.00001)
         assert pytest.approx(t2, df['time_start'].loc[idx] + 0.5 * 3.3 + 2.5, abs=0.00001)
 
-def test_create_selections_removes_discarded_annotations(annot_table_std):
+def test_select_removes_discarded_annotations(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
-    df_new = st.create_selections(df, sel_len=1, center=True)
+    df_new = st.select(df, sel_len=1, center=True)
     assert len(df_new[df_new.label==-1]) == 0
 
-def test_create_selections_enforces_overlap(annot_table_std):
+def test_select_enforces_overlap(annot_table_std):
     np.random.seed(3)
     df = annot_table_std
     df, d = st.standardize(df)
@@ -155,10 +156,10 @@ def test_create_selections_enforces_overlap(annot_table_std):
     # all annotations have length: 3.3 sec  (3.3/5.0=0.66)
     sel_len = 5.0
     overlap = 0.5
-    df_new = st.create_selections(df, sel_len=sel_len, min_overlap=overlap, keep_id=True)
+    df_new = st.select(df, sel_len=sel_len, min_overlap=overlap, keep_id=True)
     for idx,r in df_new.iterrows():
-        t1 = r['offset']
-        t2 = t1 + r['duration']
+        t1 = r.time_start
+        t2 = r.time_stop
         fname = idx[0]
         id = r['annot_id']
         idx = (fname,id)
@@ -167,15 +168,15 @@ def test_create_selections_enforces_overlap(annot_table_std):
         assert t2 >= t1_orig + overlap * sel_len
         assert t1 <= t2_orig - overlap * sel_len
 
-def test_create_selections_step(annot_table_std):
+def test_select_step(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
     N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
-    df_new = st.create_selections(df, sel_len=1, center=True, min_overlap=0, step_size=0.5, keep_id=True)
+    df_new = st.select(df, sel_len=1, center=True, min_overlap=0, step_size=0.5, keep_id=True)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
-    df_new = st.create_selections(df, sel_len=1, center=True, min_overlap=0.4, step_size=0.5)
+    df_new = st.select(df, sel_len=1, center=True, min_overlap=0.4, step_size=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
@@ -189,11 +190,11 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     df_c = st.complement(df, dur)
     num_ok = 0
     for i,ri in df_bgr.iterrows():
-        dt = ri['duration']
+        dt = ri.time_stop - ri.time_start
         assert pytest.approx(dt, 2.0, abs=0.001)
         for j,rj in df_c.iterrows():
-            if i[0] == j[0] and ri['offset'] >= rj['time_start'] \
-                and ri['offset']+ri['duration'] <= rj['time_stop']:
+            if i[0] == j[0] and ri.time_start >= rj.time_start \
+                and ri.time_stop <= rj.time_stop:
                 num_ok += 1
 
     assert num_ok == num
@@ -209,9 +210,36 @@ def test_complement(annot_table_std, file_duration_table):
     df_expected = st.use_multi_indexing(df_expected, 'annot_id')
     assert df_expected.values.tolist() == df_new.values.tolist()
 
-def test_create_selections_by_segmenting(annot_table_std, file_duration_table):
-    np.random.seed(1)
-    df, _ = st.standardize(annot_table_std)
-    dur = file_duration_table
-    df_sel, df_ann = st.create_selections_by_segmenting(df, dur, sel_len=5.1, sel_step=1., discard_empty=True, pad=True)
-    assert np.all(df_sel.index.get_level_values(0).values.tolist() == ['f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav'])
+def test_select_by_segmenting(annot_table_std, file_duration_table):
+    a, _ = st.standardize(annot_table_std)
+    f = file_duration_table
+    print(a)
+    print(f)
+    sel = st.select_by_segmenting(a, f, length=5.1, step=4.0, discard_empty=True, pad=True)
+    # check selection table
+    d = '''filename sel_id start  end
+f0.wav   0         0.0  5.1
+f0.wav   1         4.0  9.1
+f1.wav   0         0.0  5.1
+f1.wav   1         4.0  9.1
+f2.wav   0         0.0  5.1
+f2.wav   1         4.0  9.1
+f2.wav   2         8.0 13.1'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, sel[0])
+    # check annotation table
+    d = '''filename sel_id annot_id label  time_start  time_stop
+f0.wav   0      0             3         0.0        3.3
+f0.wav   0      1             2         3.0        5.1
+f0.wav   1      1             2         0.0        2.3
+f1.wav   0      0             4         1.0        4.3
+f1.wav   0      1             2         4.0        5.1
+f1.wav   1      0             4         0.0        0.3
+f1.wav   1      1             2         0.0        3.3
+f2.wav   0      0             5         2.0        5.1
+f2.wav   0      1             1         5.0        5.1
+f2.wav   1      0             5         0.0        1.3
+f2.wav   1      1             1         1.0        4.3
+f2.wav   2      1             1         0.0        0.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
+    pd.testing.assert_frame_equal(ans, sel[1])
