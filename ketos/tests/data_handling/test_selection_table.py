@@ -236,8 +236,6 @@ f5.wav   0           0.0  35.0'''
 def test_select_by_segmenting(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
     f = file_duration_table
-    print(a)
-    print(f)
     sel = st.select_by_segmenting(a, f, length=5.1, step=4.0, discard_empty=True, pad=True)
     # check selection table
     d = '''filename sel_id start  end
@@ -266,3 +264,54 @@ f2.wav   1      1             1         1.0        4.3
 f2.wav   2      1             1         0.0        0.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
     pd.testing.assert_frame_equal(ans, sel[1])
+
+def test_query_labeled(annot_table_std):
+    df, d = st.standardize(annot_table_std)
+    df = st.select(df, length=1, center=True)
+    # query for 1 file
+    q = st.query_labeled(df, filename='f1.wav')
+    d = '''sel_id label  start   end                   
+0           4   2.15  3.15
+1           2   5.15  6.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    pd.testing.assert_frame_equal(q, ans)
+    # query for 2 files
+    q = st.query_labeled(df, filename=['f1.wav','f2.wav'])
+    d = '''filename sel_id label  start   end                            
+f1.wav   0           4   2.15  3.15
+f1.wav   1           2   5.15  6.15
+f2.wav   0           5   3.15  4.15
+f2.wav   1           1   6.15  7.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(q, ans)
+    # query for labels
+    q = st.query_labeled(df, label=[2,5])
+    d = '''filename sel_id label  start   end                   
+f0.wav   1           2   4.15  5.15
+f1.wav   1           2   5.15  6.15
+f2.wav   0           5   3.15  4.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(q, ans)
+
+def test_query_annotated(annot_table_std, file_duration_table):
+    a, _ = st.standardize(annot_table_std)
+    f = file_duration_table
+    sel = st.select_by_segmenting(a, f, length=5.1, step=4.0, discard_empty=True, pad=True)
+    # query for 1 file
+    q1, q2 = st.query_annotated(sel[0], sel[1], label=[2,4])
+    d = '''filename sel_id start  end
+f0.wav   0         0.0  5.1
+f0.wav   1         4.0  9.1
+f1.wav   0         0.0  5.1
+f1.wav   1         4.0  9.1'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(q1, ans)
+    d = '''filename sel_id annot_id label  start  end  
+f0.wav   0      1             2    3.0  5.1
+f0.wav   1      1             2    0.0  2.3
+f1.wav   0      0             4    1.0  4.3
+f1.wav   0      1             2    4.0  5.1
+f1.wav   1      0             4    0.0  0.3
+f1.wav   1      1             2    0.0  3.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
+    pd.testing.assert_frame_equal(q2, ans)

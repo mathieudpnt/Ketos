@@ -1038,3 +1038,90 @@ def segment_annotations(table, num, length, step=None):
     df = df.swaplevel()
     df = df.sort_index()
     return df
+
+def query(selections, annotations=None, filename=None, label=None):
+    """ Query selection table for selections from certain audio files 
+        and/or with certain labels.
+
+        Args:
+            selections: pandas DataFrame
+                Selections table
+            annotations: pandas DataFrame
+                Annotations table. Optional.
+            filename: str or list(str)
+                Filename(s)
+            label: int or list(int)
+                Label(s)
+
+        Returns:
+            : pandas DataFrame or tuple(pandas DataFrame, pandas DataFrame)
+            Selection table, accompanied by an annotation table if an input 
+            annotation table is provided.
+    """
+    if annotations is None:
+        return query_labeled_selections(selections, filename, label)
+    else:
+        return query_annotated_selections(selections, annotations, filename, label)
+
+def query_labeled(table, filename=None, label=None):
+    """ Query selection table for selections from certain audio files 
+        and/or with certain labels.
+
+        Args:
+            selections: pandas DataFrame
+                Selections table, which must have a 'label' column.
+            filename: str or list(str)
+                Filename(s)
+            label: int or list(int)
+                Label(s)
+
+        Returns:
+            df: pandas DataFrame
+            Selection table
+    """
+    df = table
+    if filename:
+        df = df.loc[filename]
+
+    if label:
+        if not isinstance(label, list):
+            label = [label]
+
+        df = df[df.label.isin(label)]
+
+    return df
+
+def query_annotated(selections, annotations, filename=None, label=None):
+    """ Query selection table for selections from certain audio files 
+        and/or with certain labels.
+
+        Args:
+            selections: pandas DataFrame
+                Selections table.
+            annotations: pandas DataFrame
+                Annotations table.
+            filename: str or list(str)
+                Filename(s)
+            label: int or list(int)
+                Label(s)
+
+        Returns:
+            df1,df2: tuple(pandas DataFrame, pandas DataFrame)
+            Selection table and annotation table
+    """
+    df1 = selections
+    df2 = annotations
+
+    if filename:
+        df1 = df1.loc[filename]
+        df2 = df2.loc[filename]
+
+    if label:
+        if not isinstance(label, list):
+            label = [label]
+
+        df2 = df2[df2.label.isin(label)]
+        indices = list(set([x[:-1] for x in df2.index.tolist()]))
+        df1 = df1.loc[indices].sort_index()
+
+    return df1, df2
