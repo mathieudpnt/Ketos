@@ -373,7 +373,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
+def select(annotations, length, step=0, min_overlap=0, center=False,\
     discard_long=False, keep_id=False):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
@@ -385,28 +385,28 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
         The output table uses two levels of indexing, the first level being the 
         filename and the second level being a selection id.
 
-        The generated selections have uniform length given by the sel_len argument. 
+        The generated selections have uniform length given by the length argument. 
         
         Note that the selections may have negative start times and/or stop times 
         that exceed the file duration.
 
         Annotations longer than the specified selection length will be cropped, unless the 
-        step_size is set to a value larger than 0.
+        step is set to a value larger than 0.
 
         Annotations with label -1 are discarded.
 
         Args:
-            table: pandas DataFrame
+            annotations: pandas DataFrame
                 Input table with call-level annotations.
-            sel_len: float
+            length: float
                 Selection length in seconds.
-            step_size: float
+            step: float
                 Produce multiple instances of the same annotation by shifting the annotation 
-                window in steps of length step_size (in seconds) both forward and backward in 
+                window in steps of length step (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of sel_len. Only used if step_size > 0. 
+                annotation, expressed as a fraction of length. Only used if step > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
@@ -432,14 +432,14 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
             >>> #Standardize annotation table format
             >>> df, label_dict = standardize(df)
             >>> print(df)
-                                start  end  label
-            filename  annot_id                              
-            file1.wav 0                7.0        8.1      2
-                      1                8.5       12.5      1
-                      2               13.1       14.0      2
-            file2.wav 0                2.2        3.1      2
-                      1                5.8        6.8      2
-                      2                9.0       13.0      1
+                                start   end  label
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2
+                      1           8.5  12.5      1
+                      2          13.1  14.0      2
+            file2.wav 0           2.2   3.1      2
+                      1           5.8   6.8      2
+                      2           9.0  13.0      1
             >>> 
             >>> #Create a selection table by defining intervals of fixed 
             >>> #length around every annotation.
@@ -447,38 +447,38 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
             >>> #0.16*3.0=0.48 sec between selection and annotations.
             >>> #Also, create multiple time-shifted versions of the same selection
             >>> #using a step size of 1.0 sec.     
-            >>> df_sel = select(df, sel_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_id=True) 
+            >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, center=True, keep_id=True) 
             >>> print(df_sel.round(2))
-                              label  offset  duration  annot_id
-            filename  sel_id                                   
-            file1.wav 0         2.0    5.05       3.0         0
-                      1         1.0    6.00       3.0         1
-                      2         2.0    6.05       3.0         0
-                      3         1.0    7.00       3.0         1
-                      4         2.0    7.05       3.0         0
-                      5         1.0    8.00       3.0         1
-                      6         1.0    9.00       3.0         1
-                      7         1.0   10.00       3.0         1
-                      8         1.0   11.00       3.0         1
-                      9         2.0   11.05       3.0         2
-                      10        1.0   12.00       3.0         1
-                      11        2.0   12.05       3.0         2
-                      12        2.0   13.05       3.0         2
-            file2.wav 0         2.0    0.15       3.0         0
-                      1         2.0    1.15       3.0         0
-                      2         2.0    2.15       3.0         0
-                      3         2.0    3.80       3.0         1
-                      4         2.0    4.80       3.0         1
-                      5         2.0    5.80       3.0         1
-                      6         1.0    6.50       3.0         2
-                      7         1.0    7.50       3.0         2
-                      8         1.0    8.50       3.0         2
-                      9         1.0    9.50       3.0         2
-                      10        1.0   10.50       3.0         2
-                      11        1.0   11.50       3.0         2
-                      12        1.0   12.50       3.0         2
+                              label  start    end  annot_id
+            filename  sel_id                               
+            file1.wav 0         2.0   5.05   8.05         0
+                      1         1.0   6.00   9.00         1
+                      2         2.0   6.05   9.05         0
+                      3         1.0   7.00  10.00         1
+                      4         2.0   7.05  10.05         0
+                      5         1.0   8.00  11.00         1
+                      6         1.0   9.00  12.00         1
+                      7         1.0  10.00  13.00         1
+                      8         1.0  11.00  14.00         1
+                      9         2.0  11.05  14.05         2
+                      10        1.0  12.00  15.00         1
+                      11        2.0  12.05  15.05         2
+                      12        2.0  13.05  16.05         2
+            file2.wav 0         2.0   0.15   3.15         0
+                      1         2.0   1.15   4.15         0
+                      2         2.0   2.15   5.15         0
+                      3         2.0   3.80   6.80         1
+                      4         2.0   4.80   7.80         1
+                      5         2.0   5.80   8.80         1
+                      6         1.0   6.50   9.50         2
+                      7         1.0   7.50  10.50         2
+                      8         1.0   8.50  11.50         2
+                      9         1.0   9.50  12.50         2
+                      10        1.0  10.50  13.50         2
+                      11        1.0  11.50  14.50         2
+                      12        1.0  12.50  15.50         2
     """
-    df = table.copy()
+    df = annotations.copy()
     df['annot_id'] = df.index.get_level_values(1)
 
     # check that input table has expected format
@@ -495,16 +495,16 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
 
     # discard annotations longer than the requested length
     if discard_long:
-        df = df[df['length'] <= sel_len]
+        df = df[df['length'] <= length]
 
     # alignment of new annotations relative to original ones
     if center:
-        df['start_new'] = df['start'] + 0.5 * (df['length'] - sel_len)
+        df['start_new'] = df['start'] + 0.5 * (df['length'] - length)
     else:
-        df['start_new'] = df['start'] + np.random.random_sample(N) * (df['length'] - sel_len)
+        df['start_new'] = df['start'] + np.random.random_sample(N) * (df['length'] - length)
 
     # create multiple time-shited instances of every annotation
-    if step_size > 0:
+    if step > 0:
         df_new = None
         for idx,row in df.iterrows():
             t = row['start_new']
@@ -514,7 +514,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
             else:
                 ovl = min_overlap
  
-            df_shift = time_shift(annot=row, time_ref=t, sel_len=sel_len, min_overlap=ovl, step_size=step_size)
+            df_shift = time_shift(annot=row, time_ref=t, length=length, min_overlap=ovl, step=step)
             df_shift['filename'] = idx[0]
 
             if df_new is None:
@@ -534,7 +534,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
     # drop old/temporary columns, and rename others
     df = df.drop(['start', 'end', 'length'], axis=1)
     df = df.rename(columns={"start_new": "start"})
-    df['end'] = df['start'] + sel_len
+    df['end'] = df['start'] + length
 
     # keep annotation id
     if not keep_id:
@@ -550,7 +550,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
     table_sel = df
     return table_sel
 
-def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
+def time_shift(annot, time_ref, length, step, min_overlap):
     """ Create multiple instances of the same selection by stepping in time, both 
         forward and backward.
 
@@ -565,9 +565,9 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
                 Reference time used as starting point for the stepping.
             length: float
                 Output annotation length in seconds.
-            step_size: float
+            step: float
                 Produce multiple instances of the same selection by shifting the annotation 
-                window in steps of length step_size (in seconds) both forward and backward in 
+                window in steps of length step (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the selection intervals and the original 
@@ -587,19 +587,19 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
             >>>
             >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
             >>> #overlap by at least 50% with the original 2-s annotation 
-            >>> df = time_shift(annot, time_ref=13.0, sel_len=1.0, step_size=0.2, min_overlap=0.5)
+            >>> df = time_shift(annot, time_ref=13.0, length=1.0, step=0.2, min_overlap=0.5)
             >>> print(df.round(2))
-                filename  label  start  end  start_new
-            0  file1.wav      1        12.0       14.0            11.6
-            1  file1.wav      1        12.0       14.0            11.8
-            2  file1.wav      1        12.0       14.0            12.0
-            3  file1.wav      1        12.0       14.0            12.2
-            4  file1.wav      1        12.0       14.0            12.4
-            5  file1.wav      1        12.0       14.0            12.6
-            6  file1.wav      1        12.0       14.0            12.8
-            7  file1.wav      1        12.0       14.0            13.0
-            8  file1.wav      1        12.0       14.0            13.2
-            9  file1.wav      1        12.0       14.0            13.4
+                filename  label  start   end  start_new
+            0  file1.wav      1   12.0  14.0       11.6
+            1  file1.wav      1   12.0  14.0       11.8
+            2  file1.wav      1   12.0  14.0       12.0
+            3  file1.wav      1   12.0  14.0       12.2
+            4  file1.wav      1   12.0  14.0       12.4
+            5  file1.wav      1   12.0  14.0       12.6
+            6  file1.wav      1   12.0  14.0       12.8
+            7  file1.wav      1   12.0  14.0       13.0
+            8  file1.wav      1   12.0  14.0       13.2
+            9  file1.wav      1   12.0  14.0       13.4
     """
     if isinstance(annot, dict):
         row = pd.Series(annot)
@@ -612,11 +612,11 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
     t1 = row['start']
     t2 = row['end']
 
-    t_min = t1 - (1 - min_overlap) * sel_len
-    t_max = t2 - min_overlap * sel_len
+    t_min = t1 - (1 - min_overlap) * length
+    t_max = t2 - min_overlap * length
 
-    num_steps_back = int(np.floor((t - t_min) / step_size))
-    num_steps_forw = int(np.floor((t_max - t) / step_size))
+    num_steps_back = int(np.floor((t - t_min) / step))
+    num_steps_forw = int(np.floor((t_max - t) / step))
 
     num_steps = num_steps_back + num_steps_forw
     if num_steps == 0:
@@ -628,13 +628,13 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
     # step backwards
     for i in range(num_steps_back):
         ri = row.copy()
-        ri['start_new'] = t - (i + 1) * step_size
+        ri['start_new'] = t - (i + 1) * step
         rows_new.append(ri)
 
     # step forwards
     for i in range(num_steps_forw):
         ri = row.copy()
-        ri['start_new'] = t + (i + 1) * step_size
+        ri['start_new'] = t + (i + 1) * step
         rows_new.append(ri)
 
     # create DataFrame
@@ -645,7 +645,7 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
 
     return df
 
-def complement(table, file_duration):
+def complement(annotations, files):
     """ Create a table listing all segments that have not been annotated (label 0,1,2,3,...) 
         or discarded (label -1).
 
@@ -653,9 +653,9 @@ def complement(table, file_duration):
         contain call-level annotations, see :func:`data_handling.selection_table.standardize`.
 
         Args:
-            table: pandas DataFrame
+            annotations: pandas DataFrame
                 Annotation table.
-            file_duration: pandas DataFrame
+            files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
 
@@ -674,19 +674,19 @@ def complement(table, file_duration):
             >>> #Create complement table
             >>> df_c = complement(df, dur)
             >>> print(df_c.round(2))
-                                start  end
-            filename  annot_id                       
-            file1.wav 0                0.0        2.0
-                      1                3.1        7.5
-                      2                9.0       10.0
-            file2.wav 0                0.0       20.0
-            file3.wav 0                0.0       15.0
+                                start   end
+            filename  annot_id             
+            file1.wav 0           0.0   2.0
+                      1           3.1   7.5
+                      2           9.0  10.0
+            file2.wav 0           0.0  20.0
+            file3.wav 0           0.0  15.0
     """   
-    df = table
+    df = annotations
 
     filename, start, end = [], [], []
 
-    for _, ri in file_duration.iterrows():
+    for _, ri in files.iterrows():
         fname = ri['filename']
         dur = ri['duration']
         if fname in df.index:
@@ -713,7 +713,7 @@ def complement(table, file_duration):
 
     return df_out
 
-def create_rndm_backgr_selections(table, file_duration, sel_len, num):
+def create_rndm_backgr_selections(annotations, files, length, num):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -724,12 +724,12 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
         large and/or the (annotation-free part of) the data set is small in size.
 
         Args:
-            table: pandas DataFrame
+            annotations: pandas DataFrame
                 Annotation table.
-            file_duration: pandas DataFrame
+            files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
-            sel_len: float
+            length: float
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
@@ -749,53 +749,53 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
             >>> #Load and inspect the annotations.
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>> print(df)
-                filename  start  end  label
-            0  file1.wav         7.0        8.1      1
-            1  file1.wav         8.5       12.5      0
-            2  file1.wav        13.1       14.0      1
-            3  file2.wav         2.2        3.1      1
-            4  file2.wav         5.8        6.8      1
-            5  file2.wav         9.0       13.0      0
+                filename  start   end  label
+            0  file1.wav    7.0   8.1      1
+            1  file1.wav    8.5  12.5      0
+            2  file1.wav   13.1  14.0      1
+            3  file2.wav    2.2   3.1      1
+            4  file2.wav    5.8   6.8      1
+            5  file2.wav    9.0  13.0      0
             >>>
             >>> #Standardize annotation table format
             >>> df, label_dict = standardize(df)
             >>> print(df)
-                                start  end  label
-            filename  annot_id                              
-            file1.wav 0                7.0        8.1      2
-                      1                8.5       12.5      1
-                      2               13.1       14.0      2
-            file2.wav 0                2.2        3.1      2
-                      1                5.8        6.8      2
-                      2                9.0       13.0      1
+                                start   end  label
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2
+                      1           8.5  12.5      1
+                      2          13.1  14.0      2
+            file2.wav 0           2.2   3.1      2
+                      1           5.8   6.8      2
+                      2           9.0  13.0      1
             >>>
             >>> #Enter file durations into a pandas DataFrame
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, sel_len=3.0, num=10) 
+            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10) 
             >>> print(df_bgr.round(2))
-                              offset  duration
-            filename  sel_id                  
-            file1.wav 0         1.70       3.0
-                      1        14.14       3.0
-                      2        16.84       3.0
-                      3        19.60       3.0
-                      4        24.55       3.0
-                      5        26.86       3.0
-            file2.wav 0        14.18       3.0
-            file3.wav 0         2.37       3.0
-                      1         8.47       3.0
-                      2         8.58       3.0
+                              start    end
+            filename  sel_id              
+            file1.wav 0        1.70   4.70
+                      1       14.14  17.14
+                      2       16.84  19.84
+                      3       19.60  22.60
+                      4       24.55  27.55
+                      5       26.86  29.86
+            file2.wav 0       14.18  17.18
+            file3.wav 0        2.37   5.37
+                      1        8.47  11.47
+                      2        8.58  11.58
     """
     # create complement
-    c = complement(table=table, file_duration=file_duration)
+    c = complement(annotations=annotations, files=files)
 
     # reset index
     c = c.reset_index()
 
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['end'] - c['start'] - sel_len
+    c['length'] = c['end'] - c['start'] - length
     c = c[c['length'] >= 0]
 
     # cumulative length 
@@ -814,7 +814,7 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
         filename.append(row['filename'])
         t1 = row['start'] + t - cs[idx]
         start.append(t1)
-        end.append(t1 + sel_len)
+        end.append(t1 + length)
 
     # ensure that type is float
     start = np.array(start, dtype=float)
@@ -850,7 +850,7 @@ def select_by_segmenting(annotations, files, length, step=None,\
         Args:
             table: pandas DataFrame
                 Annotation table.
-            file_duration: pandas DataFrame
+            files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
             length: float
@@ -879,14 +879,14 @@ def select_by_segmenting(annotations, files, length, step=None,\
             >>> #Standardize annotation table format
             >>> annot, label_dict = standardize(annot)
             >>> print(annot)
-                                start  end  label
-            filename  annot_id                              
-            file1.wav 0                7.0        8.1      2
-                      1                8.5       12.5      1
-                      2               13.1       14.0      2
-            file2.wav 0                2.2        3.1      2
-                      1                5.8        6.8      2
-                      2                9.0       13.0      1
+                                start   end  label
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2
+                      1           8.5  12.5      1
+                      2          13.1  14.0      2
+            file2.wav 0           2.2   3.1      2
+                      1           5.8   6.8      2
+                      2           9.0  13.0      1
             >>>
             >>> #Create file table
             >>> files = pd.DataFrame({'filename':['file1.wav', 'file2.wav', 'file3.wav'], 'duration':[11.0, 19.2, 15.1]})
@@ -913,21 +913,21 @@ def select_by_segmenting(annotations, files, length, step=None,\
                       2        10.0  20.0
             >>> #Inspect the annotations
             >>> print(sel[1].round(2))
-                                       start  end  label
-            filename  sel_id annot_id                              
-            file1.wav 0      0                7.0        8.1      2
-                             1                8.5       10.0      1
-                      1      0                2.0        3.1      2
-                             1                3.5        7.5      1
-                             2                8.1        9.0      2
-                      2      1                0.0        2.5      1
-                             2                3.1        4.0      2
-            file2.wav 0      0                2.2        3.1      2
-                             1                5.8        6.8      2
-                             2                9.0       10.0      1
-                      1      1                0.8        1.8      2
-                             2                4.0        8.0      1
-                      2      2                0.0        3.0      1
+                                       start   end  label
+            filename  sel_id annot_id                    
+            file1.wav 0      0           7.0   8.1      2
+                             1           8.5  10.0      1
+                      1      0           2.0   3.1      2
+                             1           3.5   7.5      1
+                             2           8.1   9.0      2
+                      2      1           0.0   2.5      1
+                             2           3.1   4.0      2
+            file2.wav 0      0           2.2   3.1      2
+                             1           5.8   6.8      2
+                             2           9.0  10.0      1
+                      1      1           0.8   1.8      2
+                             2           4.0   8.0      1
+                      2      2           0.0   3.0      1
     """
     if step is None:
         step = length
@@ -955,6 +955,25 @@ def select_by_segmenting(annotations, files, length, step=None,\
     return (sel, annot)
 
 def segment_files(table, length, step=None, pad=True):
+    """ Generate a selection table by stepping across the audio files, using a fixed 
+        step size (step) and fixed selection window size (length). 
+
+        Args:
+            table: pandas DataFrame
+                File duration table.
+            length: float
+                Selection length in seconds.
+            step: float
+                Selection step size in seconds. If None, the step size is set 
+                equal to the selection length.
+            pad: bool
+                If True (default), the last selection window is allowed to extend 
+                beyond the endpoint of the audio file.
+
+        Returns:
+            df: pandas DataFrame
+                Selection table
+    """
     if step is None:
         step = length
 
@@ -980,6 +999,24 @@ def segment_files(table, length, step=None, pad=True):
     return df
 
 def segment_annotations(table, num, length, step=None):
+    """ Generate a segmented annotation table by stepping across the audio files, using a fixed 
+        step size (step) and fixed selection window size (length). 
+        
+        Args:
+            table: pandas DataFrame
+                Annotation table.
+            num: int
+                Number of segments
+            length: float
+                Selection length in seconds.
+            step: float
+                Selection step size in seconds. If None, the step size is set 
+                equal to the selection length.
+
+        Returns:
+            df: pandas DataFrame
+                Annotations table
+    """
     if step is None:
         step = length
 

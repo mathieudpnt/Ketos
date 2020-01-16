@@ -139,7 +139,7 @@ def test_label_occurrence(annot_table_std):
 def test_select_center(annot_table_std):
     df, d = st.standardize(annot_table_std)
     # request length shorter than annotations
-    res = st.select(df, sel_len=1, center=True)
+    res = st.select(df, length=1, center=True)
     d = '''filename sel_id label  start   end
 f0.wav   0           3   1.15  2.15
 f0.wav   1           2   4.15  5.15
@@ -150,7 +150,7 @@ f2.wav   1           1   6.15  7.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res)
     # request length longer than annotations
-    res = st.select(df, sel_len=5, center=True)
+    res = st.select(df, length=5, center=True)
     d = '''filename sel_id  label  start   end
 f0.wav   0           3  -0.85  4.15
 f0.wav   1           2   2.15  7.15
@@ -164,7 +164,7 @@ f2.wav   1           1   4.15  9.15'''
 def test_select_removes_discarded_annotations(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
-    res = st.select(df, sel_len=1, center=True)
+    res = st.select(df, length=1, center=True)
     assert len(res[res.label==-1]) == 0
 
 def test_select_enforces_overlap(annot_table_std):
@@ -173,27 +173,27 @@ def test_select_enforces_overlap(annot_table_std):
     df, d = st.standardize(df)
     # requested length: 5.0 sec
     # all annotations have length: 3.3 sec  (3.3/5.0=0.66)
-    sel_len = 5.0
+    length = 5.0
     overlap = 0.5
-    df_new = st.select(df, sel_len=sel_len, min_overlap=overlap, keep_id=True)
+    df_new = st.select(df, length=length, min_overlap=overlap, keep_id=True)
     t1 = df_new.start.values
     t2 = df_new.end.values
     idx = zip(df_new.index.get_level_values(0), df_new.annot_id)
     df = df.loc[idx]
     t2_orig = df.end.values
     t1_orig = df.start.values
-    assert np.all(t2 >= t1_orig + overlap * sel_len)
-    assert np.all(t1 <= t2_orig - overlap * sel_len)
+    assert np.all(t2 >= t1_orig + overlap * length)
+    assert np.all(t1 <= t2_orig - overlap * length)
 
 def test_select_step(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
     N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
-    df_new = st.select(df, sel_len=1, center=True, min_overlap=0, step_size=0.5, keep_id=True)
+    df_new = st.select(df, length=1, center=True, min_overlap=0, step=0.5, keep_id=True)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
-    df_new = st.select(df, sel_len=1, center=True, min_overlap=0.4, step_size=0.5)
+    df_new = st.select(df, length=1, center=True, min_overlap=0.4, step=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
@@ -202,7 +202,7 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
     dur = file_duration_table 
     num = 5
-    df_bgr = st.create_rndm_backgr_selections(table=df, file_duration=dur, sel_len=2.0, num=num)
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == num
     df_c = st.complement(df, dur)
     # assert selections have uniform length
