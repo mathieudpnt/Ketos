@@ -319,8 +319,8 @@ def table_description_strong_annot(freq_range=False):
     class TableDescription(tables.IsDescription):
         data_id = tables.UInt32Col()
         label = tables.UInt8Col()
-        time_start = tables.Float64Col()
-        time_stop = tables.Float64Col()
+        start = tables.Float64Col()
+        end = tables.Float64Col()
         if freq_range:
             freq_min = tables.Float32Col()
             freq_max = tables.Float32Col()
@@ -334,7 +334,7 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
 
         An audio segment or spectrogram is said to be 'weakly annotated', if it is  assigned a single 
         (integer) label, and is said to be 'strongly annotated', if it is assigned one or several 
-        labels, each accompanied by a start and stop time, and potentially also a minimum and maximum 
+        labels, each accompanied by a start and end time, and potentially also a minimum and maximum 
         frequecy.
 
         When the annotation type is set to 'weak', the method returns a single table description.
@@ -401,9 +401,9 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
             >>> for key in sorted(cols.keys()):
             ...     print("%s: %s" % (key, cols[key]))
             data_id: UInt32Col(shape=(), dflt=0, pos=None)
+            end: Float64Col(shape=(), dflt=0.0, pos=None)
             label: UInt8Col(shape=(), dflt=0, pos=None)
-            time_start: Float64Col(shape=(), dflt=0.0, pos=None)
-            time_stop: Float64Col(shape=(), dflt=0.0, pos=None)
+            start: Float64Col(shape=(), dflt=0.0, pos=None)
     """
     assert annot_type in ['weak','strong'], 'Invalid annotation type. Permitted types are weak and strong.'
 
@@ -594,7 +594,7 @@ def write_spec_annot(spec, table, id):
     except AssertionError:
         raise TypeError("spec must be an instance of Spectrogram")      
 
-    write_time = ("time_start" in table.colnames)
+    write_time = ("start" in table.colnames)
     write_freq = ("freq_min" in table.colnames)
 
     for box,label in zip(spec.boxes, spec.labels):
@@ -604,8 +604,8 @@ def write_spec_annot(spec, table, id):
         row["label"] = label
 
         if write_time:
-            row["time_start"] = box[0]
-            row["time_stop"] = box[1]
+            row["start"] = box[0]
+            row["end"] = box[1]
 
         if write_freq:
             row["freq_min"] = box[2]
@@ -720,9 +720,9 @@ def write_spec_new(spec, table_data, table_annot=None, id=None):
             >>> # Check annotation data
             >>> tbl_annot[0]['label']
             1
-            >>> tbl_annot[0]['time_start']
+            >>> tbl_annot[0]['start']
             0.0
-            >>> tbl_annot[0]['time_stop']
+            >>> tbl_annot[0]['end']
             2.0
             >>> # Check audio source data
             >>> tbl_data[0]['filename'].decode()

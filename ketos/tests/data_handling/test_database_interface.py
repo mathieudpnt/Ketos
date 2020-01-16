@@ -147,18 +147,18 @@ def test_write_spec(sine_audio):
     x = tbl_annot[0]
     assert x['data_id'] == 0
     assert x['label'] == 1
-    assert x['time_start'] == 1.
-    assert x['time_stop'] == 2.
+    assert x['start'] == 1.
+    assert x['end'] == 2.
     x = tbl_annot[1]
     assert x['data_id'] == 0
     assert x['label'] == 2
-    assert x['time_start'] == 1.5
-    assert x['time_stop'] == 2.5
+    assert x['start'] == 1.5
+    assert x['end'] == 2.5
     x = tbl_annot[2]
     assert x['data_id'] == 7
     assert x['label'] == 1
-    assert x['time_start'] == 1.
-    assert x['time_stop'] == 2.
+    assert x['start'] == 1.
+    assert x['end'] == 2.
     x = tbl_data[0]
     assert x['filename'].decode() == 'file.wav'
     assert x['offset'] == 0.1
