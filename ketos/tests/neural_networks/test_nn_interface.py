@@ -109,6 +109,14 @@ def test_loss_function_from_recipe(recipe_dict):
     assert built_loss.args == {}
     assert isinstance(built_loss.func, FScoreLoss)
     
+def test_metrics_from_recipe(recipe_dict):
+    built_metrics = NNInterface.metrics_from_recipe(recipe_dict['metrics'])
+    assert isinstance(built_metrics[0], RecipeCompat)
+    assert built_metrics[0].name == 'CategoricalAccuracy'
+    assert built_metrics[0].args == {}
+    assert isinstance(built_metrics[0].func, tf.keras.metrics.CategoricalAccuracy)
+    
+    
     
     
     
