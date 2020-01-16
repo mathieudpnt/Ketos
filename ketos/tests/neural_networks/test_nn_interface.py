@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
+from ketos.neural_networks.losses import FScoreLoss
 
 
 @pytest.fixture
@@ -99,6 +100,15 @@ def test_optimizer_from_recipe(recipe_dict):
     assert built_opt.name == 'Adam'
     assert built_opt.args == {'learning_rate':0.005}
     assert isinstance(built_opt.func, tf.keras.optimizers.Adam)
+    
+    
+def test_loss_function_from_recipe(recipe_dict):
+    built_loss = NNInterface.loss_function_from_recipe(recipe_dict['loss_function'])
+    assert isinstance(built_loss, RecipeCompat)
+    assert built_loss.name == 'FScoreLoss'
+    assert built_loss.args == {}
+    assert isinstance(built_loss.func, FScoreLoss)
+    
     
     
     
