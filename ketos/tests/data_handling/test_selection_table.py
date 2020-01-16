@@ -126,7 +126,7 @@ def test_label_occurrence(annot_table_std):
 def test_create_selections_center(annot_table_std):
     df, d = st.standardize(annot_table_std)
     # request length shorter than annotations
-    df_new = st.create_selections(df, select_len=1, center=True)
+    df_new = st.create_selections(df, sel_len=1, center=True)
     assert len(df_new[df_new.label==-1]) == 0
     for idx,r in df_new.iterrows():
         t1 = r['offset']
@@ -134,7 +134,7 @@ def test_create_selections_center(annot_table_std):
         assert pytest.approx(t1, df['time_start'].loc[idx] + 0.5 * 3.3 - 0.5, abs=0.00001)
         assert pytest.approx(t2, df['time_start'].loc[idx] + 0.5 * 3.3 + 0.5, abs=0.00001)
     # request length longer than annotations
-    df_new = st.create_selections(df, select_len=5, center=True)
+    df_new = st.create_selections(df, sel_len=5, center=True)
     for idx,r in df_new.iterrows():
         t1 = r['offset']
         t2 = t1 + r['duration']
@@ -144,7 +144,7 @@ def test_create_selections_center(annot_table_std):
 def test_create_selections_removes_discarded_annotations(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
-    df_new = st.create_selections(df, select_len=1, center=True)
+    df_new = st.create_selections(df, sel_len=1, center=True)
     assert len(df_new[df_new.label==-1]) == 0
 
 def test_create_selections_enforces_overlap(annot_table_std):
@@ -153,9 +153,9 @@ def test_create_selections_enforces_overlap(annot_table_std):
     df, d = st.standardize(df)
     # requested length: 5.0 sec
     # all annotations have length: 3.3 sec  (3.3/5.0=0.66)
-    select_len = 5.0
+    sel_len = 5.0
     overlap = 0.5
-    df_new = st.create_selections(df, select_len=select_len, min_overlap=overlap, keep_id=True)
+    df_new = st.create_selections(df, sel_len=sel_len, min_overlap=overlap, keep_id=True)
     for idx,r in df_new.iterrows():
         t1 = r['offset']
         t2 = t1 + r['duration']
@@ -164,27 +164,27 @@ def test_create_selections_enforces_overlap(annot_table_std):
         idx = (fname,id)
         t1_orig = df.loc[idx]['time_start']
         t2_orig = df.loc[idx]['time_stop']
-        assert t2 >= t1_orig + overlap * select_len
-        assert t1 <= t2_orig - overlap * select_len
+        assert t2 >= t1_orig + overlap * sel_len
+        assert t1 <= t2_orig - overlap * sel_len
 
 def test_create_selections_step(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
     N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
-    df_new = st.create_selections(df, select_len=1, center=True, min_overlap=0, step_size=0.5, keep_id=True)
+    df_new = st.create_selections(df, sel_len=1, center=True, min_overlap=0, step_size=0.5, keep_id=True)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
-    df_new = st.create_selections(df, select_len=1, center=True, min_overlap=0.4, step_size=0.5)
+    df_new = st.create_selections(df, sel_len=1, center=True, min_overlap=0.4, step_size=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
 def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     np.random.seed(1)
-    df = annot_table_std
+    df, _ = st.standardize(annot_table_std)
     dur = file_duration_table 
     num = 5
-    df_bgr = st.create_rndm_backgr_selections(table=df, file_duration=dur, select_len=2.0, num=num)
+    df_bgr = st.create_rndm_backgr_selections(table=df, file_duration=dur, sel_len=2.0, num=num)
     assert len(df_bgr) == num
     df_c = st.complement(df, dur)
     num_ok = 0
@@ -192,18 +192,19 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
         dt = ri['duration']
         assert pytest.approx(dt, 2.0, abs=0.001)
         for j,rj in df_c.iterrows():
-            if ri['filename'] == rj['filename'] and ri['offset'] >= rj['time_start'] \
+            if i[0] == j[0] and ri['offset'] >= rj['time_start'] \
                 and ri['offset']+ri['duration'] <= rj['time_stop']:
                 num_ok += 1
 
     assert num_ok == num
 
 def test_complement(annot_table_std, file_duration_table):
-    df = annot_table_std
+    df, _ = st.standardize(annot_table_std)
     dur = file_duration_table
     df_new = st.complement(df, dur)
     df_expected = pd.DataFrame()
     df_expected['filename'] = ['f0.wav','f1.wav','f1.wav','f2.wav','f2.wav','f3.wav','f4.wav','f5.wav']
     df_expected['time_start'] = [6.3, 0., 7.3, 0., 8.3, 0., 0., 0.]
     df_expected['time_stop']  = [30.0, 1., 31., 2., 32., 33., 34., 35.]
+    df_expected = st.use_multi_indexing(df_expected, 'annot_id')
     assert df_expected.values.tolist() == df_new.values.tolist()

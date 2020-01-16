@@ -194,6 +194,19 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     return table_std, label_dict
 
 def use_multi_indexing(df, level_1_name):
+    """ Change from single-level indexing to double-level indexing. 
+        
+        The first index level is the filename while the second 
+        index level is a cumulative integer.
+
+        Args:
+            table: pandas DataFrame
+                Singly-indexed table. Must contain a column named 'filename'. 
+
+        Returns:
+            table: pandas DataFrame
+                Multi-indexed table.
+    """
     df = df.set_index([df.filename, df.index])
     df = df.drop(['filename'], axis=1)
     df = df.sort_index()
@@ -360,9 +373,9 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_selections_by_segmenting(table, file_duration, select_len, select_step=None, discard_empty=False, pad=True):
+def create_selections_by_segmenting(table, file_duration, sel_len, sel_step=None, discard_empty=False, pad=True):
     """ Generate a selection table by stepping across the audio data, using a fixed 
-        step size (select_step) and fixed selection window size (select_len). 
+        step size (sel_step) and fixed selection window size (sel_len). 
         
         Unlike the :func:`data_handling.selection_table.create_selections` method, selections 
         created by this method are not characterized by a single, integer-valued 
@@ -374,9 +387,9 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
             file_duration: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
-            select_len: float
+            sel_len: float
                 Selection length in seconds.
-            select_step: float
+            sel_step: float
                 Selection step size in seconds.
             discard_empty: bool
                 If True, only selection that contain annotations will be used. 
@@ -392,7 +405,7 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
     table_sel = table
     return table_sel
 
-def create_selections(table, select_len, step_size=0, min_overlap=0, center=False,\
+def create_selections(table, sel_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_id=False):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
@@ -401,7 +414,10 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.selection_table.standardize`.
 
-        The generated selections have uniform length given by the select_len argument. 
+        The output table uses two levels of indexing, the first level being the 
+        filename and the second level being a selection id.
+
+        The generated selections have uniform length given by the sel_len argument. 
         
         Note that the selections may have negative start times and/or stop times 
         that exceed the file duration.
@@ -414,7 +430,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
         Args:
             table: pandas DataFrame
                 Input table with call-level annotations.
-            select_len: float
+            sel_len: float
                 Selection length in seconds.
             step_size: float
                 Produce multiple instances of the same annotation by shifting the annotation 
@@ -422,7 +438,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of select_len. Only used if step_size > 0. 
+                annotation, expressed as a fraction of sel_len. Only used if step_size > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
@@ -440,7 +456,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
 
         Example:
             >>> import pandas as pd
-            >>> from ketos.data_handling.selection_table import create_selections
+            >>> from ketos.data_handling.selection_table import create_selections, standardize
             >>> 
             >>> #Load and inspect the annotations.
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
@@ -453,33 +469,49 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
             4  file2.wav         5.8        6.8      1
             5  file2.wav         9.0       13.0      0
             >>>
-            >>> #Create a table with fixed-length selections, suitable for 
-            >>> #building training/test data for a Machine Learning model.
+            >>> #Standardize annotation table format
+            >>> df, label_dict = standardize(df)
+            >>>
+            >>> #Create a selection table by defining intervals of fixed 
+            >>> #length around every annotation.
             >>> #Set the length to 3.0 sec and require a minimum overlap of 
-            >>> #0.16*3.0=0.48 sec between generated and original annotations.
+            >>> #0.16*3.0=0.48 sec between selection and annotations.
             >>> #Also, create multiple time-shifted versions of the same selection
-            >>> #using a step size of 1.0 sec both backward and forward in time.     
-            >>> df_sel = create_selections(df, select_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_index=True) 
+            >>> #using a step size of 1.0 sec.     
+            >>> df_sel = create_selections(df, sel_len=3.0, step_size=1.0, min_overlap=0.16, center=True, keep_id=True) 
             >>> print(df_sel.round(2))
-                index   filename label  time_start  time_stop orig_index
-            0       0  file1.wav     1        5.05       8.05          0
-            1       1  file1.wav     1        6.05       9.05          0
-            2       2  file1.wav     1        7.05      10.05          0
-            3       3  file1.wav     0        9.00      12.00          1
-            4       4  file1.wav     1       11.05      14.05          2
-            5       5  file1.wav     1       12.05      15.05          2
-            6       6  file1.wav     1       13.05      16.05          2
-            7       7  file2.wav     1        0.15       3.15          3
-            8       8  file2.wav     1        1.15       4.15          3
-            9       9  file2.wav     1        2.15       5.15          3
-            10     10  file2.wav     1        3.80       6.80          4
-            11     11  file2.wav     1        4.80       7.80          4
-            12     12  file2.wav     1        5.80       8.80          4
-            13     13  file2.wav     0        9.50      12.50          5
+                              label  offset  duration  annot_id
+            filename  sel_id                                   
+            file1.wav 0         2.0    5.05       3.0         0
+                      1         1.0    6.00       3.0         1
+                      2         2.0    6.05       3.0         0
+                      3         1.0    7.00       3.0         1
+                      4         2.0    7.05       3.0         0
+                      5         1.0    8.00       3.0         1
+                      6         1.0    9.00       3.0         1
+                      7         1.0   10.00       3.0         1
+                      8         1.0   11.00       3.0         1
+                      9         2.0   11.05       3.0         2
+                      10        1.0   12.00       3.0         1
+                      11        2.0   12.05       3.0         2
+                      12        2.0   13.05       3.0         2
+            file2.wav 0         2.0    0.15       3.0         0
+                      1         2.0    1.15       3.0         0
+                      2         2.0    2.15       3.0         0
+                      3         2.0    3.80       3.0         1
+                      4         2.0    4.80       3.0         1
+                      5         2.0    5.80       3.0         1
+                      6         1.0    6.50       3.0         2
+                      7         1.0    7.50       3.0         2
+                      8         1.0    8.50       3.0         2
+                      9         1.0    9.50       3.0         2
+                      10        1.0   10.50       3.0         2
+                      11        1.0   11.50       3.0         2
+                      12        1.0   12.50       3.0         2
     """
     df = table.copy()
     df['annot_id'] = df.index.get_level_values(1)
-        
+
     # check that input table has expected format
     assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
 
@@ -494,13 +526,13 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
 
     # discard annotations longer than the requested length
     if discard_long:
-        df = df[df['length'] <= select_len]
+        df = df[df['length'] <= sel_len]
 
     # alignment of new annotations relative to original ones
     if center:
-        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - select_len)
+        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - sel_len)
     else:
-        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - select_len)
+        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - sel_len)
 
     # create multiple time-shited instances of every annotation
     if step_size > 0:
@@ -513,7 +545,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
             else:
                 ovl = min_overlap
  
-            df_shift = time_shift(annot=row, time_ref=t, select_len=select_len, min_overlap=ovl, step_size=step_size)
+            df_shift = time_shift(annot=row, time_ref=t, sel_len=sel_len, min_overlap=ovl, step_size=step_size)
             df_shift['filename'] = idx[0]
 
             if df_new is None:
@@ -521,14 +553,19 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
             else:
                 df_new = pd.concat([df_new, df_shift])
 
-        # transform to multi-indexing
+        # sort by filename and offset
         df = df_new.sort_values(by=['filename','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
+
+        # transform to multi-indexing
         df = use_multi_indexing(df, 'sel_id')
 
+    # rename index
+    df.index.rename('sel_id', level=1, inplace=True) 
+        
     # drop old/temporary columns, and rename others
     df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
     df = df.rename(columns={"time_start_new": "offset"})
-    df['duration'] = select_len
+    df['duration'] = sel_len
 
     # keep annotation id
     if not keep_id:
@@ -544,7 +581,7 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
     table_sel = df
     return table_sel
 
-def time_shift(annot, time_ref, select_len, step_size, min_overlap):
+def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
     """ Create multiple instances of the same selection by stepping in time, both 
         forward and backward.
 
@@ -581,7 +618,7 @@ def time_shift(annot, time_ref, select_len, step_size, min_overlap):
             >>>
             >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
             >>> #overlap by at least 50% with the original 2-s annotation 
-            >>> df = time_shift(annot, time_ref=13.0, select_len=1.0, step_size=0.2, min_overlap=0.5)
+            >>> df = time_shift(annot, time_ref=13.0, sel_len=1.0, step_size=0.2, min_overlap=0.5)
             >>> print(df.round(2))
                 filename  label  time_start  time_stop  time_start_new
             0  file1.wav      1        12.0       14.0            11.6
@@ -591,9 +628,9 @@ def time_shift(annot, time_ref, select_len, step_size, min_overlap):
             4  file1.wav      1        12.0       14.0            12.4
             5  file1.wav      1        12.0       14.0            12.6
             6  file1.wav      1        12.0       14.0            12.8
-            6  file1.wav      1        12.0       14.0            13.0
-            7  file1.wav      1        12.0       14.0            13.2
-            8  file1.wav      1        12.0       14.0            13.4
+            7  file1.wav      1        12.0       14.0            13.0
+            8  file1.wav      1        12.0       14.0            13.2
+            9  file1.wav      1        12.0       14.0            13.4
     """
     if isinstance(annot, dict):
         row = pd.Series(annot)
@@ -606,8 +643,8 @@ def time_shift(annot, time_ref, select_len, step_size, min_overlap):
     t1 = row['time_start']
     t2 = row['time_stop']
 
-    t_min = t1 - (1 - min_overlap) * select_len
-    t_max = t2 - min_overlap * select_len
+    t_min = t1 - (1 - min_overlap) * sel_len
+    t_max = t2 - min_overlap * sel_len
 
     num_steps_back = int(np.floor((t - t_min) / step_size))
     num_steps_forw = int(np.floor((t_max - t) / step_size))
@@ -659,19 +696,22 @@ def complement(table, file_duration):
 
         Example:
             >>> import pandas as pd
-            >>> from ketos.data_handling.selection_table import complement
-            >>> #Create annotation table
+            >>> from ketos.data_handling.selection_table import complement, standardize
+            >>> #Create annotation table and standardize
             >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'time_start':[2.0, 7.5], 'time_stop':[3.1, 9.0]})
+            >>> df, label_dict = standardize(df)
             >>> #Create file duration table
-            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav'], 'duration':[10.0, 20.0]})
+            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav', 'file3.wav'], 'duration':[10.0, 20.0, 15.0]})
             >>> #Create complement table
             >>> df_c = complement(df, dur)
             >>> print(df_c.round(2))
-                filename  time_start  time_stop
-            0  file1.wav         0.0        2.0
-            1  file1.wav         3.1        7.5
-            2  file1.wav         9.0       10.0
-            3  file2.wav         0.0       20.0
+                                time_start  time_stop
+            filename  annot_id                       
+            file1.wav 0                0.0        2.0
+                      1                3.1        7.5
+                      2                9.0       10.0
+            file2.wav 0                0.0       20.0
+            file3.wav 0                0.0       15.0
     """   
     df = table
 
@@ -680,9 +720,12 @@ def complement(table, file_duration):
     for _, ri in file_duration.iterrows():
         fname = ri['filename']
         dur = ri['duration']
-        dfi = df[df['filename']==fname]
-        intervals = dfi[['time_start','time_stop']].values.tolist()
-        c = complement_intervals([0, dur], intervals)
+        if fname in df.index:
+            dfi = df.loc[fname]
+            intervals = dfi[['time_start','time_stop']].values.tolist()
+            c = complement_intervals([0, dur], intervals)
+        else:
+            c = [[0, dur]]
 
         for x in c:
             filename.append(fname)
@@ -693,10 +736,15 @@ def complement(table, file_duration):
     time_start = np.array(time_start, dtype=float)
     time_stop = np.array(time_stop, dtype=float)
 
+    # fill output DataFrame
     df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
+
+    # use multi-indexing  
+    df_out = use_multi_indexing(df_out, 'annot_id')
+
     return df_out
 
-def create_rndm_backgr_selections(table, file_duration, select_len, num):
+def create_rndm_backgr_selections(table, file_duration, sel_len, num):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -712,7 +760,7 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
             file_duration: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
-            select_len: float
+            sel_len: float
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
@@ -730,7 +778,7 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
             >>> np.random.seed(3)
             >>> 
             >>> #Load and inspect the annotations.
-            >>> df = pd.read_csv("ketos/tests/assets_new/annot_001.csv")
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>> print(df)
                 filename  time_start  time_stop  label
             0  file1.wav         7.0        8.1      1
@@ -741,23 +789,27 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
             5  file2.wav         9.0       13.0      0
             >>>
             >>> #Enter file durations into a pandas DataFrame
-            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav'], 'duration':[30.,20.]})
+            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, select_len=3.0, num=5) 
+            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, sel_len=3.0, num=5) 
             >>> print(df_bgr.round(2))
-                filename  time_start  time_stop
-            0  file1.wav       21.57      24.57
-            1  file1.wav       24.87      27.87
-            2  file1.wav       16.11      19.11
-            3  file1.wav       20.73      23.73
-            4  file2.wav       14.75      17.75
+                              duration  offset
+            filename  sel_id                  
+            file1.wav 0            3.0   16.29
+            file2.wav 0            3.0    1.61
+                      1            3.0    3.84
+                      2            3.0   12.66
+            file3.wav 0            3.0    6.01
     """
     # create complement
     c = complement(table=table, file_duration=file_duration)
 
+    # reset index
+    c = c.reset_index()
+
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['time_stop'] - c['time_start'] - select_len
+    c['length'] = c['time_stop'] - c['time_start'] - sel_len
     c = c[c['length'] >= 0]
 
     # cumulative length 
@@ -776,13 +828,20 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
         filename.append(row['filename'])
         t1 = row['time_start'] + t - cs[idx]
         offset.append(t1)
-        duration.append(select_len)
+        duration.append(sel_len)
 
     # ensure that type is float
     offset = np.array(offset, dtype=float)
     duration = np.array(duration, dtype=float)
 
+    # fill DataFrame
     df = pd.DataFrame({'filename':filename, 'offset':offset, 'duration':duration})    
+
+    # sort by filename and offset
+    df = df.sort_values(by=['filename','offset'], axis=0, ascending=[True,True]).reset_index(drop=True)
+
+    # transform to multi-indexing
+    df = use_multi_indexing(df, 'sel_id')
 
     return df
 
