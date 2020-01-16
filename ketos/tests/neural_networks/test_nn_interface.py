@@ -54,5 +54,17 @@ def test_transform_train_batch():
                             [0., 1.]]))
 
 
+def test_transform_input():
+     input1 = np.random.rand(5,5)        
+     input2 = np.random.rand(1,5,5)
 
-    
+     output1 = NNInterface.transform_input(input1)
+     output2 = NNInterface.transform_input(input2)
+
+     assert output1.shape ==(1,5,5,1)
+     assert output2.shape ==(1,5,5,1)
+
+     assert np.array_equal(output1[0,:,:,0], input1)
+     assert np.array_equal(output2[0,:,:,0], input2[0,:,:])
+
+     
