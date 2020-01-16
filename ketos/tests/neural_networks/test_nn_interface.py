@@ -31,3 +31,28 @@ def test_to1hot(class_label, n_classes, expected):
     with pytest.raises(TypeError):
         assert NNInterface.to1hot(class_label=1, n_classes=2.0)
 
+
+
+def test_transform_train_batch():
+    inputs = np.random.rand(10,5,5)
+    labels = np.array([1,0,0,0,1,0,0,1,1,1])
+
+    X,Y = NNInterface.transform_train_batch(inputs, labels)
+
+    
+    assert X.shape == (10,5,5,1)
+    assert np.array_equal(X[:,:,:,0], inputs)
+    assert np.array_equal(Y, np.array([[0., 1.],
+                            [1., 0.],
+                            [1., 0.],
+                            [1., 0.],
+                            [0., 1.],
+                            [1., 0.],
+                            [1., 0.],
+                            [0., 1.],
+                            [0., 1.],
+                            [0., 1.]]))
+
+
+
+    
