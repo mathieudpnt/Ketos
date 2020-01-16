@@ -28,13 +28,17 @@
 
     This module provides functions for handling annotation tables and creating 
     selection tables. 
-    A Ketos annotation table always contains the columns 'filename' and 'label'.
+    A Ketos annotation table always uses two levels of indices, the first index 
+    being the filename and the second index an annotation identifier, and always 
+    has the column 'label'. 
     For call-level annotations, the table also contains the columns 'time_start' 
     and 'time_stop', giving the start and end time of the call measured in seconds 
     since the beginning of the file. 
     The table may also contain the columns 'freq_min' and 'freq_max', giving the 
     minimum and maximum frequencies of the call in Hz, but this is not required.    
     The user may add any number of additional columns.
+    Note that the table uses two levels of indices, the first index being the 
+    filename and the second index an annotation identifier. 
 """
 
 import os
@@ -85,17 +89,19 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False):
     """ Standardize the annotation table format.
 
-        The table can be passed as a pandas DataFrame or as the filename of a csv file.
-
+        The input table can be passed as a pandas DataFrame or as the filename of a csv file.
         The table may have either a single label per row, in which case unfold_labels should be set 
         to False, or multiple labels per row (e.g. as a comma-separated list of values), in which 
-        case unfold_labels should be set to True.
+        case unfold_labels should be set to True and label_sep should be specified.
 
         The table headings are renamed to conform with the ketos standard naming convention, following the 
         name mapping specified by the user. 
 
         Signal labels are mapped to integers 1,2,3,... while background labels are mapped to 0, 
-        and any remaining labels are mapped to -1.        
+        and any remaining labels are mapped to -1.
+
+        Note that the standardized output table has two levels of indices, the first index being the 
+        filename and the second index the annotation identifier. 
 
         Args:
             table: pandas DataFrame
@@ -141,12 +147,6 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     if mapper is not None:
         df = df.rename(columns=mapper)
 
-    if unfold_labels:
-        df = unfold(df, sep=label_sep)
-
-    # cast label column to str
-    df = df.astype({'label': 'str'})
-
     # keep only relevant columns
     if trim_table:
         df = trim(df)
@@ -154,9 +154,14 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     # check that dataframe has minimum required columns
     mis = missing_columns(df)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
-    
+
+    if unfold_labels:
+        df = unfold(df, sep=label_sep)
+
+    # cast label column to str
+    df = df.astype({'label': 'str'})
     # create list of unique labels in input table
-    labels = list(set(df['label'].values)) 
+    labels = np.sort(np.unique(df['label'].values)).tolist()
 
     if signal_labels is None:
         signal_labels = [x for x in labels if x not in backgr_labels]
@@ -182,8 +187,21 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
         if str_is_int(key): key = int(key)
         label_dict[key] = value
 
+    # transform to multi-indexing
+    df = use_multi_indexing(df, 'annot_id')
+
     table_std = df
     return table_std, label_dict
+
+def use_multi_indexing(df, level_1_name):
+    df = df.set_index([df.filename, df.index])
+    df = df.drop(['filename'], axis=1)
+    df = df.sort_index()
+    df.index = pd.MultiIndex.from_arrays(
+        [df.index.get_level_values(0), df.groupby(level=0).cumcount()],
+        names=['filename', level_1_name])
+
+    return df
 
 def trim(table):
     """ Keep only the columns prescribed by the Ketos annotation format.
@@ -220,6 +238,28 @@ def missing_columns(table, has_time=False):
 
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
+
+def is_standardized(table, has_time=False):
+    """ Check if the table has the correct indices and the minimum required columns.
+
+        Args:
+            table: pandas DataFrame
+                Annotation table. 
+            has_time: bool
+                Require time information for each annotation, i.e. start and stop times.
+
+        Returns:
+            res: bool
+                True if the table has the standardized Ketos format. False otherwise.
+    """
+    required_indices = ['filename', 'annot_id']
+    required_cols = ['label']
+    if has_time:
+        required_cols = required_cols + ['time_start', 'time_stop']
+
+    mis_cols = [x for x in required_cols if x not in table.columns.values]
+    res = (table.index.names == required_indices) and (len(mis_cols) == 0)
+    return res
 
 def create_label_dict(signal_labels, backgr_labels, discard_labels):
     """ Create label dictionary, following the convetion:
@@ -353,7 +393,7 @@ def create_selections_by_segmenting(table, file_duration, select_len, select_ste
     return table_sel
 
 def create_selections(table, select_len, step_size=0, min_overlap=0, center=False,\
-    discard_long=False, keep_index=False):
+    discard_long=False, keep_id=False):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
         way is chracterized by a single, integer-valued, label.
@@ -390,9 +430,9 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
                 Center annotations. Default is False.
             discard_long: bool
                 Discard all annotations longer than the output length. Default is False.
-            keep_index: bool
-                For each generated annotation, include the index of the original annotation 
-                in the input table from which the new annotation was generated.
+            keep_id: bool
+                For each generated selection, include the id of the annotation from which 
+                the selection was generated.
 
         Results:
             table_sel: pandas DataFrame
@@ -438,11 +478,10 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
             13     13  file2.wav     0        9.50      12.50          5
     """
     df = table.copy()
-    df['orig_index'] = df.index.copy()
+    df['annot_id'] = df.index.get_level_values(1)
         
     # check that input table has expected format
-    mis = missing_columns(df, has_time=True)
-    assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
+    assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
 
     # discard annotations with label -1
     df = df[df['label'] != -1]
@@ -465,35 +504,44 @@ def create_selections(table, select_len, step_size=0, min_overlap=0, center=Fals
 
     # create multiple time-shited instances of every annotation
     if step_size > 0:
-        df_tmp = df.copy()
-        for _,row in df.iterrows():
+        df_new = None
+        for idx,row in df.iterrows():
             t = row['time_start_new']
+
             if row['label'] == 0:
                 ovl = 1
             else:
                 ovl = min_overlap
  
             df_shift = time_shift(annot=row, time_ref=t, select_len=select_len, min_overlap=ovl, step_size=step_size)
-            df_tmp = pd.concat([df_tmp, df_shift])
+            df_shift['filename'] = idx[0]
 
-        df = df_tmp.sort_values(by=['orig_index','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
+            if df_new is None:
+                df_new = df_shift
+            else:
+                df_new = pd.concat([df_new, df_shift])
+
+        # transform to multi-indexing
+        df = df_new.sort_values(by=['filename','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
+        df = use_multi_indexing(df, 'sel_id')
 
     # drop old/temporary columns, and rename others
     df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
-    df = df.rename(columns={"time_start_new": "time_start"})
-    df['time_stop'] = df['time_start'] + select_len
+    df = df.rename(columns={"time_start_new": "offset"})
+    df['duration'] = select_len
 
-    # keep old index
-    if not keep_index:
-        df = df.drop(['orig_index'], axis=1)
+    # keep annotation id
+    if not keep_id:
+        df = df.drop(columns=['annot_id'])
     else:
-        # re-order columns so orig_index appears last
+        # re-order columns so annot_it appears last
         cols = df.columns.values.tolist()
-        p = cols.index('orig_index')
-        cols_new = cols[:p] + cols[p+1:] + ['orig_index']
+        p = cols.index('annot_id')
+        cols_new = cols[:p] + cols[p+1:] + ['annot_id']
         df = df[cols_new]
+        df = df.astype({'annot_id': int}) #ensure annot_id is int
 
-    table_sel = df.reset_index()
+    table_sel = df
     return table_sel
 
 def time_shift(annot, time_ref, select_len, step_size, min_overlap):
@@ -543,6 +591,7 @@ def time_shift(annot, time_ref, select_len, step_size, min_overlap):
             4  file1.wav      1        12.0       14.0            12.4
             5  file1.wav      1        12.0       14.0            12.6
             6  file1.wav      1        12.0       14.0            12.8
+            6  file1.wav      1        12.0       14.0            13.0
             7  file1.wav      1        12.0       14.0            13.2
             8  file1.wav      1        12.0       14.0            13.4
     """
@@ -567,7 +616,8 @@ def time_shift(annot, time_ref, select_len, step_size, min_overlap):
     if num_steps == 0:
         return pd.DataFrame(columns=row.index) #return empty DataFrame
 
-    rows_new = []
+    row['time_start_new'] = time_ref
+    rows_new = [row]
 
     # step backwards
     for i in range(num_steps_back):
@@ -716,7 +766,7 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
     cs = np.concatenate(([0],cs))
 
     # output
-    filename, time_start, time_stop = [], [], []
+    filename, offset, duration = [], [], []
 
     # randomply sample
     times = np.random.random_sample(num) * len_tot
@@ -725,15 +775,14 @@ def create_rndm_backgr_selections(table, file_duration, select_len, num):
         row = c.iloc[idx]
         filename.append(row['filename'])
         t1 = row['time_start'] + t - cs[idx]
-        t2 = t1 + select_len
-        time_start.append(t1)
-        time_stop.append(t2)
+        offset.append(t1)
+        duration.append(select_len)
 
     # ensure that type is float
-    time_start = np.array(time_start, dtype=float)
-    time_stop = np.array(time_stop, dtype=float)
+    offset = np.array(offset, dtype=float)
+    duration = np.array(duration, dtype=float)
 
-    df = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})    
+    df = pd.DataFrame({'filename':filename, 'offset':offset, 'duration':duration})    
 
     return df
 
