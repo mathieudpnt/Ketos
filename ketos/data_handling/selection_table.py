@@ -31,8 +31,8 @@
     A Ketos annotation table always uses two levels of indices, the first index 
     being the filename and the second index an annotation identifier, and always 
     has the column 'label'. 
-    For call-level annotations, the table also contains the columns 'time_start' 
-    and 'time_stop', giving the start and end time of the call measured in seconds 
+    For call-level annotations, the table also contains the columns 'start' 
+    and 'end', giving the start and end time of the call measured in seconds 
     since the beginning of the file. 
     The table may also contain the columns 'freq_min' and 'freq_max', giving the 
     minimum and maximum frequencies of the call in Hz, but this is not required.    
@@ -227,7 +227,7 @@ def trim(table):
             table: pandas DataFrame
                 Annotation table, after removal of columns.
     """
-    keep_cols = ['filename', 'label', 'time_start', 'time_stop', 'freq_min', 'freq_max']
+    keep_cols = ['filename', 'label', 'start', 'end', 'freq_min', 'freq_max']
     drop_cols = [x for x in table.columns.values if x not in keep_cols]
     table = table.drop(drop_cols, axis=1)
     return table
@@ -247,7 +247,7 @@ def missing_columns(table, has_time=False):
     """
     required_cols = ['filename', 'label']
     if has_time:
-        required_cols = required_cols + ['time_start', 'time_stop']
+        required_cols = required_cols + ['start', 'end']
 
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
@@ -268,7 +268,7 @@ def is_standardized(table, has_time=False):
     required_indices = ['filename', 'annot_id']
     required_cols = ['label']
     if has_time:
-        required_cols = required_cols + ['time_start', 'time_stop']
+        required_cols = required_cols + ['start', 'end']
 
     mis_cols = [x for x in required_cols if x not in table.columns.values]
     res = (table.index.names == required_indices) and (len(mis_cols) == 0)
@@ -432,7 +432,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
             >>> #Standardize annotation table format
             >>> df, label_dict = standardize(df)
             >>> print(df)
-                                time_start  time_stop  label
+                                start  end  label
             filename  annot_id                              
             file1.wav 0                7.0        8.1      2
                       1                8.5       12.5      1
@@ -491,7 +491,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
     N = len(df)
 
     # annotation lengths
-    df['length'] = df['time_stop'] - df['time_start']
+    df['length'] = df['end'] - df['start']
 
     # discard annotations longer than the requested length
     if discard_long:
@@ -499,15 +499,15 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
 
     # alignment of new annotations relative to original ones
     if center:
-        df['time_start_new'] = df['time_start'] + 0.5 * (df['length'] - sel_len)
+        df['start_new'] = df['start'] + 0.5 * (df['length'] - sel_len)
     else:
-        df['time_start_new'] = df['time_start'] + np.random.random_sample(N) * (df['length'] - sel_len)
+        df['start_new'] = df['start'] + np.random.random_sample(N) * (df['length'] - sel_len)
 
     # create multiple time-shited instances of every annotation
     if step_size > 0:
         df_new = None
         for idx,row in df.iterrows():
-            t = row['time_start_new']
+            t = row['start_new']
 
             if row['label'] == 0:
                 ovl = 1
@@ -523,7 +523,7 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
                 df_new = pd.concat([df_new, df_shift])
 
         # sort by filename and offset
-        df = df_new.sort_values(by=['filename','time_start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
+        df = df_new.sort_values(by=['filename','start_new'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
         # transform to multi-indexing
         df = use_multi_indexing(df, 'sel_id')
@@ -532,9 +532,9 @@ def select(table, sel_len, step_size=0, min_overlap=0, center=False,\
     df.index.rename('sel_id', level=1, inplace=True) 
         
     # drop old/temporary columns, and rename others
-    df = df.drop(['time_start', 'time_stop', 'length'], axis=1)
-    df = df.rename(columns={"time_start_new": "time_start"})
-    df['time_stop'] = df['time_start'] + sel_len
+    df = df.drop(['start', 'end', 'length'], axis=1)
+    df = df.rename(columns={"start_new": "start"})
+    df['end'] = df['start'] + sel_len
 
     # keep annotation id
     if not keep_id:
@@ -555,12 +555,12 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
         forward and backward.
 
         The time-shifted instances are returned in a pandas DataFrame with the same columns as the 
-        input annotation, plus a column named 'time_start_new' containing the start times 
+        input annotation, plus a column named 'start_new' containing the start times 
         of the shifted instances.
 
         Args:
             annot: pandas Series or dict
-                Reference annotation. Must contain the labels/keys 'time_start' and 'time_stop'.
+                Reference annotation. Must contain the labels/keys 'start' and 'end'.
             time_ref: float
                 Reference time used as starting point for the stepping.
             length: float
@@ -576,20 +576,20 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
         Results:
             df: pandas DataFrame
                 Output annotation table. The start times of the time-shifted annotations are 
-                stored in the column 'time_start_new'.
+                stored in the column 'start_new'.
 
         Example:
             >>> import pandas as pd
             >>> from ketos.data_handling.selection_table import time_shift
             >>> 
             >>> #Create a single 2-s long annotation
-            >>> annot = {'filename':'file1.wav', 'label':1, 'time_start':12.0, 'time_stop':14.0}
+            >>> annot = {'filename':'file1.wav', 'label':1, 'start':12.0, 'end':14.0}
             >>>
             >>> #Step across this annotation with a step size of 0.2 s, creating 1-s long annotations that 
             >>> #overlap by at least 50% with the original 2-s annotation 
             >>> df = time_shift(annot, time_ref=13.0, sel_len=1.0, step_size=0.2, min_overlap=0.5)
             >>> print(df.round(2))
-                filename  label  time_start  time_stop  time_start_new
+                filename  label  start  end  start_new
             0  file1.wav      1        12.0       14.0            11.6
             1  file1.wav      1        12.0       14.0            11.8
             2  file1.wav      1        12.0       14.0            12.0
@@ -606,11 +606,11 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
     elif isinstance(annot, pd.Series):
         row = annot.copy()
     
-    row['time_start_new'] = np.nan
+    row['start_new'] = np.nan
     
     t = time_ref
-    t1 = row['time_start']
-    t2 = row['time_stop']
+    t1 = row['start']
+    t2 = row['end']
 
     t_min = t1 - (1 - min_overlap) * sel_len
     t_max = t2 - min_overlap * sel_len
@@ -622,26 +622,26 @@ def time_shift(annot, time_ref, sel_len, step_size, min_overlap):
     if num_steps == 0:
         return pd.DataFrame(columns=row.index) #return empty DataFrame
 
-    row['time_start_new'] = time_ref
+    row['start_new'] = time_ref
     rows_new = [row]
 
     # step backwards
     for i in range(num_steps_back):
         ri = row.copy()
-        ri['time_start_new'] = t - (i + 1) * step_size
+        ri['start_new'] = t - (i + 1) * step_size
         rows_new.append(ri)
 
     # step forwards
     for i in range(num_steps_forw):
         ri = row.copy()
-        ri['time_start_new'] = t + (i + 1) * step_size
+        ri['start_new'] = t + (i + 1) * step_size
         rows_new.append(ri)
 
     # create DataFrame
     df = pd.DataFrame(rows_new)
 
     # sort according to new start time
-    df = df.sort_values(by=['time_start_new'], axis=0, ascending=[True]).reset_index(drop=True)
+    df = df.sort_values(by=['start_new'], axis=0, ascending=[True]).reset_index(drop=True)
 
     return df
 
@@ -667,14 +667,14 @@ def complement(table, file_duration):
             >>> import pandas as pd
             >>> from ketos.data_handling.selection_table import complement, standardize
             >>> #Create annotation table and standardize
-            >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'time_start':[2.0, 7.5], 'time_stop':[3.1, 9.0]})
+            >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'start':[2.0, 7.5], 'end':[3.1, 9.0]})
             >>> df, label_dict = standardize(df)
             >>> #Create file duration table
             >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav', 'file3.wav'], 'duration':[10.0, 20.0, 15.0]})
             >>> #Create complement table
             >>> df_c = complement(df, dur)
             >>> print(df_c.round(2))
-                                time_start  time_stop
+                                start  end
             filename  annot_id                       
             file1.wav 0                0.0        2.0
                       1                3.1        7.5
@@ -684,29 +684,29 @@ def complement(table, file_duration):
     """   
     df = table
 
-    filename, time_start, time_stop = [], [], []
+    filename, start, end = [], [], []
 
     for _, ri in file_duration.iterrows():
         fname = ri['filename']
         dur = ri['duration']
         if fname in df.index:
             dfi = df.loc[fname]
-            intervals = dfi[['time_start','time_stop']].values.tolist()
+            intervals = dfi[['start','end']].values.tolist()
             c = complement_intervals([0, dur], intervals)
         else:
             c = [[0, dur]]
 
         for x in c:
             filename.append(fname)
-            time_start.append(x[0])
-            time_stop.append(x[1])
+            start.append(x[0])
+            end.append(x[1])
 
     # ensure that type is float
-    time_start = np.array(time_start, dtype=float)
-    time_stop = np.array(time_stop, dtype=float)
+    start = np.array(start, dtype=float)
+    end = np.array(end, dtype=float)
 
     # fill output DataFrame
-    df_out = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})
+    df_out = pd.DataFrame({'filename':filename, 'start':start, 'end':end})
 
     # use multi-indexing  
     df_out = use_multi_indexing(df_out, 'annot_id')
@@ -749,7 +749,7 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
             >>> #Load and inspect the annotations.
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>> print(df)
-                filename  time_start  time_stop  label
+                filename  start  end  label
             0  file1.wav         7.0        8.1      1
             1  file1.wav         8.5       12.5      0
             2  file1.wav        13.1       14.0      1
@@ -760,7 +760,7 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
             >>> #Standardize annotation table format
             >>> df, label_dict = standardize(df)
             >>> print(df)
-                                time_start  time_stop  label
+                                start  end  label
             filename  annot_id                              
             file1.wav 0                7.0        8.1      2
                       1                8.5       12.5      1
@@ -795,7 +795,7 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
     c = c.reset_index()
 
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['time_stop'] - c['time_start'] - sel_len
+    c['length'] = c['end'] - c['start'] - sel_len
     c = c[c['length'] >= 0]
 
     # cumulative length 
@@ -804,7 +804,7 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
     cs = np.concatenate(([0],cs))
 
     # output
-    filename, time_start, time_stop = [], [], []
+    filename, start, end = [], [], []
 
     # randomply sample
     times = np.random.random_sample(num) * len_tot
@@ -812,22 +812,22 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
         idx = np.argmax(t < cs) - 1
         row = c.iloc[idx]
         filename.append(row['filename'])
-        t1 = row['time_start'] + t - cs[idx]
-        time_start.append(t1)
-        time_stop.append(t1 + sel_len)
+        t1 = row['start'] + t - cs[idx]
+        start.append(t1)
+        end.append(t1 + sel_len)
 
     # ensure that type is float
-    time_start = np.array(time_start, dtype=float)
-    time_stop = np.array(time_stop, dtype=float)
+    start = np.array(start, dtype=float)
+    end = np.array(end, dtype=float)
 
     # fill DataFrame
-    df = pd.DataFrame({'filename':filename, 'time_start':time_start, 'time_stop':time_stop})    
+    df = pd.DataFrame({'filename':filename, 'start':start, 'end':end})    
 
     # sort by filename and offset
-    df = df.sort_values(by=['filename','time_start'], axis=0, ascending=[True,True]).reset_index(drop=True)
+    df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
     # re-order columns
-    df = df[['filename','time_start','time_stop']]
+    df = df[['filename','start','end']]
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'sel_id')
@@ -879,7 +879,7 @@ def select_by_segmenting(annotations, files, length, step=None,\
             >>> #Standardize annotation table format
             >>> annot, label_dict = standardize(annot)
             >>> print(annot)
-                                time_start  time_stop  label
+                                start  end  label
             filename  annot_id                              
             file1.wav 0                7.0        8.1      2
                       1                8.5       12.5      1
@@ -913,7 +913,7 @@ def select_by_segmenting(annotations, files, length, step=None,\
                       2        10.0  20.0
             >>> #Inspect the annotations
             >>> print(sel[1].round(2))
-                                       time_start  time_stop  label
+                                       start  end  label
             filename  sel_id annot_id                              
             file1.wav 0      0                7.0        8.1      2
                              1                8.5       10.0      1
@@ -988,11 +988,11 @@ def segment_annotations(table, num, length, step=None):
         # select annotations that overlap with segment
         t1 = n * step
         t2 = t1 + length
-        a = table[(table.time_start < t2) & (table.time_stop > t1)].copy()
+        a = table[(table.start < t2) & (table.end > t1)].copy()
         if len(a) > 0:
             # shift and crop annotations
-            a['time_start'] = a['time_start'].apply(lambda x: max(0, x - t1))
-            a['time_stop'] = a['time_stop'].apply(lambda x: min(length, x - t1))
+            a['start'] = a['start'].apply(lambda x: max(0, x - t1))
+            a['end'] = a['end'].apply(lambda x: min(length, x - t1))
             a['sel_id'] = n #map to segment
             segs.append(a)
 

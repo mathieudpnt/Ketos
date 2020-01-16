@@ -40,7 +40,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 def test_trim():
-    standard = ['filename','label','time_start','time_stop','freq_min','freq_max']
+    standard = ['filename','label','start','end','freq_min','freq_max']
     extra = ['A','B','C']
     df = pd.DataFrame(columns=extra)
     df = st.trim(df)
@@ -50,16 +50,16 @@ def test_trim():
     assert sorted(df.columns.values) == sorted(standard)
 
 def test_missing_columns():
-    standard = ['filename','label','time_start','time_stop','freq_min','freq_max']
+    standard = ['filename','label','start','end','freq_min','freq_max']
     df = pd.DataFrame(columns=standard)
     assert len(st.missing_columns(df)) == 0
     df = pd.DataFrame(columns=standard[:-1])
     assert len(st.missing_columns(df)) == 0
     df = pd.DataFrame(columns=standard[1:])
-    assert sorted(st.missing_columns(df)) == sorted(['filename'])
+    assert sorted(st.missing_columns(df)) == ['filename']
 
 def test_is_standardized():
-    df = pd.DataFrame({'filename':'test.wav','label':[1],'time_start':[0],'time_stop':[2],'freq_min':[None],'freq_max':[None]})
+    df = pd.DataFrame({'filename':'test.wav','label':[1],'start':[0],'end':[2],'freq_min':[None],'freq_max':[None]})
     df, d = st.standardize(df)
     assert st.is_standardized(df) == True
     df = pd.DataFrame({'filename':'test.wav','label':[1]})
@@ -73,80 +73,99 @@ def test_create_label_dict():
     l2 = [-33, 1, 'boat']
     l3 = [999]
     d = st.create_label_dict(l1, l2, l3)
-    expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
-    assert d == expected
+    ans = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
+    assert d == ans
 
 def test_create_label_dict_can_handle_nested_list():
     l1 = [0, 'gg', [-17, 'whale']]
     l2 = [-33, 1, 'boat']
     l3 = [999]
     d = st.create_label_dict(l1, l2, l3)
-    expected = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 3}
-    assert d == expected
+    ans = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 3}
+    assert d == ans
 
 def test_unfold(annot_table_mult_labels):
-    df = st.unfold(annot_table_mult_labels)
-    df_expected = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'time_start':[0,0,1], 'time_stop':[1,1,2]})
-    for name in df.columns.values:
-        assert np.all(df[name].values == df_expected[name].values)
+    res = st.unfold(annot_table_mult_labels)
+    ans = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'start':[0,0,1], 'end':[1,1,2]})
+    res = res.reset_index(drop=True)[ans.columns]
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_standardize(annot_table_std):
-    df, d = st.standardize(annot_table_std)
-    res = df.to_numpy().tolist()
-    expected = [[3, 0.0, 3.3],
-        [2, 3.0, 6.3],
-        [4, 1.0, 4.3],
-        [2, 4.0, 7.3],
-        [5, 2.0, 5.3],
-        [1, 5.0, 8.3]]
-    assert np.all(res == expected)
-    res = df.index.get_level_values(0)
-    expected = ['f0.wav','f0.wav','f1.wav','f1.wav','f2.wav','f2.wav']
-    assert np.all(res == expected)
+    res, d = st.standardize(annot_table_std)
+    d = '''filename annot_id label  start  end                   
+f0.wav   0             3    0.0  3.3
+f0.wav   1             2    3.0  6.3
+f1.wav   0             4    1.0  4.3
+f1.wav   1             2    4.0  7.3
+f2.wav   0             5    2.0  5.3
+f2.wav   1             1    5.0  8.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_standardize_from_file(annot_table_file):
-    df, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
-    d_expected = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
-    assert d == d_expected
-    assert sorted(df.columns.values) == sorted(['time_start', 'time_stop', 'label'])
-    assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 0, -1])
+    res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
+    ans = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
+    assert d == ans
+    d = '''filename annot_id label  start  end                   
+f0.wav   0             1      0    1
+f1.wav   0            -1      1    2
+f2.wav   0             2      2    3
+f3.wav   0             0      3    4
+f4.wav   0             0      4    5
+f5.wav   0            -1      5    6'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_standardize_with_nested_list(annot_table_file):
-    df, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'time_stop'}, signal_labels=[[1,'whale'],'k'], backgr_labels=[-99])
-    d_expected = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
-    assert d == d_expected
-    assert sorted(df.columns.values) == sorted(['time_start', 'time_stop', 'label'])
-    assert sorted(df['label'].values) == sorted([1, -1, 2, 0, 1, -1])
-
+    res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, signal_labels=[[1,'whale'],'k'], backgr_labels=[-99])
+    ans = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
+    assert d == ans
+    d = '''filename annot_id label  start  end                   
+f0.wav   0             1      0    1
+f1.wav   0            -1      1    2
+f2.wav   0             2      2    3
+f3.wav   0             0      3    4
+f4.wav   0             1      4    5
+f5.wav   0            -1      5    6'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
+    
 def test_label_occurrence(annot_table_std):
     df = annot_table_std
     oc = st.label_occurrence(df)
-    oc_expected = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
-    assert oc == oc_expected
+    ans = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
+    assert oc == ans
 
 def test_select_center(annot_table_std):
     df, d = st.standardize(annot_table_std)
     # request length shorter than annotations
-    df_new = st.select(df, sel_len=1, center=True)
-    assert len(df_new[df_new.label==-1]) == 0
-    for idx,r in df_new.iterrows():
-        t1 = r.time_start
-        t2 = r.time_stop
-        assert pytest.approx(t1, df['time_start'].loc[idx] + 0.5 * 3.3 - 0.5, abs=0.00001)
-        assert pytest.approx(t2, df['time_start'].loc[idx] + 0.5 * 3.3 + 0.5, abs=0.00001)
+    res = st.select(df, sel_len=1, center=True)
+    d = '''filename sel_id label  start   end
+f0.wav   0           3   1.15  2.15
+f0.wav   1           2   4.15  5.15
+f1.wav   0           4   2.15  3.15
+f1.wav   1           2   5.15  6.15
+f2.wav   0           5   3.15  4.15
+f2.wav   1           1   6.15  7.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
     # request length longer than annotations
-    df_new = st.select(df, sel_len=5, center=True)
-    for idx,r in df_new.iterrows():
-        t1 = r.time_start
-        t2 = r.time_stop
-        assert pytest.approx(t1, df['time_start'].loc[idx] + 0.5 * 3.3 - 2.5, abs=0.00001)
-        assert pytest.approx(t2, df['time_start'].loc[idx] + 0.5 * 3.3 + 2.5, abs=0.00001)
+    res = st.select(df, sel_len=5, center=True)
+    d = '''filename sel_id  label  start   end
+f0.wav   0           3  -0.85  4.15
+f0.wav   1           2   2.15  7.15
+f1.wav   0           4   0.15  5.15
+f1.wav   1           2   3.15  8.15
+f2.wav   0           5   1.15  6.15
+f2.wav   1           1   4.15  9.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_select_removes_discarded_annotations(annot_table_std):
     df = annot_table_std
     df, d = st.standardize(df)
-    df_new = st.select(df, sel_len=1, center=True)
-    assert len(df_new[df_new.label==-1]) == 0
+    res = st.select(df, sel_len=1, center=True)
+    assert len(res[res.label==-1]) == 0
 
 def test_select_enforces_overlap(annot_table_std):
     np.random.seed(3)
@@ -157,16 +176,14 @@ def test_select_enforces_overlap(annot_table_std):
     sel_len = 5.0
     overlap = 0.5
     df_new = st.select(df, sel_len=sel_len, min_overlap=overlap, keep_id=True)
-    for idx,r in df_new.iterrows():
-        t1 = r.time_start
-        t2 = r.time_stop
-        fname = idx[0]
-        id = r['annot_id']
-        idx = (fname,id)
-        t1_orig = df.loc[idx]['time_start']
-        t2_orig = df.loc[idx]['time_stop']
-        assert t2 >= t1_orig + overlap * sel_len
-        assert t1 <= t2_orig - overlap * sel_len
+    t1 = df_new.start.values
+    t2 = df_new.end.values
+    idx = zip(df_new.index.get_level_values(0), df_new.annot_id)
+    df = df.loc[idx]
+    t2_orig = df.end.values
+    t1_orig = df.start.values
+    assert np.all(t2 >= t1_orig + overlap * sel_len)
+    assert np.all(t1 <= t2_orig - overlap * sel_len)
 
 def test_select_step(annot_table_std):
     df = annot_table_std
@@ -188,27 +205,33 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     df_bgr = st.create_rndm_backgr_selections(table=df, file_duration=dur, sel_len=2.0, num=num)
     assert len(df_bgr) == num
     df_c = st.complement(df, dur)
-    num_ok = 0
-    for i,ri in df_bgr.iterrows():
-        dt = ri.time_stop - ri.time_start
-        assert pytest.approx(dt, 2.0, abs=0.001)
-        for j,rj in df_c.iterrows():
-            if i[0] == j[0] and ri.time_start >= rj.time_start \
-                and ri.time_stop <= rj.time_stop:
-                num_ok += 1
-
-    assert num_ok == num
+    # assert selections have uniform length
+    assert np.all(df_bgr.end.values - df_bgr.start.values == 2.0)
+    # assert selections are within complement
+    for bgr_idx, bgr_sel in df_bgr.iterrows():
+        start_bgr = bgr_sel.start
+        end_bgr = bgr_sel.end
+        fname = bgr_idx[0]
+        df = df_c.loc[fname,:]
+        start_c = df.start.values
+        end_c = df.end.values
+        assert np.any(np.logical_and(start_bgr >= start_c, end_bgr <= end_c))
 
 def test_complement(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
     dur = file_duration_table
-    df_new = st.complement(df, dur)
-    df_expected = pd.DataFrame()
-    df_expected['filename'] = ['f0.wav','f1.wav','f1.wav','f2.wav','f2.wav','f3.wav','f4.wav','f5.wav']
-    df_expected['time_start'] = [6.3, 0., 7.3, 0., 8.3, 0., 0., 0.]
-    df_expected['time_stop']  = [30.0, 1., 31., 2., 32., 33., 34., 35.]
-    df_expected = st.use_multi_indexing(df_expected, 'annot_id')
-    assert df_expected.values.tolist() == df_new.values.tolist()
+    res = st.complement(df, dur)
+    d = '''filename annot_id  start   end
+f0.wav   0           6.3  30.0
+f1.wav   0           0.0   1.0
+f1.wav   1           7.3  31.0
+f2.wav   0           0.0   2.0
+f2.wav   1           8.3  32.0
+f3.wav   0           0.0  33.0
+f4.wav   0           0.0  34.0
+f5.wav   0           0.0  35.0'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_select_by_segmenting(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
@@ -228,7 +251,7 @@ f2.wav   2         8.0 13.1'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, sel[0])
     # check annotation table
-    d = '''filename sel_id annot_id label  time_start  time_stop
+    d = '''filename sel_id annot_id label  start  end
 f0.wav   0      0             3         0.0        3.3
 f0.wav   0      1             2         3.0        5.1
 f0.wav   1      1             2         0.0        2.3

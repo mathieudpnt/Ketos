@@ -337,8 +337,8 @@ def annot_table_std():
     N = len(label)
     filename = ['f{0}.wav'.format(x%3) for x in np.arange(N)]
     start = np.arange(N, dtype=float)
-    stop = start + 3.3
-    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    end = start + 3.3
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
     return tbl
 
 @pytest.fixture
@@ -354,7 +354,7 @@ def annot_table():
     filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
     start = np.arange(N)
     stop = start + 1
-    tbl = pd.DataFrame({'fname': filename, 'label': label, 'time_start': start, 'STOP': stop})
+    tbl = pd.DataFrame({'fname': filename, 'label': label, 'start': start, 'STOP': stop})
     return tbl
 
 @pytest.fixture
@@ -370,8 +370,8 @@ def annot_table_mult_labels():
     N = len(label)
     filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
     start = np.arange(N)
-    stop = start + 1
-    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    end = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
     return tbl
 
 @pytest.fixture
