@@ -4,6 +4,16 @@ import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 
 
+@pytest.fixture
+def recipe_dict():
+    recipe = {'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+        
+    }
+    return recipe
+
+
 def test_RecipeCompat():
     opt = RecipeCompat("sgd", tf.keras.optimizers.SGD, learning_rate=0.008, momentum=0.1)
     assert opt.name == "sgd"
@@ -80,5 +90,15 @@ def test_transform_output():
     
     assert np.array_equal(classes2, np.array([2, 3])) 
     assert np.array_equal(scores2, np.array([0.7, 0.65]))
+    
+
+
+def test_optimizer_from_recipe(recipe_dict):
+    built_opt = NNInterface.optimizer_from_recipe(recipe_dict['optimizer'])
+    assert isinstance(built_opt, RecipeCompat)
+    assert built_opt.name == 'Adam'
+    assert built_opt.args == {'learning_rate':0.005}
+    assert isinstance(built_opt.func, tf.keras.optimizers.Adam)
+    
     
     
