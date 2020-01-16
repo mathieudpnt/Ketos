@@ -133,4 +133,10 @@ def test_loss_function_to_recipe():
     assert loss_dict['parameters'] == {'beta':0.5}
 
     
-    
+def test_metrics_to_recipe():
+    recipe_compat_metric = [RecipeCompat('CategoricalAccuracy', tf.keras.metrics.CategoricalAccuracy)]
+    metrics_dicts = NNInterface.metrics_to_recipe(recipe_compat_metric)
+
+    assert type(metrics_dicts) == list
+    assert metrics_dicts[0]['name'] == 'CategoricalAccuracy'
+    assert metrics_dicts[0]['parameters'] == {}
