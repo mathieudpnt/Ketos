@@ -126,11 +126,11 @@ def test_optimizer_to_recipe():
 
 
 def test_loss_function_to_recipe():
-    recipe_compat_loss = RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, label_smoothing=0.3)
-    loss_dict = NNInterface.loss_to_recipe(recipe_compat_loss)
+    recipe_compat_loss = RecipeCompat('FScoreLoss', FScoreLoss, beta=0.5)
+    loss_dict = NNInterface.loss_function_to_recipe(recipe_compat_loss)
 
-    assert loss_dict['name'] == 'CategoricalCrossentropy'
-    assert optimizer_dict['parameters'] == {'laebl_smoothing':0.005}
+    assert loss_dict['name'] == 'FScoreLoss'
+    assert loss_dict['parameters'] == {'beta':0.5}
 
     
     
