@@ -117,6 +117,12 @@ def test_metrics_from_recipe(recipe_dict):
     assert isinstance(built_metrics[0].func, tf.keras.metrics.CategoricalAccuracy)
     
     
-    
+def test_optimizer_to_recipe():
+    recipe_compat_opt = RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005)
+    optimizer_dict = NNInterface.optimizer_to_recipe(recipe_compat_opt)
+
+    assert optimizer_dict['name'] == 'Adam'
+    assert optimizer_dict['parameters'] == {'learning_rate':0.005}
+
     
     
