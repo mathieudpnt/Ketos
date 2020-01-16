@@ -373,13 +373,18 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def create_selections_by_segmenting(table, file_duration, sel_len, sel_step=None, discard_empty=False, pad=True):
+def create_selections_by_segmenting(table, file_duration, sel_len, sel_step=None, discard_empty=False,\
+    pad=True):
     """ Generate a selection table by stepping across the audio data, using a fixed 
         step size (sel_step) and fixed selection window size (sel_len). 
         
         Unlike the :func:`data_handling.selection_table.create_selections` method, selections 
         created by this method are not characterized by a single, integer-valued 
         label, but rather a list of annotations (which can have any length, including zero).
+
+        Therefore, the method returns not one, but two tables: A selection table indexed by 
+        filename and segment id, and an annotation table indexed by filename, segment id, 
+        and annotation id.
 
         Args:
             table: pandas DataFrame
@@ -390,7 +395,8 @@ def create_selections_by_segmenting(table, file_duration, sel_len, sel_step=None
             sel_len: float
                 Selection length in seconds.
             sel_step: float
-                Selection step size in seconds.
+                Selection step size in seconds. If None, the step size is set 
+                equal to the selection length.
             discard_empty: bool
                 If True, only selection that contain annotations will be used. 
                 If False (default), all selections are used.
@@ -399,11 +405,144 @@ def create_selections_by_segmenting(table, file_duration, sel_len, sel_step=None
                 beyond the endpoint of the audio file.
 
         Returns:
-            table_sel: pandas DataFrame
+            df_sel: pandas DataFrame
                 Output selection table.
+            df_ann: pandas DataFrame
+                Output annotation table.
+
+        Example:
+            >>> import pandas as pd
+            >>> from ketos.data_handling.selection_table import create_selections_by_segmenting, standardize
+            >>> 
+            >>> #Load and inspect the annotations.
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>>
+            >>> #Standardize annotation table format
+            >>> df, label_dict = standardize(df)
+            >>> print(df)
+                                time_start  time_stop  label
+            filename  annot_id                              
+            file1.wav 0                7.0        8.1      2
+                      1                8.5       12.5      1
+                      2               13.1       14.0      2
+            file2.wav 0                2.2        3.1      2
+                      1                5.8        6.8      2
+                      2                9.0       13.0      1
+            >>>
+            >>> #Create file duration table
+            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav', 'file3.wav'], 'duration':[11.0, 19.2, 15.1]})
+            >>>
+            >>> #Create a selection table by splitting the audio data into segments of 
+            >>  #uniform length.
+            >>> #The length is set to 10.0 sec and the step size to 5.0 sec.
+            >>> df_sel, df_ann = create_selections_by_segmenting(table=df, file_duration=dur, sel_len=10.0, sel_step=5.0) 
+            >>> #Inspect the selection table
+            >>> print(df_sel.round(2))
+                              offset  duration
+            filename  sel_id                  
+            file1.wav 0          0.0      10.0
+                      1          5.0      10.0
+            file2.wav 0          0.0      10.0
+                      1          5.0      10.0
+                      2         10.0      10.0
+            file3.wav 0          0.0      10.0
+                      1          5.0      10.0
+                      2         10.0      10.0
+            >>> #Inspect the annotations
+            >>> print(df_ann.round(2))
+                                       label  time_start  time_stop
+            filename  sel_id annot_id                              
+            file1.wav 0      0             2         7.0        8.1
+                             1             1         8.5       10.0
+                      1      0             2         2.0        3.1
+                             1             1         3.5        7.5
+                             2             2         8.1        9.0
+            file2.wav 0      0             2         2.2        3.1
+                             1             2         5.8        6.8
+                             2             1         9.0       10.0
+                      1      1             2         0.8        1.8
+                             2             1         4.0        8.0
+                      2      2             1         0.0        3.0
     """
-    table_sel = table
-    return table_sel
+    if sel_step is None:
+        sel_step = sel_len
+
+    # check that input table has expected format
+    assert is_standardized(table, has_time=True), 'Annotation table appears not to have the expected structure.'
+
+    # discard annotations with label -1
+    table = table[table['label'] != -1]
+
+    # compute number of segments for each file
+    file_duration['num_segs'] = (file_duration['duration'] - sel_len) / sel_step + 1
+    if pad: 
+        file_duration['num_segs'] = file_duration['num_segs'].apply(np.ceil).astype(int)
+    else:
+        file_duration['num_segs'] = file_duration['num_segs'].apply(np.floor).astype(int)
+
+    # containers for collectin data in loop
+    df_ann = None
+    filenames, sel_ids, offsets, durations = [], [], [], []
+
+    # loop over files
+    for idx,row in file_duration.iterrows():
+        fname = row['filename']
+        num_segs = row['num_segs']
+
+        # loop over segments
+        sel_id = 0
+        for n in range(num_segs):
+            t1 = n * sel_step
+            t2 = t1 + sel_len
+
+            # find annotations that overlap with segment
+            ann = []
+            if fname in table.index:
+                ann = table.loc[fname]
+                ann = ann[(ann.time_start < t2) & (ann.time_stop > t1)]
+
+            if len(ann) > 0:
+                # shift and crop annotations
+                ann['time_start'] = ann['time_start'].apply(lambda x: max(0, x-t1))
+                ann['time_stop'] = ann['time_stop'].apply(lambda x: min(sel_len, x-t1))
+                
+                # map annotations to selection
+                ann['filename'] = fname
+                ann['sel_id'] = sel_id
+
+                if df_ann is None:
+                    df_ann = ann
+                else:
+                    df_ann = pd.concat([df_ann, ann])
+
+            if len(ann) == 0 and discard_empty:
+                continue
+            
+            else:
+                filenames.append(fname)
+                sel_ids.append(sel_id)
+                offsets.append(t1)
+                durations.append(t2-t1)
+                sel_id += 1
+
+    # fill selection table
+    df_sel = pd.DataFrame({'filename':filenames,'sel_id':sel_ids,'offset':offsets,'duration':durations})
+
+    # re-order columns
+    df_ann = df_ann[['filename','sel_id','label','time_start','time_stop']]
+    df_sel = df_sel[['filename','sel_id','offset','duration']]
+
+    # sort 
+    df_ann = df_ann.sort_values(by=['filename','sel_id','time_start'], axis=0, ascending=[True,True,True])#.reset_index(drop=True)
+    df_sel = df_sel.sort_values(by=['filename','sel_id'], axis=0, ascending=[True,True]).reset_index(drop=True)
+
+    # use multi-indexing
+    df_sel = df_sel.set_index(['filename', 'sel_id'])
+    df_sel = df_sel.sort_index()
+    df_ann = df_ann.set_index(['filename', 'sel_id', df_ann.index])
+    df_ann = df_ann.sort_index()
+
+    return df_sel, df_ann
 
 def create_selections(table, sel_len, step_size=0, min_overlap=0, center=False,\
     discard_long=False, keep_id=False):
@@ -460,18 +599,19 @@ def create_selections(table, sel_len, step_size=0, min_overlap=0, center=False,\
             >>> 
             >>> #Load and inspect the annotations.
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
-            >>> print(df)
-                filename  time_start  time_stop  label
-            0  file1.wav         7.0        8.1      1
-            1  file1.wav         8.5       12.5      0
-            2  file1.wav        13.1       14.0      1
-            3  file2.wav         2.2        3.1      1
-            4  file2.wav         5.8        6.8      1
-            5  file2.wav         9.0       13.0      0
             >>>
             >>> #Standardize annotation table format
             >>> df, label_dict = standardize(df)
-            >>>
+            >>> print(df)
+                                time_start  time_stop  label
+            filename  annot_id                              
+            file1.wav 0                7.0        8.1      2
+                      1                8.5       12.5      1
+                      2               13.1       14.0      2
+            file2.wav 0                2.2        3.1      2
+                      1                5.8        6.8      2
+                      2                9.0       13.0      1
+            >>> 
             >>> #Create a selection table by defining intervals of fixed 
             >>> #length around every annotation.
             >>> #Set the length to 3.0 sec and require a minimum overlap of 
@@ -788,19 +928,36 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
             4  file2.wav         5.8        6.8      1
             5  file2.wav         9.0       13.0      0
             >>>
+            >>> #Standardize annotation table format
+            >>> df, label_dict = standardize(df)
+            >>> print(df)
+                                time_start  time_stop  label
+            filename  annot_id                              
+            file1.wav 0                7.0        8.1      2
+                      1                8.5       12.5      1
+                      2               13.1       14.0      2
+            file2.wav 0                2.2        3.1      2
+                      1                5.8        6.8      2
+                      2                9.0       13.0      1
+            >>>
             >>> #Enter file durations into a pandas DataFrame
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, sel_len=3.0, num=5) 
+            >>> df_bgr = create_rndm_backgr_selections(df, file_duration=file_dur, sel_len=3.0, num=10) 
             >>> print(df_bgr.round(2))
-                              duration  offset
+                              offset  duration
             filename  sel_id                  
-            file1.wav 0            3.0   16.29
-            file2.wav 0            3.0    1.61
-                      1            3.0    3.84
-                      2            3.0   12.66
-            file3.wav 0            3.0    6.01
+            file1.wav 0         1.70       3.0
+                      1        14.14       3.0
+                      2        16.84       3.0
+                      3        19.60       3.0
+                      4        24.55       3.0
+                      5        26.86       3.0
+            file2.wav 0        14.18       3.0
+            file3.wav 0         2.37       3.0
+                      1         8.47       3.0
+                      2         8.58       3.0
     """
     # create complement
     c = complement(table=table, file_duration=file_duration)
@@ -839,6 +996,9 @@ def create_rndm_backgr_selections(table, file_duration, sel_len, num):
 
     # sort by filename and offset
     df = df.sort_values(by=['filename','offset'], axis=0, ascending=[True,True]).reset_index(drop=True)
+
+    # re-order columns
+    df = df[['filename','offset','duration']]
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'sel_id')

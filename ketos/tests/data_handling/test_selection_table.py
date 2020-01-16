@@ -208,3 +208,10 @@ def test_complement(annot_table_std, file_duration_table):
     df_expected['time_stop']  = [30.0, 1., 31., 2., 32., 33., 34., 35.]
     df_expected = st.use_multi_indexing(df_expected, 'annot_id')
     assert df_expected.values.tolist() == df_new.values.tolist()
+
+def test_create_selections_by_segmenting(annot_table_std, file_duration_table):
+    np.random.seed(1)
+    df, _ = st.standardize(annot_table_std)
+    dur = file_duration_table
+    df_sel, df_ann = st.create_selections_by_segmenting(df, dur, sel_len=5.1, sel_step=1., discard_empty=True, pad=True)
+    assert np.all(df_sel.index.get_level_values(0).values.tolist() == ['f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f0.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f1.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav', 'f2.wav'])
