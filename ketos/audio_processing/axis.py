@@ -29,6 +29,14 @@
     This module provides utilities to convert bin numbers to 
     continuous variable values and vice versa.
 
+    Bins are numbered 0,1,2,3,...,N-1, counting from lower to 
+    higher values, where N is the number of bins.
+
+    Each bin represents a half-open endpoint, including the lower 
+    (left) end point while excluding the upper (right) end point, 
+    i.e., [a,b), except for the last bin, which represents a closed 
+    interval with both end points included, i.e. [a,b].
+
     Contents:
         LinearAxis class:
         Log2Axis class
@@ -85,9 +93,6 @@ def bin_number(x, pos_func, bins, truncate=False):
 
 class LinearAxis():
     """ Linear axis.
-
-        Bins are numbered 0,1,2,3,...,N-1 from lower to 
-        higher values, where N is the number of bins.
 
         Args: 
             bins: int
@@ -186,6 +191,15 @@ class LinearAxis():
             Returns: 
                 x: array-like
                     Lower-edge bin value
+
+            Example:
+                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> #Linear axis between 12. and 22. with 5 bins.
+                >>> ax = LinearAxis(bins=5, extent=(12.,22.))
+                >>> #Get lower-edge values of bins 1 and 4
+                >>> x = ax.low_edge([1,4])
+                >>> print(x)
+                [14. 20.]
         """
         if isinstance(b, list):
             b = np.array(b)
@@ -194,20 +208,35 @@ class LinearAxis():
         return x
 
     def min(self):
+        """ Get the lower boundary of the axis.
+
+            Returns: 
+                : float
+                    Lower edge of first bin
+        """
         return self.x_min
 
     def max(self):
+        """ Get the upper boundary of the axis.
+
+            Returns: 
+                : float
+                    Upper edge of the last bin
+        """
         return self.x_max
 
-    def bin_width(self, i):
+    def bin_width(self):
+        """ Get the width of a given bin.
+
+            Returns: 
+                : float
+                    Bin width
+        """
         return self.dx
 
 class Log2Axis():
     """ Logarithmic axis with base 2.
     
-        Bins are numbered :math:`0,1,2,3,...,N-1` from lower to 
-        higher values, where :math:`N` is the number of bins.
-
         The lower-edge value of bin no. :math:`i` is calculated 
         from the formula,
 
@@ -274,8 +303,10 @@ class Log2Axis():
                     Bin number
 
             Example:
-                >>> from ketos.audio_processing.axis import LinearAxis
-                >>> ax = LinearAxis(bins=100, extent=(0.,100.))
+                >>> from ketos.audio_processing.axis import Log2Axis
+                >>> ax = Log2Axis(num_oct=4, bins_per_oct=8, min_value=200.)
+                >>> ax.bin([400.,800.])
+                array([ 8, 16])
         """
         b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate)
         return b
@@ -290,6 +321,12 @@ class Log2Axis():
             Returns: 
                 x: array-like
                     Lower-edge bin value
+
+            Example:
+                >>> from ketos.audio_processing.axis import Log2Axis
+                >>> ax = Log2Axis(num_oct=4, bins_per_oct=8, min_value=200.)
+                >>> ax.low_edge([0,16])
+                array([200., 800.])
         """
         if isinstance(b, list):
             b = np.array(b)
@@ -298,13 +335,35 @@ class Log2Axis():
         return x
 
     def min(self):
+        """ Get the lower boundary of the axis.
+
+            Returns: 
+                : float
+                    Lower edge of first bin
+        """
         return self.x_min
 
     def max(self):
+        """ Get the upper boundary of the axis.
+
+            Returns: 
+                : float
+                    Upper edge of the last bin
+        """
         x = self.low_edge(self.bins)
         return x
 
-    def bin_width(self, i):
-        w = self.low_edge(i+1) - self.low_edge(i)
+    def bin_width(self, b):
+        """ Get the width of a given bin.
+
+            Args:
+                b: int
+                    Bin number
+
+            Returns: 
+                : float
+                    Bin width
+        """
+        w = self.low_edge(b+1) - self.low_edge(b)
         return w
 
