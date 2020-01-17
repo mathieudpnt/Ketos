@@ -2,6 +2,7 @@ import tensorflow as tf
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
 import numpy as np
+import json
 
 
 class RecipeCompat():
@@ -420,7 +421,7 @@ class NNInterface():
 
 
     @classmethod
-    def read_recipe_file(cls, json_file):
+    def read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
 
             When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
@@ -428,6 +429,8 @@ class NNInterface():
             Args:
                 json_file:str
                     Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
+                return_recipe_compat:bool
+                    If True, the returns a recipe-compatible dictionary (i.e.: where the values are RecipeCompat objects). If false, returns a recipe dictionary (i.e.: where the values are name+parameters dictionaries:  {'name':..., 'parameters':{...}})
 
             Returns:
                 recipe_dict: dict
@@ -442,9 +445,14 @@ class NNInterface():
         loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
 
-        recipe_dict['optimizer'] = optimizer
-        recipe_dict['loss_function'] = loss_function
-        recipe_dict['metrics'] = metrics
+        if return_recipe_compat == True:
+            recipe_dict['optimizer'] = optimizer
+            recipe_dict['loss_function'] = loss_function
+            recipe_dict['metrics'] = metrics
+        else:
+            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
 
         return recipe_dict
 
