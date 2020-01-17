@@ -33,6 +33,7 @@ import pandas as pd
 import ketos.audio_processing.audio_processing as ap
 from ketos.data_handling.data_handling import to1hot
 import ketos.audio_processing.audio as aud
+from ketos.audio_processing.axis import LinearAxis, Log2Axis
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -391,3 +392,26 @@ def annot_table_file(annot_table):
     tbl.to_csv(csv_file, index=False)
     yield csv_file
     os.remove(csv_file)
+
+@pytest.fixture
+def linear_axis_200():
+    """ Create a linear axis with range 0-100 and 200 bins.
+
+        Yields:
+            ax: LinearAxis
+                Axis object
+    """
+    ax = LinearAxis(bins=200, extent=(0.,100.))
+    return ax
+
+@pytest.fixture
+def log2_axis_8_16():
+    """ Create a log2 axis with 8 octaves, 16 bins per octave, and 
+        minimum value of 10.
+
+        Yields:
+            ax: Log2Axis
+                Axis object
+    """
+    ax = Log2Axis(num_oct=8, bins_per_oct=16, min_value=10.)
+    return ax

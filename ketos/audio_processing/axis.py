@@ -31,12 +31,12 @@
 
     Contents:
         LinearAxis class:
-        CQTAxis class
+        Log2Axis class
 """
 import numpy as np
 
-def bin_number(x, func, bins, truncate=False):
-    """ Get bin number corresponding to a given value.
+def bin_number(x, pos_func, bins, truncate=False):
+    """ Compute bin number corresponding to a given value.
 
         If the value lies outside the axis range, a negative 
         bin number or a bin number above N-1 will be returned. 
@@ -45,8 +45,8 @@ def bin_number(x, func, bins, truncate=False):
         Args:
             x: array-like
                 Value
-            func: function
-                Function that calculates the bin number of any input value
+            pos_func: function
+                Calculates the position on the axis of any given input value.
             bins: int
                 Number of bins
             truncate: bool
@@ -67,7 +67,7 @@ def bin_number(x, func, bins, truncate=False):
     if isinstance(x, list):
         x = np.array(x)
 
-    b = func(x)
+    b = pos_func(x)
 
     if truncate:
         b[b < 0] = 0
@@ -111,8 +111,8 @@ class LinearAxis():
         self.x_max = extent[1]
         self.dx = (self.x_max - self.x_min) / self.bins
 
-    def _bin_func(self, x):
-        """ Get bin number corresponding to a given value.
+    def _pos_func(self, x):
+        """ Compute the position of a given input value on the axis.
 
             Args:
                 x: array-like
@@ -120,7 +120,7 @@ class LinearAxis():
 
             Returns: 
                 : array-like
-                    Bin number
+                    Position
         """  
         return (x - self.x_min) / self.dx    
 
@@ -173,7 +173,7 @@ class LinearAxis():
                 >>> print(b)
                 [  0 199]
         """
-        b = bin_number(x, func=self._bin_func, bins=self.bins, truncate=truncate)
+        b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate)
         return b
 
     def low_edge(self, b):
@@ -187,6 +187,9 @@ class LinearAxis():
                 x: array-like
                     Lower-edge bin value
         """
+        if isinstance(b, list):
+            b = np.array(b)
+
         x = self.x_min + b * self.dx
         return x
 
@@ -199,25 +202,24 @@ class LinearAxis():
     def bin_width(self, i):
         return self.dx
 
-class CQTAxis():
-    """ Frequency axis for CQT Spectrogram.
-
-        This axis is essentially a logarithmic axis with base 2.
-
+class Log2Axis():
+    """ Logarithmic axis with base 2.
+    
         Bins are numbered :math:`0,1,2,3,...,N-1` from lower to 
         higher values, where :math:`N` is the number of bins.
 
-        Bin values are calculated from the formula,
+        The lower-edge value of bin no. :math:`i` is calculated 
+        from the formula,
 
         .. math:: 
             x_{i} = 2^{i / m} \cdot x_{0}
 
-        where :math:`m` is the number of bins per octave, and 
-        :math:`x_i` is the lower-edge value of bin no. :math:`i`.
+        where :math:`m` is the number of bins per octave and 
+        :math:`x_0` is the lower-edge value of the first bin.
 
         Args: 
-            bins: int
-                Number of bins
+            num_oct: int
+                Number of octaves
             bins_per_oct: int
                 Number of bins per octave
             min_value: float
@@ -226,18 +228,21 @@ class CQTAxis():
         Attributes:
             bins: int
                 Number of bins
+            num_oct: int
+                Number of octaves
             bins_per_oct: int
                 Number of bins per octave
             x_min: float
                 Left edge of first bin
     """
-    def __init__(self, bins, bins_per_oct, min_value):
-        self.bins = int(bins)
+    def __init__(self, num_oct, bins_per_oct, min_value):
+        self.num_oct = int(num_oct)
         self.bins_per_oct = int(bins_per_oct)
         self.x_min = min_value
+        self.bins = self.num_oct * self.bins_per_oct
 
-    def _bin_func(self, x):
-        """ Get bin number corresponding to a given value.
+    def _pos_func(self, x):
+        """ Compute the position of a given input value on the axis.
 
             Args:
                 x: array-like
@@ -245,7 +250,7 @@ class CQTAxis():
 
             Returns: 
                 : array-like
-                    Bin number
+                    Position
         """  
         return self.bins_per_oct * np.log2(x / self.x_min)
 
@@ -272,7 +277,7 @@ class CQTAxis():
                 >>> from ketos.audio_processing.axis import LinearAxis
                 >>> ax = LinearAxis(bins=100, extent=(0.,100.))
         """
-        b = bin_number(x, func=self._bin_func, bins=self.bins, truncate=truncate)
+        b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate)
         return b
 
     def low_edge(self, b):
@@ -286,7 +291,10 @@ class CQTAxis():
                 x: array-like
                     Lower-edge bin value
         """
-        x = 2**(n / self.bins_per_oct) * self.x_min
+        if isinstance(b, list):
+            b = np.array(b)
+
+        x = 2**(b / self.bins_per_oct) * self.x_min
         return x
 
     def min(self):

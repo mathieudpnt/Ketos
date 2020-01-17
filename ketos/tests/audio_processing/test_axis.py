@@ -29,21 +29,34 @@
 import os
 import pytest
 import numpy as np
-from ketos.audio_processing.axis import LinearAxis, CQTAxis
+from ketos.audio_processing.axis import LinearAxis, Log2Axis
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
-def test_linear_axis():
-    ax = LinearAxis(bins=200, extent=(0.,100.))
-    #Get a single bin
+def test_linear_axis_get_bin_single_value(linear_axis_200):
+    ax = linear_axis_200
     b = ax.bin(0.6)
     assert b == 1
-    #Get several bin numbes in one call 
+
+def test_linear_axis_get_low_edge_single_bin(linear_axis_200):
+    ax = linear_axis_200
+    x = ax.low_edge(0)
+    assert x == 0.
+
+def test_linear_axis_get_bin_several_values(linear_axis_200):
+    ax = linear_axis_200
     b = ax.bin([0.6,11.1])
     assert np.all(b == [1,22])
-    #Get bin number for values at bin edges
+
+def test_linear_axis_get_low_edge_several_bins(linear_axis_200):
+    ax = linear_axis_200
+    x = ax.low_edge([0, 199])
+    assert np.all(x == [0, 99.5])
+
+def test_linear_axis_get_bin_edge(linear_axis_200):
+    ax = linear_axis_200
     b = ax.bin([0.0,0.5,1.0,100.])
     assert np.all(b == [0,1,2,199])
     #Note that when the value sits between two bins, 
@@ -52,9 +65,32 @@ def test_linear_axis():
     #which case the lower bin number (i.e. the last bin)
     #is returned.  
 
-    #Get bin numbers outside the axis range
+def test_linear_axis_get_bin_outside_range(linear_axis_200):
+    ax = linear_axis_200
     b = ax.bin([-2.1, 100.1])
     assert np.all(b == [-5,200])
+
+def test_linear_axis_get_bin_truncate(linear_axis_200):
+    ax = linear_axis_200
     b = ax.bin([-2.1, 100.1], truncate=True)
-    print(b)
     assert np.all(b == [0,199])
+
+def test_log2_axis_get_bin_single_value(log2_axis_8_16):
+    ax = log2_axis_8_16
+    b = ax.bin(10.)
+    assert b == 0
+
+def test_log2_axis_get_low_edge_single_bin(log2_axis_8_16):
+    ax = log2_axis_8_16
+    x = ax.low_edge(0)
+    assert x == 10.
+
+def test_log2_axis_get_bin_several_values(log2_axis_8_16):
+    ax = log2_axis_8_16
+    b = ax.bin([10.,20.])
+    assert np.all(b == [0,16])
+
+def test_log2_axis_get_low_edge_several_bins(log2_axis_8_16):
+    ax = log2_axis_8_16
+    x = ax.low_edge([0,16])
+    assert np.all(x == [10.,20.])
