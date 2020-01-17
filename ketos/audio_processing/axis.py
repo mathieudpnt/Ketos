@@ -164,6 +164,14 @@ class LinearAxis():
                 >>> #value sits at the upper edge of the last bin, in 
                 >>> #which case the lower bin number (i.e. the last bin)
                 >>> #is returned.  
+                >>> 
+                >>> #Get bin numbers outside the axis range
+                >>> b = ax.bin([-2.1, 100.1])
+                >>> print(b)
+                [ -5 200]
+                >>> b = ax.bin([-2.1, 100.1], truncate=True)
+                >>> print(b)
+                [  0 199]
         """
         b = bin_number(x, func=self._bin_func, bins=self.bins, truncate=truncate)
         return b
