@@ -30,252 +30,563 @@
     with audio files and spectrograms.
 
     Contents:
-        AnnotationHandler class: 
+        AnnotationHandler class
 """
 
-from ketos.utils import ndim
 import numpy as np
-import math
+import pandas as pd
+from pint import UnitRegistry # SI units
+
+# ignore 'chained assignment' warnings issued by pandas
+pd.set_option('mode.chained_assignment', None)
+
+# handling of SI units
+ureg = UnitRegistry()
+Q_ = ureg.Quantity
 
 
-class AnnotationHandler():
-    """ Parent class for the AudioSignal and Spectrogram classes.
-
-        An annotation consists of an integer label (0,1,2,...) and 
-        a bounding box that delimits the audio segment of interest 
-        in time and optionally frequency. 
-        
-        The bounding box is a list of four floats: start time, end time,
-        minimum frequency, and maximum frequency (with frequency expressed in Hz)
-        A list of two floats ([start time, end time]) can also be used in the initialization.
-        In this case, the minimum and maximum frequencies will be respectivelly filled as 0 and Inf.
-        is interpreted as the start and end time of the 
-        segment (in seconds). list of four floats is interpreted as 
-        .
+def convert_to_sec(x):
+    """ Convert a time duration specified as a string with SI units, 
+        e.g. "22min" to a float with units of seconds.
 
         Args:
-            labels: list(int)
-                List of annotation labels
-            boxes: list(tuple)
-                List of bounding boxes, each specifying a time interval (in seconds)
-                and optionally also a frequency interval (in Hz).
-                The format is [t_min, t_max, f_min, f_max]
+            x: str
+                Time duration specified as a string with SI units, e.g. "22min"
 
-        Attributes:
-            labels: list(int)
-                List of annotation labels
-            boxes: list(tuple)
-                List of bounding boxes, each specifying a time interval (in seconds)
-                and optionally also a frequency interval (in Hz).
-                The format is [t_min, t_max, f_min, f_max]
-            precision: int
-                Number of decimals used for bounding box values
+        Returns:
+            : float
+                Time duration in seconds.
     """
-    def __init__(self, labels=None, boxes=None):
+    return convert(x, 's')
 
-        self.labels = []
-        self.boxes = []
-        self.precision = 3
+def convert_to_Hz(x):
+    """ Convert a frequency specified as a string with SI units, 
+        e.g. "11kHz" to a float with units of Hz.
 
-        if labels is not None:
-            self.annotate(labels, boxes)
+        Args:
+            x: str
+                Frequency specified as a string with SI units, e.g. "11kHz"
 
-    def annotate(self, labels, boxes):
-        """ Add a set of annotations.
-            
-            Args:
-                labels: list(int)
-                    Annotation labels.
-                boxes: list(tuple)
-                    Annotation boxes, specifying the start and stop time of the annotation 
-                    and, optionally, the minimum and maximum frequency.
+        Returns:
+            : float
+                Frequency in Hz.
+    """
+    return convert(x, 'Hz')
 
-            Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
-                >>> 
-                >>> handler = AnnotationHandler()
-                >>> labels = [0, 1]
-                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
-                >>> handler.annotate(labels, boxes)
-                >>> print(handler.labels)
-                [0, 1]
-                >>> print(handler.boxes)
-                [[10.0, 12.2, 110.0, 700.0], [30.0, 34.0, 0, inf]]
-        """
-        if ndim(labels) == 0:
-            labels = [labels]
+def convert(x, unit):
+    """ Convert a quantity specified as a string with SI units, 
+        e.g. "7kg" to a float with the specified unit, e.g. 'g'.
 
-        if ndim(boxes) == 1 and len(boxes) > 0:
-            boxes = [boxes]
+        If the input is not a string, the output will be the same 
+        as the input.
 
-        assert len(labels) == len(boxes), 'number of labels must equal number of boxes'
-        assert ndim(labels) == 1, 'labels list has invalid dimension'
-        assert ndim(boxes) == 2 or (ndim(boxes) == 1 and len(boxes) == 0), 'boxes list has invalid dimension'
+        Args:
+            x: str
+                Value given as a string with SI units, e.g. "11kHz"
+            unit: str
+                Desired conversion unit "Hz"
 
-        for l,b in zip(labels, boxes):
-            b = self._ensure4D(b)
-            self.labels.append(l)
-            self.boxes.append(b)
+        Returns:
+            y : float
+                Value in specified unit.
+    """
+    if isinstance(x, str):
+        x = Q_(x).m_as(unit)
+    
+    return x
 
-        for b in self.boxes:
-            b = np.array(b).tolist()
+def add_index_level(df, key=0):
+    """ Ensure the DataFrame has at least two indexing levels.
 
-    def _ensure4D(self, b):
-        """ Ensure that the annotation box has four entries.
+        Args: 
+            df: pandas DataFrame
+                Input DataFrame
 
-            Set the minimum frequency to 0 and the maximum 
-            frequency to infinity, if these are missing.
-            
-            Args:
-                b: list or tuple
-                   Bounding box with two or four entries 
-        """
-        for v in b:
-            v = round(v, self.precision)
+        Returns: 
+            df: pandas DataFrame
+                Output DataFrame
+    """
+    df = pd.concat([df], axis=1, keys=[key]).stack(0).swaplevel(0,1)
+    return df
 
-        if len(b) == 2:
-            b = [b[0], b[1], 0, math.inf]
+def stack_annotations(handlers, keys=None, level=0):
+    """ Create a handler to manage a stack of annotation sets.
+
+        The annotation sets will be indexed in the order they 
+        are provided.
+
+        Args:
+            handlers: list(AnnotationHandler)
+                Annotation handlers
+            keys: list
+                Keys for indexing the sets. If None is specified, 
+                the keys are set to 0,1,2,...
+            level: int
+                Set index level. Default is 0.
+
+        Returns: 
+            handler: AnnotationHandler
+                Stacked annotation handler
+    """
+    dfs = []
+    squeeze = (level==0)
+    N = len(handlers)
+
+    # collect pandas DataFrames from input handlers
+    for h in handlers:
+        dfs.append(h.get(squeeze=squeeze))
+
+    if keys is None:
+        keys = np.arange(N, dtype=int)
+
+    # concatenate and stack
+    df = pd.concat(dfs, sort=False, axis=1, keys=keys)
+    df = df.stack(0)
+
+    # specify order of indexing levels
+    num_lev = df.index.nlevels
+    order = np.arange(num_lev - 1, dtype=int)
+    order = np.insert(order, level, num_lev - 1)
+
+    # reorder levels and sort indices for faster slicing
+    df = df.reorder_levels(order)
+    df = df.sort_index()
+
+    # create stacked annotation handler
+    handler = AnnotationHandler(df)
+    return handler
+
+class AnnotationHandler():
+    """ Class for handling annotations of acoustic data.
+    
+        An annotation is characterized by 
         
-        assert len(b) == 4, 'Found box with {0} entries; all boxes must have either 2 or 4 entries'.format(len(b))
+         * start and end time in seconds 
+         * minimum and maximum frequency in Hz (optional)
+         * label (integer)
+         
+        The AnnotationHandler stores annotations in a pandas DataFrame and offers 
+        methods to add/get annotations and perform various manipulations such as 
+        cropping, shifting, and segmenting.
+
+        Multiple levels of indexing is used for handling several, stacked annotation sets:
+
+            * level 0: annotation set
+            * level 1: individual annotation
+
+        Args:
+            df: pandas DataFrame
+                Annotations to be passed on to the handler.
+                Must contain the columns 'label', 'start', and 'end', and 
+                optionally also 'freq_min' and 'freq_max'.
+    """
+    def __init__(self, df=None):
         
-        return b
-
-    def delete_annotations(self, id=None):
-        """ Delete the annotation with the specified ID(s).
-
-            If no ID is spefied, all annotations are deleted.
-            
-            Args:
-                id: int or list(int)
-                    ID of the annotation to be deleted.
-
-            Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
-                >>> 
-                >>> labels = [0, 1]
-                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
-                >>> handler = AnnotationHandler(labels, boxes)
-                >>> handler.delete_annotations(0)
-                >>> print(handler.labels)
-                [1]
-                >>> print(handler.boxes)
-                [[30.0, 34.0, 0, inf]]
-        """
-        if id is None:
-            self.labels = []
-            self.boxes = []
+        if df is None:
+            # initialize empty DataFrame
+            self._df = pd.DataFrame(columns=['label', 'start', 'end', 'freq_min', 'freq_max'], dtype='float')
+            self._df['label'] = pd.Series(dtype='int')
+        
         else:
-            if ndim(id) == 0:
-                id = [id]
-            # sort id's in ascending order 
-            id = sorted(id, reverse=True)
-            # loop over id's
-            for i in id:
-                if i < len(self.labels):
-                    # delete specified annotations
-                    del self.labels[i]
-                    del self.boxes[i]
+            self._df = df
+            self._df = self._df.astype({'label': int})
 
-    def get_cropped_annotations(self, t1=0, t2=math.inf, f1=0, f2=math.inf):
-        """ Update boundary boxes in response to cropping operation in time and/or frequency.
-            
-            Args:
-                t1: float
-                    Lower time cut in seconds
-                t2: float
-                    Upper time cut in seconds
-                f1: float
-                    Lower frequency cut in Hz
-                f2: float
-                    Upper frequency in in Hz
+        # ensure multi-index
+        if self._df.index.nlevels == 1:
+            self._df = add_index_level(self._df)
 
-            Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
-                >>> 
-                >>> labels = [0, 1]
-                >>> boxes = [[10.0, 12.2, 110., 700.],[30., 34.]]
-                >>> handler = AnnotationHandler(labels, boxes)
-                >>> cropped_labels, cropped_boxes = handler.get_cropped_annotations(t1=10.3, f2=555.)
-                >>> print(cropped_labels)
-                [0, 1]
-                >>> print(cropped_boxes)
-                [[10.3, 12.2, 110.0, 555.0], [30.0, 34.0, 0, 555.0]]
+    def copy(self):
+        handler = self.__class__(self._df.copy())
+        return handler
+
+    def num_sets(self):
+        """ Get number of seperate annotation sets managed by the handler.
+
+            Returns:
+                num: int
+                    Number of annotation sets
         """
-        if t1 is None: t1 = 0
-        if t2 is None: t2 = math.inf
-        if f1 is None: f1 = 0
-        if f2 is None: f2 = math.inf
+        ids = np.unique(self._df.index.get_level_values(0).values)
+        num = len(ids)
+        return num
 
-        labels, boxes = [], []
+    def num_annotations(self, set_id=None):
+        """ Get number of annotations managed by the handler.
 
-        # loop over annotations
-        for l, b in zip(self.labels, self.boxes):
-
-            # check if box overlaps with cut
-            if b[0] < t2 and b[1] > t1 and b[2] < f2 and b[3] > f1:
-
-                # update box boundaries
-                b0 = max(b[0], t1)
-                b1 = min(b[1], t2)
-                b2 = max(b[2], f1)
-                b3 = min(b[3], f2)
-
-                # truncate to desired precision
-                b0 = round(b0, self.precision)
-                b1 = round(b1, self.precision)
-                b2 = round(b2, self.precision)
-                b3 = round(b3, self.precision)
-
-                # new bounding box
-                box = [b0, b1, b2, b3]
-
-                labels.append(l)
-                boxes.append(box)
-
-        return labels, boxes
-
-    def _shift_annotations(self, delay=0):
-        """ Shift all annotations by a fixed time interval.
-            
-            Args:
-                delay: float
-                    Time shift in seconds.
-
-            Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
-                >>> 
-                >>> labels = 1
-                >>> boxes = [10.0, 12.2]
-                >>> handler = AnnotationHandler(labels, boxes)
-                >>> handler._shift_annotations(2.0)
-                >>> print(handler.boxes)
-                [[12.0, 14.2, 0, inf]]
+            Returns:
+                num: int or tuple
+                    Unique identifier of the annotation set. If None is specified, 
+                    the total number of annotations is returned.
         """
-        for b in self.boxes:
-            b[0] += delay
-            b[1] += delay
-            for v in b: 
-                v = round(v, self.precision)
+        num = len(self.get(set_id=set_id))
+        return num
+
+    def get(self, set_id=None, squeeze=True, drop_freq=False, key_error=False):
+        """ Get annotations managed by the handler module.
         
-    def _scale_annotations(self, scale=0):
-        """ Scale the time axis by a constant factor.
-            
+            Note: This returns a view (not a copy) of the pandas DataFrame used by 
+            the handler module to manage the annotations.
+
             Args:
-                scale: float
-                    Scaling factor.
+                set_id: int or tuple
+                    Unique identifier of the annotation set. If None is specified, 
+                    all annotations are returned.
+                squeeze: bool
+                    If the handler is managing a single annotation set, drop the 0th-level 
+                    index. Default is True. 
+                drop_freq: bool
+                    Drop the frequency columns.
+                key_error: bool
+                    If set to True, return error if the specified annotation set does not 
+                    exist. If set to False, return None. Default is False.  
+
+            Returns:
+                ans: pandas DataFrame
+                    Annotations 
 
             Example:
                 >>> from ketos.audio_processing.annotation import AnnotationHandler
-                >>> 
-                >>> labels = 1
-                >>> boxes = [10.0, 12.2]
-                >>> handler = AnnotationHandler(labels, boxes)
-                >>> handler._scale_annotations(2.0)
-                >>> print(handler.boxes)
-                [[20.0, 24.4, 0, inf]]
+                >>> # Initialize an empty instance of the annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, start='1min', end='2min')
+                >>> handler.add(label=2, start='11min', end='12min')
+                >>> # Retrieve the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  start    end  freq_min  freq_max
+                0      1   60.0  120.0       NaN       NaN
+                1      2  660.0  720.0       NaN       NaN
         """
-        for b in self.boxes:
-            b[0] *= scale
-            b[1] *= scale
-            for v in b: 
-                v = round(v, self.precision)
+        ans = self._df
+
+        if self.num_sets() == 1 and squeeze:
+            ans = ans.loc[0]
+
+        if set_id is not None:
+
+            if not key_error and set_id not in ans.index:
+                return None
+
+            ans = ans.loc[set_id]
+
+        # ensure correct ordering of columns
+        cols = ['label', 'start', 'end']
+        if not drop_freq: 
+            cols += ['freq_min', 'freq_max']
+        
+        ans = ans[cols]
+
+        return ans
+
+    def _next_index(self, set_id=0):
+        """ Get the next available index for the selected annotation set.
+
+            Args:
+                set_id: int or tuple
+                    Unique identifier of the annotation set.
+
+            Returns:
+                idx, int
+                    Next available index.
+        """
+        if len(self._df) == 0:
+            idx = 0
+
+        else:
+            idx = self._df.loc[set_id].index.values[-1] + 1
+
+        return idx
+
+    def _add(self, df, set_id=0):
+        """ Add annotations to the handler module.
+        
+            Args:
+                df: pandas DataFrame or dict
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                set_id: int or tuple
+                    Unique identifier of the annotation set.
+
+            Returns: 
+                None
+        """
+        if isinstance(df, dict):
+            df = pd.DataFrame(df, index=pd.Index([0]))
+        
+        next_index = self._next_index(set_id)
+        new_indices = pd.Index(np.arange(next_index, next_index + len(df), dtype=int))
+        df = df.set_index(new_indices)
+
+        if df.index.nlevels == 1:
+            df = add_index_level(df, key=set_id)
+
+        self._df = pd.concat([self._df, df], sort=False)
+
+        self._df = self._df.astype({'label': 'int'}) #cast label column to int
+
+    def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, set_id=0):
+        """ Add an annotation or a collection of annotations to the handler module.
+        
+            Individual annotations may be added using the arguments time_range and 
+            freq_range.
+            
+            Groups of annotations may be added by first collecting them in a pandas 
+            DataFrame or dictionary and then adding them using the 'df' argument.
+        
+            Args:
+                label: int
+                    Integer label.
+                start: str or float
+                    Start time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                start: str or float
+                    Stop time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                freq_min: str or float
+                    Lower frequency. Can be specified either as a float, in which case the 
+                    unit will be assumed to be Hz, or as a string with an SI unit, 
+                    for example, '3.1kHz'.
+                freq_max: str or float
+                    Upper frequency. Can be specified either as a float, in which case the 
+                    unit will be assumed to be Hz, or as a string with an SI unit, 
+                    for example, '3.1kHz'.
+                df: pandas DataFrame or dict
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                set_id: int or tuple
+                    Unique identifier of the annotation set.
+
+            Returns: 
+                None
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> # Create an annotation table containing two annotations
+                >>> annots = pd.DataFrame({'label':[1,2], 'start':[4.,8.], 'end':[6.,12.]})
+                >>> # Initialize the annotation handler
+                >>> handler = AnnotationHandler(annots)
+                >>> # Add a couple of more annotations
+                >>> handler.add(label=1, start='1min', end='2min')
+                >>> handler.add(label=3, start='11min', end='12min')
+                >>> # Inspect the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  start    end  freq_min  freq_max
+                0      1    4.0    6.0       NaN       NaN
+                1      2    8.0   12.0       NaN       NaN
+                2      1   60.0  120.0       NaN       NaN
+                3      3  660.0  720.0       NaN       NaN
+        """        
+        if label is not None:
+            assert start is not None and end is not None, 'time range must be specified'         
+            
+            start = convert_to_sec(start)
+            end = convert_to_sec(end)
+            
+            freq_min = convert_to_Hz(freq_min)
+            freq_max = convert_to_Hz(freq_max)
+            if freq_min is None:
+                freq_min = np.nan
+            if freq_max is None:
+                freq_max = np.nan
+
+            df = {'label':[label], 'start':[start], 'end':[end], 'freq_min':[freq_min], 'freq_max':[freq_max]}
+
+        self._add(df, set_id)
+        
+    def crop(self, start=0, end=None, freq_min=None, freq_max=None):
+        """ Crop annotations along the time and/or frequency dimension.
+
+            Args:
+                start: float or str
+                    Lower edge of time cropping interval. Can be specified either as 
+                    a float, in which case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'
+                end: float or str
+                    Upper edge of time cropping interval. Can be specified either as 
+                    a float, in which case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'
+                freq_min: float or str
+                    Lower edge of frequency cropping interval. Can be specified either as 
+                    a float, in which case the unit will be assumed to be Hz, 
+                    or as a string with an SI unit, for example, '3.1kHz'
+                freq_max: float or str
+                    Upper edge of frequency cropping interval. Can be specified either as 
+                    a float, in which case the unit will be assumed to be Hz, 
+                    or as a string with an SI unit, for example, '3.1kHz'
+        
+            Returns: 
+                None
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> # Initialize an empty annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, start='1min', end='2min', freq_min='20Hz', freq_max='200Hz')
+                >>> handler.add(label=2, start='180s', end='300s', freq_min='60Hz', freq_max='1000Hz')
+                >>> # Crop the annotations in time
+                >>> handler.crop(start='30s', end='4min')
+                >>> # Inspect the annotations
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  start    end  freq_min  freq_max
+                0      1   30.0   90.0      20.0     200.0
+                1      2  150.0  210.0      60.0    1000.0
+                >>> # Note how all the start and stop times are shifted by -30 s due to the cropping operation.
+                >>> # Crop the annotations in frequency
+                >>> handler.crop(freq_min='50Hz')
+                >>> annot = handler.get()
+                >>> print(annot)
+                   label  start    end  freq_min  freq_max
+                0      1   30.0   90.0      50.0     200.0
+                1      2  150.0  210.0      60.0    1000.0
+        """
+        # convert to desired units
+        freq_min = convert_to_Hz(freq_min)
+        freq_max = convert_to_Hz(freq_max)
+        start = convert_to_sec(start)
+        end = convert_to_sec(end)
+
+        # crop min frequency
+        if freq_min is not None:
+            self._df['freq_min'][self._df['freq_min'] < freq_min] = freq_min
+
+        # crop max frequency
+        if freq_max is not None:
+            self._df['freq_max'][self._df['freq_max'] < freq_max] = freq_max
+
+        # crop stop time
+        if end is not None:
+            dr = -np.maximum(0, self._df['end'] - end)
+            self._df['end'] = self._df['end'] + dr
+
+        # crop start time
+        if start > 0:
+            self.shift(-start)
+
+        # remove annotations that were fully cropped along the time dimension
+        if start > 0 or end is not None:
+            self._df = self._df[self._df['end'] > self._df['start']]
+
+        # remove annotations that were fully cropped along the frequency dimension
+        if freq_min is not None or freq_max is not None:
+            self._df = self._df[(self._df['freq_max'] > self._df['freq_min'])]
+            
+    def shift(self, delta_time=0):
+        """ Shift all annotations by a fixed amount along the time dimension.
+
+            If the shift places some of the annotations (partially) before time zero, 
+            these annotations are removed or cropped.
+
+            Args:
+                delta_time: float or str
+                    Amount by which annotations will be shifted. Can be specified either as 
+                    a float, in which case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'
+
+            Example:
+        """      
+        delta_time = convert_to_sec(delta_time)
+        
+        self._df['start'] = self._df['start'] + delta_time
+        self._df['start'][self._df['start'] < 0] = 0
+        
+        self._df['end'] = self._df['end'] + delta_time
+        self._df['end'][self._df['end'] < 0] = 0
+
+        self._df = self._df[self._df['end'] > self._df['start']]
+        
+    def segment(self, num_segs, window_size, step_size=None, offset=0):
+        """ Divide the time axis into segments of uniform length, which may or may 
+            not be overlapping.
+
+            Args:
+                num_segs: int
+                    Number of segments
+                window_size: float or str
+                    Duration of each segment. Can be specified either as 
+                    a float, in which case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'
+                step_size: float or str
+                    Step size. Can be specified either as a float, in which 
+                    case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'.
+                    If no value is specified, the step size is set equal to 
+                    the window size, implying non-overlapping segments.
+                offset: float or str
+                    Start time for the first segment. Can be specified either as 
+                    a float, in which case the unit will be assumed to be seconds, 
+                    or as a string with an SI unit, for example, '22min'.
+                    Negative times are permitted. 
+                    
+            Returns:
+                ans: AnnotationHandler
+                    Stacked annotation handler with three levels of indexing where 
+                        * level 0: annotation set
+                        * level 1: segment
+                        * level 2: individual annotation
+
+            Example:
+                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> # Initialize an empty annotation handler
+                >>> handler = AnnotationHandler()
+                >>> # Add a couple of annotations
+                >>> handler.add(label=1, start='1s', end='3s')
+                >>> handler.add(label=2, start='5.2s', end='7.0s')
+                >>> # Apply segmentation
+                >>> handler = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', offset='0.1s')
+                >>> # Inspect the annotations
+                >>> annots = handler.get(drop_freq=True)
+                >>> print(annots)
+                     label  start  end
+                0 0      1    0.9  1.0
+                1 0      1    0.1  1.0
+                2 0      1    0.0  1.0
+                3 0      1    0.0  0.5
+                6 1      2    0.3  1.0
+                7 1      2    0.0  1.0
+                8 1      2    0.0  0.5
+                >>> # Note the double index, where the first index refers to the segment 
+                >>> # while the second index referes to the original annotation.
+                >>> # We can get the annotations for a single segment like this,
+                >>> annots3 = handler.get(set_id=3, drop_freq=True)
+                >>> print(annots3)
+                   label  start  end
+                0      1    0.0  0.5
+                >>> # If we attempt to retrieve annotations for a segment that does not 
+                >>> # have any annotations, we get None,
+                >>> annots4 = handler.get(set_id=4, drop_freq=True)
+                >>> print(annots4)
+                None
+        """              
+        if step_size is None:
+            step_size = window_size
+        
+        # convert to seconds
+        window_size = convert_to_sec(window_size)
+        step_size = convert_to_sec(step_size)
+        offset = convert_to_sec(offset)
+
+        # crop times
+        start = offset + step_size * np.arange(num_segs)
+        end = start + window_size
+
+        # loop over segments
+        handlers, keys = [], []
+        for i,(t1,t2) in enumerate(zip(start, end)):
+            h = self.copy() # create a copy
+            h.crop(t1, t2) # crop 
+            if h.num_annotations() > 0:
+                handlers.append(h)
+                keys.append(i)
+
+        # stack handlers
+        handler = stack_annotations(handlers, keys, level=1)
+
+        return handler
