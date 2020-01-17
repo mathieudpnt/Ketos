@@ -67,9 +67,9 @@ class NNInterface():
     """
 
 
-    valid_optimizers = {'Adadelta'tf.keras.optimizers.Adadelta,
-                        'Adagrad'tf.keras.optimizers.Adagrad,
-                        'Adagrad'tf.keras.optimizers.Adagrad,
+    valid_optimizers = {'Adadelta':tf.keras.optimizers.Adadelta,
+                        'Adagrad':tf.keras.optimizers.Adagrad,
+                        'Adagrad':tf.keras.optimizers.Adagrad,
                         'Adam':tf.keras.optimizers.Adam,
                         'Adamax':tf.keras.optimizers.Adamax,
                         'Nadam':tf.keras.optimizers.Nadam,
