@@ -3,7 +3,11 @@ import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 from ketos.neural_networks.losses import FScoreLoss
+import os
 
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_dict():
@@ -137,6 +141,64 @@ def test_metrics_to_recipe():
     recipe_compat_metric = [RecipeCompat('CategoricalAccuracy', tf.keras.metrics.CategoricalAccuracy)]
     metrics_dicts = NNInterface.metrics_to_recipe(recipe_compat_metric)
 
-    assert type(metrics_dicts) == list
+    assert isinstance(metrics_dicts, list)
     assert metrics_dicts[0]['name'] == 'CategoricalAccuracy'
     assert metrics_dicts[0]['parameters'] == {}
+
+
+def test_read_recipe_file():
+    path_to_file = os.path.join(path_to_assets, "recipes/basic_recipe.json")
+    recipe = NNInterface.read_recipe_file(path_to_file)
+
+    assert isinstance(recipe, dict)
+    assert isinstance(recipe['optimizer'], RecipeCompat)
+    assert isinstance(recipe['loss_function'], RecipeCompat)
+    assert isinstance(recipe['metrics'], list)
+    assert isinstance(recipe['metrics'][0], RecipeCompat)
+
+    opt = recipe['optimizer']
+    assert opt.name == 'Adam'
+    assert isinstance(opt.func, tf.keras.optimizers.Adam)
+    assert opt.args == {"learning_rate": 0.001, "beta_1": 0.9, "beta_2": 0.999, "decay": 0.01}
+
+    loss = recipe['loss_function']
+    assert loss.name == 'FScoreLoss'
+    assert isinstance(loss.func, FScoreLoss)
+    assert loss.args == {}
+
+    metric = recipe['metrics'][0]
+    assert metric.name == 'CategoricalAccuracy'
+    assert isinstance(metric.func, tf.keras.metrics.CategoricalAccuracy)
+    assert metric.args == {}
+
+
+def test_write_recipe_file(recipe_dict):
+    destination = os.path.join(path_to_tmp, "test_write_recipe_file.json")
+    NNInterface.write_recipe_file(destination, recipe_dict)
+
+    read_recipe =  NNInterface.read_recipe_file(destination, return_recipe_compat=False)
+    #If return_recipe_compat is False, the result should be a recipe dictionary just like the recipe_dict used to write the file
+    assert read_recipe == recipe_dict
+    # assert read_recipe['optimizer'] == recipe_dict['optimizer']
+    # assert read_recipe['loss_function'] == recipe_dict['loss_function']
+    # assert read_recipe['metrics'] == recipe_dict['metrics']
+
+    read_recipe =  NNInterface.read_recipe_file(destination, return_recipe_compat=True)
+    #If return_recipe_compat is True, the result will be a dictionary with RecipeCompat objects for the optimizer, loss_functions and metrics (actually a lis of RecipCompat objects) 
+
+    assert read_recipe['optimizer'].name == NNInterface.optimizer_from_recipe(recipe_dict['optimizer']).name
+    assert read_recipe['optimizer'].func.__class__ == NNInterface.optimizer_from_recipe(recipe_dict['optimizer']).func.__class__
+    assert read_recipe['optimizer'].args == NNInterface.optimizer_from_recipe(recipe_dict['optimizer']).args
+
+    assert read_recipe['loss_function'].name == NNInterface.loss_function_from_recipe(recipe_dict['loss_function']).name
+    assert read_recipe['loss_function'].func.__class__ == NNInterface.loss_function_from_recipe(recipe_dict['loss_function']).func.__class__
+    assert read_recipe['loss_function'].args == NNInterface.loss_function_from_recipe(recipe_dict['loss_function']).args
+    
+    assert read_recipe['metrics'][0].name == NNInterface.metrics_from_recipe(recipe_dict['metrics'])[0].name
+    assert read_recipe['metrics'][0].func.__class__ == NNInterface.metrics_from_recipe(recipe_dict['metrics'])[0].func.__class__
+    assert read_recipe['metrics'][0].args == NNInterface.metrics_from_recipe(recipe_dict['metrics'])[0].args
+    
+
+    
+    
+
