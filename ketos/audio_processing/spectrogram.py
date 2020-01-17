@@ -71,41 +71,45 @@ from librosa.core import cqt
 import librosa
 
 
+from ketos.audio_processing.axis import LinearAxis, Log2Axis
+
+
 def ensure_same_length(specs, pad=False):
-    """ Ensure that all spectrograms have the same length
+    """ Ensure that all spectrograms have the same length.
 
         Note that all spectrograms must have the same time resolution.
-        If this is not the case, an assertion error will be thrown.
+        If this is not the case, an assertion error is thrown.
         
         Args:
-            specs: list
+            specs: list(Spectrogram)
                 Input spectrograms
             pad: bool
-                If True, the shorter spectrograms will be padded with zeros. If False, the longer spectrograms will be cropped (removing late times)
+                If True, the shorter spectrograms will be padded with zeros 
+                on the right (i.e. at late times). If False, the longer 
+                spectrograms will be cropped on the right.
     
         Returns:   
-            specs: list
+            specs: list(Spectrogram)
                 List of same-length spectrograms
 
         Example:
-
-        >>> from ketos.audio_processing.audio import AudioSignal
-        >>> # Create two audio signals with different lengths
-        >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
-        >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
-        >>>
-        >>> # Compute spectrograms
-        >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
-        >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
-        >>>
-        >>> # Print the durations
-        >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
-        5.85, 8.85
-        >>>
-        >>> # Ensure all spectrograms have same duration as the shortest spectrogram
-        >>> specs = ensure_same_length([spec1, spec2])
-        >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
-        5.85, 5.85
+            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> # Create two audio signals with different lengths
+            >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
+            >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
+            >>>
+            >>> # Compute spectrograms
+            >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
+            >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
+            >>>
+            >>> # Print the lengths
+            >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
+            5.85, 8.85
+            >>>
+            >>> # Ensure all spectrograms have same length as the shortest spectrogram
+            >>> specs = ensure_same_length([spec1, spec2])
+            >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
+            5.85, 5.85
     """
     if len(specs) == 0:
         return specs
@@ -136,210 +140,64 @@ def ensure_same_length(specs, pad=False):
     return specs
 
 
-class Spectrogram(AnnotationHandler):
+class Spectrogram():
     """ Spectrogram.
 
         Parent class for MagSpectrogram, PowerSpectrogram, MelSpectrogram, 
         and CQTSpectrogram.
-    
-        The 0th axis is the time axis (t-axis).
-        The 1st axis is the frequency axis (f-axis).
-        
-        Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution (tres and fres).
 
-        Use the annotation method to add annotations to the spectrogram.
+        The Spectrogram class stores the spectrogram pixel values in a 2d 
+        numpy array, where the first axis (0) is the time dimension and 
+        the second axis (1) is the frequency dimensions.
+
+        The Spectrogram class can also store a stack of multiple, identical-size, 
+        spectrograms in a 3d numpy array with the last axis (3) representing the 
+        multiple instances.
 
         Args:
-            image: 2d numpy array
-                Spectrogram image
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            tres: float
-                Time resolution in seconds (i.e. bin size used for x axis)
-            tmin: float
-                Start time in seconds
-            fres: float
-                Frequency resolution in Hz (i.e. bin size used for y axis)
-            fmin: float
-                Minimum frequency in Hz (i.e. frequency value of bin 0)
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels: list or array
-               Labels for the frequency bins (optional)
-            tag: str
-                Identifier, typically the name of the wave file used to generate the spectrogram
-            decibel: bool
-                Use logarithmic z axis
+            image: 2d or 3d numpy array
+                Spectrogram pixel values. 
+            time_res: float
+                Time resolution in seconds (corresponds to the bin size used on the time axis)
+            spec_type: str
+                Spectrogram type. Options include,
+                    * 'Mag': Magnitude spectrogram
+                    * 'Pow': Power spectrogram
+                    * 'Mel': Mel spectrogram
+                    * 'CQT': CQT spectrogram
+            filename: str or list(str)
+                Name of the source audio file, if available.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file, if available.
             
         Attributes:
-            image: 2d numpy array
-                Spectrogram image
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            tres: float
-                Time resolution in seconds (i.e. bin size used for x axis)
-            tmin: float
-                Start time in seconds
-            fres: float
-                Frequency resolution in Hz (i.e. bin size used for y axis)
-            fmin: float
-                Minimum frequency in Hz (i.e. frequency value of bin 0)
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels: list or array
-                Labels for the frequency bins (optional)
-            file_dict: dict
-                Wave files used to generate this spectrogram
-            file_vector: 1d numpy array
-                Associates a particular wave file with each time bin in the spectrogram
-            time_vector: 1d numpy array
-                Associated a particular time within a wave file with each time bin in the spectrogram
-            fcroplow: int
-                Number of lower-end frequency bins that have been cropped
-            fcrophigh: int
-                Number of upper-end frequency bins that have been cropped
+            image: 2d or 3d numpy array
+                Spectrogram pixel values. 
+            time_ax: LinearAxis
+                Axis object for the time dimension
+            freq_ax: LinearAxis or Log2Axis
+                Axis object for the frequency dimension
+            spec_type: str
+                Spectrogram type. Options include,
+                    * 'Mag': Magnitude spectrogram
+                    * 'Pow': Power spectrogram
+                    * 'Mel': Mel spectrogram
+                    * 'CQT': CQT spectrogram
+            filename: str or list(str)
+                Name of the source audio file.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file.
 """
-    def __init__(self, image=np.zeros((2,2)), NFFT=0, tres=1, tmin=0, fres=1, fmin=0, timestamp=None, flabels=None, tag='', decibel=False):
-        
+    def __init__(self, image, time_res, spec_type, filename=None, offset=None):
         self.image = image
-        self.NFFT = NFFT
-        self.tres = tres
-        self.tmin = tmin
-        self.fres = fres
-        self.fmin = fmin
-        self.timestamp = timestamp
-        self.flabels = flabels
-        self.decibel = decibel
-        self.fcroplow = 0
-        self.fcrophigh = 0
-
-        super().__init__() # initialize AnnotationHandler
-
-        # assign values to the file dictionary and the file and time vectors
-        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag)        
-
-    def _create_tracking_data(self, tag):
-        """ Creates a file dictionary, a file vector and a time vector
-
-            Args:
-                tag: str
-                    Identifier, typically the name of the wave file used to generate the spectrogram
-
-            Returns: 
-                file_dict: dict
-                    Wave files used to generate this spectrogram
-                file_vector: 1d numpy array
-                    Associates a particular wave file with each time bin in the spectrogram
-                time_vector: 1d numpy array
-                    Associated a particular time within a wave file with each time bin in the spectrogram
-
-            Example:
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> spec = Spectrogram(tag='file.wav') # create a dummy spectrogram
-                >>> print(spec.file_dict) # inspect the file dictionary
-                {0: 'file.wav'}
-        """                
-        n = self.image.shape[0]
-        time_vector = self.tres * np.arange(n, dtype=float) + self.tmin
-        file_vector = np.zeros(n)
-        file_dict = {0: tag}
-        return file_dict, file_vector, time_vector
-
-    def _crop_tracking_data(self, tlow=None, thigh=None, tpad=False, bin_no=False):
-        """ Update tracking data in response to a cropping operation
-
-            Args:
-                tlow: float
-                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
-                thigh: float
-                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
-                bin_no: bool
-                    Indicate if time cuts (tlow, thigh) are given in physical units (default) or 
-                    bin numbers. 
-
-            Returns:
-                new_file_dict: dict
-                    Cropped file dictionary
-                new_file_vector: 1d numpy array
-                    Cropped file vector
-                new_time_vector: 1d numpy array
-                    Cropped time vector
-        """
-        tbin1 = 0
-        tbin2 = self.tbins()
-
-        if tlow is not None: 
-            if bin_no:
-                tbin1 = tlow
-            else:
-                tbin1 = self._find_tbin(tlow, truncate=False)
-        if thigh is not None: 
-            if bin_no:
-                tbin2 = thigh
-            else:
-                tbin2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-        
-        N = len(self.time_vector)
-        tbin1r = max(0, tbin1)
-        tbin2r = min(N, tbin2)
-
-        new_time_vector = self.time_vector.copy()
-        new_time_vector = new_time_vector[tbin1r:tbin2r]
-
-        file_vector = self.file_vector.copy()
-        file_vector = file_vector[tbin1r:tbin2r]
-
-        if tpad:
-            if tbin1 < 0:
-                new_time_vector = np.insert(new_time_vector, 0, np.zeros(-tbin1))
-                file_vector = np.insert(file_vector, 0, np.zeros(-tbin1))
-            if tbin2 > N:
-                new_time_vector = np.append(new_time_vector, np.zeros(tbin2-N))
-                file_vector = np.append(file_vector, np.zeros(tbin2-N))
-
-        new_file_dict = {}
-        new_file_vector = file_vector.copy()
-        new_key = 0
-        for it in self.file_dict.items():
-            key = it[0]
-            val = it[1]
-            if np.any(file_vector == key):
-                new_file_dict[new_key] = val
-                new_file_vector[file_vector == key] = new_key
-                new_key += 1
-
-        return new_time_vector, new_file_vector, new_file_dict
-
-    def get_time_vector(self):
-        """ Get the spectrogram's time vector
-
-            Returns:
-                v: 1d numpy array
-                    Time vector
-        """
-        v = self.time_vector
-        return v
-
-    def get_file_vector(self):
-        """ Get the spectrogram's file vector
-
-            Returns:
-                v: 1d numpy array
-                    File vector
-        """
-        v = self.file_vector
-        return v
-
-    def get_file_dict(self):
-        """ Get the spectrogram's file dictionary
-
-            Returns:
-                d: dict
-                    File dictionary
-        """
-        d = self.file_dict
-        return d
+        length = time_res * image.shape[1]
+        self.time_ax = LinearAxis(bins=image.shape[1], extent=(0., length)) #initialize time axis
+        self.freq_ax = None # child classes are responsible for providing the frequency axis
+        self.type = spec_type
+        self.filename = filename
+        self.offset = offset
 
     def copy(self):
         """ Make a deep copy of the spectrogram.
