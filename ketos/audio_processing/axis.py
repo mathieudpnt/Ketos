@@ -37,8 +37,6 @@
     i.e., [a,b), except for the last bin, which represents a closed 
     interval with both end points included, i.e. [a,b].
 
-    TODO: Create an abstract Axis parent class.
-
     Contents:
         LinearAxis class:
         Log2Axis class
