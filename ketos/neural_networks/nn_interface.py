@@ -67,9 +67,74 @@ class NNInterface():
     """
 
 
-    valid_optimizers = {'Adam':tf.keras.optimizers.Adam}
-    valid_losses = {'FScoreLoss':FScoreLoss}
-    valid_metrics = {'CategoricalAccuracy':tf.keras.metrics.CategoricalAccuracy}
+    valid_optimizers = {'Adadelta'tf.keras.optimizers.Adadelta,
+                        'Adagrad'tf.keras.optimizers.Adagrad,
+                        'Adagrad'tf.keras.optimizers.Adagrad,
+                        'Adam':tf.keras.optimizers.Adam,
+                        'Adamax':tf.keras.optimizers.Adamax,
+                        'Nadam':tf.keras.optimizers.Nadam,
+                        'RMSprop':tf.keras.optimizers.RMSprop,
+                        'SGD':tf.keras.optimizers.SGD,
+                        }
+
+    valid_losses = {'FScoreLoss':FScoreLoss,
+                    'BinaryCrossentropy':tf.keras.losses.BinaryCrossentropy,
+                    'CategoricalCrossentropy':tf.keras.losses.CategoricalCrossentropy,
+                    'CategoricalHinge':tf.keras.losses.CategoricalHinge,
+                    'CosineSimilarity':tf.keras.losses.CosineSimilarity,
+                    'Hinge':tf.keras.losses.Hinge,
+                    'Huber':tf.keras.losses.Huber,
+                    'KLD':tf.keras.losses.KLD,
+                    'LogCosh':tf.keras.losses.LogCosh,
+                    'MAE':tf.keras.losses.MAE,
+                    'MAPE':tf.keras.losses.MAPE,
+                    'MeanAbsoluteError':tf.keras.losses.MeanAbsoluteError,
+                    'MeanAbsolutePercentageError':tf.keras.losses.MeanAbsolutePercentageError,
+                    'MeanSquaredError':tf.keras.losses.MeanSquaredError,
+                    'MeanSquaredLogarithmicError':tf.keras.losses.MeanSquaredLogarithmicError,
+                    'MSE':tf.keras.losses.MSE,
+                    'MSLE':tf.keras.losses.MSLE,
+                    'Poisson':tf.keras.losses.Poisson,
+                    'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
+                    }
+
+    valid_metrics = {'Accuracy':tf.keras.metrics.Accuracy,
+                     'AUC':tf.keras.metrics.AUC,
+                     'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
+                     'BinaryCrossentropy':tf.keras.metrics.BinaryCrossentropy,
+                     'CategoricalAccuracy':tf.keras.metrics.CategoricalAccuracy,
+                     'CategoricalCrossentropy':tf.keras.metrics.CategoricalCrossentropy,
+                     'CategoricalHinge':tf.keras.metrics.CategoricalHinge,
+                     'CosineSimilarity':tf.keras.metrics.CosineSimilarity,
+                     'FalseNegatives':tf.keras.metrics.FalseNegatives,
+                     'FalsePositives':tf.keras.metrics.FalsePositives,
+                     'Hinge':tf.keras.metrics.Hinge,
+                     'KLDivergence':tf.keras.metrics.KLDivergence,
+                     'LogCoshError':tf.keras.metrics.LogCoshError,
+                     'Mean':tf.keras.metrics.Mean,
+                     'MeanAbsoluteError':tf.keras.metrics.MeanAbsoluteError,
+                     'MeanAbsolutePercentageError':tf.keras.metrics.MeanAbsolutePercentageError,
+                     'MeanIoU':tf.keras.metrics.MeanIoU,
+                     'MeanRelativeError':tf.keras.metrics.MeanRelativeError,
+                     'MeanSquaredError':tf.keras.metrics.MeanSquaredError,
+                     'MeanSquaredLogarithmicError':tf.keras.metrics.MeanSquaredLogarithmicError,
+                     'Poisson':tf.keras.metrics.Poisson,
+                     'Precision':tf.keras.metrics.Precision,
+                     'Recall':tf.keras.metrics.Recall,
+                     'PrecisionAtRecall':tf.keras.metrics.PrecisionAtRecall,
+                     'RootMeanSquaredError':tf.keras.metrics.RootMeanSquaredError,
+                     'SensitivityAtSpecificity':tf.keras.metrics.SensitivityAtSpecificity,
+                     'SparseCategoricalAccuracy':tf.keras.metrics.SparseCategoricalAccuracy,
+                     'SparseCategoricalCrossentropy':tf.keras.metrics.SparseCategoricalCrossentropy,
+                     'SparseTopKCategoricalAccuracy':tf.keras.metrics.SparseTopKCategoricalAccuracy,
+                     'SpecificityAtSensitivity':tf.keras.metrics.SensitivityAtSpecificity,
+                     'SquaredHinge':tf.keras.metrics.SquaredHinge,
+                     'Sum':tf.keras.metrics.Sum,
+                     'TopKCategoricalAccuracy':tf.keras.metrics.TopKCategoricalAccuracy,
+                     'TrueNegatives':tf.keras.metrics.TrueNegatives,
+                     'TruePositives':tf.keras.metrics.TruePositives,
+                     
+                     }
 
 
     @classmethod
