@@ -47,6 +47,124 @@ from sys import getsizeof
 from psutil import virtual_memory
 
 
+def make_frames(x, win_len, step_len, pad=True, center=True):
+    """ Split sequential data into frames of length 'win_len' with consecutive 
+        frames being shifted by an amount 'step_len'.
+
+        Args: 
+            x: numpy.array
+                The data to be framed.
+            win_len: int
+                Window length.
+            winstep: float
+                Step size.
+            pad: bool
+                If necessary, pad the data with zeros to make sure that all frames 
+                have an equal number of samples. 
+            center: bool
+                When padding, apply the same amount of padding before and after to 
+                ensure that the data is centered, instead of only padding at the 
+                end. Default is True.
+
+        Returns:
+            frames: numpy.array
+                Framed data.
+
+        Example:
+            >>> from ketos.audio_processing.audio_processing import make_frames
+            >>> x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            >>> f = make_frames(x=x, winlen=4, winstep=2)    
+            >>> print(f.shape)
+            (4, 4)
+            >>> print(f)
+            [[ 1  2  3  4]
+             [ 3  4  5  6]
+             [ 5  6  7  8]
+             [ 7  8  9 10]]
+    """
+
+    mem = virtual_memory()
+
+    siz = getsizeof(x) * winlen / winstep
+
+    if siz > 0.1 * mem.total:
+        print("Warning: size of output frames exceeds 10% of memory")
+        print("Consider reducing the data size and/or increasing the step size and/or reducing the window length")
+
+    totlen = x.shape[0]
+
+    if zero_padding:
+        n_frames = int(np.ceil(totlen / winstep))
+        n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
+        if np.ndim(x) == 1:
+            z_shape = n_zeros
+        else:
+            z_shape = (n_zeros, x.shape[1])
+        z = np.zeros(shape=z_shape)
+        padded_signal = np.concatenate((x, z))
+    else:
+        padded_signal = x
+        if winlen > totlen:
+            n_frames = 1
+            winlen = totlen
+        else:
+            n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
+
+    indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
+    frames = padded_signal[indices.astype(np.int32, copy=False)]
+
+    return frames
+
+def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
+    """ Compute Short Time Fourier Transform (STFT).
+
+        The window size and step size are rounded to the nearest integer 
+        number of samples. The number of points used for the Fourier Transform 
+        is equal to the number of samples in the window.
+    
+        Args:
+            x: numpy.array
+                Audio signal 
+            rate: float
+                Sampling rate in Hz
+            window: float
+                Window length in seconds
+            step: float
+                Step size in seconds 
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
+            even_len: bool
+                If necessary, increase the window length to make it an even number 
+                of samples. Default is True.
+
+        Returns:
+            img: numpy.array
+                Short Time Fourier Transform of the input signal.
+            freq_max: float
+                Maximum frequency in Hz
+            num_fft: int
+                Number of points used for the Fourier Transform.
+    """
+    win_len = int(round(window * rate)) #convert to number of samples
+    step_len = int(round(step * rate))
+    if even_len:
+        win_len += win_len%2 #ensure even window length
+
+    frames = make_frames(win_len=win_len, step_len=step_len) #segment audio signal 
+    if window_func:
+        frames *= eval("np.{0}".format(window_func))(frames.shape[1]) #apply Window function
+
+    fft = np.fft.rfft(frames) #Compute fast fourier transform
+    img = to_decibel(np.abs(fft)) #Compute magnitude on dB scale
+    num_fft = frames.shape[1] #Number of points used for the Fourier Transform        
+    freq_max = audio_signal.rate / 2. #Maximum frequency
+    return img, freq_max, num_fft
+
+
 def append_specs(specs):
     """ Append spectrograms in the order in which they are provided.
 
@@ -305,76 +423,6 @@ def from_decibel(y):
 
     x = np.power(10., y/20.)
     return x
-
-def make_frames(x, winlen, winstep, zero_padding=False):
-    """ Split time-series data into frames of length 'winlen' with consecutive 
-        frames being shifted by an amount 'winstep'.
-
-        The data can be 1-dimensional, i.e. one value per time step (e.g. an audio signal), 
-        or 2-dimensions, i.e. several values per time step (e.g. a spectrogram) 
-        
-        If 'winstep' < 'winlen', the frames overlap.
-
-        Args: 
-            x: 1d or 2d numpy array
-                The data to be framed.
-            winlen: float
-                The window length in bins.
-            winstep: float
-                The window step (or stride) in bins.
-            zero_padding: bool
-                If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
-                This assures that sample are not truncated from the original signal.
-
-        Returns:
-            frames: numpy array
-                2-d or 3-d array with framed data
-
-        Example:
-
-            >>> from ketos.audio_processing.audio_processing import make_frames
-            >>> x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            >>> f = make_frames(x=x, winlen=4, winstep=2)    
-            >>> print(f.shape)
-            (4, 4)
-            >>> print(f)
-            [[ 1  2  3  4]
-             [ 3  4  5  6]
-             [ 5  6  7  8]
-             [ 7  8  9 10]]
-    """
-
-    mem = virtual_memory()
-
-    siz = getsizeof(x) * winlen / winstep
-
-    if siz > 0.1 * mem.total:
-        print("Warning: size of output frames exceeds 10% of memory")
-        print("Consider reducing the data size and/or increasing the step size and/or reducing the window length")
-
-    totlen = x.shape[0]
-
-    if zero_padding:
-        n_frames = int(np.ceil(totlen / winstep))
-        n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-        if np.ndim(x) == 1:
-            z_shape = n_zeros
-        else:
-            z_shape = (n_zeros, x.shape[1])
-        z = np.zeros(shape=z_shape)
-        padded_signal = np.concatenate((x, z))
-    else:
-        padded_signal = x
-        if winlen > totlen:
-            n_frames = 1
-            winlen = totlen
-        else:
-            n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
-
-    indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
-    frames = padded_signal[indices.astype(np.int32, copy=False)]
-
-    return frames
 
 
 def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):

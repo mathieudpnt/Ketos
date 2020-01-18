@@ -212,6 +212,19 @@ class LinearAxis():
         x = self.x_min + b * self.dx
         return x
 
+    def up_edge(self, b):
+        """ Get the upper-edge value of a given bin.
+
+            Args:
+                b: array-like
+                    Bin number.
+            
+            Returns: 
+                x: array-like
+                    Upper-edge bin value
+        """
+        return self.low_edge(b+1)
+
     def min(self):
         """ Get the lower boundary of the axis.
 
@@ -343,6 +356,19 @@ class Log2Axis():
 
         x = 2**(b / self.bins_per_oct) * self.x_min
         return x
+
+    def up_edge(self, b):
+        """ Get the upper-edge value of a given bin.
+
+            Args:
+                b: array-like
+                    Bin number.
+            
+            Returns: 
+                x: array-like
+                    Upper-edge bin value
+        """
+        return self.low_edge(b+1)
 
     def min(self):
         """ Get the lower boundary of the axis.

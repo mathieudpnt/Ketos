@@ -329,8 +329,8 @@ class AnnotationHandler():
     def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, set_id=0):
         """ Add an annotation or a collection of annotations to the handler module.
         
-            Individual annotations may be added using the arguments time_range and 
-            freq_range.
+            Individual annotations may be added using the arguments start, end, freq_min, 
+            and freq_max.
             
             Groups of annotations may be added by first collecting them in a pandas 
             DataFrame or dictionary and then adding them using the 'df' argument.

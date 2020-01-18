@@ -72,6 +72,7 @@ import librosa
 
 
 import copy
+from ketos.audio_processing.audio_processing import stft
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 
 
@@ -225,99 +226,7 @@ class Spectrogram():
         spec = copy.deepcopy(self)
         return spec
 
-    def _make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
-        """ Create spectrogram from audio signal
-        
-            Args:
-                signal: AudioSignal
-                    Audio signal 
-                winlen: float
-                    Window size in seconds
-                winstep: float
-                    Step size in seconds 
-                hamming: bool
-                    Apply Hamming window
-                NFFT: int
-                    Number of points for the FFT. If None, set equal to the number of samples.
-                timestamp: datetime
-                    Spectrogram time stamp (default: None)
-                compute_phase: bool
-                    Compute phase spectrogram in addition to magnitude spectrogram
-                decibel: bool
-                    Use logarithmic (decibel) scale.
-
-            Returns:
-                image: numpy.array
-                    Magnitude spectrogram
-                NFFT: int, int
-                    Number of points used for the FFT
-                fres: int
-                    Frequency resolution
-                phase_change: numpy.array
-                    Phase change spectrogram. Only computed if compute_phase=True.
-        """
-        self.winstep = winstep
-        self.hop = int(round(winstep * audio_signal.rate))
-        self.hamming = hamming
-
-        # Make frames
-        frames = audio_signal.make_frames(winlen=winlen, winstep=winstep, even_winlen=True) 
-
-        # Apply Hamming window    
-        if hamming:
-            frames *= np.hamming(frames.shape[1])
-
-        # Compute fast fourier transform
-        fft = np.fft.rfft(frames, n=NFFT)
-
-        # Compute magnitude
-        image = np.abs(fft)
-
-        # Compute phase
-        if compute_phase:
-            phase = np.angle(fft)
-
-            # phase discontinuity due to mismatch between step size and bin frequency
-            N = int(round(winstep * audio_signal.rate))
-            T = N / audio_signal.rate
-            f = np.arange(image.shape[1], dtype=np.float64)
-            f += 0.5
-            f *= audio_signal.rate / 2. / image.shape[1]
-            p = f * T
-            jump = 2*np.pi * (p - np.floor(p))
-            corr = np.repeat([jump], image.shape[0], axis=0)
-            
-            # observed phase difference
-            shifted = np.append(phase, [phase[-1,:]], axis=0)
-            shifted = shifted[1:,:]
-            diff = shifted - phase
-
-            # observed phase difference corrected for discontinuity
-            diff[diff < 0] = diff[diff < 0] + 2*np.pi
-            diff -= corr
-            diff[diff < 0] = diff[diff < 0] + 2*np.pi
-
-            # mirror at pi
-            diff[diff > np.pi] = 2*np.pi - diff[diff > np.pi]
-
-        else:
-            diff = None
-
-        # Number of points used for FFT
-        if NFFT is None:
-            NFFT = frames.shape[1]
-        
-        # Frequency resolution
-        fres = audio_signal.rate / 2. / image.shape[1]
-
-        # use logarithmic axis
-        if decibel:
-            image = to_decibel(image)
-
-        phase_change = diff
-        return image, NFFT, fres, phase_change
-
-    def get_data(self):
+    def data(self):
         """ Get the underlying data numpy array
 
             Returns:
@@ -326,205 +235,53 @@ class Spectrogram():
         """
         return self.image
 
-    def annotate(self, labels, boxes):
-        """ Add a set of annotations
-
-            Args:
-                labels: list(int)
-                    Annotation labels
-                boxes: list(tuple)
-                    Annotation boxes, specifying the start and stop time of the annotation 
-                    and, optionally, the minimum and maximum frequency.
-
-            Example:
-                >>> # create an audio signal
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
-                >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
-                >>> # add two annotations
-                >>> spec.annotate(labels=[1,2], boxes=[[1.5,4.5],[5.0,5.4]])
-                >>> # show the spectrogram with the annotation that has label=1
-                >>> fig = spec.plot(label=1)
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_label1.png")
-                >>> plt.close(fig)
-
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_label1.png
-
-        """
-        super().annotate(labels, boxes)
-        for b in self.boxes:
-            if b[3] == math.inf:
-                b[3] = self.fmax()
-
-        self.labels, self.boxes = self.get_cropped_annotations(t1=self.tmin, t2=self.tmin+self.duration())
-
-    def _find_bin(self, x, bins, x_min, x_max, truncate=False, roundup=True):
-        """ Find bin corresponding to given value
-
-            If the value coincides with a bin boundary, the high bin number will 
-            be return if roundup is True (default), or the lower bin number if roundup is False.
-
-            If Truncate is False (default):
-             * Returns -1, if x < x_min
-             * Returns N, if x >= x_max, where N is the number of bins
-
-            If Truncate is True:
-             * Returns 0, if x < x_min
-             * Returns N-1, if x >= x_max, where N is the number of bins
-
-            Args:
-                x: float
-                    Value
-                truncate: bool
-                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
-                roundup: bool
-                    Return lower or higher bin number, if value coincides with a bin boundary
-
-            Returns:
-                bin : int
-                    Bin number
-        """
-        epsilon = 1E-12
-
-        if np.ndim(x) == 0:
-            scalar = True
-            x = [x]
-        else:
-            scalar = False
-
-        x = np.array(x)
-        dx = (x_max - x_min) / bins
-
-        dx_int = int(dx)
-        if abs(dx - dx_int) < epsilon:
-            dx = dx_int
-
-        b = (x - x_min) / dx
-
-        idx = np.logical_or(abs(b%1)<epsilon, abs(b%1-1)<epsilon)
-
-        if roundup:
-            b[idx] += epsilon
-        else:
-            b[idx] -= epsilon
-
-        if truncate:
-            b[b < 0] = 0
-            b[b >= bins] = bins - 1
-        else:
-            b[b < 0] = b[b < 0] - 1
-
-        b = b.astype(dtype=int, copy=False)
-
-        if scalar:
-            b = b[0]
-
-        return b
-
-    def _find_tbin(self, t, truncate=False, roundup=True):
-        """ Find bin corresponding to given time.
-
-            Returns -1, if t < t_min
-            Returns N, if t > t_max, where N is the number of time bins
-
-            Args:
-                t: float
-                   Time since spectrogram start in duration
-                truncate: bool
-                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
-                roundup: bool
-                    Return lower or higher bin number, if value coincides with a bin boundary
-
-            Returns:
-                bin : int
-                    Bin number
-        """
-        tmax = self.tmin + self.tbins() * self.tres
-        bin = self._find_bin(x=t, bins=self.tbins(), x_min=self.tmin, x_max=tmax, truncate=truncate, roundup=roundup)
-        return bin
-
-    def _tbin_low(self, bin):
-        """ Get the lower time value of the specified time bin.
-
-            Args:
-                bin: int
-                    Bin number
-        """
-        t = self.tmin + bin * self.tres
-        return t
-
-    def _find_fbin(self, f, truncate=False, roundup=True):
-        """ Find bin corresponding to given frequency.
-
-            Returns -1, if f < f_min.
-            Returns N, if f > f_max, where N is the number of frequency bins.
-
-            Args:
-                f: float
-                   Frequency in Hz 
-                truncate: bool
-                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
-                roundup: bool
-                    Return lower or higher bin number, if value coincides with a bin boundary
-
-            Returns:
-                bin: int
-                     Bin number
-        """
-        bin = self._find_bin(x=f, bins=self.fbins(), x_min=self.fmin, x_max=self.fmax(), truncate=truncate, roundup=roundup)
-        return bin
-
-    def _fbin_low(self, bin):
-        """ Get the lower frequency value of the specified frequency bin.
-
-            Args:
-                bin: int
-                    Bin number
-        """
-        f = self.fmin + bin * self.fres
-        return f
-
-    def tbins(self):
-        """ Get number of time bins
-
-            Returns:
-                n: int
-                    Number of bins
-        """
-        n = self.image.shape[0]
-        return n
-
-    def fbins(self):
-        """ Get number of frequency bins
-
-            Returns:
-                n: int
-                    Number of bins
-        """
-        n = self.image.shape[1]
-        return n
-
-    def fmax(self):
-        """ Get upper range of frequency axis
-
-            Returns:
-                fmax: float
-                    Maximum frequency in Hz
-        """
-        fmax = self.fmin + self.fres * self.fbins()
-        return fmax
+    def annotate(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, spec_id=0):
+        """ Add an annotation or a collection of annotations.
         
-    def duration(self):
-        """ Get spectrogram duration
+            Individual annotations may be added using the arguments start, end, freq_min, 
+            and freq_max.
+            
+            Groups of annotations may be added by first collecting them in a pandas 
+            DataFrame or dictionary and then adding them using the 'df' argument.
+        
+            Args:
+                label: int
+                    Integer label.
+                start: str or float
+                    Start time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                start: str or float
+                    Stop time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                freq_min: str or float
+                    Lower frequency. Can be specified either as a float, in which case the 
+                    unit will be assumed to be Hz, or as a string with an SI unit, 
+                    for example, '3.1kHz'.
+                freq_max: str or float
+                    Upper frequency. Can be specified either as a float, in which case the 
+                    unit will be assumed to be Hz, or as a string with an SI unit, 
+                    for example, '3.1kHz'.
+                df: pandas DataFrame or dict
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                spec_id: int or tuple
+                    Unique identifier of the spectrogram. Only relevant for stacked spectrograms.
+        """
+        assert self.annot is not None, "Attempting to add annotations to a Spectrogram without an AnnotationHandler object" 
+
+        self.annot.add(label, start, end, freq_min, freq_max, df, spec_id)
+
+    def length(self):
+        """ Get spectrogram length in seconds.
 
             Returns:
-                t: float
-                    Duration in seconds
+                : float
+                    Length in seconds
         """
-        t = self.tbins() * self.tres
-        return t
+        return self.time_ax.max()
 
     def get_label_vector(self, label):
         """ Get a vector indicating presence/absence (1/0) 
@@ -550,206 +307,38 @@ class Spectrogram():
 
         return y
 
-    def time_labels(self):
-        """ Generates an array of labels for the time bins
-            
-            If the spectrogram was created with a timestamp, the labels 
-            will be datetime objects.
-
-            If the spectrogram was created without a timestamp, the labels 
-            will be 't0', 't1', etc.
-
-            Returns:
-                img: list of str or datetime
-                    Labels for the time bins
-        """
-        if self.timestamp is None:
-            tax = ['t{0}'.format(t) for t in range(self.tbins())]
-
-        else:
-            tax = list()
-            delta = datetime.timedelta(seconds=self.tres)
-            t = self.timestamp + datetime.timedelta(seconds=self.tmin)
-            for _ in range(self.tbins()):
-                tax.append(t)
-                t += delta
-            
-        return tax
-
-    def frequency_labels(self):
-        """ Generates an array of labels for the frequency bins
-            
-            This will return the value of the attribute flabels, or 
-            simply 'f0', 'f1', etc., if this attribute was not set.
-
-            Returns:
-                img: list of str
-                    Labels for the frequency bins
-        """
-        if self.flabels == None:
-            self.flabels = ['f{0}'.format(x) for x in range(self.fbins())]
-        
-        return self.flabels
-
     def normalize(self):
         """ Normalize spectogram so that values range from 0 to 1
-
-            Args:
-                spec : numpy array
-                    Spectogram to be normalized.
         """
         self.image = self.image - np.min(self.image)
         self.image = self.image / np.max(self.image)
 
-    def _crop_image(self, tlow=None, thigh=None, flow=None, fhigh=None, tpad=False, fpad=False, bin_no=False):
-        """ Crop image along time axis, frequency axis, or both.
-            
-            If the cropping box extends beyond the boarders of the spectrogram, 
-            the cropped image is the overlap of the two.
-            
-            In general, the cuts will not coincide with bin divisions.             
-            The cropping operation includes both the lower and upper bin.
-
-            Args:
-                tlow: float
-                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
-                thigh: float
-                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
-                flow: float
-                    Lower limit on frequency cut in Hz
-                fhigh: float
-                    Upper limit on frequency cut in Hz
-                tpad: bool
-                    If tlow and/or thigh extends beyond the start and/or end times of the spectrogram,
-                    pad the clipped spectrogram with zeros to ensure that it covers the specified time domain.
-                fpad: bool
-                    If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted spectrogram had the same frequency range as the source 
-                    spectrogram.
-                bin_no: bool
-                    Indicate if time and frequency cuts (tlow, thigh, flow, fhigh) are given in physical units (default) or 
-                    bin numbers. 
-
-            Returns:
-                img: 2d numpy array
-                    Cropped image
-                t1: int
-                    Lower time bin
-                f1: int
-                    Lower frequency bin
-        """
-        Nt = self.tbins()
-        Nf = self.fbins()
-        
-        t1 = 0
-        t2 = Nt
-        f1 = 0
-        f2 = Nf
-
-        if tlow is not None: 
-            if bin_no:
-                t1 = tlow
-            else:
-                t1 = self._find_tbin(tlow, truncate=False)
-        if thigh is not None: 
-            if bin_no:
-                t2 = thigh
-            else:
-                t2 = self._find_tbin(thigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-        if flow is not None: 
-            if bin_no:
-                f1 = flow
-            else:            
-                f1 = self._find_fbin(flow, truncate=False)
-        if fhigh is not None: 
-            if bin_no:
-                f2 = fhigh
-            else:                        
-                f2 = self._find_fbin(fhigh, truncate=False, roundup=False) + 1 # when cropping, include upper bin
-
-        if t2 <= t1:
-            img = None
-        
-        else:
-            
-            if tpad:
-                Nt_crop = t2 - t1
-            else:
-                Nt_crop = min(t2, Nt) - max(t1, 0)
-
-            if fpad:
-                Nf_crop = self.image.shape[1]
-            else:
-                Nf_crop = min(f2, Nf) - max(f1, 0)
-            
-            if Nt_crop <= 0 or Nf_crop <= 0:
-                img = None
-                f1r = max(f1, 0)
-            else:
-                if np.ma.is_masked(self.image):
-                    img = np.ma.zeros(shape=(Nt_crop, Nf_crop))
-                else:
-                    img = np.zeros(shape=(Nt_crop, Nf_crop))
-
-                t1r = max(t1, 0)
-                t2r = min(t2, Nt)
-                if tpad:
-                    t1_crop = max(-1*t1, 0)
-                else:
-                    t1_crop = 0
-
-                t2_crop = t1_crop + t2r - t1r
-
-                f1r = max(f1, 0)
-                f2r = min(f2, Nf)
-                f1_crop = 0
-                f2_crop = f2r - f1r
-
-                img[t1_crop:t2_crop, f1_crop:f2_crop] = self.image[t1r:t2r, f1r:f2r]
-
-                self.fcroplow += f1r
-                self.fcrophigh += Nf - f2r
-
-        return img, t1, f1r
-
-    def crop(self, tlow=None, thigh=None, flow=None, fhigh=None,\
-        tpad=False, fpad=False, keep_time=True, make_copy=False, bin_no=False, **kwargs):
+    def crop(self, start=None, end=None, length=None,\
+        freq_min=None, freq_max=None, height=None, copy=False, **kwargs):
         """ Crop spectogram along time axis, frequency axis, or both.
             
-            If the cropping box extends beyond the boarders of the spectrogram, 
-            the cropped spectrogram is the overlap of the two.
-            
-            In general, the cuts will not coincide with bin divisions.             
-            The cropping operation includes both the lower and upper bin.
-
             Args:
-                tlow: float
-                    Lower limit of time cut, measured in duration from the beginning of the spectrogram
-                thigh: float
-                    Upper limit of time cut, measured in duration from the beginning of the spectrogram start 
-                flow: float
-                    Lower limit on frequency cut in Hz
-                fhigh: float
-                    Upper limit on frequency cut in Hz
-                tpad: bool
-                    If tlow and/or thigh extends beyond the start and/or end times of the spectrogram,
-                    pad the clipped spectrogram with zeros to ensure that it covers the specified time domain.
-                fpad: bool
-                    If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted spectrogram had the same frequency range as the source 
-                    spectrogram.
-                keep_time: bool
-                    Keep the existing time axis. If false, the time axis will be shifted so t=0 corresponds to 
-                    the first bin of the cropped spectrogram.
-                make_copy: bool
-                    Do not modify the present instance, but make a copy instead and applying the cropping operation to this copy
-                bin_no: bool
-                    Indicate if time and frequency cuts (tlow, thigh, flow, fhigh) are given in physical units (default) or 
-                    bin numbers. 
+                start: float
+                    Start time in seconds, measured from the left edge of spectrogram.
+                end: float
+                    End time in seconds, measured from the left edge of spectrogram.
+                length: int
+                    Horizontal size of the cropped image (number of pixels). If provided, 
+                    the `end` argument is ignored. 
+                freq_min: float
+                    Lower frequency in Hz.
+                freq_max: str or float
+                    Upper frequency in Hz.
+                height: int
+                    Vertical size of the cropped image (number of pixels). If provided, 
+                    the `freq_max` argument is ignored. 
+                copy: bool
+                    Return a cropped copy of the spectrogram, leaving the present instance unaffected 
+                    by the cropping operation. Default is False.
 
             Returns:
                 spec: Spectrogram
-                    Cropped spectrogram, empy unless make_copy is True
+                    Cropped spectrogram
 
             Examples: 
                 >>> # create an audio signal
@@ -776,75 +365,42 @@ class Spectrogram():
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
 
         """
-        if make_copy:
+        if copy:
             spec = self.copy()
         else:
             spec = self
 
-        if bin_no:
-            if tlow is None:
-                t1 = self.tmin
-            else:
-                t1 = self._tbin_low(tlow)
+        # convert to bin numbers
+        bx1 = self.time_ax.bin(start, truncate=True)
+        by1 = self.freq_ax.bin(freq_min, truncate=True)
 
-            if thigh is None:
-                t2 = self.tmin + self.duration()
-            else:
-                t2 = self._tbin_low(thigh)
-
-            if flow is None:
-                f1 = self.fmin
-            else:
-                f1 = self._fbin_low(flow)
-
-            if fhigh is None:
-                f2 = self.fmax()
-            else:
-                f2 = self._fbin_low(fhigh)
+        if length:
+            bx2 = bx1 + length
+            end = start + self.time_ax.up_edge(bx2)
         else:
-            t1 = tlow
-            t2 = thigh
-            f1 = flow
-            f2 = fhigh
+            bx2 = self.time_ax.bin(end, truncate=True)
 
-        # if padding exceeds 'tpadmax' return None
-        if tpad and 'tpadmax' in kwargs.keys():
-            tmax = spec.duration() + spec.tmin
-            pad_high = max(t2 - tmax, 0)
-            pad_low = max(spec.tmin - t1, 0)
-            padding = (pad_low + pad_high) / (t2 - t1)
-            if padding > kwargs['tpadmax']:
-                spec = None
-                return spec
-
-        # crop labels and boxes
-        spec.labels, spec.boxes = spec.get_cropped_annotations(t1=t1, t2=t2, f1=f1, f2=f2)
-
-        # handle time vector, file vector and file dict
-        spec.time_vector, spec.file_vector, spec.file_dict = spec._crop_tracking_data(tlow, thigh, tpad=tpad, bin_no=bin_no)
+        if height:
+            by2 = by1 + height
+            freq_max = freq_min + self.freq_ax.up_edge(bx2)
+        else:
+            by2 = self.freq_ax.bin(end, truncate=True)
 
         # crop image
-        spec.image, tbin1, fbin1 = spec._crop_image(tlow, thigh, flow, fhigh, tpad=tpad, fpad=fpad, bin_no=bin_no)
+        spec.image = self.image[bx1:bx2, by1:by2]
+
+        # crop annotations, if any
+        if self.annot:
+            self.annot.crop(start=start, end=end, freq_min=freq_min, freq_max=freq_max)
 
         # update frequency axis
-        if not fpad:
-            spec.fmin += spec.fres * fbin1
+        # TODO: implement ...
 
         # update time axis
-        if keep_time: 
-            spec.tmin += spec.tres * tbin1
-        else:
-            dt = spec.tmin + spec.tres * tbin1
-            spec.tmin = 0
-            spec._shift_annotations(-dt)      
+        # TODO: implement ...
 
-        # handle flabels
-        if spec.flabels != None:
-            if not fpad:
-                spec.flabels = spec.flabels[fbin1:fbin1+spec.image.shape[1]]
+        return spec
 
-        if make_copy:
-            return spec
 
     def extract(self, label, length=None, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
         """ Extract those segments of the spectrogram where the specified label occurs. 
