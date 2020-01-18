@@ -39,7 +39,7 @@
     CQTSpectrogram), which inherit methods and attributes from the 
     parent class.
 
-    Note, however, that not all methods (e.g. crop) work for all the 
+    Note, however, that not all methods (e.g. crop) work for all 
     child classes. See the documentation of the individual methods 
     for further details.
 
@@ -71,6 +71,7 @@ from librosa.core import cqt
 import librosa
 
 
+import copy
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 
 
@@ -165,11 +166,17 @@ class Spectrogram():
                     * 'Pow': Power spectrogram
                     * 'Mel': Mel spectrogram
                     * 'CQT': CQT spectrogram
+            freq_ax: LinearAxis or Log2Axis
+                Axis object for the frequency dimension
             filename: str or list(str)
                 Name of the source audio file, if available.   
             offset: float or array-like
                 Position in seconds of the left edge of the spectrogram within the source 
                 audio file, if available.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
             
         Attributes:
             image: 2d or 3d numpy array
@@ -178,7 +185,7 @@ class Spectrogram():
                 Axis object for the time dimension
             freq_ax: LinearAxis or Log2Axis
                 Axis object for the frequency dimension
-            spec_type: str
+            type: str
                 Spectrogram type. Options include,
                     * 'Mag': Magnitude spectrogram
                     * 'Pow': Power spectrogram
@@ -189,40 +196,33 @@ class Spectrogram():
             offset: float or array-like
                 Position in seconds of the left edge of the spectrogram within the source 
                 audio file.
+            label: int
+                Spectrogram label.
+            annot: AnnotationHandler
+                AnnotationHandler object.
 """
-    def __init__(self, image, time_res, spec_type, filename=None, offset=None):
+    def __init__(self, image, time_res, spec_type, freq_ax, filename=None, offset=None, label=None, annot=None):
         self.image = image
-        length = time_res * image.shape[1]
-        self.time_ax = LinearAxis(bins=image.shape[1], extent=(0., length)) #initialize time axis
-        self.freq_ax = None # child classes are responsible for providing the frequency axis
+        length = time_res * image.shape[0]
+        self.time_ax = LinearAxis(bins=image.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
+        assert freq_ax.bins == image.shape[1], 'image and freq_ax have incompatible shapes'
+        self.freq_ax = freq_ax
         self.type = spec_type
         self.filename = filename
         self.offset = offset
+        self.label = label
+        self.annot = annot
 
-    def copy(self):
+    def deepcopy(self):
         """ Make a deep copy of the spectrogram.
+
+            See https://docs.python.org/2/library/copy.html
 
             Returns:
                 spec: Spectrogram
-                    Spectrogram copy.
+                    Deep copy.
         """
-        spec = self.__class__()
-        spec.image = np.copy(self.image)
-        spec.NFFT = self.NFFT
-        spec.tres = self.tres
-        spec.tmin = self.tmin
-        spec.fres = self.fres
-        spec.fmin = self.fmin
-        spec.timestamp = self.timestamp
-        spec.flabels = self.flabels
-        spec.time_vector = np.copy(self.time_vector)
-        spec.file_vector = np.copy(self.file_vector)
-        spec.file_dict = self.file_dict.copy()
-        spec.labels = self.labels.copy()
-        spec.boxes = list()
-        for b in self.boxes:
-            spec.boxes.append(b.copy())
-
+        spec = copy.deepcopy(self)
         return spec
 
     def _make_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):

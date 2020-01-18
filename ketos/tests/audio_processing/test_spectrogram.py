@@ -29,7 +29,7 @@
 
 import pytest
 import numpy as np
-from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram, interbreed, ensure_same_length
+from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram, ensure_same_length
 from ketos.data_handling.parsing import Interval
 from ketos.audio_processing.audio import AudioSignal
 import ketos.data_handling.database_interface as di
@@ -43,6 +43,26 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
+
+def test_init_spec__new(spec_image_with_attrs):
+    img, dt, ax = spec_image_with_attrs
+    spec = Spectrogram(image=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    assert np.all(spec.image == img)
+    assert spec.type == 'Mag'
+
+def test_copy_spec__new(spec_image_with_attrs):
+    img, dt, ax = spec_image_with_attrs
+    spec = Spectrogram(image=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    spec2 = spec.deepcopy()
+    assert np.all(spec.image == spec2.image)
+    spec2.image += 1.5 #modify copied image
+    spec2.time_ax.x_max += 30. #modify copied time axis
+    assert np.all(spec.image + 1.5 == spec2.image) #check that original image was not affected
+    assert spec.time_ax.x_max + 30. == spec2.time_ax.x_max #check that original time axis was not affected
+    
+
+
+### old tests ...
 
 def test_init_mag_spectrogram_from_sine_wave(sine_audio):
     

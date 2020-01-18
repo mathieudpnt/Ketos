@@ -415,3 +415,22 @@ def log2_axis_8_16():
     """
     ax = Log2Axis(num_oct=8, bins_per_oct=16, min_value=10.)
     return ax
+
+@pytest.fixture
+def spec_image_with_attrs():
+    """ Creates a spectrogram image with shape (20,10) and random pixel values, 
+        with time resolution of 0.5 s, and a linear frequency axis from 0 to 
+        500 Hz.
+
+        Yields:
+            img: 2d numpy array
+                Pixel values
+            dt: float
+                Time resolution
+            ax: LinearAxis
+                Frequency axis            
+    """
+    img = np.random.rand(20,10)
+    dt = 0.5
+    ax = LinearAxis(bins=10, extent=(0.,500.), label='Frequency (Hz)')
+    return img,dt,ax

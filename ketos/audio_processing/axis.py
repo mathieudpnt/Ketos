@@ -99,6 +99,8 @@ class LinearAxis():
                 Number of bins
             extent: tuple(float,float)
                 Axis range, e.g. (0., 100.)
+            label: str
+                Descriptive label. Optional
 
         Attributes:
             bins: int
@@ -109,12 +111,15 @@ class LinearAxis():
                 Right edge of last bin            
             dx: float
                 Bin width
+            label: str
+                Descriptive label.
     """
-    def __init__(self, bins, extent):
+    def __init__(self, bins, extent, label=None):
         self.bins = int(bins)
         self.x_min = extent[0]
         self.x_max = extent[1]
         self.dx = (self.x_max - self.x_min) / self.bins
+        self.label = label
 
     def _pos_func(self, x):
         """ Compute the position of a given input value on the axis.
@@ -253,6 +258,8 @@ class Log2Axis():
                 Number of bins per octave
             min_value: float
                 Left edge of first bin
+            label: str
+                Descriptive label. Optional
 
         Attributes:
             bins: int
@@ -263,12 +270,15 @@ class Log2Axis():
                 Number of bins per octave
             x_min: float
                 Left edge of first bin
+            label: str
+                Descriptive label
     """
-    def __init__(self, num_oct, bins_per_oct, min_value):
+    def __init__(self, num_oct, bins_per_oct, min_value, label=None):
         self.num_oct = int(num_oct)
         self.bins_per_oct = int(bins_per_oct)
         self.x_min = min_value
         self.bins = self.num_oct * self.bins_per_oct
+        self.label = label
 
     def _pos_func(self, x):
         """ Compute the position of a given input value on the axis.
