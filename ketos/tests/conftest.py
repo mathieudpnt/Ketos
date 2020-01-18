@@ -413,7 +413,7 @@ def log2_axis_8_16():
             ax: Log2Axis
                 Axis object
     """
-    ax = Log2Axis(num_oct=8, bins_per_oct=16, min_value=10.)
+    ax = Log2Axis(bins=8*16, bins_per_oct=16, min_value=10.)
     return ax
 
 @pytest.fixture

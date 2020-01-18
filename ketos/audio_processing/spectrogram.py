@@ -370,24 +370,12 @@ class Spectrogram():
         else:
             spec = self
 
-        # convert to bin numbers
-        bx1 = self.time_ax.bin(start, truncate=True)
-        by1 = self.freq_ax.bin(freq_min, truncate=True)
-
-        if length:
-            bx2 = bx1 + length
-            end = start + self.time_ax.up_edge(bx2 - 1)
-        else:
-            bx2 = self.time_ax.bin(end, truncate=True) + 1
-
-        if height:
-            by2 = by1 + height
-            freq_max = freq_min + self.freq_ax.up_edge(by2 - 1)
-        else:
-            by2 = self.freq_ax.bin(end, truncate=True) + 1
+        # crop axes
+        self.time_ax, (bx1,bx2) = self.time_ax.cut(x_min=start, x_max=end, bins=length)
+        self.freq_ax, (by1,by2) = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
         # crop image
-        spec.image = self.image[bx1:bx2, by1:by2]
+        spec.image = self.image[bx1:bx2+1, by1:by2+1]
 
         # crop annotations, if any
         if self.annot:

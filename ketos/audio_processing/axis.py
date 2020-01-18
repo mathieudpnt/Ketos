@@ -102,7 +102,194 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
 
     return b
 
-class LinearAxis():
+class Axis():
+    """ Abstract base class for all Axis classes.
+
+        Child classes must implement the methods `bin` and  `low_edge`.
+
+        Args: 
+            bins: int
+                Number of bins
+            x_min: float
+                Left edge of first bin
+            label: str
+                Descriptive label. Optional
+
+        Attributes:
+            bins: int
+                Number of bins
+            x_min: float
+                Left edge of first bin
+            label: str
+                Descriptive label.
+    """
+    def __init__(self, bins, x_min, label):
+        self.bins = int(bins)
+        self.x_min = x_min
+        self.label = label
+
+    def up_edge(self, b):
+        """ Get the upper-edge value of a given bin.
+
+            Args:
+                b: array-like
+                    Bin number.
+            
+            Returns: 
+                x: array-like
+                    Upper-edge bin value
+        """
+        return self.low_edge(b+1)
+
+    def min(self):
+        """ Get the lower boundary of the axis.
+
+            Returns: 
+                : float
+                    Lower edge of first bin
+        """
+        return self.x_min
+
+    def max(self):
+        """ Get the upper boundary of the axis.
+
+            Returns: 
+                : float
+                    Upper edge of the last bin
+        """
+        x = self.up_edge(self.bins - 1)
+        return x
+
+    def bin_width(self, b=0):
+        """ Get the width of a given bin.
+
+            Args:
+                b: int
+                    Bin number
+
+            Returns: 
+                : float
+                    Bin width
+        """
+        w = self.low_edge(b+1) - self.low_edge(b)
+        return w
+
+    def cut(self, x_min=None, x_max=None, bins=None, make_copy=False):
+        """ Cut the axis by specifing either a minimum and a maximum value, 
+            or by specifying a minimum value and the axis length (as an integer 
+            number of bins).
+
+            At both ends of the axis, the bins containing the cut values are 
+            included. 
+
+            Args:
+                x_min: float
+                    Position of lower cut. Defaults to the axis' lower limit.
+                x_max: float 
+                    Position of upper cut.
+                bins: int
+                    Cut length, given as a integer number of bins. When `bins` is 
+                    specified, the argument `x_max` is ignored.
+                copy: bool
+                    Return a cut copy of the axis. Leaves the present instance 
+                    unaffected. Default is False.
+            
+            Returns: 
+                ax: LinearAxis
+                    Cut axis
+                b: tuple(int,int)
+                    Lower and upper bin number of the cut
+
+            Example:
+                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> #Linear axis between 0. and 10. with 20 bins.
+                >>> ax = LinearAxis(bins=20, extent=(0.,10.))
+                >>> #Select interval from 5.3 to 8.7
+                >>> ax1, b = ax.cut(x_min=5.3, x_max=8.7, make_copy=True)
+                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
+                5.0 9.0 8 0.5
+                >>> print(b[0], b[1])
+                10 17
+                >>> #Select 6-bin long interval with lower cut at 3.2
+                >>> ax1, _ = ax.cut(x_min=3.2, bins=6)
+                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
+                3.0 6.0 6 0.5
+        """
+        if (x_min is None and bins is None) or (x_max is None and bins is None):
+            return self
+
+        if make_copy:
+            ax = copy.deepcopy(self)
+        else:
+            ax = self
+
+        # lower bin
+        if x_min:
+            b_min = ax.bin(x_min, truncate=True)
+        else:
+            b_min = 0
+        
+        # upper bin
+        if bins:
+            b_max = min(ax.bins - 1, b_min + bins - 1)
+        else:
+            b_max = ax.bin(x_max, truncate=True, closed_right=True)
+
+        # update attributes
+        x_min = ax.low_edge(b_min)
+        x_max = ax.up_edge(b_max)
+        ax.bins = b_max - b_min + 1
+        ax.x_min = x_min
+        ax.x_max = x_max
+
+        b = (b_min, b_max)
+        return ax, b
+
+    def bin(self, x, truncate=False, closed_right=False):
+        """ Get bin number corresponding to a given value.
+
+            By default bins are closed on the left and open on the 
+            right, i.e., [a,b). Use the argument `closed_right` to 
+            reverse this.
+
+            If the value lies outside the axis range, a negative 
+            bin number or a bin number above N-1 will be returned. 
+            This behaviour can be changed using the argument 'truncate'.
+
+            Args:
+                x: array-like
+                    Value
+                truncate: bool
+                    Return 0 if x is below the lower axis boundary 
+                    and N-1 if x is above the upper boundary. Default 
+                    is False.
+                closed_right: bool
+                    If False, bin is closed on the left and open on the 
+                    right. If True, bin is open on the left and closed 
+                    on the right. Default is False.                    
+
+            Returns: 
+                b: array-like
+                    Bin number
+        """
+        pass
+
+    def low_edge(self, b):
+        """ Get the lower-edge value of a given bin.
+
+            Must be implemented in child class.
+
+            Args:
+                b: array-like
+                    Bin number.
+            
+            Returns: 
+                x: array-like
+                    Lower-edge bin value
+        """
+        pass
+
+class LinearAxis(Axis):
     """ Linear axis.
 
         Args: 
@@ -118,19 +305,14 @@ class LinearAxis():
                 Number of bins
             x_min: float
                 Left edge of first bin
-            x_max: float
-                Right edge of last bin            
             dx: float
                 Bin width
             label: str
                 Descriptive label.
     """
     def __init__(self, bins, extent, label=None):
-        self.bins = int(bins)
-        self.x_min = extent[0]
-        self.x_max = extent[1]
-        self.dx = (self.x_max - self.x_min) / self.bins
-        self.label = label
+        super().__init__(bins=bins, x_min=extent[0], label=label)
+        self.dx = (extent[1] - extent[0]) / bins
 
     def _pos_func(self, x):
         """ Compute the position of a given input value on the axis.
@@ -236,110 +418,7 @@ class LinearAxis():
         x = self.x_min + b * self.dx
         return x
 
-    def up_edge(self, b):
-        """ Get the upper-edge value of a given bin.
-
-            Args:
-                b: array-like
-                    Bin number.
-            
-            Returns: 
-                x: array-like
-                    Upper-edge bin value
-        """
-        return self.low_edge(b+1)
-
-    def cut(self, x_min=None, x_max=None, bins=None, make_copy=False):
-        """ Cut the axis by specifing either a minimum and a maximum value, 
-            or by specifying a minimum value and the axis length (as an integer 
-            number of bins).
-
-            At both ends of the axis, the bins containing the cut values are 
-            included. 
-
-            Args:
-                x_min: float
-                    Position of lower cut. Defaults to the axis' lower limit.
-                x_max: float 
-                    Position of upper cut.
-                bins: int
-                    Cut length, given as a integer number of bins. When `bins` is 
-                    specified, the argument `x_max` is ignored.
-                copy: bool
-                    Return a cut copy of the axis. Leaves the present instance 
-                    unaffected. Default is False.
-            
-            Returns: 
-                ax: LinearAxis
-                    Cut axis  
-
-            Example:
-                >>> from ketos.audio_processing.axis import LinearAxis
-                >>> #Linear axis between 0. and 10. with 20 bins.
-                >>> ax = LinearAxis(bins=20, extent=(0.,10.))
-                >>> #Select interval from 5.3 to 8.7
-                >>> ax1 = ax.cut(x_min=5.3, x_max=8.7, make_copy=True)
-                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
-                5.0 9.0 8 0.5
-                >>> #Select 6-bin long interval with lower cut at 3.2
-                >>> ax1 = ax.cut(x_min=3.2, bins=6)
-                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
-                3.0 6.0 6 0.5
-        """
-        if make_copy:
-            ax = copy.deepcopy(self)
-        else:
-            ax = self
-
-        # lower bin
-        if x_min:
-            b_min = ax.bin(x_min, truncate=True)
-        else:
-            b_min = 0
-        
-        # upper bin
-        if bins:
-            b_max = min(ax.bins - 1, b_min + bins - 1)
-        else:
-            b_max = ax.bin(x_max, truncate=True, closed_right=True)
-
-        # update attributes
-        x_min = ax.low_edge(b_min)
-        x_max = ax.up_edge(b_max)
-        ax.bins = b_max - b_min + 1
-        ax.x_min = x_min
-        ax.x_max = x_max
-
-        return ax
-
-    def min(self):
-        """ Get the lower boundary of the axis.
-
-            Returns: 
-                : float
-                    Lower edge of first bin
-        """
-        return self.x_min
-
-    def max(self):
-        """ Get the upper boundary of the axis.
-
-            Returns: 
-                : float
-                    Upper edge of the last bin
-        """
-        return self.x_max
-
-    def bin_width(self):
-        """ Get the width of a given bin.
-
-            Returns: 
-                : float
-                    Bin width
-        """
-        return self.dx
-
-class Log2Axis():
+class Log2Axis(Axis):
     """ Logarithmic axis with base 2.
     
         The lower-edge value of bin no. :math:`i` is calculated 
@@ -352,8 +431,8 @@ class Log2Axis():
         :math:`x_0` is the lower-edge value of the first bin.
 
         Args: 
-            num_oct: int
-                Number of octaves
+            bins: int
+                Total number of bins
             bins_per_oct: int
                 Number of bins per octave
             min_value: float
@@ -363,9 +442,7 @@ class Log2Axis():
 
         Attributes:
             bins: int
-                Number of bins
-            num_oct: int
-                Number of octaves
+                Total number of bins
             bins_per_oct: int
                 Number of bins per octave
             x_min: float
@@ -373,12 +450,9 @@ class Log2Axis():
             label: str
                 Descriptive label
     """
-    def __init__(self, num_oct, bins_per_oct, min_value, label=None):
-        self.num_oct = int(num_oct)
+    def __init__(self, bins, bins_per_oct, min_value, label=None):
+        super().__init__(bins=bins, x_min=min_value, label=label)
         self.bins_per_oct = int(bins_per_oct)
-        self.x_min = min_value
-        self.bins = self.num_oct * self.bins_per_oct
-        self.label = label
 
     def _pos_func(self, x):
         """ Compute the position of a given input value on the axis.
@@ -414,7 +488,7 @@ class Log2Axis():
 
             Example:
                 >>> from ketos.audio_processing.axis import Log2Axis
-                >>> ax = Log2Axis(num_oct=4, bins_per_oct=8, min_value=200.)
+                >>> ax = Log2Axis(bins=4*8, bins_per_oct=8, min_value=200.)
                 >>> ax.bin([400.,800.])
                 array([ 8, 16])
         """
@@ -434,7 +508,7 @@ class Log2Axis():
 
             Example:
                 >>> from ketos.audio_processing.axis import Log2Axis
-                >>> ax = Log2Axis(num_oct=4, bins_per_oct=8, min_value=200.)
+                >>> ax = Log2Axis(bins=4*8, bins_per_oct=8, min_value=200.)
                 >>> ax.low_edge([0,16])
                 array([200., 800.])
         """
@@ -444,49 +518,4 @@ class Log2Axis():
         x = 2**(b / self.bins_per_oct) * self.x_min
         return x
 
-    def up_edge(self, b):
-        """ Get the upper-edge value of a given bin.
-
-            Args:
-                b: array-like
-                    Bin number.
-            
-            Returns: 
-                x: array-like
-                    Upper-edge bin value
-        """
-        return self.low_edge(b+1)
-
-    def min(self):
-        """ Get the lower boundary of the axis.
-
-            Returns: 
-                : float
-                    Lower edge of first bin
-        """
-        return self.x_min
-
-    def max(self):
-        """ Get the upper boundary of the axis.
-
-            Returns: 
-                : float
-                    Upper edge of the last bin
-        """
-        x = self.low_edge(self.bins)
-        return x
-
-    def bin_width(self, b):
-        """ Get the width of a given bin.
-
-            Args:
-                b: int
-                    Bin number
-
-            Returns: 
-                : float
-                    Bin width
-        """
-        w = self.low_edge(b+1) - self.low_edge(b)
-        return w
 
