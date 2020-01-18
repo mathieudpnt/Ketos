@@ -314,7 +314,7 @@ class Spectrogram():
         self.image = self.image / np.max(self.image)
 
     def crop(self, start=None, end=None, length=None,\
-        freq_min=None, freq_max=None, height=None, copy=False, **kwargs):
+        freq_min=None, freq_max=None, height=None, make_copy=False, **kwargs):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             Args:
@@ -332,9 +332,9 @@ class Spectrogram():
                 height: int
                     Vertical size of the cropped image (number of pixels). If provided, 
                     the `freq_max` argument is ignored. 
-                copy: bool
-                    Return a cropped copy of the spectrogram, leaving the present instance unaffected 
-                    by the cropping operation. Default is False.
+                make_copy: bool
+                    Return a cropped copy of the spectrogra. Leaves the present instance 
+                    unaffected. Default is False.
 
             Returns:
                 spec: Spectrogram
@@ -365,7 +365,7 @@ class Spectrogram():
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
 
         """
-        if copy:
+        if make_copy:
             spec = self.copy()
         else:
             spec = self
@@ -376,15 +376,15 @@ class Spectrogram():
 
         if length:
             bx2 = bx1 + length
-            end = start + self.time_ax.up_edge(bx2)
+            end = start + self.time_ax.up_edge(bx2 - 1)
         else:
-            bx2 = self.time_ax.bin(end, truncate=True)
+            bx2 = self.time_ax.bin(end, truncate=True) + 1
 
         if height:
             by2 = by1 + height
-            freq_max = freq_min + self.freq_ax.up_edge(bx2)
+            freq_max = freq_min + self.freq_ax.up_edge(by2 - 1)
         else:
-            by2 = self.freq_ax.bin(end, truncate=True)
+            by2 = self.freq_ax.bin(end, truncate=True) + 1
 
         # crop image
         spec.image = self.image[bx1:bx2, by1:by2]
