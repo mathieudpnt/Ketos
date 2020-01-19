@@ -33,25 +33,70 @@
     (waveform) or in the frequency domain (spectrogram), or 
     both.
 """
-import os
 import numpy as np
-from scipy.signal import get_window
-from scipy.fftpack import dct
-from scipy import ndimage
-from skimage.transform import rescale
-import matplotlib.pyplot as plt
-import time
-import datetime
-import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
-from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.data_handling.parsing import WinFun
-from ketos.utils import random_floats, factors
-from tqdm import tqdm
-from librosa.core import cqt
-import librosa
 
+def add_specs(a, b, offset=0, make_copy=False):
+    """ Place two spectrograms on top of one another by adding their 
+        pixel values.
+
+        The spectrograms must be of the same type, and share the same 
+        time resolution. 
+        
+        The spectrograms must have consistent frequency axes. 
+        For linear frequency axes, this implies having the same 
+        resolution; for logarithmic axes with base 2, this implies having 
+        the same number of bins per octave minimum values that differ by 
+        a factor of :math:`2^{n/m}` where :math:`m` is the number of bins 
+        per octave and :math:`n` is any integer. No check is made for the 
+        consistency of the frequency axes.
+
+        Note that the attributes filename, offset, and label of spectrogram 
+        `b` is being added are lost.
+
+        The sum spectrogram has the same dimensions (time x frequency) as 
+        spectrogram `a`.
+
+        Args:
+            a: Spectrogram
+                Spectrogram
+            b: Spectrogram
+                Spectrogram to be added
+            offset: float
+                Shift spectrogram `b` by this many seconds relative to spectrogram `a`.
+            make_copy: bool
+                Make copies of both spectrograms, leaving the orignal instances 
+                unchanged by the addition operation.
+
+        Returns:
+            ab: Spectrogram
+                Sum spectrogram
+    """
+    assert a.type == b.type, "It is not possible to add spectrograms with different types"
+    assert a.time_res() == b.time_res(), 'It is not possible to add spectrograms with different time resolutions'
+
+    # make copy
+    if make_copy:
+        ab = a.deepcopy()
+    else:
+        ab = a
+
+    # compute cropping boundaries for time axis
+    start = -offset
+    end = a.length() - offset
+
+    # determine position of b within a
+    pos_x = a.time_ax.bin(start, truncate=True) #lower left corner time bin
+    pos_y = a.freq_ax.bin(b.freq_min(), truncate=True) #lower left corner frequency bin
+
+    # crop spectrogram b
+    b = b.crop(start=start, end=end, freq_min=a.freq_min(), freq_max=a.freq_max(), make_copy=make_copy)
+
+    # add the two images
+    bins_x = b.image.shape[0]
+    bins_y = b.image.shape[1]
+    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
+
+    return ab
 
     def blur_gaussian(self, tsigma, fsigma):
         """ Blur the spectrogram using a Gaussian filter.

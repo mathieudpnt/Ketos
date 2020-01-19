@@ -74,6 +74,7 @@ import copy
 from ketos.audio_processing.audio_processing import stft, make_frames
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
+import ketos.audio_processing.augmentation as aug
 
 
 def ensure_same_length(specs, pad=False):
@@ -294,6 +295,33 @@ class Spectrogram():
         """
         return self.time_ax.bin_width()
 
+    def length(self):
+        """ Get spectrogram length in seconds.
+
+            Returns:
+                : float
+                    Length in seconds
+        """
+        return self.time_ax.max()
+
+    def freq_min(self):
+        """ Get spectrogram minimum frequency in Hz.
+
+            Returns:
+                : float
+                    Frequency in Hz
+        """
+        return self.freq_ax.min()
+
+    def freq_max(self):
+        """ Get spectrogram maximum frequency in Hz.
+
+            Returns:
+                : float
+                    Frequency in Hz
+        """
+        return self.freq_ax.max()
+
     def annotate(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, spec_id=0):
         """ Add an annotation or a collection of annotations.
         
@@ -332,15 +360,6 @@ class Spectrogram():
         assert self.annot is not None, "Attempting to add annotations to a Spectrogram without an AnnotationHandler object" 
 
         self.annot.add(label, start, end, freq_min, freq_max, df, spec_id)
-
-    def length(self):
-        """ Get spectrogram length in seconds.
-
-            Returns:
-                : float
-                    Length in seconds
-        """
-        return self.time_ax.max()
 
     def label_array(self, label):
         """ Get an array indicating presence/absence (1/0) 
@@ -491,7 +510,7 @@ class Spectrogram():
         
         return specs
                 
-    def add(self, spec, offset=0, make_copy=False, **kwargs):
+    def add(self, spec, offset=0, make_copy=False):
         """ Add another spectrogram on top of this spectrogram.
 
             The spectrograms must be of the same type, and share the same 
@@ -518,26 +537,14 @@ class Spectrogram():
                     Shift the spectrograms that is being added by this many seconds 
                     relative to the original spectrogram.
                 make_copy: bool
-                    Make copies of both spectrograms that are being added, leaving 
-                    the original instances unchanged by the addition.
+                    Make copies of both spectrograms so as to leave the original 
+                    instances unchanged.
 
             Returns:
-                spec_sum: Spectrogram
+                : Spectrogram
                     Sum spectrogram
         """
-        assert self.type == spec.type, "It is not possible to add spectrograms with different types"
-        assert self.time_res() == spec.time_res(), 'It is not possible to add spectrograms with different time resolutions'
-
-        # make copy of this instance
-        if make_copy:
-            spec_sum = self.deepcopy()
-        else:
-            spec_sum = self
-
-        #TODO: compute cropping boundaries
-
-        # crop spectrogram that is being added
-#        spec = spec.crop(start=-offset, end=make_copy=make_copy)
+        return aug.add_specs(a=self, b=spec, offset=offset, make_copy=make_copy)
 
     def plot(self, label=None, pred=None, feat=None, conf=None):
         """ Plot the spectrogram with proper axes ranges and labels.
