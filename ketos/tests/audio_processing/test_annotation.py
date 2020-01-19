@@ -109,7 +109,7 @@ def test_segment_annotations():
     handler.add(2, 3.3, 4.7, 0, 100)
     handler.add(3, 4.2, 5.1, 0, 100)
     # divided into 1.0-second long segments with 50% overlap
-    handler = handler.segment(num_segs=10, window_size=1.0, step_size=0.5)
+    handler = handler.segment(num_segs=10, window=1.0, step=0.5)
     # 1st segment
     a1 = handler.get(0)
     expected = np.sort([100.0,0.0,1,0.2,1.0])
@@ -156,7 +156,7 @@ def test_segment_stacked_annotations():
     h2.add(15, 4.25, 5.15, 0, 200)
     handler = stack_annotations([h1,h2])
     # divided into 1.0-second long segments with 50% overlap
-    handler = handler.segment(num_segs=10, window_size=1.0, step_size=0.5)
+    handler = handler.segment(num_segs=10, window=1.0, step=0.5)
     # 1st annotation set, 1st segment
     a11 = handler.get((0,0))
     expected = np.sort([100.0,0.0,1,0.2,1.0])

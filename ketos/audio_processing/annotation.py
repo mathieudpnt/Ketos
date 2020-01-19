@@ -221,13 +221,15 @@ class AnnotationHandler():
         num = len(self.get(set_id=set_id))
         return num
 
-    def get(self, set_id=None, squeeze=True, drop_freq=False, key_error=False):
+    def get(self, label=None, set_id=None, squeeze=True, drop_freq=False, key_error=False):
         """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
             the handler module to manage the annotations.
 
             Args:
+                label: int or list(int)
+                    Get only annotations with this label
                 set_id: int or tuple
                     Unique identifier of the annotation set. If None is specified, 
                     all annotations are returned.
@@ -257,6 +259,11 @@ class AnnotationHandler():
                    label  start    end  freq_min  freq_max
                 0      1   60.0  120.0       NaN       NaN
                 1      2  660.0  720.0       NaN       NaN
+                >>> # Retrieve only annotations with label 2
+                >>> annot = handler.get(label=2)
+                >>> print(annot)
+                   label  start    end  freq_min  freq_max
+                1      2  660.0  720.0       NaN       NaN
         """
         ans = self._df
 
@@ -269,6 +276,13 @@ class AnnotationHandler():
                 return None
 
             ans = ans.loc[set_id]
+
+        # select label(s)
+        if label is not None:
+            if not isinstance(label, list):
+                label = [label]
+
+            ans = ans[ans.label.pd.isin(label)]
 
         # ensure correct ordering of columns
         cols = ['label', 'start', 'end']
@@ -502,18 +516,18 @@ class AnnotationHandler():
 
         self._df = self._df[self._df['end'] > self._df['start']]
         
-    def segment(self, num_segs, window_size, step_size=None, offset=0):
+    def segment(self, num_segs, window, step=None, offset=0):
         """ Divide the time axis into segments of uniform length, which may or may 
             not be overlapping.
 
             Args:
                 num_segs: int
                     Number of segments
-                window_size: float or str
+                window: float or str
                     Duration of each segment. Can be specified either as 
                     a float, in which case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'
-                step_size: float or str
+                step: float or str
                     Step size. Can be specified either as a float, in which 
                     case the unit will be assumed to be seconds, 
                     or as a string with an SI unit, for example, '22min'.
@@ -540,7 +554,7 @@ class AnnotationHandler():
                 >>> handler.add(label=1, start='1s', end='3s')
                 >>> handler.add(label=2, start='5.2s', end='7.0s')
                 >>> # Apply segmentation
-                >>> handler = handler.segment(num_segs=10, window_size='1s', step_size='0.8s', offset='0.1s')
+                >>> handler = handler.segment(num_segs=10, window='1s', step='0.8s', offset='0.1s')
                 >>> # Inspect the annotations
                 >>> annots = handler.get(drop_freq=True)
                 >>> print(annots)
@@ -565,17 +579,17 @@ class AnnotationHandler():
                 >>> print(annots4)
                 None
         """              
-        if step_size is None:
-            step_size = window_size
+        if step is None:
+            step = window
         
         # convert to seconds
-        window_size = convert_to_sec(window_size)
-        step_size = convert_to_sec(step_size)
+        window = convert_to_sec(window)
+        step = convert_to_sec(step)
         offset = convert_to_sec(offset)
 
         # crop times
-        start = offset + step_size * np.arange(num_segs)
-        end = start + window_size
+        start = offset + step * np.arange(num_segs)
+        end = start + window
 
         # loop over segments
         handlers, keys = [], []

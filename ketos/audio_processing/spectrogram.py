@@ -63,7 +63,6 @@ import datetime
 import math
 from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
 from tqdm import tqdm
@@ -72,8 +71,9 @@ import librosa
 
 
 import copy
-from ketos.audio_processing.audio_processing import stft
+from ketos.audio_processing.audio_processing import stft, make_frames
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
+from ketos.audio_processing.annotation import AnnotationHandler
 
 
 def ensure_same_length(specs, pad=False):
@@ -283,27 +283,26 @@ class Spectrogram():
         """
         return self.time_ax.max()
 
-    def get_label_vector(self, label):
-        """ Get a vector indicating presence/absence (1/0) 
-            of the specified annotation label for each 
-            time bin.
+    def label_array(self, label):
+        """ Get an array indicating presence/absence (1/0) 
+            of the specified annotation label for each time bin.
 
             Args:
                 label: int
                     Label of interest.
 
             Returns:
-                y: numpy array
-                    Vector of 0s and 1s with length equal to the number of 
-                    time bins.
+                y: numpy.array
+                    Label array
         """
-        y = np.zeros(self.tbins())
-        boi, _ = self._select_boxes(label)
-        for b in boi:
-            t1 = self._find_tbin(b[0], truncate=True)
-            t2 = self._find_tbin(b[1], truncate=True, roundup=False) + 1  # include the upper bin 
-            t2 = min(t2, self.tbins())
-            y[t1:t2] = 1
+        assert self.annot is not None, "An AnnotationHandler object is required for computing the label vector" 
+
+        y = np.zeros(self.time_ax.bins)
+        ans = self.annot.get(label=label)
+        for _,an in ans.iterrows():
+            b1 = self.time_ax.bin(an.start, truncate=True)
+            b2 = self.time_ax.bin(an.end, truncate=True, closed_right=True)
+            y[b1:b2+1] = 1
 
         return y
 
@@ -341,29 +340,26 @@ class Spectrogram():
                     Cropped spectrogram
 
             Examples: 
-                >>> # create an audio signal
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
-                >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
-                >>> # add an annotation
-                >>> spec.annotate(labels=1, boxes=[1.5,4.5,250,350])
-                >>> # show the spectrogram with the annotation that has label=1
-                >>> fig = spec.plot(label=1)
+                >>> import matplotlib.pyplot as plt
+                >>> from.ketos.audio_processing.spectrogram import Spectrogram
+                >>> from.ketos.audio_processing.axis import LinearAxis
+                >>>
+                >>> # Create a spectrogram with shape (20,30), time resolution of 
+                >>> # 0.5 s, random pixel values, and a linear frequency axis from 
+                >>> # 0 to 300 Hz,
+                >>> ax = LinearAxis(bins=30, extent=(0.,300.), label='Frequency (Hz)')
+                >>> img = np.random.rand((20,30))
+                >>> spec = Spectrogram(image=img, time_res=0.5, spec_type='Mag', freq_ax=ax)
+                >>>
+                >>> # Draw the spectrogram
+                >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
                 >>> plt.close(fig)
                 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
-                
-                >>> # now crop the spectrogram in time and frequency and display the result
-                >>> spec.crop(tlow=2.1, thigh=5.6, flow=275, fhigh=406, keep_time=True)
-                >>> fig = spec.plot(label=1)
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
-                >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
-
+                >>> # Crop the spectrogram along time axis
+                >>> spec1 = spec.crop(start=2.0, end=4.2, make_copy=True)
         """
         if make_copy:
             spec = self.copy()
@@ -381,112 +377,44 @@ class Spectrogram():
         if self.annot:
             self.annot.crop(start=start, end=end, freq_min=freq_min, freq_max=freq_max)
 
-        # update frequency axis
-        # TODO: implement ...
-
-        # update time axis
-        # TODO: implement ...
-
         return spec
 
+    def segment(self, window, step=None):
+        """ Divide the time axis into segments of uniform length, which may or may 
+            not be overlapping.
 
-    def extract(self, label, length=None, min_length=None, center=False, fpad=False, keep_time=False, make_copy=False):
-        """ Extract those segments of the spectrogram where the specified label occurs. 
+            Window length and step size are converted to the nearest integer number 
+            of time steps.
 
-            After the selected segments have been extracted, the present instance contains the 
-            remaining part of the spectrogram.
-
-            If nothing remains, the image attribute of the present instance will be None
+            If necessary, the spectrogram will be padded with zeros at the end to 
+            ensure that all segments have an equal number of samples. 
 
             Args:
-                label: int
-                    Annotation label of interest. 
-                length: float
-                    Extend or divide the annotation boxes as necessary to ensure that all 
-                    extracted segments have the specified length (in seconds).  
-                min_length: float
-                    If necessary, extend the annotation boxes so that all extracted 
-                    segments have a duration of at least min_length (in seconds) or 
-                    longer.  
-                center: bool
-                    Place the annotation box at the center of the extracted segment 
-                    (instead of placing it randomly).                     
-                fpad: bool
-                    If necessary, pad with zeros along the frequency axis to ensure that 
-                    the extracted segments have the same frequency range as the source 
-                    spectrogram.
-                keep_time: bool
-                    If True, the extracted segments keep the time from the present instance. 
-                    If False, the time axis of each extracted segment starts at t=0
-                make_copy: bool
-                    If true, the present instance is unaffected by the extraction operation.
+                window: float
+                    Length of each segment in seconds.
+                step: float
+                    Step size in seconds.
 
             Returns:
-                specs: list(Spectrogram)
-                    List of clipped spectrograms.       
+                segs: Spectrogram
+                    Spectrogram segments
+        """              
+        if step_size is None:
+            step_size = window_size
 
-            Example:         
-                >>> # create an audio signal
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
-                >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> spec = MagSpectrogram(s, winlen=0.6, winstep=0.2)
-                >>> # add an annotation
-                >>> spec.annotate(labels=1, boxes=[1.5,4.5,250,350])
-                >>> # show the spectrogram with the annotation that has label=1
-                >>> fig = spec.plot(label=1)
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
-                >>> plt.close(fig)
-                
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
-                
-                >>> # extract the annotated region of the spectrogram
-                >>> roi = spec.extract(label=1, keep_time=True)
-                >>> # display the extracted region and what is left
-                >>> fig = roi[0].plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_extracted.png")
-                >>> plt.close(fig)
-                >>> fig = spec.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_left.png")
-                >>> plt.close(fig)
+        time_res = self.time_ax.bin_width()
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_extracted.png
+        win_len = int(round(window / time_res))
+        step_len = int(round(step / time_res))
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_left.png
+        segs = make_frames(x=self.image, win_len=win_len, step_len=step_len, pad=True, center=False)
 
-        """
-        if make_copy:
-            s = self.copy()
-        else:
-            s = self
+        window = win_len * time_res
+        step = step_len * time_res
+        annots = self.annot.segment(num_segs=segs.shape[0], window=window, step=step)
 
-        # select boxes of interest
-        boi, idx = s._select_boxes(label)
-
-        # stretch to achieve minimum length, if necessary
-        if length is not None:  
-            boi = s._ensure_box_length(boxes=boi, length=length, center=center)
-        elif min_length is not None:
-            boi = s._stretch(boxes=boi, min_length=min_length, center=center)
-
-        # convert to bin numbers        
-        for b in boi:
-            num_bins = int(np.round((b[1]-b[0])/self.tres))
-            b[0] = self._find_tbin(b[0], truncate=False)
-            b[1] = self._find_tbin(b[1], truncate=False, roundup=False) + 1
-            b[2] = self._find_fbin(b[2], truncate=False)
-            b[3] = self._find_fbin(b[3], truncate=False, roundup=False) + 1
-            # ensure correct number of bins
-            b[1] += num_bins - (b[1] - b[0])
- 
-        # extract
-        res = s._clip(boxes=boi, tpad=True, fpad=fpad, bin_no=True, keep_time=keep_time)
-
-        # remove extracted labels
-        s.delete_annotations(idx)
-        
-        return res
+        # TODO: segment axes
+        # TODO: stack specs
 
     def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, overlap=None, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
