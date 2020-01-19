@@ -186,6 +186,69 @@ def stack_spec_attrs(filename, offset, label, mul):
 
     return filename, offset, label
 
+def add_specs(a, b, offset=0, make_copy=False):
+    """ Place two spectrograms on top of one another by adding their 
+        pixel values.
+
+        The spectrograms must be of the same type, and share the same 
+        time resolution. 
+        
+        The spectrograms must have consistent frequency axes. 
+        For linear frequency axes, this implies having the same 
+        resolution; for logarithmic axes with base 2, this implies having 
+        the same number of bins per octave minimum values that differ by 
+        a factor of :math:`2^{n/m}` where :math:`m` is the number of bins 
+        per octave and :math:`n` is any integer. No check is made for the 
+        consistency of the frequency axes.
+
+        Note that the attributes filename, offset, and label of spectrogram 
+        `b` is being added are lost.
+
+        The sum spectrogram has the same dimensions (time x frequency) as 
+        spectrogram `a`.
+
+        Args:
+            a: Spectrogram
+                Spectrogram
+            b: Spectrogram
+                Spectrogram to be added
+            offset: float
+                Shift spectrogram `b` by this many seconds relative to spectrogram `a`.
+            make_copy: bool
+                Make copies of both spectrograms, leaving the orignal instances 
+                unchanged by the addition operation.
+
+        Returns:
+            ab: Spectrogram
+                Sum spectrogram
+    """
+    assert a.type == b.type, "It is not possible to add spectrograms with different types"
+    assert a.time_res() == b.time_res(), 'It is not possible to add spectrograms with different time resolutions'
+
+    # make copy
+    if make_copy:
+        ab = a.deepcopy()
+    else:
+        ab = a
+
+    # compute cropping boundaries for time axis
+    start = -offset
+    end = a.length() - offset
+
+    # determine position of b within a
+    pos_x = a.time_ax.bin(start, truncate=True) #lower left corner time bin
+    pos_y = a.freq_ax.bin(b.freq_min(), truncate=True) #lower left corner frequency bin
+
+    # crop spectrogram b
+    b = b.crop(start=start, end=end, freq_min=a.freq_min(), freq_max=a.freq_max(), make_copy=make_copy)
+
+    # add the two images
+    bins_x = b.image.shape[0]
+    bins_y = b.image.shape[1]
+    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
+
+    return ab
+
 class Spectrogram():
     """ Spectrogram.
 
@@ -544,7 +607,74 @@ class Spectrogram():
                 : Spectrogram
                     Sum spectrogram
         """
-        return aug.add_specs(a=self, b=spec, offset=offset, make_copy=make_copy)
+        return add_specs(a=self, b=spec, offset=offset, make_copy=make_copy)
+
+    def blur(self, sigma_time, sigma_freq=0):
+        """ Blur the spectrogram using a Gaussian filter.
+
+            Note that the spectrogram frequency axis must be linear if sigma_freq > 0.
+
+            This uses the Gaussian filter method from the scipy.ndimage package:
+            
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html
+
+            Args:
+                sigma_time: float
+                    Gaussian kernel standard deviation along time axis in seconds. 
+                    Must be strictly positive.
+                sigma_freq: float
+                    Gaussian kernel standard deviation along frequency axis in Hz.
+
+            Example:        
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> import matplotlib.pyplot as plt
+                >>> # create audio signal
+                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> # create spectrogram
+                >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
+                >>> # show image
+                >>> spec.plot()
+                <Figure size 600x400 with 2 Axes>
+                
+                >>> plt.show()
+                >>> plt.close()
+                >>> # apply very small amount (0.01 sec) of horizontal blur
+                >>> # and significant amount of vertical blur (30 Hz)  
+                >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
+                >>> # show blurred image
+                >>> spec.plot()
+                <Figure size 600x400 with 2 Axes>
+
+                >>> plt.show()
+                >>> plt.close()
+                
+                .. image:: ../../_static/morlet_spectrogram.png
+
+                .. image:: ../../_static/morlet_spectrogram_blurred.png
+        """
+        assert sigma_time > 0, "sigma_time must be strictly positive"
+        sig_t = sigma_time / self.time_res()
+
+        if sigma_freq > 0:
+            assert isinstance(self.freq_ax, LinearAxis), "Frequency axis must be linear when sigma_freq > 0"
+            sig_f = sigma_freq / self.freq_ax.bin_width()
+        else:
+            sig_f = 0
+
+        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sig_t, sig_f))
+
+    def enhance(self, threshold=1., enhancement=1.):
+        """ Enhance regions of high intensity while suppressing regions of low intensity.
+
+            Args:
+                threshold: float
+                    Parameter determining where the transition from low to high takes place.
+                enhancement: float
+                    Parameter determining the amount of enhancement.
+        """
+        self.image = aug.enhance_image(self.image, threshold=threshold, enhancement=enhancement)
+
 
     def plot(self, label=None, pred=None, feat=None, conf=None):
         """ Plot the spectrogram with proper axes ranges and labels.

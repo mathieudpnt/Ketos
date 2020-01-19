@@ -35,223 +35,121 @@
 """
 import numpy as np
 
-def add_specs(a, b, offset=0, make_copy=False):
-    """ Place two spectrograms on top of one another by adding their 
-        pixel values.
+def enhance_image(img, threshold=1., enhancement=1.):
+    """ Enhance regions of high intensity while suppressing regions of low intensity.
 
-        The spectrograms must be of the same type, and share the same 
-        time resolution. 
-        
-        The spectrograms must have consistent frequency axes. 
-        For linear frequency axes, this implies having the same 
-        resolution; for logarithmic axes with base 2, this implies having 
-        the same number of bins per octave minimum values that differ by 
-        a factor of :math:`2^{n/m}` where :math:`m` is the number of bins 
-        per octave and :math:`n` is any integer. No check is made for the 
-        consistency of the frequency axes.
+        Multiplies each pixel value by the factor,
 
-        Note that the attributes filename, offset, and label of spectrogram 
-        `b` is being added are lost.
+            s(x) = 1 / (exp(-(x-x0)/w) + 1)
 
-        The sum spectrogram has the same dimensions (time x frequency) as 
-        spectrogram `a`.
+        where x is the pixel value, x0 = threshold * std(img), and w = 1./enhancement * std(img).
+
+        Some observations:
+          
+         * s(x) is a smoothly increasing function from 0 to 1.
+         * s(x0) = 0.5 (i.e. x0 demarks the transition from "low intensity" to "high intensity")
+         * The smaller the value of w, the faster the transition from 0 to 1.
 
         Args:
-            a: Spectrogram
-                Spectrogram
-            b: Spectrogram
-                Spectrogram to be added
-            offset: float
-                Shift spectrogram `b` by this many seconds relative to spectrogram `a`.
-            make_copy: bool
-                Make copies of both spectrograms, leaving the orignal instances 
-                unchanged by the addition operation.
+            img : numpy array
+                Image to be processed. 
+            threshold: float
+                Parameter determining where the transition from low to high takes place.
+            enhancement: float
+                Parameter determining the amount of enhancement.
 
         Returns:
-            ab: Spectrogram
-                Sum spectrogram
+            img_en: numpy array
+                Enhanced image.
     """
-    assert a.type == b.type, "It is not possible to add spectrograms with different types"
-    assert a.time_res() == b.time_res(), 'It is not possible to add spectrograms with different time resolutions'
+    std = np.std(img)
+    half = treshold * std
+    wid = (1. / enhancement) * std
+    scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
+    img_en = img * scaling
+    return img_en
 
-    # make copy
-    if make_copy:
-        ab = a.deepcopy()
-    else:
-        ab = a
+def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
+    """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
 
-    # compute cropping boundaries for time axis
-    start = -offset
-    end = a.length() - offset
+        Currently, offers the following two methods:
 
-    # determine position of b within a
-    pos_x = a.time_ax.bin(start, truncate=True) #lower left corner time bin
-    pos_y = a.freq_ax.bin(b.freq_min(), truncate=True) #lower left corner frequency bin
-
-    # crop spectrogram b
-    b = b.crop(start=start, end=end, freq_min=a.freq_min(), freq_max=a.freq_max(), make_copy=make_copy)
-
-    # add the two images
-    bins_x = b.image.shape[0]
-    bins_y = b.image.shape[1]
-    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
-
-    return ab
-
-    def blur_gaussian(self, tsigma, fsigma):
-        """ Blur the spectrogram using a Gaussian filter.
-
-            This uses the Gaussian filter method from the scipy.ndimage package:
+            1. MEDIAN: Subtracts from each row the median value of that row.
             
-                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html
-
-            Args:
-                tsigma: float
-                    Gaussian kernel standard deviation along time axis. Must be strictly positive.
-                fsigma: float
-                    Gaussian kernel standard deviation along frequency axis.
-
-            Examples:
+            2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
             
-            >>> from ketos.audio_processing.spectrogram import Spectrogram
+        The running mean is computed according to the formula given in Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
+
+        Args:
+            method: str
+                Options are 'MEDIAN' and 'RUNNING_MEAN'
+        
+        Optional args:
+            time_constant: float
+                Time constant used for the computation of the running mean (in seconds).
+                Must be provided if the method 'RUNNING_MEAN' is chosen.
+
+        Example:
+            >>> # read audio file
             >>> from ketos.audio_processing.audio import AudioSignal
-            >>> import matplotlib.pyplot as plt
-            >>> # create audio signal
-            >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
-            >>> # create spectrogram
-            >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
-            >>> # show image
-            >>> spec.plot()
-            <Figure size 600x400 with 2 Axes>
-            
-            >>> plt.show()
-            >>> plt.close()
-            >>> # apply very small amount (0.01 sec) of horizontal blur
-            >>> # and significant amount of vertical blur (30 Hz)  
-            >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
-            >>> # show blurred image
-            >>> spec.plot()
-            <Figure size 600x400 with 2 Axes>
+            >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+            >>> # compute the spectrogram
+            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+            >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+            >>> # keep only frequencies below 800 Hz
+            >>> spec.crop(fhigh=800)
+            >>> # show spectrogram as is
+            >>> fig = spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
+            >>> plt.close(fig)
+            >>> # tonal noise reduction
+            >>> spec.tonal_noise_reduction()
+            >>> # show modified spectrogram
+            >>> fig = spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
+            >>> plt.close(fig)
 
-            >>> plt.show()
-            >>> plt.close()
-            
-            .. image:: ../../_static/morlet_spectrogram.png
+            .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
 
-            .. image:: ../../_static/morlet_spectrogram_blurred.png
+            .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
 
-        """
-        assert tsigma > 0, "tsigma must be strictly positive"
+    """
+    if method is 'MEDIAN':
+        self.image = self.image - np.median(self.image, axis=0)
+    
+    elif method is 'RUNNING_MEAN':
+        assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
+        self.image = self._tonal_noise_reduction_running_mean(kwargs['time_constant'])
 
-        if fsigma < 0:
-            fsigma = 0
-        
-        sigmaX = tsigma / self.tres
-        sigmaY = fsigma / self.fres
-        
-        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sigmaX,sigmaY))
+    else:
+        print('Invalid tonal noise reduction method:',method)
+        print('Available options are: MEDIAN, RUNNING_MEAN')
+        print('Spectrogram is unchanged')
 
-    def enhance(self, img, a=1, b=1):
-        """ Enhance regions of high intensity while suppressing regions of low intensity.
+def _tonal_noise_reduction_running_mean(self, time_constant):
+    """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
+        by subtracting from each row a running mean, computed according to the formula given in 
+        Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
 
-            See :func:`utils.morlet_func`
+        Args:
+            time_constant: float
+                Time constant used for the computation of the running mean (in seconds).
 
-            Args:
-                img : numpy array
-                    Image to be processed. 
-                a: float
-                    Parameter determining which regions of the image will be considered "high intensity" 
-                    and which regions will be considered "low intensity".
-                b: float
-                    Parameter determining how sharpen the transition from "low intensity" to "high intensity" is.
+        Returns:
+            new_img : 2d numpy array
+                Corrected spetrogram image
+    """
+    dt = self.tres
+    T = time_constant
+    eps = 1 - np.exp((np.log(0.15) * dt / T))
+    nx, ny = self.image.shape
+    rmean = np.average(self.image, axis=0)
+    new_img = np.zeros(shape=(nx,ny))
+    for ix in range(nx):
+        new_img[ix,:] = self.image[ix,:] - rmean # subtract running mean
+        rmean = (1 - eps) * rmean + eps * self.image[ix,:] # update running mean
 
-            Example:
-
-        """
-        self.image = enhance_image(self.image, a=a, b=b)
-
-
-    def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
-        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
-
-            Currently, offers the following two methods:
-
-                1. MEDIAN: Subtracts from each row the median value of that row.
-                
-                2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
-                
-            The running mean is computed according to the formula given in Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
-
-            Args:
-                method: str
-                    Options are 'MEDIAN' and 'RUNNING_MEAN'
-            
-            Optional args:
-                time_constant: float
-                    Time constant used for the computation of the running mean (in seconds).
-                    Must be provided if the method 'RUNNING_MEAN' is chosen.
-
-            Example:
-                >>> # read audio file
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
-                >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
-                >>> # keep only frequencies below 800 Hz
-                >>> spec.crop(fhigh=800)
-                >>> # show spectrogram as is
-                >>> fig = spec.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
-                >>> plt.close(fig)
-                >>> # tonal noise reduction
-                >>> spec.tonal_noise_reduction()
-                >>> # show modified spectrogram
-                >>> fig = spec.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
-                >>> plt.close(fig)
-
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
-
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
-
-        """
-        if method is 'MEDIAN':
-            self.image = self.image - np.median(self.image, axis=0)
-        
-        elif method is 'RUNNING_MEAN':
-            assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
-            self.image = self._tonal_noise_reduction_running_mean(kwargs['time_constant'])
-
-        else:
-            print('Invalid tonal noise reduction method:',method)
-            print('Available options are: MEDIAN, RUNNING_MEAN')
-            print('Spectrogram is unchanged')
-
-    def _tonal_noise_reduction_running_mean(self, time_constant):
-        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
-            by subtracting from each row a running mean, computed according to the formula given in 
-            Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
-
-            Args:
-                time_constant: float
-                    Time constant used for the computation of the running mean (in seconds).
-
-            Returns:
-                new_img : 2d numpy array
-                    Corrected spetrogram image
-        """
-        dt = self.tres
-        T = time_constant
-        eps = 1 - np.exp((np.log(0.15) * dt / T))
-        nx, ny = self.image.shape
-        rmean = np.average(self.image, axis=0)
-        new_img = np.zeros(shape=(nx,ny))
-        for ix in range(nx):
-            new_img[ix,:] = self.image[ix,:] - rmean # subtract running mean
-            rmean = (1 - eps) * rmean + eps * self.image[ix,:] # update running mean
-
-        return new_img
+    return new_img
 
 
 def interbreed(specs1, specs2, num, smooth=True, smooth_par=5,\
