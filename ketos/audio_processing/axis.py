@@ -408,6 +408,11 @@ class LinearAxis(Axis):
         x = self.x_min + b * self.dx
         return x
 
+    def zero_offset(self):
+        """ Shift axis lower boundary to zero.
+        """
+        self.x_min = 0
+
 class Log2Axis(Axis):
     """ Logarithmic axis with base 2.
     

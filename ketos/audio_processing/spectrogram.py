@@ -141,6 +141,49 @@ def ensure_same_length(specs, pad=False):
 
     return specs
 
+def stack_spec_attrs(filename, offset, label, mul):
+    """ Ensure that spectrogram attributes have expected multiplicity.
+
+        If the attribute is specified as a list or an array-like object, 
+        assert that the length equals the spectrogram multiplicity.
+
+        Args:
+            filename: str or list(str)
+                Filename attribute.
+            offset: float or array-like
+                Offset attribute.
+            label: int or array-like
+                Label attribute.
+            mul: int
+                Spectrogram multiplicity
+
+        Returns:
+            filename: list(str)
+                Filename attribute
+            offset: array-like
+                Offset attribute
+            label: array-like
+                Label attribute
+    """
+    if filename:
+        if isinstance(filename, str):
+            filename = [filename for _ in range(mul)]
+
+        assert len(filename) == mul, 'Number of filenames ({0}) does not match spectrogram multiplicity ({1})'.format(len(filename), mul)
+
+    if offset:
+        if isinstance(offset, float) or isinstance(offset, int):
+            offset = np.ones(mul, dtype=float) * float(offset)
+
+        assert len(offset) == mul, 'Number of offsets ({0}) does not match spectrogram multiplicity ({1})'.format(len(offset), mul)
+
+    if label:
+        if isinstance(label, float) or isinstance(label, int):
+            label = np.ones(mul, dtype=int) * int(label)
+
+        assert len(label) == mul, 'Number of labels ({0}) does not match spectrogram multiplicity ({1})'.format(len(label), mul)
+
+    return filename, offset, label
 
 class Spectrogram():
     """ Spectrogram.
@@ -202,15 +245,22 @@ class Spectrogram():
             annot: AnnotationHandler
                 AnnotationHandler object.
 """
-    def __init__(self, image, time_res, spec_type, freq_ax, filename=None, offset=None, label=None, annot=None):
+    def __init__(self, image, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
         self.image = image
         length = time_res * image.shape[0]
         self.time_ax = LinearAxis(bins=image.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
         assert freq_ax.bins == image.shape[1], 'image and freq_ax have incompatible shapes'
         self.freq_ax = freq_ax
         self.type = spec_type
-        self.filename = filename
+
+        if np.ndim(image) == 3:
+            mul = image.shape[2]
+            filename, offset, label = stack_spec_attrs(filename, offset, label, mul)
+            if annot:
+                assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
+
         self.offset = offset
+        self.filename = filename
         self.label = label
         self.annot = annot
 
@@ -377,6 +427,9 @@ class Spectrogram():
         if self.annot:
             self.annot.crop(start=start, end=end, freq_min=freq_min, freq_max=freq_max)
 
+        self.offset += self.time_ax.low_edge(0) #update time offset
+        self.time_ax.zero_offset() #shift time axis to start at t=0 
+
         return spec
 
     def segment(self, window, step=None):
@@ -407,14 +460,27 @@ class Spectrogram():
         win_len = int(round(window / time_res))
         step_len = int(round(step / time_res))
 
+        # segment image
         segs = make_frames(x=self.image, win_len=win_len, step_len=step_len, pad=True, center=False)
 
         window = win_len * time_res
         step = step_len * time_res
-        annots = self.annot.segment(num_segs=segs.shape[0], window=window, step=step)
+        num_segs = segs.shape[0]
 
-        # TODO: segment axes
-        # TODO: stack specs
+        # segment annotations
+        if self.annot:
+            annots = self.annot.segment(num_segs=num_segs, window=window, step=step)
+        else:
+            annots = None
+
+        # compute offsets
+        offset = np.arange(num_segs) * step
+
+        ax = copy.deepcopy(self.freq_ax)
+        specs = self.__class__(image=segs, time_res=time_res, spec_type=self.type, freq_ax=ax,\
+            filename=self.filename, offset=offset, label=self.label, annot=annots)
+        
+        return specs
 
     def segment(self, number=1, length=None, pad=False, keep_time=False, make_copy=False, progress_bar=False, overlap=None, **kwargs):
         """ Split the spectrogram into a number of equally long segments, 
