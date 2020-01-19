@@ -74,7 +74,7 @@ import copy
 from ketos.audio_processing.audio_processing import stft, make_frames
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
-import ketos.audio_processing.augmentation as aug
+from ketos.audio_processing.augmentation import enhance_image
 
 
 def ensure_same_length(specs, pad=False):
@@ -340,14 +340,43 @@ class Spectrogram():
         spec = copy.deepcopy(self)
         return spec
 
-    def data(self):
-        """ Get the underlying data numpy array
+    def data(self, spec_id=None):
+        """ Get the pixel values as a numpy array.
+
+            Args:
+                spec_id: int
+                    Spectrogram ID. Only relevant if the spectrogram object 
+                    contains multiple, stacked spectrograms.
 
             Returns:
-                self.image: numpy array
+                d: numpy array
                     Image
         """
-        return self.image
+        if spec_id is None or np.ndim(self.image) == 2:
+            d = self.image
+        else:
+            d = self.image[:,:,spec_id]
+
+        return d
+
+    def annotations(self, spec_id=None):
+        """ Get annotations.
+
+            Args:
+                spec_id: int
+                    Spectrogram ID. Only relevant if the spectrogram object 
+                    contains multiple, stacked spectrograms.
+
+            Returns:
+                ans: pandas DataFrame
+                    Annotations 
+        """
+        if self.annot:
+            ans = self.annot.get(set_id=spec_id)
+        else:
+            ans = None
+
+        return ans
 
     def time_res(self):
         """ Get the time resolution of the spectrogram.
@@ -664,44 +693,35 @@ class Spectrogram():
 
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sig_t, sig_f))
 
-    def enhance(self, threshold=1., enhancement=1.):
+    def enhance(self, enhancement=1.):
         """ Enhance regions of high intensity while suppressing regions of low intensity.
 
+            See :func:`audio_processing.augmentation.enhance_image` for implementation details.
+
             Args:
-                threshold: float
-                    Parameter determining where the transition from low to high takes place.
                 enhancement: float
                     Parameter determining the amount of enhancement.
         """
-        self.image = aug.enhance_image(self.image, threshold=threshold, enhancement=enhancement)
+        self.image = enhance_image(self.image, enhancement=enhancement)
 
-
-    def plot(self, label=None, pred=None, feat=None, conf=None):
+    def plot(self, spec_id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
-            Optionally, also display selected label, binary predictions, features, and confidence levels.
-
-            All plotted quantities share the same time axis, and are assumed to span the 
-            same period of time as the spectrogram.
+            Optionally, also display annotations as boxes superimposed on the spectrogram.
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
             Args:
-                spec: Spectrogram
-                    spectrogram to be plotted
-                label: int
-                    Label of interest
-                pred: 1d array
-                    Binary prediction for each time bin in the spectrogram
-                feat: 2d array
-                    Feature vector for each time bin in the spectrogram
-                conf: 1d array
-                    Confidence level of prediction for each time bin in the spectrogram
+                spec_id: int
+                    Spectrogram to be plotted. Only relevant if the spectrogram object 
+                    contains multiple, stacked spectrograms.
+                show_annot: bool
+                    Display annotations
             
             Returns:
-            fig: matplotlib.figure.Figure
-            A figure object.
+                fig: matplotlib.figure.Figure
+                A figure object.
 
             Example:
                 >>> # extract saved spectrogram from database file
@@ -717,193 +737,82 @@ class Spectrogram():
                 >>> fig = spectrogram.plot(label=1)
                 >>> plt.show()
         """
-        nrows = 1
-        if (label is not None): 
-            nrows += 1
-        if (pred is not None): 
-            nrows += 1
-        if (feat is not None): 
-            nrows += 1
-        if (conf is not None): 
-            nrows += 1
+        # create canvas and axes
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,7), sharex=True)
 
-        hratio = 1.5/4.0
-        figsize=(6, 4.0*(1.+hratio*(nrows-1)))    
-        height_ratios = []
-        for _ in range(1,nrows):
-            height_ratios.append(hratio)
+        # select image data
+        x = self.data(spec_id)
 
-        height_ratios.append(1)
-        
-        fig, ax = plt.subplots(nrows=nrows, ncols=1, figsize=figsize, sharex=True, gridspec_kw={'height_ratios': height_ratios})
+        # axes ranges
+        extent = (0., self.length(), self.freq_min(), self.freq_max())
 
-        if nrows == 1:
-            ax0 = ax
-        else:
-            ax0 = ax[-1]
+        # draw image
+        img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)
 
-        t1 = self.tmin
-        t2 = self.tmin+self.duration()
+        # axis labels
+        ax.set_xlabel(self.time_ax.label)
+        ax.set_ylabel(self.freq_ax.label)
 
-        # spectrogram
-        x = self.image
-        img_plot = ax0.imshow(x.T, aspect='auto', origin='lower', extent=(t1, t2, self.fmin, self.fmax()))
-        ax0.set_xlabel('Time (s)')
-        ax0.set_ylabel('Frequency (Hz)')
-        fig.colorbar(img_plot, ax=ax0, format='%+2.0f dB')
+        # colobar
+        fig.colorbar(img, ax=ax, format='%+2.0f dB')
 
-        row = -2
+        # title
+        title = ""
+        if self.filename: title += "{0}".format(self.filename)           
+        if self.label:
+            if len(title) > 0: title += ", "
+            title += "{0}".format(self.label)
 
-        # labels
-        if label is not None:
-            labels = self.get_label_vector(label)
-            n = len(labels)
-            t_axis = np.arange(n, dtype=float)
-            dt = self.duration() / n
-            t_axis *= dt 
-            t_axis += 0.5 * dt + self.tmin
-            ax[row].plot(t_axis, labels, color='C1')
-            ax[row].set_xlim(t1, t2)
-            ax[row].set_ylim(-0.1, 1.1)
-            ax[row].set_ylabel('label')
-            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)
-            row -= 1
+        fig.title(title)
 
-        # predictions
-        if pred is not None:
-            n = len(pred)
-            t_axis = np.arange(n, dtype=float)
-            dt = self.duration() / n
-            t_axis *= dt 
-            t_axis += 0.5 * dt + self.tmin
-            ax[row].plot(t_axis, pred, color='C2')
-            ax[row].set_xlim(t1, t2)
-            ax[row].set_ylim(-0.1, 1.1)
-            ax[row].set_ylabel('prediction')
-            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
-            row -= 1
+        # if offset is non-zero, add a second time axis at the top 
+        # showing the `absolute` time
+        if self.offset != 0:
+            axt = ax.twiny()
+            axt.set_xlim(offset, offset + self.length())
 
-        # feat
-        if feat is not None:
-            m = np.mean(feat, axis=0)
-            idx = np.argwhere(m != 0)
-            idx = np.squeeze(idx)
-            x = feat[:,idx]
-            x = x / np.max(x, axis=0)
-            img_plot = ax[row].imshow(x.T, aspect='auto', origin='lower', extent=(t1, t2, 0, 1))
-            ax[row].set_ylabel('feature #')
-            fig.colorbar(img_plot, ax=ax[row])
-            row -= 1
-
-        # confidence
-        if conf is not None:
-            n = len(conf)
-            t_axis = np.arange(n, dtype=float)
-            dt = self.duration() / n
-            t_axis *= dt 
-            t_axis += 0.5 * dt + self.tmin
-            ax[row].plot(t_axis, conf, color='C3')
-            ax[row].set_xlim(t1, t2)
-            ax[row].set_ylim(-0.1, 1.1)
-            ax[row].set_ylabel('confidence')
-            fig.colorbar(img_plot, ax=ax[row]).ax.set_visible(False)  
-            row -= 1
-
+        # superimpose annotation boxes
+        if show_annot:
+            ans = self.annotations(spec_id)
+            if ans:
+                print('Drawing of annotations not yet implemented')
+            
+        fig.tight_layout()
         return fig
 
-
 class MagSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram computed from Short Time Fourier Transform (STFT)
+    """ Magnitude Spectrogram computed by means of the Short Time 
+        Fourier Transform (STFT).
     
-        The 0th axis is the time axis (t-axis).
-        The 1st axis is the frequency axis (f-axis).
-        
-        Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and fres).
-
         Args:
-            signal: AudioSignal
-                    And instance of the :class:`audio_signal.AudioSignal` class 
-            winlen: float
-                Window size in seconds
-            winstep: float
+            audio: AudioSignal
+                Audio signal 
+            window: float
+                Window length in seconds
+            step: float
                 Step size in seconds 
-            hamming: bool
-                Apply Hamming window
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels: list of strings
-                List of labels for the frequency bins.     
-            compute_phase: bool
-                Compute phase spectrogram in addition to magnitude spectrogram
-            decibel: bool
-                Use logarithmic (decibel) scale.
-            tag: str
-                Identifier, typically the name of the wave file used to generate the spectrogram.
-                If no tag is provided, the tag from the audio_signal will be used.
-            decibel: bool
-                Use logarithmic z axis
-            image: 2d numpy array
-                Spectrogram matrix. If provided, audio_signal is ignored.
-            tmin: float
-                Spectrogram start time. Only used if image is provided.
-            fres: float
-                Spectrogram frequency resolution. Only used if image is provided.
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
+            even_len: bool
+                If necessary, increase the window length to make it an even number 
+                of samples. Default is True.
     """
-    def __init__(self, audio_signal=None, winlen=None, winstep=1, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag='',\
-                 image=None, tmin=0, fres=1):
+    def __init__(self, audio, window, step, window_func='hamming', even_len=True):
 
-        super(MagSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+        # compute STFT
+        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, window_func=window_func, even_len=even_len)
 
-        if image is not None:
-            super(MagSpectrogram, self).__init__(image=image, NFFT=NFFT, tres=winstep, tmin=tmin, fres=fres, tag=tag, timestamp=timestamp, flabels=flabels, decibel=decibel)
+        # create frequency axis
+        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max))
 
-        elif audio_signal is not None:
-            self.image, self.NFFT, self.fres, self.phase_change = self.make_mag_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-            if tag is '':
-                self.tag = audio_signal.tag
-
-            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
-            self.tmin = audio_signal.tmin
-
-        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
-
-    def make_mag_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
-        """ Create magnitude spectrogram from audio signal
-        
-            Args:
-                signal: AudioSignal
-                    Audio signal 
-                winlen: float
-                    Window size in seconds
-                winstep: float
-                    Step size in seconds 
-                hamming: bool
-                    Apply Hamming window
-                NFFT: int
-                    Number of points for the FFT. If None, set equal to the number of samples.
-                timestamp: datetime
-                    Spectrogram time stamp (default: None)
-                compute_phase: bool
-                    Compute phase spectrogram in addition to magnitude spectrogram
-                decibel: bool
-                    Use logarithmic (decibel) scale.
-                res_type: str
-                    Resampling method. Options: 'kaiser_best' (default), 'kaiser_fast', 'scipy', 'polyphase'.
-                    See http://librosa.github.io/librosa/master/generated/librosa.core.resample.html for further details.
-
-            Returns:
-                (image, NFFT, fres):numpy.array,int, int
-                A tuple with the resulting magnitude spectrogram, the NFFT, the frequency resolution
-                and the phase spectrogram (only if compute_phase=True).
-        """
-
-        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-        
-        return image, NFFT, fres, phase_change
+        super().__init__(image=img, time_res=step, spec_type='Mag', freq_ax=ax,\
+            filename=audio.filename, offset=audio.offset, label=audio.label,\
+            annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\

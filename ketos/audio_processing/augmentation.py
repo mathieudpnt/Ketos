@@ -35,7 +35,7 @@
 """
 import numpy as np
 
-def enhance_image(img, threshold=1., enhancement=1.):
+def enhance_image(img, enhancement=1.):
     """ Enhance regions of high intensity while suppressing regions of low intensity.
 
         Multiplies each pixel value by the factor,
@@ -53,8 +53,6 @@ def enhance_image(img, threshold=1., enhancement=1.):
         Args:
             img : numpy array
                 Image to be processed. 
-            threshold: float
-                Parameter determining where the transition from low to high takes place.
             enhancement: float
                 Parameter determining the amount of enhancement.
 
@@ -62,10 +60,15 @@ def enhance_image(img, threshold=1., enhancement=1.):
             img_en: numpy array
                 Enhanced image.
     """
-    std = np.std(img)
-    half = treshold * std
-    wid = (1. / enhancement) * std
-    scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
+    if enhancement > 0:
+        std = np.std(img)
+        half = np.median(img)
+        wid = (1. / enhancement) * std
+        scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
+
+    else:
+        scaling = 1.
+
     img_en = img * scaling
     return img_en
 
