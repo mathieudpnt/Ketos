@@ -371,8 +371,8 @@ class Spectrogram():
             spec = self
 
         # crop axes
-        self.time_ax, (bx1,bx2) = self.time_ax.cut(x_min=start, x_max=end, bins=length)
-        self.freq_ax, (by1,by2) = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
+        bx1, bx2 = self.time_ax.cut(x_min=start, x_max=end, bins=length)
+        by1, by2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
         # crop image
         spec.image = self.image[bx1:bx2+1, by1:by2+1]

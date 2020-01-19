@@ -174,7 +174,7 @@ class Axis():
         w = self.low_edge(b+1) - self.low_edge(b)
         return w
 
-    def cut(self, x_min=None, x_max=None, bins=None, make_copy=False):
+    def cut(self, x_min=None, x_max=None, bins=None):
         """ Cut the axis by specifing either a minimum and a maximum value, 
             or by specifying a minimum value and the axis length (as an integer 
             number of bins).
@@ -190,14 +190,9 @@ class Axis():
                 bins: int
                     Cut length, given as a integer number of bins. When `bins` is 
                     specified, the argument `x_max` is ignored.
-                copy: bool
-                    Return a cut copy of the axis. Leaves the present instance 
-                    unaffected. Default is False.
             
             Returns: 
-                ax: LinearAxis
-                    Cut axis
-                b: tuple(int,int)
+                b_min, b_max: int, int
                     Lower and upper bin number of the cut
 
             Example:
@@ -205,45 +200,40 @@ class Axis():
                 >>> #Linear axis between 0. and 10. with 20 bins.
                 >>> ax = LinearAxis(bins=20, extent=(0.,10.))
                 >>> #Select interval from 5.3 to 8.7
-                >>> ax1, b = ax.cut(x_min=5.3, x_max=8.7, make_copy=True)
-                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
+                >>> b_min, b_max = ax.cut(x_min=5.3, x_max=8.7)
+                >>> print(ax.x_min, ax.x_max, ax.bins, ax.dx)
                 5.0 9.0 8 0.5
-                >>> print(b[0], b[1])
+                >>> print(b_min, b_max)
                 10 17
                 >>> #Select 6-bin long interval with lower cut at 3.2
-                >>> ax1, _ = ax.cut(x_min=3.2, bins=6)
-                >>> print(ax1.x_min, ax1.x_max, ax1.bins, ax1.dx)
+                >>> ax = LinearAxis(bins=20, extent=(0.,10.))
+                >>> b_min, b_max = ax.cut(x_min=3.2, bins=6)
+                >>> print(ax.x_min, ax.x_max, ax.bins, ax.dx)
                 3.0 6.0 6 0.5
         """
         if (x_min is None and bins is None) or (x_max is None and bins is None):
             return self
 
-        if make_copy:
-            ax = copy.deepcopy(self)
-        else:
-            ax = self
-
         # lower bin
         if x_min:
-            b_min = ax.bin(x_min, truncate=True)
+            b_min = self.bin(x_min, truncate=True)
         else:
             b_min = 0
         
         # upper bin
         if bins:
-            b_max = min(ax.bins - 1, b_min + bins - 1)
+            b_max = min(self.bins - 1, b_min + bins - 1)
         else:
-            b_max = ax.bin(x_max, truncate=True, closed_right=True)
+            b_max = self.bin(x_max, truncate=True, closed_right=True)
 
         # update attributes
-        x_min = ax.low_edge(b_min)
-        x_max = ax.up_edge(b_max)
-        ax.bins = b_max - b_min + 1
-        ax.x_min = x_min
-        ax.x_max = x_max
+        x_min = self.low_edge(b_min)
+        x_max = self.up_edge(b_max)
+        self.bins = b_max - b_min + 1
+        self.x_min = x_min
+        self.x_max = x_max
 
-        b = (b_min, b_max)
-        return ax, b
+        return b_min, b_max
 
     def bin(self, x, truncate=False, closed_right=False):
         """ Get bin number corresponding to a given value.
