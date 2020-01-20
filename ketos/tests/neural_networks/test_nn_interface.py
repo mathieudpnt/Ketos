@@ -4,6 +4,7 @@ import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 from ketos.neural_networks.losses import FScoreLoss
 import os
+import json
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -48,12 +49,64 @@ def NNInterface_subclass():
 
                 return instance
 
+            @classmethod
+            def read_recipe_file(cls, json_file, return_recipe_compat=True):
+                """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
+
+                    When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
+
+                    Args:
+                        json_file:str
+                            Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
+                        return_recipe_compat:bool
+                            If True, the returns a recipe-compatible dictionary (i.e.: where the values are RecipeCompat objects). If false, returns a recipe dictionary (i.e.: where the values are name+parameters dictionaries:  {'name':..., 'parameters':{...}})
+
+                    Returns:
+                        recipe_dict: dict
+                            A recipe dictionary that can be used to rebuild a model.
+                
+                
+                """
+                with open(json_file, 'r') as json_recipe:
+                    recipe_dict = json.load(json_recipe)
+                
+               
+                optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+                loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+                metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+
+                if return_recipe_compat == True:
+                    recipe_dict['optimizer'] = optimizer
+                    recipe_dict['loss_function'] = loss_function
+                    recipe_dict['metrics'] = metrics
+                else:
+                    recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
+                    recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
+                    recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+
+                recipe_dict['n_neurons'] = recipe_dict['n_neurons']
+                recipe_dict['activation'] = recipe_dict['activation']
+                return recipe_dict
+
             def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
                 #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+                self.n_neurons = n_neurons
+                self.activation = activation
                 self.model = MLP(n_neurons=n_neurons, activation=activation)
                 self.optimizer=optimizer
                 self.loss_function=loss_function
                 self.metrics=metrics
+
+            def write_recipe(self):
+           
+                recipe = {}
+                recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
+                recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
+                recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+                recipe['n_neurons'] = self.n_neurons
+                recipe['activation'] = self.activation
+
+                return recipe
 
         return MLPInterface
 
@@ -246,5 +299,33 @@ def test_instantiate_nn(NNInterface_subclass):
     
     NNInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics'])    
+
+def test_save_recipe(NNInterface_subclass):
+    path_to_file = os.path.join(path_to_assets, "recipes/basic_recipe.json")
+    recipe = NNInterface.read_recipe_file(path_to_file)
+    
+    instance = NNInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
+                         loss_function=recipe['loss_function'], metrics=recipe['metrics'])    
+
+    path_to_saved_recipe = os.path.join(path_to_tmp, "test_save_recipe.json")
+    instance.save_recipe(path_to_saved_recipe)
+
+    read_recipe = instance.read_recipe_file(path_to_saved_recipe)
+
+    #assert read_recipe == recipe
+
+    assert read_recipe['n_neurons'] == 64
+    assert read_recipe['activation'] == 'relu'
+    assert read_recipe['optimizer'].name ==recipe['optimizer'].name
+    assert read_recipe['optimizer'].func.__class__ == recipe['optimizer'].func.__class__
+    assert read_recipe['optimizer'].args == recipe['optimizer'].args
+
+    assert read_recipe['loss_function'].name == recipe['loss_function'].name
+    assert read_recipe['loss_function'].func.__class__ == recipe['loss_function'].func.__class__
+    assert read_recipe['loss_function'].args == recipe['loss_function'].args
+    
+    assert read_recipe['metrics'][0].name == recipe['metrics'][0].name
+    assert read_recipe['metrics'][0].func.__class__ == recipe['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
 
 
