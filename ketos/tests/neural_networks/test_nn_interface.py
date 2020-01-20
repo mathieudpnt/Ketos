@@ -18,6 +18,46 @@ def recipe_dict():
     }
     return recipe
 
+@pytest.fixture
+def NNInterface_subclass():
+    
+        class MLP(tf.keras.Model):
+            def __init__(self, n_neurons, activation):
+                super(MLP, self).__init__()
+
+                self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
+                self.final_node = tf.keras.layers.Dense(1)
+
+            def call(self, inputs):
+                output = self.dense(inputs)
+                output = self.dense(output)
+                output = self.final_node(output)
+
+               
+        class MLPInterface(NNInterface):
+
+            @classmethod
+            def build_from_recipe(cls, recipe):
+                n_neurons = recipe['n_neurons']
+                activation = recipe['activation']
+                optimizer = recipe['optimizer']
+                loss_function = recipe['loss_function']
+                metrics = recipe['metrics']
+
+                instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
+                return instance
+
+            def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
+                #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+                self.model = MLP(n_neurons=n_neurons, activation=activation)
+                self.optimizer=optimizer
+                self.loss_function=loss_function
+                self.metrics=metrics
+
+        return MLPInterface
+
+
 
 def test_RecipeCompat():
     opt = RecipeCompat("sgd", tf.keras.optimizers.SGD, learning_rate=0.008, momentum=0.1)
@@ -200,5 +240,11 @@ def test_write_recipe_file(recipe_dict):
     
 
     
+def test_instantiate_nn(NNInterface_subclass):
+    path_to_file = os.path.join(path_to_assets, "recipes/basic_recipe.json")
+    recipe = NNInterface.read_recipe_file(path_to_file)
     
+    NNInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
+                         loss_function=recipe['loss_function'], metrics=recipe['metrics'])    
+
 
