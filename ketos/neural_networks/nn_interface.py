@@ -54,7 +54,8 @@ class RecipeCompat():
 class NNInterface():
     """ General interface for neural network architectures in the ketos.neural_networks module.
 
-        This class implements common methods for neural network models.
+        This class implements common methods for neural network models and is supposed to be subclassed. 
+        When implementing new neural network architectures, the interface implemented in this clas can be inherited.
 
     Args:
 
@@ -63,6 +64,52 @@ class NNInterface():
         loss_function: a tensorflow(-compatible) loss function (from tensorflow.keras.losses or ketos.neural_networks.losses)
 
         metrics: a list of tensorflow(-compatible) (from tensorflow.keras.metrics or ketos.neural_networks.metrics)
+
+    Examples:
+     
+        Here is an example of new architecture that uses this interface.
+        Here, the new architecture is a simple multi-layer perceptron, defined in the following class
+
+        class MLP(tf.keras.Model):
+            def __init__(self, n_neurons, activation):
+                super(MLP, self).__init__()
+
+                self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
+                self.final_node = tf.keras.layers.Dense(1)
+
+            def call(self, inputs):
+                output = self.dense(inputs)
+                output = self.dense(output)
+                output = self.final_node(output)
+
+
+        The interface to the MLP can be created by subclassing NNInterface:
+        
+       class MLPInterface(NNInterface):
+
+            @classmethod
+            def build_from_recipe(cls, recipe):
+                n_neurons = recipe['n_neurons']
+                activation = recipe['activation']
+                optimizer = recipe['optimizer']
+                loss_function = recipe['loss_function']
+                metrics = recipe['metrics']
+
+                instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
+                return instance
+
+            def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
+                #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+                self.model = MLP(n_neurons=n_neurons, activation=activation)
+                self.optimizer=optimizer
+                self.loss_function=loss_function
+                self.metrics=metrics
+            
+            
+
+
+        
             
     """
 
