@@ -66,12 +66,11 @@ from ketos.audio_processing.audio import AudioSignal
 from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
 from tqdm import tqdm
-from librosa.core import cqt
 import librosa
 
 
 import copy
-from ketos.audio_processing.audio_processing import stft, make_frames
+from ketos.audio_processing.audio_processing import stft, cqt, make_frames
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.audio_processing.augmentation import enhance_image
@@ -248,6 +247,76 @@ def add_specs(a, b, offset=0, make_copy=False):
     ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
 
     return ab
+
+def mag2pow(img, num_fft):
+    """ Convert a Magnitude spectrogram to a Power spectrogram.
+
+        Args:
+            img: numpy.array
+                Magnitude spectrogram image.
+            num_fft: int
+                Number of points used for the FFT.
+        
+        Returns:
+            : numpy.array
+                Power spectrogram image
+    """
+    return = (1.0 / num_fft) * (img ** 2)
+
+def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
+    """ Convert a Magnitude spectrogram to a Mel spectrogram.
+
+        Args:
+            img: numpy.array
+                Magnitude spectrogram image.
+            num_fft: int
+                Number of points used for the FFT.
+            rate: int
+                Sampling rate in Hz.
+            num_filters: int
+                The number of filters in the filter bank.
+            num_ceps: int
+                The number of Mel-frequency cepstrums.
+            cep_lifters: int
+                The number of cepstum filters.
+        
+        Returns:
+            mel_spec: numpy.array
+                Mel spectrogram image
+            filter_banks: numpy.array
+                Filter banks
+    """
+    power_spec = mag2pow(img, num_fft)
+    
+    low_freq_mel = 0
+    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
+    mel_points = np.linspace(low_freq_mel, high_freq_mel, num_filters + 2)  # Equally spaced in Mel scale
+    hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
+    bin = np.floor((num_fft + 1) * hz_points / rate)
+
+    fbank = np.zeros((num_filters, int(np.floor(num_fft / 2 + 1))))
+    for m in range(1, num_filters + 1):
+        f_m_minus = int(bin[m - 1])   # left
+        f_m = int(bin[m])             # center
+        f_m_plus = int(bin[m + 1])    # right
+
+        for k in range(f_m_minus, f_m):
+            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+        for k in range(f_m, f_m_plus):
+            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
+    filter_banks = np.dot(power_spec, fbank.T)
+    filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
+    filter_banks = 20 * np.log10(filter_banks)  # dB
+    
+    mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (num_ceps + 1)] # Keep 2-13
+            
+    (nframes, ncoeff) = mel_spec.shape
+    n = np.arange(ncoeff)
+    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
+    mel_spec *= lift  
+    
+    return mel_spec, filter_banks
 
 class Spectrogram():
     """ Spectrogram.
@@ -781,8 +850,8 @@ class Spectrogram():
         return fig
 
 class MagSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram computed by means of the Short Time 
-        Fourier Transform (STFT).
+    """ Create a Magnitude Spectrogram from an :class:`audio_signal.AudioSignal` by 
+        computing the Short Time Fourier Transform (STFT).
     
         Args:
             audio: AudioSignal
@@ -800,6 +869,12 @@ class MagSpectrogram(Spectrogram):
             even_len: bool
                 If necessary, increase the window length to make it an even number 
                 of samples. Default is True.
+
+        Attrs:
+            num_fft: int
+                Number of points used for the FFT.
+            rate: int
+                Sampling rate in Hz.
     """
     def __init__(self, audio, window, step, window_func='hamming', even_len=True):
 
@@ -808,11 +883,16 @@ class MagSpectrogram(Spectrogram):
             step=step, window_func=window_func, even_len=even_len)
 
         # create frequency axis
-        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max))
+        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
+        # create spectrogram
         super().__init__(image=img, time_res=step, spec_type='Mag', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
+
+        # store number of points used for FFT and sampling rate
+        self.num_fft = num_fft
+        self.rate = audio.rate
 
     @classmethod
     def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
@@ -1074,200 +1154,107 @@ class MagSpectrogram(Spectrogram):
 
         return audio
 
-
 class PowerSpectrogram(Spectrogram):
-    """ Creates a Power Spectrogram from an :class:`audio_signal.AudioSignal`
+    """ Create a Power Spectrogram from an :class:`audio_signal.AudioSignal` by 
+        computing the Short Time Fourier Transform (STFT).
     
-        The 0th axis is the time axis (t-axis).
-        The 1st axis is the frequency axis (f-axis).
-        
-        Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and fres).
-
         Args:
-            signal: AudioSignal
-                    And instance of the :class:`audio_signal.AudioSignal` class 
-            winlen: float
-                Window size in seconds
-            winstep: float
+            audio: AudioSignal
+                Audio signal 
+            window: float
+                Window length in seconds
+            step: float
                 Step size in seconds 
-            hamming: bool
-                Apply Hamming window
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels:list of strings
-                List of labels for the frequency bins.
-            compute_phase: bool
-                Compute phase spectrogram in addition to power spectrogram                        
-            decibel: bool
-                Use logarithmic (decibel) scale.
-            tag: str
-                Identifier, typically the name of the wave file used to generate the spectrogram
-            decibel: bool
-                Use logarithmic z axis
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
+            even_len: bool
+                If necessary, increase the window length to make it an even number 
+                of samples. Default is True.
+
+        Attrs:
+            num_fft: int
+                Number of points used for the FFT.
+            rate: int
+                Sampling rate in Hz.
     """
-    def __init__(self, audio_signal, winlen, winstep,flabels=None,
-                 hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False, tag=''):
+    def __init__(self, audio, window, step, window_func='hamming', even_len=True):
 
-        super(PowerSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
+        # compute STFT
+        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, window_func=window_func, even_len=even_len)
+        img = mag2pow(img, num_fft) # Magnitude->Power conversion
 
-        if audio_signal is not None:
-            self.image, self.NFFT, self.fres, self.phase_change = self.make_power_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-            if tag is '':
-                tag = audio_signal.tag
+        # create frequency axis
+        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
-        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
+        # create spectrogram
+        super().__init__(image=img, time_res=step, spec_type='Pow', freq_ax=ax,\
+            filename=audio.filename, offset=audio.offset, label=audio.label,\
+            annot=audio.annot)
 
-    def make_power_spec(self, audio_signal, winlen, winstep, hamming=True, NFFT=None, timestamp=None, compute_phase=False, decibel=False):
-        """ Create spectrogram from audio signal
-        
-            Args:
-                signal: AudioSignal
-                    Audio signal 
-                winlen: float
-                    Window size in seconds
-                winstep: float
-                    Step size in seconds 
-                hamming: bool
-                    Apply Hamming window
-                NFFT: int
-                    Number of points for the FFT. If None, set equal to the number of samples.
-                timestamp: datetime
-                    Spectrogram time stamp (default: None)
-                compute_phase: bool
-                    Compute phase spectrogram in addition to power spectrogram
-                decibel: bool
-                    Use logarithmic (decibel) scale.
-
-            Returns:
-                (power_spec, NFFT, fres, phase):numpy.array,int,int,numpy.array
-                A tuple with the resulting power spectrogram, the NFFT, the frequency resolution, 
-                and the phase spectrogram (only if compute_phase=True).
-        """
-
-        image, NFFT, fres, phase_change = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, compute_phase, decibel)
-        power_spec = (1.0/NFFT) * (image ** 2)
-        
-        return power_spec, NFFT, fres, phase_change
-
-       
+        # store number of points used for FFT and sampling rate
+        self.num_fft = num_fft
+        self.rate = audio.rate
     
 class MelSpectrogram(Spectrogram):
-    """ Creates a Mel Spectrogram from an :class:`audio_signal.AudioSignal`
-    
-        The 0th axis is the time axis (t-axis).
-        The 1st axis is the frequency axis (f-axis).
-        
-        Each axis is characterized by a starting value (tmin and fmin)
-        and a resolution or bin size (tres and fres).
+    """ Creates a Mel Spectrogram from an :class:`audio_signal.AudioSignal`.
 
         Args:
-            signal: AudioSignal
-                    And instance of the :class:`audio_signal.AudioSignal` class 
-            winlen: float
-                Window size in seconds
-            winstep: float
-                Step size in seconds 
-            hamming: bool
-                Apply Hamming window
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels: list of strings
-                List of labels for the frequency bins.
-            tag: str
-                Identifier, typically the name of the wave file used to generate the spectrogram
-            decibel: bool
-                Use logarithmic z axis
-    """
-
-
-    def __init__(self, audio_signal, winlen, winstep,flabels=None, hamming=True, 
-                 NFFT=None, timestamp=None, tag='', decibel=False, **kwargs):
-
-        super(MelSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
-
-        if audio_signal is not None:
-            self.image, self.filter_banks, self.NFFT, self.fres = self.make_mel_spec(audio_signal, winlen, winstep, hamming=hamming, NFFT=NFFT, timestamp=timestamp, **kwargs)
-            if tag is '':
-                tag = audio_signal.tag
-
-        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
-
-
-    def make_mel_spec(self, audio_signal, winlen, winstep, n_filters=40,
-                         n_ceps=20, cep_lifter=20, hamming=True, NFFT=None, timestamp=None):
-        """ Create a Mel spectrogram from audio signal
-    
-        Args:
-            signal: AudioSignal
+            audio: AudioSignal
                 Audio signal 
-            winlen: float
-                Window size in seconds
-            winstep: float
+            window: float
+                Window length in seconds
+            step: float
                 Step size in seconds 
-            n_filters: int
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
+            even_len: bool
+                If necessary, increase the window length to make it an even number 
+                of samples. Default is True.
+            num_filters: int
                 The number of filters in the filter bank.
-            n_ceps: int
+            num_ceps: int
                 The number of Mel-frequency cepstrums.
             cep_lifters: int
                 The number of cepstum filters.
-            hamming: bool
-                Apply Hamming window
-            NFFT: int
-                Number of points for the FFT. If None, set equal to the number of samples.
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
 
-        Returns:
-            mel_spec: numpy.array
-                Array containing the Mel spectrogram
+        Attrs:
+            num_fft: int
+                Number of points used for the FFT.
+            rate: int
+                Sampling rate in Hz.
             filter_banks: numpy.array
-                Array containing the filter banks
-            NFFT: int
-                The number of points used for creating the magnitude spectrogram
-                (Calculated if not given)
-            fres: int
-                The calculated frequency resolution
-           
-        """
+                Filter banks
+    """
+    def __init__(self, audio, window, step, window_func='hamming', even_len=True,\
+            num_filters=40, num_ceps=20, cep_lifter=20):
 
-        image, NFFT, fres, _ = self._make_spec(audio_signal, winlen, winstep, hamming, NFFT, timestamp, decibel=False)
-        power_spec = (1.0/NFFT) * (image ** 2)
-        
-        low_freq_mel = 0
-        high_freq_mel = (2595 * np.log10(1 + (audio_signal.rate / 2) / 700))  # Convert Hz to Mel
-        mel_points = np.linspace(low_freq_mel, high_freq_mel, n_filters + 2)  # Equally spaced in Mel scale
-        hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-        bin = np.floor((NFFT + 1) * hz_points / audio_signal.rate)
+        # compute STFT
+        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, window_func=window_func, even_len=even_len)
+        img, filter_banks = mag2mel(img, audio.rate, num_filters, num_ceps, cep_lifter) # Magnitude->Mel conversion
 
-        fbank = np.zeros((n_filters, int(np.floor(NFFT / 2 + 1))))
-        for m in range(1, n_filters + 1):
-            f_m_minus = int(bin[m - 1])   # left
-            f_m = int(bin[m])             # center
-            f_m_plus = int(bin[m + 1])    # right
+        # create frequency axis
+        # TODO: This probably needs to be modified ...
+        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
-            for k in range(f_m_minus, f_m):
-                fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
-            for k in range(f_m, f_m_plus):
-                fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+        # create spectrogram
+        super().__init__(image=img, time_res=step, spec_type='Mel', freq_ax=ax,\
+            filename=audio.filename, offset=audio.offset, label=audio.label,\
+            annot=audio.annot)
 
-        filter_banks = np.dot(power_spec, fbank.T)
-        filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
-        filter_banks = 20 * np.log10(filter_banks)  # dB
-        
-        
-        mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (n_ceps + 1)] # Keep 2-13
-                
-        (nframes, ncoeff) = mel_spec.shape
-        n = np.arange(ncoeff)
-        lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
-        mel_spec *= lift  
-        
-        return mel_spec, filter_banks, NFFT, fres
+        # store number of points used for FFT, sampling rate, and filter banks
+        self.num_fft = num_fft
+        self.rate = audio.rate
+        self.filter_banks
 
     def plot(self, filter_bank=False):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -1275,9 +1262,12 @@ class MelSpectrogram(Spectrogram):
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
+            TODO: Check implementation for filter_bank=True
+
             Args:
                 filter_bank: bool
-                    Plot the filter banks if True. If false (default) print the mel spectrogram.
+                    If True, plot the filter banks if True. If False (default), 
+                    print the mel spectrogram.
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -1285,226 +1275,59 @@ class MelSpectrogram(Spectrogram):
         """
         if filter_bank:
             img = self.filter_banks
-        else:
-            img = self.image
-
-        fig, ax = plt.subplots()
-        img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=(self.tmin,self.tmin+self.duration(),self.fmin,self.fmax()))
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Frequency (Hz)')
-        if self.decibel:
+            fig, ax = plt.subplots()
+            extent = (0,self.length,self.freq_min(),self.freq_max())
+            img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=extent)
+            ax.set_xlabel(self.time_ax.label)
+            ax.set_ylabel('Frequency (Hz)')
             fig.colorbar(img_plot,format='%+2.0f dB')
-        else:
-            fig.colorbar(img_plot,format='%+2.0f')  
-        return fig
 
+        else:
+            fig = super().plot()
+
+        return fig
 
 class CQTSpectrogram(Spectrogram):
     """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
             https://librosa.github.io/librosa/generated/librosa.core.cqt.html
 
-        The time axis (0th axis) is characterized by a 
-        starting value, :math:`t_{min}`, and a bin size, :math:`t_{res}`, while the 
-        frequency axis (1st axis) is characterized by a starting value, :math:`f_{min}`, 
-        a maximum value, :math:`f_{max}`, and the number of bins per octave, 
-        :math:`m`.
-        The parameters :math:`t_{min}`, :math:`f_{min}`, :math:`m` are specified via the arguments 
-        `tmin`, `fmin`, `bins_per_octave`. The parameters :math:`t_{res}` and :math:`f_{max}`, on the other hand, 
-        are computed as detailed below, attempting to match the arguments `winstep` and `fmax` as closely as possible.
+        The frequency axis of a CQT spectrogram is essentially a logarithmic axis with base 2. It is 
+        characterized by an integer number of bins per octave (an octave being a doubling of the frequency.) 
 
-        The total number of bins is given by :math:`n = k \cdot m` where :math:`k` denotes 
-        the number of octaves, computed as 
+        For further details, see :func:`audio_processing.audio_processing.cqt`.
 
-        .. math::
-            k = ceil(log_{2}[f_{max}/f_{min}])
-
-        For example, with :math:`f_{min}=10`, :math:`f_{max}=16000`, and :math:`m = 32` the number 
-        of octaves is :math:`k = 11` and the total number of bins is :math:`n = 352`.  
-        The frequency of a given bin, :math:`i`, is given by 
-
-        .. math:: 
-            f_{i} = 2^{i / m} \cdot f_{min}
-
-        This implies that the maximum frequency is given by :math:`f_{max} = f_{n} = 2^{n/m} \cdot f_{min}`.
-        For the above example, we find :math:`f_{max} = 20480` Hz, i.e., somewhat larger than the requested maximum value.
-
-        Note that if :math:`f_{max}` exceeds the Nyquist frequency, :math:`f_{nyquist} = 0.5 \cdot s`, where :math:`s` is the sampling rate,  
-        the number of octaves, :math:`k`, is reduced to ensure that :math:`f_{max} \leq f_{nyquist}`. 
-
-        The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
-        To ensure that this is the case, the step size is computed as follows,
-
-        .. math::
-            h = ceil(s \cdot x / 2^k ) \cdot 2^k
-
-        where :math:`s` is the sampling rate in Hz, and :math:`x` is the step size 
-        in seconds as specified via the argument `winstep`.
-        For example, assuming a sampling rate of 32 kHz (:math:`s = 32000`) and a step 
-        size of 0.02 seconds (:math:`x = 0.02`) and adopting the same frequency limits as 
-        above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
-        step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
-        to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
-        as the requested step size.
-
-    
         Args:
-            signal: AudioSignal
-                And instance of the :class:`audio_signal.AudioSignal` class 
-            image: 2d numpy array
-                Spectrogram image. Only applicable if signal is None.
-            fmin: float
-                Minimum frequency in Hz
-            fmax: float
-                Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
-            winstep: float
+            audio: AudioSignal
+                Audio signal 
+            step: float
                 Step size in seconds 
-            bins_per_octave: int
+            bins_per_oct: int
                 Number of bins per octave
-            timestamp: datetime
-                Spectrogram time stamp (default: None)
-            flabels: list of strings
-                List of labels for the frequency bins.     
-            decibel: bool
-                Use logarithmic (decibel) scale.
-            tag: str
-                Identifier, typically the name of the wave file used to generate the spectrogram.
-                If no tag is provided, the tag from the audio_signal will be used. 
+            freq_min: float
+                Minimum frequency in Hz
+                If None, it is set to 1 Hz.
+            freq_max: float
+                Maximum frequency in Hz. 
+                If None, it is set equal to half the sampling rate.
     """
+    def __init__(self, audio, step, bins_per_oct, freq_min=1, freq_max=None):
 
-    def __init__(self, audio_signal=None, image=np.zeros((2,2)), fmin=1, fmax=None, winstep=0.01, bins_per_octave=32, timestamp=None,
-                 flabels=None, hamming=True, NFFT=None, compute_phase=False, decibel=False, tag=''):
+        # compute CQT
+        img, step = cqt(x=audio.data, rate=audio.rate, step=step,\
+            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
-        if fmin is None:
-            fmin = 1
+        # create logarithmic frequency axis
+        ax = Log2Axis(bins=img.shape[1], bins_per_oct=bins_per_oct,\
+            min_value=freq_min, label='Frequency (Hz)')
 
-        super(CQTSpectrogram, self).__init__(timestamp=timestamp, tres=winstep, flabels=flabels, tag=tag, decibel=decibel)
-        self.fmin = fmin
-        self.bins_per_octave = bins_per_octave
+        # create spectrogram
+        super().__init__(image=img, time_res=step, spec_type='CQT', freq_ax=ax,\
+            filename=audio.filename, offset=audio.offset, label=audio.label,\
+            annot=audio.annot)
 
-        if audio_signal is not None:
-
-            self.image, self.tres = self.make_cqt_spec(audio_signal, fmin, fmax, winstep, bins_per_octave, decibel)
-
-            if tag is '':
-                tag = audio_signal.tag
-
-            self.annotate(labels=audio_signal.labels, boxes=audio_signal.boxes)
-            self.tmin = audio_signal.tmin
-
-        else:
-            self.image = image
-            self.tres = winstep
-
-        self.file_dict, self.file_vector, self.time_vector = self._create_tracking_data(tag) 
-
-
-    def make_cqt_spec(self, audio_signal, fmin, fmax, winstep, bins_per_octave, decibel):
-        """ Create CQT spectrogram from audio signal
-        
-            Args:
-                signal: AudioSignal
-                    Audio signal 
-                fmin: float
-                    Minimum frequency in Hz
-                fmax: float
-                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
-                winstep: float
-                    Step size in seconds 
-                bins_per_octave: int
-                    Number of bins per octave
-                decibel: bool
-                    Use logarithmic (decibel) scale.
-
-            Returns:
-                (image, tres):numpy.array,float
-                A tuple with the resulting magnitude spectrogram, and the time resolution
-        """
-        f_nyquist = 0.5 * audio_signal.rate
-        k_nyquist = int(np.floor(np.log2(f_nyquist / fmin)))
-
-        if fmax is None:
-            k = k_nyquist
-        else:    
-            k = int(np.ceil(np.log2(fmax/fmin)))
-            k = min(k, k_nyquist)
-
-        h0 = int(2**k)
-        b = bins_per_octave
-        fbins = k * b
-
-        h = audio_signal.rate * winstep
-        r = int(np.ceil(h / h0))
-        h = int(r * h0)
-
-        c = cqt(y=audio_signal.data, sr=audio_signal.rate, hop_length=h, fmin=fmin, n_bins=fbins, bins_per_octave=b)
-        c = np.abs(c)
-        if decibel:
-            c = to_decibel(c)
-    
-        image = np.swapaxes(c, 0, 1)
-        
-        tres = h / audio_signal.rate
-
-        return image, tres
-
-    def copy(self):
-        """ Make a deep copy of the spectrogram.
-
-            Returns:
-                spec: CQTSpectrogram
-                    Spectrogram copy.
-        """
-        spec = super().copy()
-        spec.bins_per_octave = self.bins_per_octave
-        return spec
-
-    def _find_fbin(self, f, truncate=False, roundup=True):
-        """ Find bin corresponding to given frequency.
-
-            Returns -1, if f < f_min.
-            Returns N, if f > f_max, where N is the number of frequency bins.
-
-            Args:
-                f: float
-                   Frequency in Hz 
-                truncate: bool
-                    Return 0 if below the lower range, and N-1 if above the upper range, where N is the number of bins
-                roundup: bool
-                    Return lower or higher bin number, if value coincides with a bin boundary
-
-            Returns:
-                bin: int
-                     Bin number
-        """
-        bin = self.bins_per_octave * np.log2(f / self.fmin)
-        bin = int(bin)
-
-        if truncate:
-            bin = max(bin, 0)
-            bin = min(bin, self.fbins())
-
-        return bin
-
-    def _fbin_low(self, bin):
-        """ Get the lower frequency value of the specified frequency bin.
-
-            Args:
-                bin: int
-                    Bin number
-        """
-        f = 2**(bin / self.bins_per_octave) * self.fmin
-        return f
-
-    def fmax(self):
-        """ Get upper range of frequency axis
-
-            Returns:
-                fmax: float
-                    Maximum frequency in Hz
-        """
-        fmax = self._fbin_low(self.fbins())
-        return fmax
+        # store sampling rate
+        self.rate = audio.rate
 
     @classmethod
     def from_wav(cls, path, spec_config=None, step_size=0.01, fmin=1, fmax=None, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0, decibel=True):
@@ -1622,46 +1445,26 @@ class CQTSpectrogram(Spectrogram):
 
         return spec
 
+    def plot(self, spec_id=0, show_annot=False):
+        """ Plot the spectrogram with proper axes ranges and labels.
 
-    def plot(self, label=None, pred=None, feat=None, conf=None):
-        """ Plot the CQT spectrogram with proper axes ranges and labels.
-
-            Optionally, also display selected label, binary predictions, features, and confidence levels.
-
-            All plotted quantities share the same time axis, and are assumed to span the 
-            same period of time as the spectrogram.
+            Optionally, also display annotations as boxes superimposed on the spectrogram.
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
 
             Args:
-                spec: Spectrogram
-                    spectrogram to be plotted
-                label: int
-                    Label of interest
-                pred: 1d array
-                    Binary prediction for each time bin in the spectrogram
-                feat: 2d array
-                    Feature vector for each time bin in the spectrogram
-                conf: 1d array
-                    Confidence level of prediction for each time bin in the spectrogram
+                spec_id: int
+                    Spectrogram to be plotted. Only relevant if the spectrogram object 
+                    contains multiple, stacked spectrograms.
+                show_annot: bool
+                    Display annotations
             
             Returns:
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(label, pred, feat, conf)
-
-        i = np.arange(0, self.fbins(), self.bins_per_octave)
-        if i[-1] != self.fbins():
-            i = np.concatenate((i, [self.fbins()]))
-
-        ticks = self.fmin + i * (self.fmax() - self.fmin) / self.fbins()
-        labels = 2**(i / self.bins_per_octave) * self.fmin
-        labels_str = list()
-        for l in labels.tolist():
-            labels_str.append('{0:.1f}'.format(l))            
-
-        plt.yticks(ticks, labels_str)
-
+        fig = super().plot(sped_id, show_annot)
+        ticks, labels = self.freq_ax.ticks_and_labels()
+        plt.yticks(ticks, labels)
         return fig

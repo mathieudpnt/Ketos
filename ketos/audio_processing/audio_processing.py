@@ -164,6 +164,95 @@ def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
     freq_max = audio_signal.rate / 2. #Maximum frequency
     return img, freq_max, num_fft
 
+def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None):
+    """ Compute the CQT spectrogram of an audio signal.
+
+        To compute the CQT spectrogram, the user must specify the step size, the minimum and maximum 
+        frequencies, :math:`f_{min}` and :math:`f_{max}`, and the number of bins per octave, :math:`m`.
+        While :math:`f_{min}` and :math:`m` are fixed to the input values, the step size and 
+        :math:`f_{max}` are adjusted as detailed below, attempting to match the input values 
+        as closely as possible.
+
+        The total number of bins is given by :math:`n = k \cdot m` where :math:`k` denotes 
+        the number of octaves, computed as 
+
+        .. math::
+            k = ceil(log_{2}[f_{max}/f_{min}])
+
+        For example, with :math:`f_{min}=10`, :math:`f_{max}=16000`, and :math:`m = 32` the number 
+        of octaves is :math:`k = 11` and the total number of bins is :math:`n = 352`.  
+        The frequency of a given bin, :math:`i`, is given by 
+
+        .. math:: 
+            f_{i} = 2^{i / m} \cdot f_{min}
+
+        This implies that the maximum frequency is given by :math:`f_{max} = f_{n} = 2^{n/m} \cdot f_{min}`.
+        For the above example, we find :math:`f_{max} = 20480` Hz, i.e., somewhat larger than the 
+        requested maximum value.
+
+        Note that if :math:`f_{max}` exceeds the Nyquist frequency, :math:`f_{nyquist} = 0.5 \cdot s`, 
+        where :math:`s` is the sampling rate, the number of octaves, :math:`k`, is reduced to ensure 
+        that :math:`f_{max} \leq f_{nyquist}`. 
+
+        The CQT algorithm requires the step size to be an integer multiple :math:`2^k`.
+        To ensure that this is the case, the step size is computed as follows,
+
+        .. math::
+            h = ceil(s \cdot x / 2^k ) \cdot 2^k
+
+        where :math:`s` is the sampling rate in Hz, and :math:`x` is the step size 
+        in seconds as specified via the argument `winstep`.
+        For example, assuming a sampling rate of 32 kHz (:math:`s = 32000`) and a step 
+        size of 0.02 seconds (:math:`x = 0.02`) and adopting the same frequency limits as 
+        above (:math:`f_{min}=10` and :math:`f_{max}=16000`), the actual 
+        step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
+        to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
+        as the requested step size.
+    
+        Args:
+            x: numpy.array
+                Audio signal 
+            rate: float
+                Sampling rate in Hz
+            step: float
+                Step size in seconds 
+            bins_per_oct: int
+                Number of bins per octave
+            freq_min: float
+                Minimum frequency in Hz
+            freq_max: float
+                Maximum frequency in Hz. If None, it is set equal to half the sampling rate.
+
+        Returns:
+            img: numpy.array
+                Resulting CQT spectrogram image.
+            step: float
+                Adjusted step size in seconds.
+    """
+    f_nyquist = 0.5 * rate
+    k_nyquist = int(np.floor(np.log2(f_nyquist / freq_min)))
+
+    if freq_max is None:
+        k = k_nyquist
+    else:    
+        k = int(np.ceil(np.log2(freq_max/freq_min)))
+        k = min(k, k_nyquist)
+
+    h0 = int(2**k)
+    b = bins_per_oct
+    bins = k * b
+
+    h = rate * step
+    r = int(np.ceil(h / h0))
+    h = int(r * h0)
+
+    img = librosa.core.cqt(y=x, sr=rate, hop_length=h, fmin=freq_min, n_bins=bins, bins_per_octave=b)
+    img = to_decibel(np.abs(img))
+    img = np.swapaxes(img, 0, 1)
+    
+    step = h / rate
+
+    return img, step
 
 def append_specs(specs):
     """ Append spectrograms in the order in which they are provided.
@@ -588,45 +677,6 @@ def apply_preemphasis(sig, coeff=0.97):
     emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
     
     return emphasized_signal
-
-
-def enhance_image(img, a=1, b=1):
-    """ Enhance regions of high intensity while suppressing regions of low intensity.
-
-        Multiplies each pixel value by the factor,
-
-            s(x) = 1 / (exp(-(x-x0)/w) + 1)
-
-        where x is the pixel value, x0 = a * std(img), and w = b * std(img).
-
-        Some observations:
-          
-         * s(x) is a smoothly increasing function from 0 to 1.
-         * s(x0) = 0.5 (i.e. x0 demarks the transition from "low intensity" to "high intensity")
-         * The smaller the value of w, the faster the transition from 0 to 1.
-
-        Args:
-            img : numpy array
-                Image to be processed. 
-            a: float
-                Parameter determining which regions of the image will be considered "high intensity" 
-                and which regions will be considered "low intensity".
-            b: float
-                Parameter determining how sharpen the transition from "low intensity" to "high intensity" is.
-
-        Returns:
-            enhanced_img: numpy array
-                Enhanced image.
-
-        Example:
-
-    """
-    std = np.std(img)
-    half = a * std
-    wid = b * std
-    scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
-    enhanced_img = img * scaling
-    return enhanced_img
 
 
 def inv_magphase(mag, angle):

@@ -513,4 +513,23 @@ class Log2Axis(Axis):
         x = 2**(b / self.bins_per_oct) * self.x_min
         return x
 
+    def ticks_and_labels(self):
+        """ Create ticks and labels for drawing the axis.
 
+            Returns: 
+                ticks: numpy.array
+                    Tick positions
+                labels: list(str)
+                    Labels
+        """
+        i = np.arange(0, self.bins, self.bins_per_oct)
+
+        if i[-1] != self.bins:
+            i = np.concatenate((i, [self.bins]))
+
+        ticks = self.min() + i * (self.max() - self.min()) / self.bins
+
+        labels = 2**(i / self.bins_per_oct) * self.min()
+        labels = ['{0:.1f}'.format(l) for l in labels.tolist()]
+
+        return ticks, labels
