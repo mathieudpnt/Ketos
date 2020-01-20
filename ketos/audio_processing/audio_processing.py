@@ -115,6 +115,64 @@ def make_frames(x, win_len, step_len, pad=True, center=True):
 
     return frames
 
+def num_samples(time, rate, even=False):
+    """ Convert time interval to integer number of samples.
+
+        Args:
+            time: float
+                Timer interval in seconds
+            rate: float
+                Sampling rate in Hz
+            even: bool
+                If necessary, increase number of samples by +1
+                to make it an even number.
+
+        Returns:
+            n: int
+                Number of samples
+    """
+    n = int(round(time * rate))
+    if even:
+        n += n%2
+
+    return n
+
+def pad_size(data_len, win_len, step_len, center):
+    """ Determine the amount of padding required to 
+        split the data into an integer number of frames 
+        with uniform length, while making use of all 
+        the data.
+
+        Args:
+            data_len: int
+                Data length
+            win_len: int
+                Window size
+            step_len: int
+                Step size
+            center: bool
+                If True (default), apply padding on both 
+                sides. If False, only apply padding on the 
+                right. Default is True.
+
+        Returns:
+            pad_left: int
+                Left padding size
+            pad_right: int
+                Right padding size
+    """
+    num_frames = int(np.ceil(data_len / step_len))
+    pad_len = max(0, int((num_frames - 1) * step_len + win_len - data_len))
+    if center:
+        pad_left = int(pad_len / 2)
+        pad_right = pad_len - pad_left
+    else
+        pad_left = 0
+        pad_right = pad_len
+
+    return pad_left, pad_right
+
+
 def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
     """ Compute Short Time Fourier Transform (STFT).
 
@@ -149,10 +207,9 @@ def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
             num_fft: int
                 Number of points used for the Fourier Transform.
     """
-    win_len = int(round(window * rate)) #convert to number of samples
-    step_len = int(round(step * rate))
-    if even_len:
-        win_len += win_len%2 #ensure even window length
+    #convert to number of samples
+    win_len = num_samples(window, rate, even=even_len) 
+    step_len = num_samples(step, rate)
 
     frames = make_frames(win_len=win_len, step_len=step_len) #segment audio signal 
     if window_func:

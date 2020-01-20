@@ -70,7 +70,7 @@ import librosa
 
 
 import copy
-from ketos.audio_processing.audio_processing import stft, cqt, make_frames
+from ketos.audio_processing.audio_processing import stft, cqt, make_frames, num_samples
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.audio_processing.augmentation import enhance_image
@@ -271,7 +271,7 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
                 Magnitude spectrogram image.
             num_fft: int
                 Number of points used for the FFT.
-            rate: int
+            rate: float
                 Sampling rate in Hz.
             num_filters: int
                 The number of filters in the filter bank.
@@ -859,7 +859,7 @@ class MagSpectrogram(Spectrogram):
             window: float
                 Window length in seconds
             step: float
-                Step size in seconds 
+                Step size in seconds
             window_func: str
                 Window function (optional). Select between
                     * bartlett
@@ -873,7 +873,7 @@ class MagSpectrogram(Spectrogram):
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
-            rate: int
+            rate: float
                 Sampling rate in Hz.
     """
     def __init__(self, audio, window, step, window_func='hamming', even_len=True):
@@ -895,57 +895,52 @@ class MagSpectrogram(Spectrogram):
         self.rate = audio.rate
 
     @classmethod
-    def from_wav(cls, path, spec_config=None, window_size=0.1, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0,\
-                    decibel=True, adjust_duration=False, fmin=None, fmax=None, window_function='HAMMING', res_type='kaiser_best'):
+    def from_wav(cls, path, channel=0, config=None, rate=None, window=None, step=None,\
+            window_func='hamming', even_len=True, offset=0, duration=None,\
+            resample_method='scipy'):
         """ Create magnitude spectrogram directly from wav file.
 
-            The arguments offset and duration can be used to select a segment of the audio file.
+            The arguments offset and duration can be used to select a portion of the wav file.
+            
+            Note that values specified for the arguments window, step, offset, and duration 
+            may all be subject to slight adjustments to ensure that the selected portion 
+            corresponds to an integer number of window frames, and that the window and step 
+            sizes correspond to an integer number of samples.
 
-            To ensure that the spectrogram has the desired duration and is centered correctly, the loaded 
-            audio segment is slightly longer than the selection at both ends. If no or insufficient audio 
-            is available beyond the ends of the selection (e.g. if the selection is the entire audio file), 
-            the audio is padded with zeros.
-
-            Note that the duration must be equal to an integer number of steps. If this is not the case, 
-            an exception will be raised. Alternatively, you can set adjust_duration to True.
-
-            Note that if spec_config is specified, the following arguments are ignored: 
-            sampling_rate, window_size, step_size, duration, fmin, fmax.
-
-            TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
-
-            TODO: Align implementation with the rest of the module.
-
-            TODO: Abstract method to also handle Power, Mel, and CQT spectrograms.
-        
             Args:
                 path: str
-                    Complete path to wav file 
-                spec_config: SpectrogramConfiguration
-                    Spectrogram configuration
-                window_size: float
-                    Window size in seconds
-                step_size: float
-                    Step size in seconds 
-                sampling_rate: float
-                    Desired sampling rate in Hz. If None, the original sampling rate will be used.
-                offset: float
-                    Start time of spectrogram in seconds.
-                duration: float
-                    Duration of spectrogrma in seconds.
+                    Path to wav file
                 channel: int
-                    Channel to read from (for stereo recordings).
-                decibel: bool
-                    Use logarithmic (decibel) scale.
-                adjust_duration: bool
-                    If True, the duration is adjusted (upwards) to ensure that the 
-                    length corresponds to an integer number of steps.
-                fmin: float
-                    Minimum frequency in Hz
-                fmax: float
-                    Maximum frequency in Hz. If None, fmax is set equal to half the sampling rate.
-                window_function: str
-                    Window function. Ignored for CQT spectrograms.
+                    Channel to read from. Only relevant for stereo recordings
+                rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used
+                config: SpectrogramConfiguration
+                    Spectrogram configuration object
+                window: float
+                    Window size in seconds
+                step: float
+                    Step size in seconds 
+                window_func: str
+                    Window function (optional). Select between
+                        * bartlett
+                        * blackman
+                        * hamming (default)
+                        * hanning
+                even_len: bool
+                    If necessary, increase the window length to make it an even number 
+                    of samples. Default is True.
+                offset: float
+                    Start time of spectrogram in seconds, relative the start of the wav file.
+                duration: float
+                    Length of spectrogrma in seconds.
+                resample_method: str
+                    Resampling method. Only relevant if `rate` is specified. Options are
+                        * kaiser_best
+                        * kaiser_fast
+                        * scipy (default)
+                        * polyphase
+                    See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
+                    for details on the individual methods.
 
             Returns:
                 spec: MagSpectrogram
@@ -972,45 +967,37 @@ class MagSpectrogram(Spectrogram):
             duration = spec_config.length
             if spec_config.window_function is not None:
                 window_function = WinFun(spec_config.window_function).name
-        
-        # ensure offset is non-negative
-        offset = max(0, offset)
 
-        # ensure selected segment does not exceed file duration
+        # get sampling rate
+        if rate is None:
+            rate = librosa.get_samplerate(path)
+
+        # get file duration
         file_duration = librosa.get_duration(filename=path)
+
+        # ensure offset is non-negative and corresponds to an 
+        # integer number of samples
+        offset = num_samples(max(0, offset), rate=rate) / rate
+
+        # assert that selected portion is non-empty
+        assert offset < file_duration, 'Selected portion of the audio file is empty'
+
+        # if duration is not specified, take everything above offset
         if duration is None:
             duration = file_duration - offset
 
         # assert that segment is non-empty
         assert offset < file_duration, 'Selected audio segment is empty'
 
-        # sampling rate
-        if sampling_rate is None:
-            sr = librosa.get_samplerate(path)
-        else:
-            sr = sampling_rate
+        # convert window and step to number of samples
+        win_len = num_samples(window, rate=rate, even=even_len) 
+        step_len = num_samples(step, rate=rate)
 
-        # segment size 
-        seg_siz = int(duration * sr)
+        # ensure duration corresponds to an integer number of steps
+        duration = num_samples(duration, rate=rate/step_len) * step_len / rate
 
-        # ensure that window size is an even number of samples
-        win_siz = int(round(window_size * sr))
-        win_siz += win_siz%2
+        compute_padding(data_len, win_len, step_len, center)
 
-        # step size
-        step_siz = int(step_size * sr)
-
-        # ensure step size is a divisor of the segment size
-        res = seg_siz % step_siz
-        if not adjust_duration:
-            assert res == 0, 'Step size must be a divisor of the audio duration. Consider setting adjust_duration=True.'
-        else:
-            if res > 0: 
-                seg_siz = step_siz * int(np.ceil(seg_siz / step_siz))
-                duration = float(seg_siz) / sr
-
-        # number of steps
-        num_steps = int(seg_siz / step_siz)
 
         # padding before / after        
         pad_zeros = [0, 0]
@@ -1178,7 +1165,7 @@ class PowerSpectrogram(Spectrogram):
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
-            rate: int
+            rate: float
                 Sampling rate in Hz.
     """
     def __init__(self, audio, window, step, window_func='hamming', even_len=True):
@@ -1229,7 +1216,7 @@ class MelSpectrogram(Spectrogram):
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
-            rate: int
+            rate: float
                 Sampling rate in Hz.
             filter_banks: numpy.array
                 Filter banks
