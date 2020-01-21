@@ -3,8 +3,11 @@ import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat, NNInterface
 from ketos.neural_networks.losses import FScoreLoss
+from ketos.data_handling.data_feeding import BatchGenerator
 import os
+import tables
 import json
+
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -32,12 +35,25 @@ def MLPInterface_subclass():
             self.final_node = tf.keras.layers.Dense(1)
 
         def call(self, inputs):
+            print(inputs.shape)
+            # output = self.dense(inputs)
+            # output = tf.expand_dims(output, -1)
+            # print(output.shape)
             output = self.dense(inputs)
-            output = self.dense(output)
+            print(output.shape)
             output = self.final_node(output)
+            print(output.shape)
+            return output
 
             
     class MLPInterface(NNInterface):
+
+        @classmethod
+        def transform_train_batch(cls, x, y, n_classes=2):
+            X = x
+            Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
+
+            return (X, Y)
 
         @classmethod
         def build_from_recipe(cls, recipe):
@@ -79,10 +95,14 @@ def MLPInterface_subclass():
             #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
             self.n_neurons = n_neurons
             self.activation = activation
-            self.model = MLP(n_neurons=n_neurons, activation=activation)
+
             self.optimizer=optimizer
             self.loss_function=loss_function
             self.metrics=metrics
+
+            self.model = MLP(n_neurons=n_neurons, activation=activation)
+            self.compile_model()
+            
 
         def write_recipe(self):
         
@@ -102,9 +122,25 @@ def MLPInterface_subclass():
 def instance_of_MLPInterface(MLPInterface_subclass):
     path_to_file = os.path.join(path_to_assets, "recipes/basic_recipe.json")
     recipe = NNInterface.read_recipe_file(path_to_file)
+
+    h5 = tables.open_file(os.path.join(path_to_assets, "vectors_1_0.h5"), 'r')
+    train_table = h5.get_node("/train")
+    val_table = h5.get_node("/val")
+    test_table = h5.get_node("/test")
+
+    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
+
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics']) 
+
+    instance.set_train_generator(train_generator)
+    instance.set_val_generator(val_generator)
+    instance.set_test_generator(test_generator)
+
+
 
     return instance
 
@@ -336,13 +372,7 @@ def test_write_recipe(instance_of_MLPInterface):
     assert recipe['metrics'] == [{'name':'CategoricalAccuracy', 'parameters':{}}]
 
 
-
-
-
-    
-
-
-
-
+def test_train_loop(instance_of_MLPInterface):
+    instance_of_MLPInterface.train_loop(n_epochs=2)
 
 
