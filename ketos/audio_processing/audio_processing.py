@@ -78,6 +78,39 @@ def pad(x, pad_left=0, pad_right=0):
 
     return x_pad
 
+def make_frames_args(rate, duration, offset, window, step):
+    """ Computes input arguments for :func:`audio_processing.audio_processing.make_frames` 
+        to produce a centered spectrogram with properties as close as possible to the 
+        those specified.
+
+        Args:
+            rate: float
+                Sampling rate in Hz
+            duration: float
+                Duration in seconds
+            offset: float
+                Offset in seconds
+            window: float
+                Window size in seconds
+            step: float
+                Window size in seconds
+
+        Returns:
+            num_frames: int
+                Number of steps
+            offset_len: int
+                Offset in number of samples
+            win_len: int
+                Window size in number of samples
+            step_len: int
+                Step size in number of samples
+    """
+    win_len = num_samples(window, rate=rate, even=True) 
+    step_len = num_samples(step, rate=rate, even=True)
+    num_frames = num_samples(duration, rate=rate/step_len)
+    offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
+    return num_frames, offset_len, win_len, step_len
+
 def make_frames(x, num_frames, offset_len, win_len, step_len, warnings=True):
     """ Divide an array into frames of equal length along its first 
         axis (0), each frame being shifted by a fixed amount with respetive to the 

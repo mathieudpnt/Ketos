@@ -70,7 +70,7 @@ import librosa
 
 
 import copy
-from ketos.audio_processing.audio_processing import stft, cqt, make_frames, num_samples
+from ketos.audio_processing.audio_processing import stft, cqt, make_frames, make_frames_args, num_samples, pad
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.audio_processing.augmentation import enhance_image
@@ -247,39 +247,6 @@ def add_specs(a, b, offset=0, make_copy=False):
     ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
 
     return ab
-
-def make_frames_args(rate, duration, offset, window, step):
-    """ Computes input arguments for :func:`audio_processing.audio_processing.make_frames` 
-        to produce a centered spectrogram with properties as close as possible to the 
-        those specified.
-
-        Args:
-            rate: float
-                Sampling rate in Hz
-            duration: float
-                Duration in seconds
-            offset: float
-                Offset in seconds
-            window: float
-                Window size in seconds
-            step: float
-                Window size in seconds
-
-        Returns:
-            num_frames: int
-                Number of steps
-            offset_len: int
-                Offset in number of samples
-            win_len: int
-                Window size in number of samples
-            step_len: int
-                Step size in number of samples
-    """
-    win_len = num_samples(window, rate=rate, even=True) 
-    step_len = num_samples(step, rate=rate, even=True)
-    num_frames = num_samples(duration, rate=rate/step_len)
-    offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
-    return num_frames, offset_len, win_len, step_len
 
 def mag2pow(img, num_fft):
     """ Convert a Magnitude spectrogram to a Power spectrogram.
@@ -985,6 +952,7 @@ class MagSpectrogram(Spectrogram):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
+        # TODO: Update handling of config object
         if spec_config is not None:
             window_size = spec_config.window_size
             step_size = spec_config.step_size
@@ -995,131 +963,59 @@ class MagSpectrogram(Spectrogram):
             if spec_config.window_function is not None:
                 window_function = WinFun(spec_config.window_function).name
 
-        # get sampling rate
+        
         if rate is None:
-            rate = librosa.get_samplerate(path)
+            rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
 
-        # get file duration
-        file_duration = librosa.get_duration(filename=path)
-
-        # ensure offset is non-negative and corresponds to an 
-        # integer number of samples
-        offset = num_samples(max(0, offset), rate=rate) / rate
-
-        # assert that selected portion is non-empty
-        assert offset < file_duration, 'Selected portion of the audio file is empty'
-
-        # if duration is not specified, take everything above offset
+        file_duration = librosa.get_duration(filename=path) #get file duration
+        file_len = int(file_duration * rate) #file length (number of samples)
+        
+        assert offset < file_duration, 'Offset exceeds file duration'
+        
         if duration is None:
-            duration = file_duration - offset
+            duration = file_duration - offset #if not specified, use file duration minus offset
 
-        # assert that segment is non-empty
-        assert offset < file_duration, 'Selected audio segment is empty'
+        duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
 
-        # convert window and step to number of samples
-        win_len = num_samples(window, rate=rate, even=True) 
-        step_len = num_samples(step, rate=rate)
+        # compute framing parameters
+        num_frames, offset_len, win_len, step_len = make_frames_args(rate=rate, duration=duration,\
+            offset=offset, window=window, step=step)
+        com_len = int(num_frames * step_len + win_len) #combined length of frames
 
-        # ensure duration corresponds to an integer number of steps
-        duration = num_samples(duration, rate=rate/step_len) * step_len / rate
-
-        compute_padding(data_len, win_len, step_len, center)
-
-
-        # padding before / after        
-        pad_zeros = [0, 0]
-
-        # padding before
-        pad = win_siz / 2
-        pad_sec = pad / sr # convert to seconds
-        pad_zeros_sec = max(0, pad_sec - offset) # amount of zero padding required
-        pad_zeros[0] = round(pad_zeros_sec * sr) # convert to # samples
-
-        # increment duration
-        pad_sec -= pad_zeros_sec
-        duration += pad_sec
-
-        # reduce offset
-        delta_offset = pad_sec
-
-        # padding after        
-        pad = max(0, win_siz / 2 - (seg_siz - num_steps * step_siz) - step_siz)
-        pad_sec = pad / sr # convert to seconds
-        resid = file_duration - (offset - delta_offset + duration)
-        pad_zeros_sec = max(0, pad_sec - resid) # amount of zero padding required
-        pad_zeros[1] = round(pad_zeros_sec * sr) # convert to # samples
-
-        # increment duration
-        pad_sec -= pad_zeros_sec
-        duration += pad_sec
+        # convert back to seconds and compute required amount of zero padding
+        pad_left = max(0, -offset_len)
+        pad_right = max(0, (offset_len + com_len) - file_len)
+        offset = max(0, offset_len) / rate
+        audio_len = int(com_len - pad_left - pad_right)
+        duration = audio_len / rate
 
         # load audio segment
-        x, sr = librosa.core.load(path=path, sr=sampling_rate, offset=offset-delta_offset, duration=duration, mono=False, res_type=res_type)
+        x, rate = librosa.core.load(path=path, sr=rate, offset=offset,\
+            duration=duration, mono=False, res_type=resample_method)
 
-        # check that loaded audio segment has the expected length.
-        # if this is not the case, load the entire audio file and 
-        # select the segment of interest manually. 
-        N = int(sr * duration)
-        if len(x) != N:
-            x, sr = librosa.core.load(path=path, sr=sampling_rate, mono=False)
-            if np.ndim(x) == 2:
-                x = x[channel]
-
-            start = int((offset - delta_offset) * sr)
-            num_samples = int(duration * sr)
-            stop = min(len(x), start + num_samples)
-            x = x[start:stop]
-
-        # check again, pad with zeros to fix any remaining mismatch
-        N = round(sr * duration)
-        if len(x) < N:
-            z = np.zeros(N-len(x))
-            x = np.concatenate((z, x))        
-
-        # parse file name
-        fname = os.path.basename(path)
-
-        # select channel
+        # select channel (for stereo only)
         if np.ndim(x) == 2:
             x = x[channel]
 
+        # check that loaded audio segment has the expected length (give or take 1 sample).
+        # if this is not the case, load the entire audio file into memory, then cut out the 
+        # relevant section. 
+        if abs(len(x) - audio_len) > 1:
+            x, rate = librosa.core.load(path=path, sr=rate, mono=False)
+            if np.ndim(x) == 2:
+                x = x[channel]
+
+            a = max(0, offset_len)
+            b = a + audio_len
+            x = x[a:b]
+
         # pad with zeros
-        if pad_zeros[0] > 0:
-            z = np.zeros(pad_zeros[0])
-            x = np.concatenate((z, x))        
-        if pad_zeros[1] > 0:
-            z = np.zeros(pad_zeros[1])
-            x = np.concatenate((x, z))        
+        pad_right += max(0, len(x) - com_len))
+        x = pad(x, pad_left=pad_left, pad_right=pad_right)
 
-        # make frames
-        frames = make_frames(x, winlen=win_siz, winstep=step_siz)
-
-        # Apply Hamming window    
-        if window_function == 'HAMMING':
-            frames *= np.hamming(frames.shape[1])
-
-        # Compute fast fourier transform
-        fft = np.fft.rfft(frames)
-
-        # Compute magnitude
-        image = np.abs(fft)
-
-        # Number of points used for FFT
-        NFFT = frames.shape[1]
-        
-        # Frequency resolution
-        fres = sr / 2. / image.shape[1]
-
-        # use logarithmic axis
-        if decibel:
-            image = to_decibel(image)
-
-        spec = cls(image=image, NFFT=NFFT, winstep=step_siz/sr, tmin=offset, fres=fres, tag=fname, decibel=decibel)
-        spec.hop = step_siz
-        spec.hamming = True
-
-        # crop frequencies
-        spec.crop(flow=fmin, fhigh=fmax) 
+        # create AudioSignal object
+        filename = os.path.basename(path) #parse file name
+        audio = AudioSignal(data=x, rate=rate, filename=filename, offset=offset)
 
         return spec
 

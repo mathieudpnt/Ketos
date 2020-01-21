@@ -62,23 +62,6 @@ def test_copy_spec__new(spec_image_with_attrs):
     assert np.all(spec.image + 1.5 == spec2.image) #check that original image was not affected
     assert spec.time_ax.x_max + 30. == spec2.time_ax.x_max #check that original time axis was not affected
 
-def test_make_frames_args():
-    # simple case produces expected output
-    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-10,40,20)
-    # change in offset produces expected change in offset_len
-    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=3., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,20,40,20)
-    # window_len is always even
-    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-11,42,20)
-    # step_len is always even
-    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4., step=2.11)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-9,40,22)
-    # if the duration is not an integer multiple of the step size, we still get the expected output
-    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=9., offset=0., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (5,-10,40,20)
-
 
 
 ### old tests ...
