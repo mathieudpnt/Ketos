@@ -47,10 +47,46 @@ from sys import getsizeof
 from psutil import virtual_memory
 
 
-def make_frames(x, num_frames, offset_len, win_len, step_len):
-    """ Divide an array into frames of equal length, each frame 
-        being shifted by a fixed amount with respetive to the 
+def pad(x, pad_left=0, pad_right=0):
+    """ Pad an array with zeros along its first axis (0).
+
+        Args: 
+            x: numpy.array
+                The data to be padded.
+            pad_left: int
+                Amount of padding on the left
+            pad_right: int
+                Amount of padding on the right
+
+        Returns:
+            x_pad: numpy.array
+                Padded array
+    """
+    if pad_left == 0 and pad_right == 0:
+        x_pad = x
+
+    else:
+        x_pad = x.copy()
+        pad_shape = list(x.shape)
+        if pad_left > 0:
+            pad_shape[0] = pad_left
+            x_pad = np.concatenate((np.zeros(tuple(pad_shape)), x_pad))
+
+        if pad_right > 0:
+            pad_shape[0] = pad_right
+            x_pad = np.concatenate((x_pad, np.zeros(tuple(pad_shape))))
+
+    return x_pad
+
+def make_frames(x, num_frames, offset_len, win_len, step_len, warnings=True):
+    """ Divide an array into frames of equal length along its first 
+        axis (0), each frame being shifted by a fixed amount with respetive to the 
         previous frame.
+
+        If offset_len is negative the input array will be padded with zeros 
+        on the left. If the combined length of the frames exceeds the length 
+        of the input array (minus any positive offset), the array will be 
+        padded with zeros on the right.
 
         Args: 
             x: numpy.array
@@ -61,8 +97,11 @@ def make_frames(x, num_frames, offset_len, win_len, step_len):
                 Position of the first frame
             win_len: int
                 Window length.
-            winstep: float
+            step_len: float
                 Step size.
+            warnings: bool
+                Print warning if the size of the array exceeds 10% of the 
+                available memory.
 
         Returns:
             frames: numpy.array
@@ -80,41 +119,28 @@ def make_frames(x, num_frames, offset_len, win_len, step_len):
              [ 5  6  7  8]
              [ 7  8  9 10]]
     """
-
-    mem = virtual_memory()
-
-    siz = getsizeof(x) * winlen / winstep
-
-    if siz > 0.1 * mem.total:
+    mem = virtual_memory() #memory available
+    siz = getsizeof(x) * win_len / step_len #estimated size of output array
+    if siz > 0.1 * mem.total: #print warning, if output array is very large
         print("Warning: size of output frames exceeds 10% of memory")
-        print("Consider reducing the data size and/or increasing the step size and/or reducing the window length")
+        print("Consider reducing the array size and/or increasing the step size and/or reducing the window size")
 
-    totlen = x.shape[0]
+    # pad with zeros, if necessary
+    pad_left = max(0, -offset_len)
+    pad_right = max(0, max(0, offset_len) + num_frames * step_len + win_len - x.shape[0])    
+    x_pad = pad(x, pad_left, pad_right)
 
-    if zero_padding:
-        n_frames = int(np.ceil(totlen / winstep))
-        n_zeros = max(0, int((n_frames-1) * winstep + winlen - totlen))
-        if np.ndim(x) == 1:
-            z_shape = n_zeros
-        else:
-            z_shape = (n_zeros, x.shape[1])
-        z = np.zeros(shape=z_shape)
-        padded_signal = np.concatenate((x, z))
-    else:
-        padded_signal = x
-        if winlen > totlen:
-            n_frames = 1
-            winlen = totlen
-        else:
-            n_frames = int(np.floor((totlen-winlen) / winstep)) + 1
-
-    indices = np.tile(np.arange(0, winlen), (n_frames, 1)) + np.tile(np.arange(0, n_frames * winstep, winstep), (winlen, 1)).T
-    frames = padded_signal[indices.astype(np.int32, copy=False)]
+    # tile    
+    indices = np.tile(np.arange(0, win_len), (num_frames, 1)) + np.tile(np.arange(0, num_frames * step_len, step_len), (win_len, 1)).T
+    frames = x_pad[indices.astype(np.int32, copy=False)]
 
     return frames
 
 def num_samples(time, rate, even=False):
-    """ Convert time interval to nearest integer number of samples.
+    """ Convert time interval to number of samples. 
+        
+        If the time corresponds to a non-integer number of samples, 
+        round to the nearest larger integer value.
 
         Args:
             time: float
@@ -122,26 +148,26 @@ def num_samples(time, rate, even=False):
             rate: float
                 Sampling rate in Hz
             even: bool
-                Convert to nearest even integer.
+                Convert to nearest larger even integer.
 
         Returns:
             n: int
                 Number of samples
     """
     if even: 
-        n = int(2 * round(0.5 * time * rate))
+        n = int(2 * np.ceil(0.5 * time * rate))
     else:
-        n = int(round(time * rate))
+        n = int(np.ceil(time * rate))
     
     return n
 
 def stft(self, x, rate, window, step, window_func='hamming'):
     """ Compute Short Time Fourier Transform (STFT).
 
-        The window size and step size are rounded to the nearest even integer 
-        and nearest integer number of samples, respectively. The number of 
-        points used for the Fourier Transform is equal to the number of 
-        samples in the window.
+        The window size and step size are converted to number of samples 
+        and rounded to the nearest even integer and nearest integer, 
+        respectively. The number of points used for the Fourier Transform 
+        is equal to the number of samples in the window.
     
         Args:
             x: numpy.array

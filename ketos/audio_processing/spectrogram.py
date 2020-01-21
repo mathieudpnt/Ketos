@@ -276,9 +276,9 @@ def make_frames_args(rate, duration, offset, window, step):
                 Step size in number of samples
     """
     win_len = num_samples(window, rate=rate, even=True) 
-    step_len = num_samples(step, rate=rate)
-    num_frames = num_samples(duration, rate=rate/step_len) + 1
-    offset_len = num_samples(offset, rate=rate) - win_len/2
+    step_len = num_samples(step, rate=rate, even=True)
+    num_frames = num_samples(duration, rate=rate/step_len)
+    offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
     return num_frames, offset_len, win_len, step_len
 
 def mag2pow(img, num_fft):
