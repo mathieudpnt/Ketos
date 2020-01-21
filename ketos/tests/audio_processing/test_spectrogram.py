@@ -38,6 +38,8 @@ import math
 import os
 import tables
 
+import ketos.audio_processing.spectrogram as ksp
+
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -59,7 +61,21 @@ def test_copy_spec__new(spec_image_with_attrs):
     spec2.time_ax.x_max += 30. #modify copied time axis
     assert np.all(spec.image + 1.5 == spec2.image) #check that original image was not affected
     assert spec.time_ax.x_max + 30. == spec2.time_ax.x_max #check that original time axis was not affected
-    
+
+def test_make_frames_args():
+    # simple case produces expected output
+    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4., step=2.)
+    assert (num_frames, offset_len, win_len, step_len) == (5,-20,40,20)
+    # change in offset produces expected change in offset_len
+    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=3., window=4., step=2.)
+    assert (num_frames, offset_len, win_len, step_len) == (5,10,40,20)
+    # window_len is always even
+    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
+    assert (num_frames, offset_len, win_len, step_len) == (5,-21,42,20)
+    # when the duration is not an integer multiple of the step size, we still get the expected output
+    num_frames, offset_len, win_len, step_len = ksp.make_frames_args(rate=10., duration=8., offset=0., window=4.0, step=3.)
+    assert (num_frames, offset_len, win_len, step_len) == (4,-20,40,30)
+
 
 
 ### old tests ...

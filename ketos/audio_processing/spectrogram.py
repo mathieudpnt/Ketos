@@ -61,7 +61,7 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal, enhance_image
+from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal
 from ketos.audio_processing.audio import AudioSignal
 from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
@@ -248,6 +248,39 @@ def add_specs(a, b, offset=0, make_copy=False):
 
     return ab
 
+def make_frames_args(rate, duration, offset, window, step):
+    """ Computes input arguments for :func:`audio_processing.audio_processing.make_frames` 
+        to produce a centered spectrogram with properties as close as possible to the 
+        those specified.
+
+        Args:
+            rate: float
+                Sampling rate in Hz
+            duration: float
+                Duration in seconds
+            offset: float
+                Offset in seconds
+            window: float
+                Window size in seconds
+            step: float
+                Window size in seconds
+
+        Returns:
+            num_frames: int
+                Number of steps
+            offset_len: int
+                Offset in number of samples
+            win_len: int
+                Window size in number of samples
+            step_len: int
+                Step size in number of samples
+    """
+    win_len = num_samples(window, rate=rate, even=True) 
+    step_len = num_samples(step, rate=rate)
+    num_frames = num_samples(duration, rate=rate/step_len) + 1
+    offset_len = num_samples(offset, rate=rate) - win_len/2
+    return num_frames, offset_len, win_len, step_len
+
 def mag2pow(img, num_fft):
     """ Convert a Magnitude spectrogram to a Power spectrogram.
 
@@ -261,7 +294,7 @@ def mag2pow(img, num_fft):
             : numpy.array
                 Power spectrogram image
     """
-    return = (1.0 / num_fft) * (img ** 2)
+    return (1.0 / num_fft) * (img ** 2)
 
 def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     """ Convert a Magnitude spectrogram to a Mel spectrogram.
@@ -866,9 +899,6 @@ class MagSpectrogram(Spectrogram):
                     * blackman
                     * hamming (default)
                     * hanning
-            even_len: bool
-                If necessary, increase the window length to make it an even number 
-                of samples. Default is True.
 
         Attrs:
             num_fft: int
@@ -876,11 +906,11 @@ class MagSpectrogram(Spectrogram):
             rate: float
                 Sampling rate in Hz.
     """
-    def __init__(self, audio, window, step, window_func='hamming', even_len=True):
+    def __init__(self, audio, window, step, window_func='hamming'):
 
         # compute STFT
         img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, window_func=window_func, even_len=even_len)
+            step=step, window_func=window_func)
 
         # create frequency axis
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
@@ -896,7 +926,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_wav(cls, path, channel=0, config=None, rate=None, window=None, step=None,\
-            window_func='hamming', even_len=True, offset=0, duration=None,\
+            window_func='hamming', offset=0, duration=None,\
             resample_method='scipy'):
         """ Create magnitude spectrogram directly from wav file.
 
@@ -926,9 +956,6 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
-                even_len: bool
-                    If necessary, increase the window length to make it an even number 
-                    of samples. Default is True.
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -990,7 +1017,7 @@ class MagSpectrogram(Spectrogram):
         assert offset < file_duration, 'Selected audio segment is empty'
 
         # convert window and step to number of samples
-        win_len = num_samples(window, rate=rate, even=even_len) 
+        win_len = num_samples(window, rate=rate, even=True) 
         step_len = num_samples(step, rate=rate)
 
         # ensure duration corresponds to an integer number of steps
@@ -1158,9 +1185,6 @@ class PowerSpectrogram(Spectrogram):
                     * blackman
                     * hamming (default)
                     * hanning
-            even_len: bool
-                If necessary, increase the window length to make it an even number 
-                of samples. Default is True.
 
         Attrs:
             num_fft: int
@@ -1168,11 +1192,11 @@ class PowerSpectrogram(Spectrogram):
             rate: float
                 Sampling rate in Hz.
     """
-    def __init__(self, audio, window, step, window_func='hamming', even_len=True):
+    def __init__(self, audio, window, step, window_func='hamming'):
 
         # compute STFT
         img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, window_func=window_func, even_len=even_len)
+            step=step, window_func=window_func)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
 
         # create frequency axis
@@ -1203,9 +1227,6 @@ class MelSpectrogram(Spectrogram):
                     * blackman
                     * hamming (default)
                     * hanning
-            even_len: bool
-                If necessary, increase the window length to make it an even number 
-                of samples. Default is True.
             num_filters: int
                 The number of filters in the filter bank.
             num_ceps: int
@@ -1221,12 +1242,12 @@ class MelSpectrogram(Spectrogram):
             filter_banks: numpy.array
                 Filter banks
     """
-    def __init__(self, audio, window, step, window_func='hamming', even_len=True,\
+    def __init__(self, audio, window, step, window_func='hamming',\
             num_filters=40, num_ceps=20, cep_lifter=20):
 
         # compute STFT
         img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, window_func=window_func, even_len=even_len)
+            step=step, window_func=window_func)
         img, filter_banks = mag2mel(img, audio.rate, num_filters, num_ceps, cep_lifter) # Magnitude->Mel conversion
 
         # create frequency axis

@@ -47,24 +47,22 @@ from sys import getsizeof
 from psutil import virtual_memory
 
 
-def make_frames(x, win_len, step_len, pad=True, center=True):
-    """ Split sequential data into frames of length 'win_len' with consecutive 
-        frames being shifted by an amount 'step_len'.
+def make_frames(x, num_frames, offset_len, win_len, step_len):
+    """ Divide an array into frames of equal length, each frame 
+        being shifted by a fixed amount with respetive to the 
+        previous frame.
 
         Args: 
             x: numpy.array
                 The data to be framed.
+            num_frames: int
+                Number of frames
+            offset_len: int
+                Position of the first frame
             win_len: int
                 Window length.
             winstep: float
                 Step size.
-            pad: bool
-                If necessary, pad the data with zeros to make sure that all frames 
-                have an equal number of samples. 
-            center: bool
-                When padding, apply the same amount of padding before and after to 
-                ensure that the data is centered, instead of only padding at the 
-                end. Default is True.
 
         Returns:
             frames: numpy.array
@@ -116,7 +114,7 @@ def make_frames(x, win_len, step_len, pad=True, center=True):
     return frames
 
 def num_samples(time, rate, even=False):
-    """ Convert time interval to integer number of samples.
+    """ Convert time interval to nearest integer number of samples.
 
         Args:
             time: float
@@ -124,61 +122,26 @@ def num_samples(time, rate, even=False):
             rate: float
                 Sampling rate in Hz
             even: bool
-                If necessary, increase number of samples by +1
-                to make it an even number.
+                Convert to nearest even integer.
 
         Returns:
             n: int
                 Number of samples
     """
-    n = int(round(time * rate))
-    if even:
-        n += n%2
-
+    if even: 
+        n = int(2 * round(0.5 * time * rate))
+    else:
+        n = int(round(time * rate))
+    
     return n
 
-def pad_size(data_len, win_len, step_len, center):
-    """ Determine the amount of padding required to 
-        split the data into an integer number of frames 
-        with uniform length, while making use of all 
-        the data.
-
-        Args:
-            data_len: int
-                Data length
-            win_len: int
-                Window size
-            step_len: int
-                Step size
-            center: bool
-                If True (default), apply padding on both 
-                sides. If False, only apply padding on the 
-                right. Default is True.
-
-        Returns:
-            pad_left: int
-                Left padding size
-            pad_right: int
-                Right padding size
-    """
-    num_frames = int(np.ceil(data_len / step_len))
-    pad_len = max(0, int((num_frames - 1) * step_len + win_len - data_len))
-    if center:
-        pad_left = int(pad_len / 2)
-        pad_right = pad_len - pad_left
-    else
-        pad_left = 0
-        pad_right = pad_len
-
-    return pad_left, pad_right
-
-
-def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
+def stft(self, x, rate, window, step, window_func='hamming'):
     """ Compute Short Time Fourier Transform (STFT).
 
-        The window size and step size are rounded to the nearest integer 
-        number of samples. The number of points used for the Fourier Transform 
-        is equal to the number of samples in the window.
+        The window size and step size are rounded to the nearest even integer 
+        and nearest integer number of samples, respectively. The number of 
+        points used for the Fourier Transform is equal to the number of 
+        samples in the window.
     
         Args:
             x: numpy.array
@@ -195,9 +158,6 @@ def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
                     * blackman
                     * hamming (default)
                     * hanning
-            even_len: bool
-                If necessary, increase the window length to make it an even number 
-                of samples. Default is True.
 
         Returns:
             img: numpy.array
@@ -208,7 +168,7 @@ def stft(self, x, rate, window, step, window_func='hamming', even_len=True):
                 Number of points used for the Fourier Transform.
     """
     #convert to number of samples
-    win_len = num_samples(window, rate, even=even_len) 
+    win_len = num_samples(window, rate, even=True) 
     step_len = num_samples(step, rate)
 
     frames = make_frames(win_len=win_len, step_len=step_len) #segment audio signal 

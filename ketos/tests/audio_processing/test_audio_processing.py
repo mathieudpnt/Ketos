@@ -39,6 +39,10 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
+def test_num_samples():
+    assert ap.num_samples(time=1.0, rate=10.) == 10
+    assert ap.num_samples(time=1.1, rate=10.) == 11
+    assert ap.num_samples(time=1.11, rate=10., even=True) == 12
 
 def test_to_decibel_returns_decibels():
     x = 7
