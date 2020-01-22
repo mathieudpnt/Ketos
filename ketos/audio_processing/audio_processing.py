@@ -78,8 +78,8 @@ def pad(x, pad_left=0, pad_right=0):
 
     return x_pad
 
-def make_frames_args(rate, duration, offset, window, step):
-    """ Computes input arguments for :func:`audio_processing.audio_processing.make_frames` 
+def segment_args(rate, duration, offset, window, step):
+    """ Computes input arguments for :func:`audio_processing.audio_processing.make_segment` 
         to produce a centered spectrogram with properties as close as possible to the 
         those specified.
 
@@ -96,36 +96,34 @@ def make_frames_args(rate, duration, offset, window, step):
                 Window size in seconds
 
         Returns:
-            num_frames: int
-                Number of steps
-            offset_len: int
-                Offset in number of samples
-            win_len: int
-                Window size in number of samples
-            step_len: int
-                Step size in number of samples
+            : dict
+            Dictionary with following keys and values:
+                * num_segs: Number of steps (int)
+                * offset_len: Offset in number of samples (int)
+                * win_len: Window size in number of samples (int)
+                * step_len: Step size in number of samples (int)
     """
     win_len = num_samples(window, rate=rate, even=True) 
     step_len = num_samples(step, rate=rate, even=True)
-    num_frames = num_samples(duration, rate=rate/step_len)
+    num_segs = num_samples(duration, rate=rate/step_len)
     offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
-    return num_frames, offset_len, win_len, step_len
+    return {'num_segs':num_segs, 'offset_len':offset_len, 'win_len':win_len, 'step_len':step_len}
 
-def make_frames(x, num_frames, offset_len, win_len, step_len, warnings=True):
-    """ Divide an array into frames of equal length along its first 
-        axis (0), each frame being shifted by a fixed amount with respetive to the 
-        previous frame.
+def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
+    """ Divide an array into segments of equal length along its first 
+        axis (0), each segment being shifted by a fixed amount with respetive to the 
+        previous segment.
 
         If offset_len is negative the input array will be padded with zeros 
-        on the left. If the combined length of the frames exceeds the length 
+        on the left. If the combined length of the segments exceeds the length 
         of the input array (minus any positive offset), the array will be 
         padded with zeros on the right.
 
         Args: 
             x: numpy.array
-                The data to be framed.
-            num_frames: int
-                Number of frames
+                The data to be segmented
+            num_segs: int
+                Number of segments
             offset_len: int
                 Position of the first frame
             win_len: int
@@ -137,8 +135,8 @@ def make_frames(x, num_frames, offset_len, win_len, step_len, warnings=True):
                 available memory.
 
         Returns:
-            frames: numpy.array
-                Framed data.
+            segs: numpy.array
+                Segmented data.
 
         Example:
             >>> from ketos.audio_processing.audio_processing import make_frames
@@ -160,14 +158,14 @@ def make_frames(x, num_frames, offset_len, win_len, step_len, warnings=True):
 
     # pad with zeros, if necessary
     pad_left = max(0, -offset_len)
-    pad_right = max(0, max(0, offset_len) + num_frames * step_len + win_len - x.shape[0])    
+    pad_right = max(0, max(0, offset_len) + num_segs * step_len + win_len - x.shape[0])    
     x_pad = pad(x, pad_left, pad_right)
 
     # tile    
-    indices = np.tile(np.arange(0, win_len), (num_frames, 1)) + np.tile(np.arange(0, num_frames * step_len, step_len), (win_len, 1)).T
-    frames = x_pad[indices.astype(np.int32, copy=False)]
+    indices = np.tile(np.arange(0, win_len), (num_segs, 1)) + np.tile(np.arange(0, num_segs * step_len, step_len), (win_len, 1)).T
+    segs = x_pad[indices.astype(np.int32, copy=False)]
 
-    return frames
+    return segs
 
 def num_samples(time, rate, even=False):
     """ Convert time interval to number of samples. 
@@ -194,13 +192,14 @@ def num_samples(time, rate, even=False):
     
     return n
 
-def stft(self, x, rate, window, step, window_func='hamming'):
+def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
     """ Compute Short Time Fourier Transform (STFT).
 
-        The window size and step size are converted to number of samples 
-        and rounded to the nearest even integer and nearest integer, 
-        respectively. The number of points used for the Fourier Transform 
-        is equal to the number of samples in the window.
+        Uses :func:`audio_processing.audio_processing.segment_args` to convert 
+        the window size and step size into an even integer number of samples.
+        
+        The number of points used for the Fourier Transform is equal to the 
+        number of samples in the window.
     
         Args:
             x: numpy.array
@@ -211,6 +210,9 @@ def stft(self, x, rate, window, step, window_func='hamming'):
                 Window length in seconds
             step: float
                 Step size in seconds 
+            seg_args: dict
+                Input arguments for :func:`audio_processing.audio_processing.segment_args`. 
+                Optional. If specified, the arguments `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
                     * bartlett
@@ -225,20 +227,23 @@ def stft(self, x, rate, window, step, window_func='hamming'):
                 Maximum frequency in Hz
             num_fft: int
                 Number of points used for the Fourier Transform.
+            seg_args: dict
+                Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
     """
-    #convert to number of samples
-    win_len = num_samples(window, rate, even=True) 
-    step_len = num_samples(step, rate)
+    if seg_args is None:
+        seg_args = segment_args(rate=rate, duration=len(x)*rate,\ 
+            offset=0, window=window, step=step) #compute input arguments for segment method
 
-    frames = make_frames(win_len=win_len, step_len=step_len) #segment audio signal 
+    segs = segment(seg_args) #divide audio signal into segments
+
     if window_func:
-        frames *= eval("np.{0}".format(window_func))(frames.shape[1]) #apply Window function
+        segs *= eval("np.{0}".format(window_func))(segs.shape[1]) #apply Window function
 
-    fft = np.fft.rfft(frames) #Compute fast fourier transform
+    fft = np.fft.rfft(segs) #Compute fast fourier transform
     img = to_decibel(np.abs(fft)) #Compute magnitude on dB scale
     num_fft = frames.shape[1] #Number of points used for the Fourier Transform        
     freq_max = audio_signal.rate / 2. #Maximum frequency
-    return img, freq_max, num_fft
+    return img, freq_max, num_fft, seg_args
 
 def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None):
     """ Compute the CQT spectrogram of an audio signal.
@@ -330,213 +335,6 @@ def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None):
 
     return img, step
 
-def append_specs(specs):
-    """ Append spectrograms in the order in which they are provided.
-
-        The spectrograms must have the same time and frequency resolutions
-        and share the same frequency axis.
-
-        Args:
-            specs: list(Spectrogram)
-                Input spectrograms
-
-        Returns:
-            s: Spectrogram
-                Output spectrogram
-
-            Example:
-                >>> # read audio file
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
-                >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
-                >>> # keep only frequencies below 800 Hz
-                >>> spec.crop(fhigh=800)
-                >>> # append spectrogram to itself two times 
-                >>> from ketos.audio_processing.audio_processing import append_specs
-                >>> merged = append_specs([spec, spec, spec])
-                >>> # show orignal spectrogram
-                >>> fig = spec.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_orig.png")
-                >>> # show the merged spectrogram
-                >>> fig = merged.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/grunt1_append_to_itself.png")
-
-                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_orig.png
-
-                .. image:: ../../../../ketos/tests/assets/tmp/grunt1_append_to_itself.png
-
-    """
-    s = specs[0].copy()
-    for i in range(1,len(specs)):
-        s.append(specs[i])
-
-    return s
-
-class FrameMakerForBinaryCNN():
-    """ Make frames suitable for training a binary CNN.
-
-        Args:
-            specs : list
-                Spectograms
-            label : int
-                Label that we want the CNN to learn to detect
-            frame_width: int
-                Frame width (pixels).
-            step_size: int
-                Step size (pixels) used for framing. 
-            signal_width: int
-                Number of time bins that must have the label for the entire 
-                frame to be assigned the label.
-            rndm: bool
-                Randomize the order of the frames
-            seed: int
-                Seed for random number generator
-            equal_rep: bool
-                Ensure equal representation of 0s and 1s by removing the 
-                more abundant class until there are equally many.
-            discard_mixed: bool
-                Discard frames which have time bins with different labels
-
-        Attributes:
-            idx : int
-                Index of current spectrogram. Used for internal book keeping.
-
-        Example:
-
-            >>> # extract saved spectrogram from database file
-            >>> import tables
-            >>> import ketos.data_handling.database_interface as di
-            >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
-            >>> table = di.open_table(db, "/sig") 
-            >>> spec = di.load_specs(table)[0]
-            >>> db.close()
-            >>> # create an instance of FrameMakerForBinaryCNN with a single spectrogram as input and frame width of 8
-            >>> from ketos.audio_processing.audio_processing import FrameMakerForBinaryCNN
-            >>> fmaker = FrameMakerForBinaryCNN(specs=[spec], label=1, frame_width=8)
-            >>> # make frames 
-            >>> x, y, _ = fmaker.make_frames()
-            >>> print(x.shape)
-            (143, 8, 224)
-            >>> print(y)
-            [False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False  True  True  True  True  True  True  True  True  True  True
-              True  True  True  True  True  True  True  True  True  True  True  True
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False False
-             False False False False False False False False False False False]
-            >>> # show the input spectrogram
-            >>> fig = spec.plot(1)
-            >>> fig.savefig("ketos/tests/assets/tmp/cod_w_label.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/cod_w_label.png
-
-    """
-    def __init__(self, specs, label, frame_width, step_size=1, signal_width=1, rndm=False, seed=1, equal_rep=False, discard_mixed=False):
-
-        self.idx = 0
-        self.specs = specs
-        self.label = label
-        self.frame_width = frame_width
-        self.step_size = step_size
-        self.signal_width = signal_width
-        self.rndm = rndm
-        self.seed = seed
-        self.equal_rep = equal_rep
-        self.discard_mixed = discard_mixed
-
-    def eof(self):
-        """ Inquire if all data have been read (end of file, eof)
-
-            Returns:
-                res : bool
-                    True, if all data has been read. False, otherwise               
-        """
-        res = (self.idx >= len(self.specs))
-        return res
-
-    def make_frames(self, max_frames=10000):
-        """ Make frames for training a binary CNN.
-
-            Args:
-                max_frames : int
-                    Return at most this many frames
-
-            Returns:
-                x : 3D numpy array
-                    Input data for the CNN.
-                    x.shape[0] = number of frames
-                    x.shape[1] = frame_width
-                    x.shape[2] = number of frequency bins (y axis)        
-                y : 1D numpy array
-                    Labels for input data.
-                    y.shape[0] = number of frames
-                spec: Spectrogram
-                    Merged spectrogram
-        """
-        x, y = None, None
-
-        # append specs until limit is reached
-        num_frames = 0
-        spec = None
-        while num_frames < max_frames and self.idx < len(self.specs):
-            s = self.specs[self.idx]
-            self.idx += 1
-            if spec is None:
-                spec = s
-            else:
-                spec.append(s)
-
-            num_frames += int(s.image.shape[0] / self.step_size)  # this is only approximate
-
-        x = spec.get_data()
-        y = spec.get_label_vector(self.label)
-
-        x = make_frames(x, winlen=self.frame_width, winstep=self.step_size)
-        y = make_frames(y, winlen=self.frame_width, winstep=self.step_size)
-
-        Nx = (x.shape[0] - 1) * self.step_size + x.shape[1]
-        spec.image = spec.image[:Nx,:]
-
-        y = np.sum(y, axis=1)
-
-        # discard mixed
-        if self.discard_mixed:
-            x = x[np.logical_or(y==0, y==self.frame_width)]
-            y = y[np.logical_or(y==0, y==self.frame_width)]
-            y = (y > 0)
-        else:
-            y = (y >= self.signal_width)
-
-        if self.rndm:
-            x, y = shuffle(x, y, random_state=self.seed)
-
-        # ensure equal representation of 0s and 1s
-        if self.equal_rep:
-            idx0 = pd.Index(np.squeeze(np.where(y == 0)))
-            idx1 = pd.Index(np.squeeze(np.where(y == 1)))
-            n0 = len(idx0)
-            n1 = len(idx1)
-            if n0 > n1:
-                idx0 = np.random.choice(idx0, n1, replace=False)
-                idx0 = pd.Index(idx0)
-            else:
-                idx1 = np.random.choice(idx1, n0, replace=False) 
-                idx1 = pd.Index(idx1)
-
-            idx = idx0.union(idx1)
-            x = x[idx]
-            y = y[idx]
-
-        return x, y, spec
-
 def to_decibel(x):
     """ Convert to decibels
 
@@ -589,6 +387,84 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
+def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
+    """ Estimate audio signal from magnitude spectrogram.
+
+        Implements the algorithm described in 
+
+            D. W. Griffin and J. S. Lim, “Signal estimation from modified short-time Fourier transform,” IEEE Trans. ASSP, vol.32, no.2, pp.236–243, Apr. 1984.            
+
+        Follows closely the implentation of https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
+
+        Args:
+            image: 2d numpy array
+                Magnitude spectrogram
+            phase_angle: 
+                Initial condition for phase.
+            num_fft: int
+                Number of points used for the Fast-Fourier Transform. Same as window size.
+            step_len: int
+                Step size.
+            num_iters: 
+                Number of iterations to perform.
+            window_func: string, tuple, number, function, np.ndarray [shape=(num_fft,)]
+                - a window specification (string, tuple, or number); see `scipy.signal.get_window`
+                - a window function, such as `scipy.signal.hamming`
+                - a user-specified window vector of length `num_fft`
+
+        Returns:
+            audio: 1d numpy array
+                Audio signal
+
+        Example:
+            >>> # create a simple sinusoidal audio signal with frequency of 10 Hz
+            >>> import numpy as np
+            >>> x = np.arange(1000)
+            >>> sig = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
+            >>> # compute the magnitude spectrogram with window size of 200, step size of 40,
+            >>> # and using a Hamming window
+            >>> from ketos.audio_processing.audio_processing import make_frames
+            >>> frames = make_frames(sig, 200, 40) 
+            >>> frames *= np.hamming(frames.shape[1])
+            >>> mag = np.abs(np.fft.rfft(frames))
+            >>> # estimate the original signal            
+            >>> from ketos.audio_processing.audio_processing import estimate_audio_signal
+            >>> sig_est = estimate_audio_signal(image=mag, phase_angle=0, num_fft=200, hop=40, num_iters=25, window=np.hamming(frames.shape[1]))
+            >>> # plot the original and the estimated signal
+            >>> import matplotlib.pyplot as plt
+            >>> plt.clf()
+            >>> _ = plt.plot(sig)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_orig.png")
+            >>> _ = plt.plot(sig_est)
+            >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
+    """
+    # swap axis to conform with librosa 
+    image = np.swapaxes(image, 0, 1)
+
+    # settings for FFT and inverse FFT    
+    fft_config = dict(n_fft=num_fft, win_length=num_fft, hop_length=step_len, center=False, window=window_func)
+    ifft_config = dict(win_length=num_fft, hop_length=step_len, center=False, window=window_func)
+
+    # initial spectrogram for iterative algorithm
+    complex_specgram = inv_magphase(image, phase_angle)
+
+    # Griffin-Lim iterative algorithm
+    for i in range(num_iters):
+        audio = librosa.istft(complex_specgram, **ifft_config)
+        if i != num_iters - 1:
+            complex_specgram = librosa.stft(audio, **fft_config)
+            _, phase = librosa.magphase(complex_specgram)
+            angle = np.angle(phase)
+            complex_specgram = inv_magphase(image, angle)
+
+    return audio
+
+
+
+
+# review below ...    
 
 def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
     """ Remove isolated spots from the image.
@@ -773,76 +649,3 @@ def inv_magphase(mag, angle):
     return c  
 
 
-def estimate_audio_signal(image, phase_angle, n_fft, hop, num_iters, window):
-    """ Estimate audio signal from magnitude spectrogram.
-
-        Implements the algorithm described in 
-
-            D. W. Griffin and J. S. Lim, “Signal estimation from modified short-time Fourier transform,” IEEE Trans. ASSP, vol.32, no.2, pp.236–243, Apr. 1984.            
-
-        Follows closely the implentation of https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
-
-        Args:
-            image: 2d numpy array
-                Magnitude spectrogram
-            phase_angle: 
-                Initial condition for phase.
-            n_fft: int
-                Number of points used for the Fast-Fourier Transform. Same as window size.
-            hop: int
-                Step size.
-            num_iters: 
-                Number of iterations to perform.
-            window: string, tuple, number, function, np.ndarray [shape=(n_fft,)]
-                - a window specification (string, tuple, or number); see `scipy.signal.get_window`
-                - a window function, such as `scipy.signal.hamming`
-                - a user-specified window vector of length `n_fft`
-
-        Returns:
-            audio: 1d numpy array
-                Audio signal
-
-        Example:
-            >>> # create a simple sinusoidal audio signal with frequency of 10 Hz
-            >>> import numpy as np
-            >>> x = np.arange(1000)
-            >>> sig = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
-            >>> # compute the magnitude spectrogram with window size of 200, step size of 40,
-            >>> # and using a Hamming window
-            >>> from ketos.audio_processing.audio_processing import make_frames
-            >>> frames = make_frames(sig, 200, 40) 
-            >>> frames *= np.hamming(frames.shape[1])
-            >>> mag = np.abs(np.fft.rfft(frames))
-            >>> # estimate the original signal            
-            >>> from ketos.audio_processing.audio_processing import estimate_audio_signal
-            >>> sig_est = estimate_audio_signal(image=mag, phase_angle=0, n_fft=200, hop=40, num_iters=25, window=np.hamming(frames.shape[1]))
-            >>> # plot the original and the estimated signal
-            >>> import matplotlib.pyplot as plt
-            >>> plt.clf()
-            >>> _ = plt.plot(sig)
-            >>> plt.savefig("ketos/tests/assets/tmp/sig_orig.png")
-            >>> _ = plt.plot(sig_est)
-            >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
-    """
-    # swap axis to conform with librosa 
-    image = np.swapaxes(image, 0, 1)
-
-    # settings for FFT and inverse FFT    
-    fft_config = dict(n_fft=n_fft, win_length=n_fft, hop_length=hop, center=False, window=window)
-    ifft_config = dict(win_length=n_fft, hop_length=hop, center=False, window=window)
-
-    # initial spectrogram for iterative algorithm
-    complex_specgram = inv_magphase(image, phase_angle)
-
-    # Griffin-Lim iterative algorithm
-    for i in range(num_iters):
-        audio = librosa.istft(complex_specgram, **ifft_config)
-        if i != num_iters - 1:
-            complex_specgram = librosa.stft(audio, **fft_config)
-            _, phase = librosa.magphase(complex_specgram)
-            angle = np.angle(phase)
-            complex_specgram = inv_magphase(image, angle)
-
-    return audio

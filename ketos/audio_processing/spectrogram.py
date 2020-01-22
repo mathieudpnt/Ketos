@@ -61,7 +61,6 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 import math
-from ketos.audio_processing.audio_processing import make_frames, to_decibel, from_decibel, estimate_audio_signal
 from ketos.audio_processing.audio import AudioSignal
 from ketos.data_handling.parsing import WinFun
 from ketos.utils import random_floats, factors
@@ -70,12 +69,13 @@ import librosa
 
 
 import copy
-from ketos.audio_processing.audio_processing import stft, cqt, make_frames, make_frames_args, num_samples, pad
+import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.audio_processing.augmentation import enhance_image
 
 
+# TODO: This methods needs updating (or be removed)
 def ensure_same_length(specs, pad=False):
     """ Ensure that all spectrograms have the same length.
 
@@ -317,6 +317,105 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     mel_spec *= lift  
     
     return mel_spec, filter_banks
+
+def load_audio_for_spec(path, channel, rate, window, step,\
+            offset, duration, resample_method):
+    """ Load audio data from a wav file for the specific purpose of computing 
+        the spectrogram.
+
+        The loaded audio covers a time interval that extends slightly beyond 
+        that specified, [offset, offset+duration], as needed to compute the 
+        full spectrogram without zero padding at either end. If the lower/upper 
+        boundary of the time interval coincidences with the start/end of the 
+        audio file so that no more data is available, we pad with zeros to achieve
+        the desired length. 
+
+        Args:
+            path: str
+                Path to wav file
+            channel: int
+                Channel to read from. Only relevant for stereo recordings
+            rate: float
+                Desired sampling rate in Hz. If None, the original sampling rate will be used
+            window: float
+                Window size in seconds that will be used for computing the spectrogram
+            step: float
+                Step size in seconds that will be used for computing the spectrogram
+            offset: float
+                Start time of spectrogram in seconds, relative the start of the wav file.
+            duration: float
+                Length of spectrogrma in seconds.
+            resample_method: str
+                Resampling method. Only relevant if `rate` is specified. Options are
+                    * kaiser_best
+                    * kaiser_fast
+                    * scipy (default)
+                    * polyphase
+                See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
+                for details on the individual methods.
+
+        Returns:
+            audio: AudioSignal
+                The audio signal
+            seg_args: tuple(int,int,int,int)
+                Input arguments for :func:`audio_processing.audio_processing.make_segment`
+    """
+    if rate is None:
+        rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
+
+    file_duration = librosa.get_duration(filename=path) #get file duration
+    file_len = int(file_duration * rate) #file length (number of samples)
+    
+    assert offset < file_duration, 'Offset exceeds file duration'
+    
+    if duration is None:
+        duration = file_duration - offset #if not specified, use file duration minus offset
+
+    duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
+
+    # compute segmentation parameters
+    num_frames, offset_len, win_len, step_len = ap.segment_args(rate=rate, duration=duration,\
+        offset=offset, window=window, step=step)
+    com_len = int(num_frames * step_len + win_len) #combined length of frames
+
+    # convert back to seconds and compute required amount of zero padding
+    pad_left = max(0, -offset_len)
+    pad_right = max(0, (offset_len + com_len) - file_len)
+    load_offset = max(0, offset_len) / rate
+    audio_len = int(com_len - pad_left - pad_right)
+    duration = audio_len / rate
+
+    # load audio segment
+    x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
+        duration=duration, mono=False, res_type=resample_method)
+
+    # select channel (for stereo only)
+    if np.ndim(x) == 2:
+        x = x[channel]
+
+    # check that loaded audio segment has the expected length (give or take 1 sample).
+    # if this is not the case, load the entire audio file into memory, then cut out the 
+    # relevant section. 
+    if abs(len(x) - audio_len) > 1:
+        x, rate = librosa.core.load(path=path, sr=rate, mono=False)
+        if np.ndim(x) == 2:
+            x = x[channel]
+
+        a = max(0, offset_len)
+        b = a + audio_len
+        x = x[a:b]
+
+    # pad with zeros
+    pad_right += max(0, len(x) - com_len))
+    x = ap.pad(x, pad_left=pad_left, pad_right=pad_right)
+
+    # create AudioSignal object
+    filename = os.path.basename(path) #parse file name
+    audio = AudioSignal(data=x, rate=rate, filename=filename, offset=offset)
+
+    seg_args = (num_segs, offset_len, win_len, step_len)
+
+    return audio, seg_args
 
 class Spectrogram():
     """ Spectrogram.
@@ -650,7 +749,7 @@ class Spectrogram():
         step_len = int(round(step / time_res))
 
         # segment image
-        segs = make_frames(x=self.image, win_len=win_len, step_len=step_len, pad=True, center=False)
+        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad=True, center=False)
 
         window = win_len * time_res
         step = step_len * time_res
@@ -860,6 +959,9 @@ class MagSpectrogram(Spectrogram):
                 Window length in seconds
             step: float
                 Step size in seconds
+            seg_args: tuple(int,int,int,int)
+                Input arguments for :func:`audio_processing.audio_processing.segment_args`. 
+                Optional. If specified, the arguments `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
                     * bartlett
@@ -873,11 +975,11 @@ class MagSpectrogram(Spectrogram):
             rate: float
                 Sampling rate in Hz.
     """
-    def __init__(self, audio, window, step, window_func='hamming'):
+    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
 
         # compute STFT
-        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, window_func=window_func)
+        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, seg_args=seg_args, window_func=window_func)
 
         # create frequency axis
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
@@ -887,9 +989,11 @@ class MagSpectrogram(Spectrogram):
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
-        # store number of points used for FFT and sampling rate
+        # store number of points used for FFT, sampling rate, and window function
         self.num_fft = num_fft
         self.rate = audio.rate
+        self.window_func = window_func
+        self.seg_args = seg_args
 
     @classmethod
     def from_wav(cls, path, channel=0, config=None, rate=None, window=None, step=None,\
@@ -963,65 +1067,19 @@ class MagSpectrogram(Spectrogram):
             if spec_config.window_function is not None:
                 window_function = WinFun(spec_config.window_function).name
 
-        
-        if rate is None:
-            rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
+        # load audio
+        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
+            offset=offset, duration=duration, resample_method=resample_method)
 
-        file_duration = librosa.get_duration(filename=path) #get file duration
-        file_len = int(file_duration * rate) #file length (number of samples)
-        
-        assert offset < file_duration, 'Offset exceeds file duration'
-        
-        if duration is None:
-            duration = file_duration - offset #if not specified, use file duration minus offset
-
-        duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
-
-        # compute framing parameters
-        num_frames, offset_len, win_len, step_len = make_frames_args(rate=rate, duration=duration,\
-            offset=offset, window=window, step=step)
-        com_len = int(num_frames * step_len + win_len) #combined length of frames
-
-        # convert back to seconds and compute required amount of zero padding
-        pad_left = max(0, -offset_len)
-        pad_right = max(0, (offset_len + com_len) - file_len)
-        offset = max(0, offset_len) / rate
-        audio_len = int(com_len - pad_left - pad_right)
-        duration = audio_len / rate
-
-        # load audio segment
-        x, rate = librosa.core.load(path=path, sr=rate, offset=offset,\
-            duration=duration, mono=False, res_type=resample_method)
-
-        # select channel (for stereo only)
-        if np.ndim(x) == 2:
-            x = x[channel]
-
-        # check that loaded audio segment has the expected length (give or take 1 sample).
-        # if this is not the case, load the entire audio file into memory, then cut out the 
-        # relevant section. 
-        if abs(len(x) - audio_len) > 1:
-            x, rate = librosa.core.load(path=path, sr=rate, mono=False)
-            if np.ndim(x) == 2:
-                x = x[channel]
-
-            a = max(0, offset_len)
-            b = a + audio_len
-            x = x[a:b]
-
-        # pad with zeros
-        pad_right += max(0, len(x) - com_len))
-        x = pad(x, pad_left=pad_left, pad_right=pad_right)
-
-        # create AudioSignal object
-        filename = os.path.basename(path) #parse file name
-        audio = AudioSignal(data=x, rate=rate, filename=filename, offset=offset)
+        # compute spectrogram
+        cls(audio=audio, seg_args=seg_args, window_func=window_func)
 
         return spec
 
-
-    def audio_signal(self, num_iters=25, phase_angle=0):
+    def recover_audio(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
+
+            Uses :func:`audio_processing.audio_processing.spec2audio`.
 
             Args:
                 num_iters: 
@@ -1033,32 +1091,33 @@ class MagSpectrogram(Spectrogram):
                 audio: AudioSignal
                     Audio signal
         """
-        mag = self.image
-        if self.decibel:
-            mag = from_decibel(mag)
+        mag = ap.from_decibel(self.image) #use linear scale
 
-        # if the frequency axis has been cropped, pad with zeros
-        # along the 2nd axis to ensure that the spectrogram has 
-        # the expected shape
-        if self.fcroplow > 0 or self.fcrophigh > 0:
-            mag = np.pad(mag, pad_width=((0,0),(self.fcroplow,self.fcrophigh)), mode='constant')
+        # if the frequency axis has been cropped, pad with zeros to ensure that 
+        # the spectrogram has the expected shape
+        pad_low = max(0, -self.freq_ax.bin(0))
+        pad_high = max(0, self.freq_ax.bin(self.rate / 2, closed_right=True) - self.freq_ax.bins)
 
-        n_fft = self.NFFT
-        hop = self.hop
+        if pad_low or pad_high > 0:
+            mag = np.pad(mag, pad_width=((0,0),(pad_low,pad_high)), mode='constant')
 
-        if self.hamming:
-            window = get_window('hamming', n_fft)
+        # retrieve settings used for computing STFT
+        num_fft = self.num_fft
+        step_len = self.seg_args['step_len']
+        if self.window_func:
+            window_func = get_window(self.window_func, num_fft)
         else:
-            window = np.ones(n_fft)
+            window_func = np.ones(num_fft)
 
-        audio = estimate_audio_signal(image=mag, phase_angle=phase_angle, n_fft=n_fft, hop=hop, num_iters=num_iters, window=window)
+        # iteratively estimate audio signal
+        audio = ap.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
+            step_len=step_len, num_iters=num_iters, window_func=window_func)
 
-        # sampling rate of estimated audio signal should equal the old rate
-        N = len(audio)
-        old_rate = self.fres * 2 * mag.shape[1]
-        rate = N / (self.duration() + n_fft/old_rate - self.winstep)
+        # sampling rate of recovered audio signal should equal the original rate
+        rate_orig = self.time_ax.bin_width() * 2 * mag.shape[1]
+        rate = len(audio) / (self.length() + (num_fft - step_len) / rate_orig)
         
-        assert abs(old_rate - rate) < 0.1, 'The sampling rate of the estimated audio signal ({0:.1f} Hz) does not match the original signal ({1:.1f} Hz).'.format(rate, old_rate)
+        assert abs(old_rate - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, old_rate)
 
         audio = AudioSignal(rate=rate, data=audio)
 
@@ -1091,7 +1150,7 @@ class PowerSpectrogram(Spectrogram):
     def __init__(self, audio, window, step, window_func='hamming'):
 
         # compute STFT
-        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft = ap.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, window_func=window_func)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
 
@@ -1142,7 +1201,7 @@ class MelSpectrogram(Spectrogram):
             num_filters=40, num_ceps=20, cep_lifter=20):
 
         # compute STFT
-        img, freq_max, num_fft = stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft = ap.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, window_func=window_func)
         img, filter_banks = mag2mel(img, audio.rate, num_filters, num_ceps, cep_lifter) # Magnitude->Mel conversion
 
@@ -1218,7 +1277,7 @@ class CQTSpectrogram(Spectrogram):
     def __init__(self, audio, step, bins_per_oct, freq_min=1, freq_max=None):
 
         # compute CQT
-        img, step = cqt(x=audio.data, rate=audio.rate, step=step,\
+        img, step = ap.cqt(x=audio.data, rate=audio.rate, step=step,\
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
         # create logarithmic frequency axis
