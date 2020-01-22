@@ -27,6 +27,7 @@
 """ Unit tests for the 'audio_processing' module within the ketos library
 """
 import pytest
+import unittest
 import os
 import numpy as np
 import scipy.signal as sg
@@ -67,27 +68,29 @@ def test_pad_reflect_2d():
     assert np.all(np.flip(res[:5], axis=0) == x[:5])
     assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
 
+def test_segment_args():
+    # simple case produces expected output
+    args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.)
+    assert list(args.keys()) == ['num_segs', 'offset_len', 'win_len', 'step_len']
+    assert list(args.values()) == [4,-10,40,20]
+    # change in offset produces expected change in offset_len
+    args = ap.segment_args(rate=10., duration=8., offset=3., window=4., step=2.)
+    assert list(args.values()) == [4,20,40,20]
+    # window_len is always even
+    args = ap.segment_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
+    assert list(args.values()) == [4,-11,42,20]
+    # step_len is always even
+    args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.11)
+    assert list(args.values()) == [4,-9,40,22]
+    # if the duration is not an integer multiple of the step size, we still get the expected output
+    args = ap.segment_args(rate=10., duration=9., offset=0., window=4., step=2.)
+    assert list(args.values()) == [5,-10,40,20]
+
 def test_num_samples():
     assert ap.num_samples(time=1.0, rate=10.) == 10
     assert ap.num_samples(time=1.1, rate=10.) == 11
     assert ap.num_samples(time=1.11, rate=10., even=True) == 12
 
-def test_make_frames_args():
-    # simple case produces expected output
-    num_frames, offset_len, win_len, step_len = ap.make_frames_args(rate=10., duration=8., offset=0., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-10,40,20)
-    # change in offset produces expected change in offset_len
-    num_frames, offset_len, win_len, step_len = ap.make_frames_args(rate=10., duration=8., offset=3., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,20,40,20)
-    # window_len is always even
-    num_frames, offset_len, win_len, step_len = ap.make_frames_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-11,42,20)
-    # step_len is always even
-    num_frames, offset_len, win_len, step_len = ap.make_frames_args(rate=10., duration=8., offset=0., window=4., step=2.11)
-    assert (num_frames, offset_len, win_len, step_len) == (4,-9,40,22)
-    # if the duration is not an integer multiple of the step size, we still get the expected output
-    num_frames, offset_len, win_len, step_len = ap.make_frames_args(rate=10., duration=9., offset=0., window=4., step=2.)
-    assert (num_frames, offset_len, win_len, step_len) == (5,-10,40,20)
 
 
 # old tests ...
@@ -140,7 +143,7 @@ def test_preemphasis_has_no_effect_if_coefficient_is_zero():
 
 def test_make_frames():
     img = np.random.normal(size=100)
-    frames1 = ap.make_frames(x=img, winlen=20, winstep=4)
+    frames1 = ap.segment(x=img, winlen=20, winstep=4)
     assert frames1.shape[0] == 21
     assert frames1.shape[1] == 20
 

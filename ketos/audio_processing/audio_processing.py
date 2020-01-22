@@ -51,6 +51,15 @@ def pad_reflect(x, pad_left=0, pad_right=0):
         Returns:
             x_padded: numpy.array
                 Padded array
+
+        Example:
+            >>> from ketos.audio_processing.audio_processing import pad_reflect
+            >>> arr = np.arange(9) #create a simply array
+            >>> print(arr)
+            [0 1 2 3 4 5 6 7 8]
+            >>> arr = pad_reflect(arr, pad_right=3) #pad on the right
+            >>> print(arr)
+            [0 1 2 3 4 5 6 7 8 8 7 6]
     """
     if pad_left == 0 and pad_right == 0:
         x_padded = x
@@ -91,6 +100,12 @@ def segment_args(rate, duration, offset, window, step):
                 * offset_len: Offset in number of samples (int)
                 * win_len: Window size in number of samples (int)
                 * step_len: Step size in number of samples (int)
+
+        Example: 
+            >>> from ketos.audio_processing.audio_processing import segment_args
+            >>> args = segment_args(rate=1000., duration=3., offset=0., window=0.1, step=0.02)
+            >>> print(args)
+            {'num_segs': 150, 'offset_len': -40, 'win_len': 100, 'step_len': 20}
     """
     win_len = num_samples(window, rate=rate, even=True) 
     step_len = num_samples(step, rate=rate, even=True)
