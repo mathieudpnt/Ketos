@@ -68,6 +68,11 @@ def test_pad_reflect_2d():
     assert np.all(np.flip(res[:5], axis=0) == x[:5])
     assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
 
+def test_num_samples():
+    assert ap.num_samples(time=1.0, rate=10.) == 10
+    assert ap.num_samples(time=1.1, rate=10.) == 11
+    assert ap.num_samples(time=1.11, rate=10., even=True) == 12
+
 def test_segment_args():
     # simple case produces expected output
     args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.)
@@ -86,12 +91,20 @@ def test_segment_args():
     args = ap.segment_args(rate=10., duration=9., offset=0., window=4., step=2.)
     assert list(args.values()) == [5,-10,40,20]
 
-def test_num_samples():
-    assert ap.num_samples(time=1.0, rate=10.) == 10
-    assert ap.num_samples(time=1.1, rate=10.) == 11
-    assert ap.num_samples(time=1.11, rate=10., even=True) == 12
-
-
+def test_segment():
+    x = np.arange(10)
+    # check that segment with zero offset yields expected result
+    res = ap.segment(x, num_segs=3, offset_len=0, win_len=4, step_len=2)    
+    ans = np.array([[0, 1, 2, 3],\
+                    [2, 3, 4, 5],\
+                    [4, 5, 6, 7]])
+    assert np.all(ans == res)
+    # check that segment with non-zero offset yields expected result
+    res = ap.segment(x, num_segs=3, offset_len=-3, win_len=4, step_len=2)    
+    ans = np.array([[2, 1, 0, 0],\
+                    [0, 0, 1, 2],\
+                    [1, 2, 3, 4]])
+    assert np.all(ans == res)
 
 # old tests ...
 

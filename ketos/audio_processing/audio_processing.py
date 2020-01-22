@@ -76,6 +76,40 @@ def pad_reflect(x, pad_left=0, pad_right=0):
 
     return x_padded
 
+def num_samples(time, rate, even=False):
+    """ Convert time interval to number of samples. 
+        
+        If the time corresponds to a non-integer number of samples, 
+        round to the nearest larger integer value.
+
+        Args:
+            time: float
+                Timer interval in seconds
+            rate: float
+                Sampling rate in Hz
+            even: bool
+                Convert to nearest larger even integer.
+
+        Returns:
+            n: int
+                Number of samples
+
+        Example:
+            >>> from ketos.audio_processing.audio_processing import num_samples
+            >>> print(num_samples(rate=1000., time=2.0))
+            2000
+            >>> print(num_samples(rate=1000., time=2.001))
+            2001
+            >>> print(num_samples(rate=1000., time=2.001, even=True))
+            2002
+    """
+    if even: 
+        n = int(2 * np.ceil(0.5 * time * rate))
+    else:
+        n = int(np.ceil(time * rate))
+    
+    return n
+
 def segment_args(rate, duration, offset, window, step):
     """ Computes input arguments for :func:`audio_processing.audio_processing.make_segment` 
         to produce a centered spectrogram with properties as close as possible to the 
@@ -120,8 +154,9 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
 
         If offset_len is negative the input array will be padded with its own 
         reflection on the left. 
+
         If the combined length of the segments exceeds the length of the input 
-        array (minus any positive offset), the array will also be padded with its 
+        array (minus any positive offset), the array will be padded with its 
         own reflection on the right.
 
         Args: 
@@ -144,16 +179,20 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
                 Segmented data.
 
         Example:
-            >>> from ketos.audio_processing.audio_processing import make_frames
-            >>> x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            >>> f = make_frames(x=x, winlen=4, winstep=2)    
-            >>> print(f.shape)
-            (4, 4)
-            >>> print(f)
-            [[ 1  2  3  4]
-             [ 3  4  5  6]
-             [ 5  6  7  8]
-             [ 7  8  9 10]]
+            >>> from ketos.audio_processing.audio_processing import segment
+            >>> x = np.arange(10)
+            >>> print(x)
+            [0 1 2 3 4 5 6 7 8 9]
+            >>> y = segment(x, num_segs=3, offset_len=0, win_len=4, step_len=2)    
+            >>> print(y)
+            [[0 1 2 3]
+             [2 3 4 5]
+             [4 5 6 7]]
+            >>> y = segment(x, num_segs=3, offset_len=-3, win_len=4, step_len=2)    
+            >>> print(y)
+            [[2 1 0 0]
+             [0 0 1 2]
+             [1 2 3 4]]
     """
     mem = virtual_memory() #memory available
     siz = getsizeof(x) * win_len / step_len #estimated size of output array
@@ -171,31 +210,6 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
     segs = x_pad[indices.astype(np.int32, copy=False)]
 
     return segs
-
-def num_samples(time, rate, even=False):
-    """ Convert time interval to number of samples. 
-        
-        If the time corresponds to a non-integer number of samples, 
-        round to the nearest larger integer value.
-
-        Args:
-            time: float
-                Timer interval in seconds
-            rate: float
-                Sampling rate in Hz
-            even: bool
-                Convert to nearest larger even integer.
-
-        Returns:
-            n: int
-                Number of samples
-    """
-    if even: 
-        n = int(2 * np.ceil(0.5 * time * rate))
-    else:
-        n = int(np.ceil(time * rate))
-    
-    return n
 
 def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
     """ Compute Short Time Fourier Transform (STFT).
