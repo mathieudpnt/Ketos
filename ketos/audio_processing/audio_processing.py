@@ -27,28 +27,18 @@
 """ Audio processing module within the ketos library
 
     This module provides utilities to perform various types of 
-    operations on audio data.
-
-    Contents:
-        FrameMakerForBinaryCNN class: 
+    operations on audio data, acting either in the time domain 
+    (waveform) or in the frequency domain (spectrogram), or 
+    both.
 """
 import numpy as np
-import pandas as pd
 import librosa
-import scipy.io.wavfile as wave
-import scipy.ndimage as ndimage
-import scipy.stats as stats
-from scipy.fftpack import dct
-from scipy import interpolate
-from collections import namedtuple
-from numpy import seterr
-from sklearn.utils import shuffle
 from sys import getsizeof
 from psutil import virtual_memory
 
 
-def pad(x, pad_left=0, pad_right=0):
-    """ Pad an array with zeros along its first axis (0).
+def pad_reflect(x, pad_left=0, pad_right=0):
+    """ Pad array with its own reflection along its first axis (0).
 
         Args: 
             x: numpy.array
@@ -59,24 +49,23 @@ def pad(x, pad_left=0, pad_right=0):
                 Amount of padding on the right
 
         Returns:
-            x_pad: numpy.array
+            x_padded: numpy.array
                 Padded array
     """
     if pad_left == 0 and pad_right == 0:
-        x_pad = x
+        x_padded = x
 
     else:
-        x_pad = x.copy()
-        pad_shape = list(x.shape)
+        x_padded = x.copy()
         if pad_left > 0:
-            pad_shape[0] = pad_left
-            x_pad = np.concatenate((np.zeros(tuple(pad_shape)), x_pad))
+            x_pad = np.flip(x[:pad_left], axis=0)
+            x_padded = np.concatenate((x_pad, x_padded))
 
         if pad_right > 0:
-            pad_shape[0] = pad_right
-            x_pad = np.concatenate((x_pad, np.zeros(tuple(pad_shape))))
+            x_pad = np.flip(x[-pad_right:], axis=0)
+            x_padded = np.concatenate((x_padded, x_pad))
 
-    return x_pad
+    return x_padded
 
 def segment_args(rate, duration, offset, window, step):
     """ Computes input arguments for :func:`audio_processing.audio_processing.make_segment` 
@@ -114,10 +103,11 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
         axis (0), each segment being shifted by a fixed amount with respetive to the 
         previous segment.
 
-        If offset_len is negative the input array will be padded with zeros 
-        on the left. If the combined length of the segments exceeds the length 
-        of the input array (minus any positive offset), the array will be 
-        padded with zeros on the right.
+        If offset_len is negative the input array will be padded with its own 
+        reflection on the left. 
+        If the combined length of the segments exceeds the length of the input 
+        array (minus any positive offset), the array will also be padded with its 
+        own reflection on the right.
 
         Args: 
             x: numpy.array
@@ -156,10 +146,10 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
         print("Warning: size of output frames exceeds 10% of memory")
         print("Consider reducing the array size and/or increasing the step size and/or reducing the window size")
 
-    # pad with zeros, if necessary
+    # pad, if necessary
     pad_left = max(0, -offset_len)
     pad_right = max(0, max(0, offset_len) + num_segs * step_len + win_len - x.shape[0])    
-    x_pad = pad(x, pad_left, pad_right)
+    x_pad = pad_reflect(x, pad_left, pad_right)
 
     # tile    
     indices = np.tile(np.arange(0, win_len), (num_segs, 1)) + np.tile(np.arange(0, num_segs * step_len, step_len), (win_len, 1)).T
@@ -231,7 +221,9 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
                 Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
     """
     if seg_args is None:
-        seg_args = segment_args(rate=rate, duration=len(x)*rate,\ 
+        assert window and step, "if seg_args is not specified, window and step must both be specified."
+
+        seg_args = segment_args(rate=rate, duration=len(x)*rate,\
             offset=0, window=window, step=step) #compute input arguments for segment method
 
     segs = segment(seg_args) #divide audio signal into segments
@@ -245,8 +237,12 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
     freq_max = audio_signal.rate / 2. #Maximum frequency
     return img, freq_max, num_fft, seg_args
 
-def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None):
+def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hamming'):
     """ Compute the CQT spectrogram of an audio signal.
+
+        Uses the librosa implementation, 
+        
+            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
 
         To compute the CQT spectrogram, the user must specify the step size, the minimum and maximum 
         frequencies, :math:`f_{min}` and :math:`f_{max}`, and the number of bins per octave, :math:`m`.
@@ -303,6 +299,12 @@ def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None):
                 Minimum frequency in Hz
             freq_max: float
                 Maximum frequency in Hz. If None, it is set equal to half the sampling rate.
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
 
         Returns:
             img: numpy.array
@@ -460,192 +462,3 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
             complex_specgram = inv_magphase(image, angle)
 
     return audio
-
-
-
-
-# review below ...    
-
-def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
-    """ Remove isolated spots from the image.
-
-        Args:
-            img : numpy array
-                An array like object representing an image. 
-            struct : numpy array
-                A structuring pattern that defines feature connections.
-                Must be symmetric.
-
-        Returns:
-            filtered_array : numpy array
-                An array containing the input image without the isolated spots.
-
-        Example:
-
-            >>> from ketos.audio_processing.audio_processing import filter_isolated_spots
-            >>> img = np.array([[0,0,1,1,0,0],
-            ...                 [0,0,0,1,0,0],
-            ...                 [0,1,0,0,0,0],
-            ...                 [0,0,0,0,0,0],
-            ...                 [0,0,0,1,0,0]])
-            >>> # remove pixels without neighbors
-            >>> img_fil = filter_isolated_spots(img)
-            >>> print(img_fil)
-            [[0 0 1 1 0 0]
-             [0 0 0 1 0 0]
-             [0 0 0 0 0 0]
-             [0 0 0 0 0 0]
-             [0 0 0 0 0 0]]
-    """
-    filtered_array = np.copy(img)
-    id_regions, num_ids = ndimage.label(filtered_array, structure=struct)
-    id_sizes = np.array(ndimage.sum(img, id_regions, range(num_ids + 1)))
-    area_mask = (id_sizes == 1)
-    filtered_array[area_mask[id_regions]] = 0
-    
-    return filtered_array
-
-def blur_image(img, size=20, sigma=5, gaussian=True):
-    """ Smooth the input image using a median or Gaussian blur filter.
-        
-        Note that the input image is recasted as np.float32.
-
-        This is essentially a wrapper around the scipy.ndimage.median_filter 
-        and scipy.ndimage.gaussian_filter methods. 
-
-        For further details, see https://docs.scipy.org/doc/scipy/reference/ndimage.html
-
-        Args:
-            img : numpy array
-                Image to be processed. 
-            size: int
-                Only used by the median filter. Describes the shape that is taken from the input array,
-                at every element position, to define the input to the filter function.
-            sigma: float or array
-                Only used by the Gaussian filter. Standard deviation for Gaussian kernel. May be given as a 
-                single number, in which case all axes have the same standard deviation, or as an array, allowing 
-                for the axes to have different standard deviations.
-            Gaussian: bool
-                Switch between median and Gaussian (default) filter
-
-        Returns:
-            blur_img: numpy array
-                Blurred image.
-
-        Example:
-
-            >>> from ketos.audio_processing.audio_processing import blur_image
-            >>> img = np.array([[0,0,0],
-            ...                 [0,1,0],
-            ...                 [0,0,0]])
-            >>> # blur using Gaussian filter with sigma of 0.5
-            >>> img_blur = blur_image(img, sigma=0.5)
-            >>> img_blur = np.around(img_blur, decimals=2) # only keep up to two decimals
-            >>> print(img_blur)
-            [[0.01 0.08 0.01]
-             [0.08 0.62 0.08]
-             [0.01 0.08 0.01]]
-    """
-
-    try:
-        assert img.dtype == "float32", "img type {0} shoult be 'float32'".format(img.dtype)
-    except AssertionError:
-        img = img.astype(dtype = np.float32)    
-    
-    if (gaussian):
-        img_blur = ndimage.gaussian_filter(img, sigma=sigma)
-    else:
-        img_blur = ndimage.median_filter(img, size=size)
-
-    return img_blur
-
-def apply_median_filter(img, row_factor=3, col_factor=4):
-    """ Discard pixels that are lower than the median threshold. 
-
-        The resulting image will have 0s for pixels below the threshold and 1s for the pixels above the threshold.
-
-        Note: Code adapted from Kahl et al. (2017)
-            Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
-            Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py 
-
-        Args:
-            img : numpy array
-                Array containing the img to be filtered. 
-                OBS: Note that contents of img are modified by call to function.
-            row_factor: int or float
-                Factor by which the row-wise median pixel value will be multiplied in orther to define the threshold.
-            col_factor: int or float
-                Factor by which the col-wise median pixel value will be multiplied in orther to define the threshold.
-
-        Returns:
-            filtered_img: numpy array
-                The filtered image with 0s and 1s.
-
-        Example:
-
-            >>> from ketos.audio_processing.audio_processing import apply_median_filter
-            >>> img = np.array([[1,4,5],
-            ...                 [3,5,1],
-            ...                 [1,0,9]])
-            >>> img_fil = apply_median_filter(img, row_factor=1, col_factor=1)
-            >>> print(img_fil)
-            [[0 0 0]
-             [0 1 0]
-             [0 0 1]]
-    """
-
-    col_median = np.median(img, axis=0, keepdims=True)
-    row_median = np.median(img, axis=1, keepdims=True)
-
-    img[img <= row_median * row_factor] = 0
-    img[img <= col_median * col_factor] = 0 
-    filtered_img = img
-    filtered_img[filtered_img > 0] = 1
-
-    return filtered_img
-
-def apply_preemphasis(sig, coeff=0.97):
-    """ Apply pre-emphasis to signal
-
-        Args:
-            sig : numpy array
-                1-d array containing the signal.
-            coeff: float
-                The preemphasis coefficient. If set to 0,
-                no preemphasis is applied (the output will be the same as the input).
-
-        Returns:
-            emphasized_signal : numpy array
-                The filtered signal.
-
-        Example:
-
-            >>> from ketos.audio_processing.audio_processing import apply_preemphasis
-            >>> sig = np.array([1,2,3,4,5])
-            >>> sig_new = apply_preemphasis(sig, coeff=0.95)
-            >>> print(sig_new)
-            [1.   1.05 1.1  1.15 1.2 ]
-    """
-    emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
-    
-    return emphasized_signal
-
-
-def inv_magphase(mag, angle):
-    """ Computes complex value from magnitude and phase angle.
-
-        Args:
-            mag: numpy array
-                Magnitude
-            angle: float or numpy array
-                Phase angle
-
-        Returns:
-            c: numpy array
-                Complex value
-    """
-    phase = np.cos(angle) + 1.j * np.sin(angle)
-    c = mag * phase
-    return c  
-
-

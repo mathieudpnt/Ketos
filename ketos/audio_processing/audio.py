@@ -94,7 +94,7 @@ class AudioSignal(AnnotationHandler):
         self.file_dict = {0: tag}
 
     @classmethod
-    def from_wav(cls, path, channel=0):
+    def from_wav(cls, path, channel=0):  #path=path, rate=rate, channel=channel, offset=offset, duration=duration, res_type=resample_method
         """ Generate audio signal from wave file
 
             The tag attribute will be set equal to the file name.

@@ -31,13 +31,41 @@ import os
 import numpy as np
 import scipy.signal as sg
 import ketos.audio_processing.audio_processing as ap
-from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
+
+def test_pad_reflect_1d():
+    x = np.random.rand(9)
+    # default does nothing
+    res = ap.pad_reflect(x)
+    assert np.all(res == x)
+    # padding on left only
+    res = ap.pad_reflect(x, pad_left=5)
+    assert np.all(res[5:] == x)
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    # padding on both sides
+    res = ap.pad_reflect(x, pad_left=5, pad_right=2)
+    assert np.all(res[5:-2] == x)
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
+
+def test_pad_reflect_2d():
+    x = np.random.rand(9,14)
+    # default does nothing
+    res = ap.pad_reflect(x)
+    assert np.all(res == x)
+    # padding on left only
+    res = ap.pad_reflect(x, pad_left=5)
+    assert np.all(res[5:] == x)
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    # padding on both sides
+    res = ap.pad_reflect(x, pad_left=5, pad_right=2)
+    assert np.all(res[5:-2] == x)
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
 
 def test_num_samples():
     assert ap.num_samples(time=1.0, rate=10.) == 10
