@@ -76,35 +76,87 @@ def test_num_samples():
 def test_segment_args():
     # simple case produces expected output
     args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.)
-    assert list(args.keys()) == ['num_segs', 'offset_len', 'win_len', 'step_len']
-    assert list(args.values()) == [4,-10,40,20]
+    assert args == {'win_len':40, 'step_len':20, 'num_segs':4, 'offset_len':-10}
     # change in offset produces expected change in offset_len
     args = ap.segment_args(rate=10., duration=8., offset=3., window=4., step=2.)
-    assert list(args.values()) == [4,20,40,20]
+    assert args == {'win_len':40, 'step_len':20, 'num_segs':4, 'offset_len':20}
     # window_len is always even
     args = ap.segment_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
-    assert list(args.values()) == [4,-11,42,20]
+    assert args == {'win_len':42, 'step_len':20, 'num_segs':4, 'offset_len':-11}
     # step_len is always even
     args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.11)
-    assert list(args.values()) == [4,-9,40,22]
+    assert args == {'win_len':40, 'step_len':22, 'num_segs':4, 'offset_len':-9}
     # if the duration is not an integer multiple of the step size, we still get the expected output
     args = ap.segment_args(rate=10., duration=9., offset=0., window=4., step=2.)
-    assert list(args.values()) == [5,-10,40,20]
+    assert args == {'win_len':40, 'step_len':20, 'num_segs':5, 'offset_len':-10}
 
-def test_segment():
+def test_segment_1d():
     x = np.arange(10)
     # check that segment with zero offset yields expected result
-    res = ap.segment(x, num_segs=3, offset_len=0, win_len=4, step_len=2)    
+    res = ap.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=0, )    
     ans = np.array([[0, 1, 2, 3],\
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7]])
     assert np.all(ans == res)
     # check that segment with non-zero offset yields expected result
-    res = ap.segment(x, num_segs=3, offset_len=-3, win_len=4, step_len=2)    
+    res = ap.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
     ans = np.array([[2, 1, 0, 0],\
                     [0, 0, 1, 2],\
                     [1, 2, 3, 4]])
     assert np.all(ans == res)
+    # check that segment with num_segs not specified yields expected result
+    res = ap.segment(x, win_len=4, step_len=2)    
+    ans = np.array([[0, 1, 2, 3],\
+                    [2, 3, 4, 5],\
+                    [4, 5, 6, 7],\
+                    [6, 7, 8, 9]])
+    assert np.all(ans == res)
+    x = np.arange(11)
+    res = ap.segment(x, win_len=4, step_len=2)    
+    ans = np.array([[0, 1, 2, 3],\
+                    [2, 3, 4, 5],\
+                    [4, 5, 6, 7],\
+                    [6, 7, 8, 9],\
+                    [8, 9, 10, 10]])
+    assert np.all(ans == res)
+
+def test_segment_2d():
+    x = [[n for _ in range(4)] for n in range(8)]
+    x = np.array(x)
+    # check that segment yields expected result
+    res = ap.segment(x, num_segs=3, offset_len=0, win_len=3, step_len=2)    
+    ans = np.array([[[0, 0, 0, 0],\
+                     [1, 1, 1, 1],\
+                     [2, 2, 2, 2]],\
+                    [[2, 2, 2, 2],\
+                     [3, 3, 3, 3],\
+                     [4, 4, 4, 4]],\
+                    [[4, 4, 4, 4],\
+                     [5, 5, 5, 5],\
+                     [6, 6, 6, 6]]])
+    assert np.all(ans == res)
+
+def test_segment_pass_args_as_dict():
+    x = np.arange(10)
+    d = {'win_len':4, 'step_len':2}
+    res = ap.segment(x, **d)    
+    ans = np.array([[0, 1, 2, 3],\
+                    [2, 3, 4, 5],\
+                    [4, 5, 6, 7],\
+                    [6, 7, 8, 9]])
+    assert np.all(ans == res)
+
+def test_stft():
+    # 1-s sinus signal with frequency of 10 Hz and 1 kHz sampling rate
+    x = np.arange(1000)
+    sig = np.sin(2 * np.pi * 10 * x / 1000) 
+    # compute STFT with window length of 200 and step length of 40
+    mag, freq_max, num_fft, seg_args = ap.stft(x=sig, rate=1000, seg_args={'win_len':200, 'step_len':40})
+    assert freq_max == 500.
+    assert num_fft == 200
+    assert seg_args == {'win_len':200, 'step_len':40}
+    assert np.all(np.argmax(mag, axis=1) == int(10. / 500. * mag.shape[1])) #peak at f=10Hz
+
 
 # old tests ...
 

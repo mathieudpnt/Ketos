@@ -130,24 +130,24 @@ def segment_args(rate, duration, offset, window, step):
         Returns:
             : dict
             Dictionary with following keys and values:
-                * num_segs: Number of steps (int)
-                * offset_len: Offset in number of samples (int)
                 * win_len: Window size in number of samples (int)
                 * step_len: Step size in number of samples (int)
+                * num_segs: Number of steps (int)
+                * offset_len: Offset in number of samples (int)
 
         Example: 
             >>> from ketos.audio_processing.audio_processing import segment_args
             >>> args = segment_args(rate=1000., duration=3., offset=0., window=0.1, step=0.02)
             >>> print(args)
-            {'num_segs': 150, 'offset_len': -40, 'win_len': 100, 'step_len': 20}
+            {'win_len': 100, 'step_len': 20, 'num_segs': 150, 'offset_len': -40}
     """
     win_len = num_samples(window, rate=rate, even=True) 
     step_len = num_samples(step, rate=rate, even=True)
     num_segs = num_samples(duration, rate=rate/step_len)
     offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
-    return {'num_segs':num_segs, 'offset_len':offset_len, 'win_len':win_len, 'step_len':step_len}
+    return {'win_len':win_len, 'step_len':step_len, 'num_segs':num_segs, 'offset_len':offset_len}
 
-def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
+def segment(x, win_len, step_len, num_segs=None, offset_len=0, warnings=True):
     """ Divide an array into segments of equal length along its first 
         axis (0), each segment being shifted by a fixed amount with respetive to the 
         previous segment.
@@ -162,14 +162,14 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
         Args: 
             x: numpy.array
                 The data to be segmented
-            num_segs: int
-                Number of segments
-            offset_len: int
-                Position of the first frame
             win_len: int
                 Window length.
             step_len: float
                 Step size.
+            num_segs: int
+                Number of segments. Optional.
+            offset_len: int
+                Position of the first frame. Defaults to 0, if not specified.
             warnings: bool
                 Print warning if the size of the array exceeds 10% of the 
                 available memory.
@@ -183,12 +183,12 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
             >>> x = np.arange(10)
             >>> print(x)
             [0 1 2 3 4 5 6 7 8 9]
-            >>> y = segment(x, num_segs=3, offset_len=0, win_len=4, step_len=2)    
+            >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=0)    
             >>> print(y)
             [[0 1 2 3]
              [2 3 4 5]
              [4 5 6 7]]
-            >>> y = segment(x, num_segs=3, offset_len=-3, win_len=4, step_len=2)    
+            >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3,)    
             >>> print(y)
             [[2 1 0 0]
              [0 0 1 2]
@@ -199,6 +199,10 @@ def segment(x, num_segs, offset_len, win_len, step_len, warnings=True):
     if siz > 0.1 * mem.total: #print warning, if output array is very large
         print("Warning: size of output frames exceeds 10% of memory")
         print("Consider reducing the array size and/or increasing the step size and/or reducing the window size")
+
+    # if not specified, compute number of segments so entire array is used
+    if num_segs is None:
+        num_segs = int(np.ceil((len(x) - offset_len - win_len) / step_len)) + 1
 
     # pad, if necessary
     pad_left = max(0, -offset_len)
@@ -231,7 +235,7 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
                 Step size in seconds 
             seg_args: dict
                 Input arguments for :func:`audio_processing.audio_processing.segment_args`. 
-                Optional. If specified, the arguments `window` and `step` are ignored.
+                Optional. If specified, the arguments  `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
                     * bartlett
@@ -255,15 +259,15 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
         seg_args = segment_args(rate=rate, duration=len(x)*rate,\
             offset=0, window=window, step=step) #compute input arguments for segment method
 
-    segs = segment(seg_args) #divide audio signal into segments
+    segs = segment(x, **seg_args) #divide audio signal into segments
 
     if window_func:
         segs *= eval("np.{0}".format(window_func))(segs.shape[1]) #apply Window function
 
     fft = np.fft.rfft(segs) #Compute fast fourier transform
     img = to_decibel(np.abs(fft)) #Compute magnitude on dB scale
-    num_fft = frames.shape[1] #Number of points used for the Fourier Transform        
-    freq_max = audio_signal.rate / 2. #Maximum frequency
+    num_fft = segs.shape[1] #Number of points used for the Fourier Transform        
+    freq_max = rate / 2. #Maximum frequency
     return img, freq_max, num_fft, seg_args
 
 def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hamming'):
@@ -378,18 +382,16 @@ def to_decibel(x):
             Converted array
 
     Example:
-
-        >>> from ketos.audio_processing.audio_processing import to_decibel 
         >>> import numpy as np
+        >>> from ketos.audio_processing.audio_processing import to_decibel 
         >>> img = np.array([[10., 20.],[30., 40.]])
         >>> img_db = to_decibel(img)
         >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
         >>> print(img_db)
-        [[20.0 26.02]
+        [[20.   26.02]
          [29.54 32.04]]
     """
-    y = 20 * np.ma.log10(x)
-
+    y = 20 * np.log10(x)
     return y
 
 def from_decibel(y):
@@ -404,9 +406,8 @@ def from_decibel(y):
             Converted array
 
     Example:
-
-        >>> from ketos.audio_processing.audio_processing import from_decibel 
         >>> import numpy as np
+        >>> from ketos.audio_processing.audio_processing import from_decibel 
         >>> img = np.array([[10., 20.],[30., 40.]])
         >>> img_db = from_decibel(img)
         >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
@@ -414,7 +415,6 @@ def from_decibel(y):
         [[  3.16  10.  ]
          [ 31.62 100.  ]]
     """
-
     x = np.power(10., y/20.)
     return x
 
@@ -429,7 +429,7 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
 
         Args:
             image: 2d numpy array
-                Magnitude spectrogram
+                Magnitude spectrogram, linear scale
             phase_angle: 
                 Initial condition for phase.
             num_fft: int
@@ -448,25 +448,23 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
                 Audio signal
 
         Example:
-            >>> # create a simple sinusoidal audio signal with frequency of 10 Hz
+            >>> #Create a simple sinusoidal audio signal with frequency of 10 Hz
             >>> import numpy as np
             >>> x = np.arange(1000)
-            >>> sig = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
-            >>> # compute the magnitude spectrogram with window size of 200, step size of 40,
-            >>> # and using a Hamming window
-            >>> from ketos.audio_processing.audio_processing import make_frames
-            >>> frames = make_frames(sig, 200, 40) 
-            >>> frames *= np.hamming(frames.shape[1])
-            >>> mag = np.abs(np.fft.rfft(frames))
-            >>> # estimate the original signal            
-            >>> from ketos.audio_processing.audio_processing import estimate_audio_signal
-            >>> sig_est = estimate_audio_signal(image=mag, phase_angle=0, num_fft=200, hop=40, num_iters=25, window=np.hamming(frames.shape[1]))
-            >>> # plot the original and the estimated signal
+            >>> audio = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
+            >>> #Compute the Short Time Fourier Transform of the audio signal 
+            >>> #using a window size of 200, step size of 40, and a Hamming window,
+            >>> from ketos.audio_processing.audio_processing import stft
+            >>> mag, freq_max, num_fft, _ = stft(x=audio, seg_args={'win_len':200, 'step_len':40})
+            >>> #Estimate the original audio signal            
+            >>> from ketos.audio_processing.audio_processing import spec2audio
+            >>> audio_est = spec2audio(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window='hamming')
+            >>> #plot the original and the estimated audio signal
             >>> import matplotlib.pyplot as plt
             >>> plt.clf()
-            >>> _ = plt.plot(sig)
+            >>> _ = plt.plot(audio)
             >>> plt.savefig("ketos/tests/assets/tmp/sig_orig.png")
-            >>> _ = plt.plot(sig_est)
+            >>> _ = plt.plot(audio_est)
             >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
