@@ -34,23 +34,15 @@
 """
 import os
 import numpy as np
-import datetime
-import math
+import librosa
 import scipy.io.wavfile as wave
 from scipy import interpolate
-from ketos.utils import morlet_func
-import ketos.audio_processing.audio_processing as ap
 import matplotlib.pyplot as plt
-from scipy.integrate import quadrature
-from scipy.stats import norm
-from tqdm import tqdm
+import ketos.audio_processing.audio_processing as ap
 from ketos.utils import ensure_dir
-
-
-import librosa
 from ketos.data_handling.data_handling import read_wave
 from ketos.audio_processing.annotation import AnnotationHandler
-import ketos.audio_processing.audio_processing as ap
+from ketos.utils import morlet_func
 from ketos.audio_processing.axis import LinearAxis
 
 
@@ -92,11 +84,11 @@ class AudioSignal():
     def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
         self.rate = rate
         self.data = data.astype(dtype=np.float32)
-        length = rate * data.shape[0]
+        length = data.shape[0] / rate
         self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
 
-        if np.ndim(image) == 2:
-            mul = image.shape[1]
+        if np.ndim(data) == 2:
+            mul = data.shape[1]
             filename, offset, label = ap.stack_audio_attrs(filename, offset, label, mul)
             if annot:
                 assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
@@ -147,14 +139,18 @@ class AudioSignal():
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
         rate_orig = librosa.get_samplerate(path)
-        start = num_samples(offset, rate_orig)
+        start = ap.num_samples(offset, rate_orig)
         if duration:
-            stop = num_samples(offset + duration, rate_orig)
+            stop = ap.num_samples(offset + duration, rate_orig)
+        else:
+            stop = None
 
         rate_orig, data = read_wave(file=path, channel=channel, start=start, stop=stop)
 
         if rate and rate != rate_orig:
             data = librosa.core.resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
+        else:
+            rate = rate_orig
             
         return cls(rate=rate, data=data, filename=os.path.basename(path), offset=offset)
 
@@ -300,14 +296,24 @@ class AudioSignal():
         
         return cls(rate=rate, data=np.array(y), filename=filename)
 
-    def data(self):
+    def get_data(self, id=0):
         """ Get the underlying data numpy array.
-            
+
+            Args:
+                id: int
+                    Audio signal ID. Only relevant if the AudioSignal object 
+                    contains multiple, stacked audio signals.
+
             Returns:
-                self.data: numpy array
+                d: numpy array
                     Data
         """
-        return self.data
+        if id is None or np.ndim(self.data) == 1:
+            d = self.data
+        else:
+            d = self.data[:,id]
+
+        return d
 
     def segment(self, window, step=None):
         """ Divide the time axis into segments of uniform length, which may or may 
@@ -407,7 +413,7 @@ class AudioSignal():
                 v: float
                    Maximum value of the data array
         """    
-        v = max(self.data)
+        v = np.max(self.data, axis=0)
         return v
 
     def min(self):
@@ -417,7 +423,7 @@ class AudioSignal():
                 v: float
                    Minimum value of the data array
         """    
-        v = min(self.data)
+        v = np.min(self.data, axis=0)
         return v
 
     def std(self):
@@ -427,7 +433,7 @@ class AudioSignal():
                 v: float
                    Standard deviation of the data array
         """   
-        v = np.std(self.data) 
+        v = np.std(self.data, axis=0) 
         return v
 
     def average(self):
@@ -437,7 +443,7 @@ class AudioSignal():
                 v: float
                    Average value of the data array
         """   
-        v = np.average(self.data)
+        v = np.average(self.data, axis=0)
         return v
 
     def median(self):
@@ -447,8 +453,15 @@ class AudioSignal():
                 v: float
                    Median value of the data array
         """   
-        v = np.median(self.data)
+        v = np.median(self.data, axis=0)
         return v
+
+    def normalize(self):
+        """ Normalize audio signal so that values range from 0 to 1
+        """
+        x_min = self.min()
+        x_max = self.max()
+        self.data = (self.data - x_min) / (x_max - x_min)
 
     def plot(self):
         """ Plot the signal with proper axes ranges and labels

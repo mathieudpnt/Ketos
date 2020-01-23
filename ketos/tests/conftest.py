@@ -29,6 +29,7 @@ import datetime
 import os
 import numpy as np
 import scipy.signal as sg
+import soundfile as sf
 import pandas as pd
 import ketos.audio_processing.audio_processing as ap
 from ketos.data_handling.data_handling import to1hot
@@ -44,11 +45,8 @@ def sine_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600*np.sin(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = np.sin(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
-
 
 @pytest.fixture
 def square_wave():
@@ -56,9 +54,7 @@ def square_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = sg.square(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
 
 @pytest.fixture
@@ -67,9 +63,7 @@ def sawtooth_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
 
 @pytest.fixture
@@ -78,9 +72,7 @@ def const_wave():
     duration = 3
     x = np.arange(duration * sampling_rate)
     signal = np.ones(len(x))
-
     return sampling_rate, signal
-
 
 @pytest.fixture
 def sine_wave_file(sine_wave):
@@ -90,18 +82,15 @@ def sine_wave_file(sine_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-    
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def square_wave_file(square_wave):
@@ -111,18 +100,15 @@ def square_wave_file(square_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "square_wave.wav")
     rate, sig = square_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def sawtooth_wave_file(sawtooth_wave):
@@ -132,18 +118,15 @@ def sawtooth_wave_file(sawtooth_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
     rate, sig = sawtooth_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def const_wave_file(const_wave):
@@ -153,15 +136,13 @@ def const_wave_file(const_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "const_wave.wav")
     rate, sig = const_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
 
@@ -241,14 +222,7 @@ def database_prepared_for_NN_2_classes():
 @pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave
-    today = datetime.datetime.today()
-    a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
-    return a
-
-@pytest.fixture
-def sine_audio_without_time_stamp(sine_wave):
-    rate, data = sine_wave
-    a = aud.AudioSignal(rate=rate, data=data)
+    a = aud.AudioSignal(rate=rate, data=data, filename='sine_wave')
     return a
     
 @pytest.fixture

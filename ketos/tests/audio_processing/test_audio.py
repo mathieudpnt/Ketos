@@ -26,22 +26,41 @@
 
 """ Unit tests for the 'audio' module within the ketos library
 """
-
 import pytest
 import ketos.audio_processing.audio as aud
-import datetime
 import numpy as np
 
 
+def test_init_audio_signal():
+    N = 10000
+    d = np.ones(N)
+    a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
+    assert np.all(a.get_data() == d)
+    assert a.rate == 1000
+    assert a.filename == 'x'
+    assert a.offset == 2.
+    assert a.label == 13
 
-def test_time_stamped_audio_signal_has_correct_begin_and_end_times(sine_audio):
-    audio = sine_audio
-    today = datetime.datetime.today()
-    audio.time_stamp = today 
-    seconds = sine_audio.duration()
-    duration = datetime.timedelta(seconds=seconds)
-    assert audio.begin() == today
-    assert audio.end() == today + duration
+def test_init_stacked_audio_signal():
+    N = 10000
+    d = np.ones((N,3))
+    a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
+    assert np.all(a.get_data(1) == d[:,1])
+    assert a.rate == 1000
+    assert a.filename == ['x','x','x']
+    assert np.all(a.offset == 2.)
+    assert np.all(a.label == 13)
+
+def test_from_wav(sine_wave_file, sine_wave):
+    a = aud.AudioSignal.from_wav(sine_wave_file)
+    sig = sine_wave[1]
+    assert a.length() == 3.
+    assert a.rate == 44100
+    assert a.filename == "sine_wave.wav"
+    assert np.all(np.isclose(a.data, sig, atol=0.001))
+
+
+# old test below ...
 
 def test_crop_audio_signal(sine_audio):
     audio = sine_audio
@@ -54,47 +73,6 @@ def test_crop_audio_signal(sine_audio):
     assert seconds_cropped/seconds == pytest.approx(8./10., rel=1./audio.rate)
     assert audio_cropped.begin() == crop_begin
 
-
-def test_split_with_positive_sample_id(sine_audio):
-    audio = sine_audio 
-    t0 = audio.time_stamp
-    first = audio.data[0]
-    last = audio.data[-1]
-    n = len(audio.data)
-    m = int(0.1*n)
-    dt = m / audio.rate
-    s = audio.split(m)
-    assert len(s.data) == m
-    assert len(audio.data) == n-m
-    assert first == s.data[0]
-    assert last == audio.data[-1]
-    assert audio.time_stamp == t0 + datetime.timedelta(microseconds=1e6*dt)
-    assert s.time_stamp == t0
-
-def test_split_with_sample_larger_than_length(sine_audio):
-    audio = sine_audio
-    n = len(audio.data)
-    m = int(1.5*n)
-    s = audio.split(m)
-    assert len(s.data) == n
-    assert audio.empty() == True
-
-def test_split_with_negative_sample_id(sine_audio):
-    audio = sine_audio
-    t0 = audio.begin()
-    t1 = audio.end()
-    first = audio.data[0]
-    last = audio.data[-1]
-    n = len(audio.data)
-    m = -int(0.2*n)
-    dt = -m / audio.rate
-    s = audio.split(m)
-    assert len(s.data) == -m
-    assert len(audio.data) == n+m
-    assert first == audio.data[0]
-    assert last == s.data[-1]
-    assert s.time_stamp == t1 - datetime.timedelta(microseconds=1e6*dt)
-    assert audio.time_stamp == t0
 
 def test_append_audio_signal_to_itself(sine_audio):
     audio = sine_audio

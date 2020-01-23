@@ -464,11 +464,11 @@ class Spectrogram():
         spec = copy.deepcopy(self)
         return spec
 
-    def data(self, spec_id=None):
+    def get_data(self, id=None):
         """ Get the pixel values as a numpy array.
 
             Args:
-                spec_id: int
+                id: int
                     Spectrogram ID. Only relevant if the spectrogram object 
                     contains multiple, stacked spectrograms.
 
@@ -476,18 +476,18 @@ class Spectrogram():
                 d: numpy array
                     Image
         """
-        if spec_id is None or np.ndim(self.image) == 2:
+        if id is None or np.ndim(self.image) == 2:
             d = self.image
         else:
-            d = self.image[:,:,spec_id]
+            d = self.image[:,:,id]
 
         return d
 
-    def annotations(self, spec_id=None):
+    def annotations(self, id=None):
         """ Get annotations.
 
             Args:
-                spec_id: int
+                id: int
                     Spectrogram ID. Only relevant if the spectrogram object 
                     contains multiple, stacked spectrograms.
 
@@ -496,7 +496,7 @@ class Spectrogram():
                     Annotations 
         """
         if self.annot:
-            ans = self.annot.get(set_id=spec_id)
+            ans = self.annot.get(set_id=id)
         else:
             ans = None
 
@@ -538,7 +538,7 @@ class Spectrogram():
         """
         return self.freq_ax.max()
 
-    def annotate(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, spec_id=0):
+    def annotate(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, id=0):
         """ Add an annotation or a collection of annotations.
         
             Individual annotations may be added using the arguments start, end, freq_min, 
@@ -570,12 +570,12 @@ class Spectrogram():
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
                     'label', 'start', 'end', and optionally also 'freq_min' 
                     and 'freq_max'.
-                spec_id: int or tuple
+                id: int or tuple
                     Unique identifier of the spectrogram. Only relevant for stacked spectrograms.
         """
         assert self.annot is not None, "Attempting to add annotations to a Spectrogram without an AnnotationHandler object" 
 
-        self.annot.add(label, start, end, freq_min, freq_max, df, spec_id)
+        self.annot.add(label, start, end, freq_min, freq_max, df, id)
 
     def label_array(self, label):
         """ Get an array indicating presence/absence (1/0) 
@@ -879,7 +879,7 @@ class Spectrogram():
         time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
         self.image = reduce_tonal_noise(self.image, method=method, time_const_len=time_const_len)
 
-    def plot(self, spec_id=0, show_annot=False):
+    def plot(self, id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -888,7 +888,7 @@ class Spectrogram():
             or saved (fig.savefig(file_name))
 
             Args:
-                spec_id: int
+                id: int
                     Spectrogram to be plotted. Only relevant if the spectrogram object 
                     contains multiple, stacked spectrograms.
                 show_annot: bool
@@ -916,7 +916,7 @@ class Spectrogram():
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,7), sharex=True)
 
         # select image data
-        x = self.data(spec_id)
+        x = self.get_data(id)
 
         # axes ranges
         extent = (0., self.length(), self.freq_min(), self.freq_max())
@@ -948,7 +948,7 @@ class Spectrogram():
 
         # superimpose annotation boxes
         if show_annot:
-            ans = self.annotations(spec_id)
+            ans = self.annotations(id)
             if ans:
                 print('Drawing of annotations not yet implemented')
             
@@ -1527,7 +1527,7 @@ class CQTSpectrogram(Spectrogram):
 
         return spec
 
-    def plot(self, spec_id=0, show_annot=False):
+    def plot(self, id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -1536,7 +1536,7 @@ class CQTSpectrogram(Spectrogram):
             or saved (fig.savefig(file_name))
 
             Args:
-                spec_id: int
+                id: int
                     Spectrogram to be plotted. Only relevant if the spectrogram object 
                     contains multiple, stacked spectrograms.
                 show_annot: bool
