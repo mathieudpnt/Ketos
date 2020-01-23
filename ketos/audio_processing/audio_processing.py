@@ -35,10 +35,12 @@ import numpy as np
 import librosa
 from sys import getsizeof
 from psutil import virtual_memory
+from ketos.utils import complex_value
 
 
 def pad_reflect(x, pad_left=0, pad_right=0):
-    """ Pad array with its own reflection along its first axis (0).
+    """ Pad array with its own (inverted) reflection along 
+        the first axis (0).
 
         Args: 
             x: numpy.array
@@ -59,7 +61,7 @@ def pad_reflect(x, pad_left=0, pad_right=0):
             [0 1 2 3 4 5 6 7 8]
             >>> arr = pad_reflect(arr, pad_right=3) #pad on the right
             >>> print(arr)
-            [0 1 2 3 4 5 6 7 8 8 7 6]
+            [ 0  1  2  3  4  5  6  7  8  9 10 11]
     """
     if pad_left == 0 and pad_right == 0:
         x_padded = x
@@ -67,11 +69,11 @@ def pad_reflect(x, pad_left=0, pad_right=0):
     else:
         x_padded = x.copy()
         if pad_left > 0:
-            x_pad = np.flip(x[:pad_left], axis=0)
+            x_pad = 2*x[0] - np.flip(x[1:pad_left+1], axis=0)
             x_padded = np.concatenate((x_pad, x_padded))
 
         if pad_right > 0:
-            x_pad = np.flip(x[-pad_right:], axis=0)
+            x_pad = 2*x[-1] - np.flip(x[-pad_right-1:-1], axis=0)
             x_padded = np.concatenate((x_padded, x_pad))
 
     return x_padded
@@ -138,8 +140,12 @@ def segment_args(rate, duration, offset, window, step):
         Example: 
             >>> from ketos.audio_processing.audio_processing import segment_args
             >>> args = segment_args(rate=1000., duration=3., offset=0., window=0.1, step=0.02)
-            >>> print(args)
-            {'win_len': 100, 'step_len': 20, 'num_segs': 150, 'offset_len': -40}
+            >>> for key,value in sorted(args.items()):
+            ...     print(key,':',value)
+            num_segs : 150
+            offset_len : -40
+            step_len : 20
+            win_len : 100
     """
     win_len = num_samples(window, rate=rate, even=True) 
     step_len = num_samples(step, rate=rate, even=True)
@@ -190,9 +196,9 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, warnings=True):
              [4 5 6 7]]
             >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3,)    
             >>> print(y)
-            [[2 1 0 0]
-             [0 0 1 2]
-             [1 2 3 4]]
+            [[-3 -2 -1  0]
+             [-1  0  1  2]
+             [ 1  2  3  4]]
     """
     mem = virtual_memory() #memory available
     siz = getsizeof(x) * win_len / step_len #estimated size of output array
@@ -256,7 +262,7 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
     if seg_args is None:
         assert window and step, "if seg_args is not specified, window and step must both be specified."
 
-        seg_args = segment_args(rate=rate, duration=len(x)*rate,\
+        seg_args = segment_args(rate=rate, duration=len(x)/rate,\
             offset=0, window=window, step=step) #compute input arguments for segment method
 
     segs = segment(x, **seg_args) #divide audio signal into segments
@@ -388,10 +394,10 @@ def to_decibel(x):
         >>> img_db = to_decibel(img)
         >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
         >>> print(img_db)
-        [[20.   26.02]
+        [[20.0 26.02]
          [29.54 32.04]]
     """
-    y = 20 * np.log10(x)
+    y = 20 * np.ma.log10(x)
     return y
 
 def from_decibel(y):
@@ -431,7 +437,7 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
             image: 2d numpy array
                 Magnitude spectrogram, linear scale
             phase_angle: 
-                Initial condition for phase.
+                Initial condition for phase in degrees
             num_fft: int
                 Number of points used for the Fast-Fourier Transform. Same as window size.
             step_len: int
@@ -455,10 +461,11 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
             >>> #Compute the Short Time Fourier Transform of the audio signal 
             >>> #using a window size of 200, step size of 40, and a Hamming window,
             >>> from ketos.audio_processing.audio_processing import stft
-            >>> mag, freq_max, num_fft, _ = stft(x=audio, seg_args={'win_len':200, 'step_len':40})
+            >>> win_fun = 'hamming'
+            >>> mag, freq_max, num_fft, _ = stft(x=audio, rate=1000, seg_args={'win_len':200, 'step_len':40}, window_func=win_fun)
             >>> #Estimate the original audio signal            
             >>> from ketos.audio_processing.audio_processing import spec2audio
-            >>> audio_est = spec2audio(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window='hamming')
+            >>> audio_est = spec2audio(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window_func=win_fun)
             >>> #plot the original and the estimated audio signal
             >>> import matplotlib.pyplot as plt
             >>> plt.clf()
@@ -477,7 +484,7 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
     ifft_config = dict(win_length=num_fft, hop_length=step_len, center=False, window=window_func)
 
     # initial spectrogram for iterative algorithm
-    complex_specgram = inv_magphase(image, phase_angle)
+    complex_specgram = complex_value(image, phase_angle * np.pi/180.)
 
     # Griffin-Lim iterative algorithm
     for i in range(num_iters):
@@ -486,6 +493,8 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
             complex_specgram = librosa.stft(audio, **fft_config)
             _, phase = librosa.magphase(complex_specgram)
             angle = np.angle(phase)
-            complex_specgram = inv_magphase(image, angle)
+            complex_specgram = complex_value(image, angle)
+
+    # Cut 
 
     return audio

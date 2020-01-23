@@ -46,12 +46,12 @@ def test_pad_reflect_1d():
     # padding on left only
     res = ap.pad_reflect(x, pad_left=5)
     assert np.all(res[5:] == x)
-    assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
     # padding on both sides
     res = ap.pad_reflect(x, pad_left=5, pad_right=2)
     assert np.all(res[5:-2] == x)
-    assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
-    assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
 
 def test_pad_reflect_2d():
     x = np.random.rand(9,14)
@@ -61,12 +61,12 @@ def test_pad_reflect_2d():
     # padding on left only
     res = ap.pad_reflect(x, pad_left=5)
     assert np.all(res[5:] == x)
-    assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
     # padding on both sides
     res = ap.pad_reflect(x, pad_left=5, pad_right=2)
     assert np.all(res[5:-2] == x)
-    assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
-    assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
+    assert np.all(np.flip(res[:5], axis=0) == x[:5])
+    assert np.all(np.flip(res[-2:], axis=0) == x[-2:])
 
 def test_num_samples():
     assert ap.num_samples(time=1.0, rate=10.) == 10
@@ -199,3 +199,62 @@ def test_spec2audio():
     assert sig.shape == aud.shape
     fft = np.fft.rfft(aud)
     assert np.argmax(fft) == int(10. / 500. * len(fft))
+
+
+
+def test_uniform_image_is_unchanged_by_blurring():
+    img = np.ones(shape=(10,10), dtype=np.float32)
+    img_median = ap.blur_image(img,5,gaussian=False)
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            assert img_median[i,j] == img[i,j]
+    img_gaussian = ap.blur_image(img,9,gaussian=True)
+    np.testing.assert_array_equal(img, img_gaussian)
+            
+def test_median_filter_can_work_with_kernel_size_greater_than_five():
+    img = np.ones(shape=(10,10), dtype=np.float32)
+    ap.blur_image(img,13,gaussian=False)
+
+def test_median_filter_works_as_expected():
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
+    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=1)
+    img_res = np.array([[0,0,0],[0,0,0],[0,0,1]], dtype=np.float32)
+    np.testing.assert_array_equal(img_fil,img_res)
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
+    img_fil = ap.apply_median_filter(img,row_factor=15,col_factor=1)
+    assert img_fil[2,2] == 0
+    img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
+    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=15)
+    assert img_fil[2,2] == 0
+    
+def test_preemphasis_has_no_effect_if_coefficient_is_zero():
+    sig = np.array([1,2,3,4,5], np.float32)
+    sig_new = ap.apply_preemphasis(sig,coeff=0)
+    for i in range(len(sig)):
+        assert sig[i] == sig_new[i]
+
+def test_filter_isolated_spots_removes_single_pixels():
+    img = np.array([[0,0,1,1,0,0],
+                    [0,0,0,1,0,0],
+                    [0,1,0,0,0,0],
+                    [0,0,0,0,0,0],
+                    [0,0,0,1,0,0]])
+    
+    expected = np.array([[0,0,1,1,0,0],
+                        [0,0,0,1,0,0],
+                        [0,0,0,0,0,0],
+                        [0,0,0,0,0,0],
+                        [0,0,0,0,0,0]])
+    
+
+    #Struct defines the relationship between a pixel and its neighbors.
+    #If a pixel complies with this relationship, it is not removed
+    #in this case, if the pixel has any neighbors, it will not be removed.
+    struct=np.array([[1,1,1],
+                    [1,1,1],
+                    [1,1,1]])
+
+    filtered_img = ap.filter_isolated_spots(img,struct)
+
+    assert np.array_equal(filtered_img, expected)
+

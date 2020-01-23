@@ -433,6 +433,22 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
 
     return res
 
+def complex_value(mag, angle):
+    """ Computes complex value from magnitude and phase angle.
+
+        Args:
+            mag: numpy array
+                Magnitude
+            angle: float or numpy array
+                Phase angle in radians
+
+        Returns:
+            c: numpy array
+                Complex value
+    """
+    phase = np.cos(angle) + 1.j * np.sin(angle)
+    c = mag * phase
+    return c  
 
 def get_member(cls, member_name):
     """ Query class member by name.
