@@ -30,21 +30,34 @@
     images.
 """
 import numpy as np
+import matplotlib.pyplot as plt
+
+def plot_image(x, extent=None, xlabel='', ylabel=''):
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,7), sharex=True)
+    img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    fig.colorbar(img, ax=ax, format='%.1f')
+    return fig
 
 def enhance_image(img, enhancement=1.):
     """ Enhance regions of high intensity while suppressing regions of low intensity.
 
         Multiplies each pixel value by the factor,
 
-            s(x) = 1 / (exp(-(x-x0)/w) + 1)
+        .. math::
+            f(x) = ( e^{-(x - x_m) / w} + 1)^{-1}
 
-        where x is the pixel value, x0 = threshold * std(img), and w = 1./enhancement * std(img).
+        where :math:`x` is the pixel value, :math:`x_m` is the pixel value median of 
+        the image, and :math:`w = x_{\sigma} / \epsilon`, where :math:`x_{\sigma}`
+        is the pixel value standard deviation of the image and :math:`\epsilon` is the 
+        enhancement parameter.
 
         Some observations:
           
-         * s(x) is a smoothly increasing function from 0 to 1.
-         * s(x0) = 0.5 (i.e. x0 demarks the transition from "low intensity" to "high intensity")
-         * The smaller the value of w, the faster the transition from 0 to 1.
+         * :math:`f(x)` is a smoothly increasing function from 0 to 1.
+         * :math:`f(x_m)=0.5`, i.e. the median :math:`x_m` demarks the transition from "low intensity" to "high intensity".
+         * The smaller the width, :math:`w`, the faster the transition from 0 to 1.
 
         Args:
             img : numpy array
@@ -55,12 +68,21 @@ def enhance_image(img, enhancement=1.):
         Returns:
             img_en: numpy array
                 Enhanced image.
+
+        Example:
+            >>> from ketos.audio_processing.image import enhance_image, plot_image
+            >>> #create a toy image
+            >>> x = np.linspace(-4.5,4.5,10)
+            >>> y = np.linspace(-4.5,4.5,10)
+            >>> x,y = np.meshgrid(x,y)
+            >>> z = np.exp(-(x**2+y**2)/(2*2.5**2)) #symmetrical Gaussian 
+            >>> z += 0.2 * np.random.rand(10,10)  #add some noise
     """
     if enhancement > 0:
+        med = np.median(img)
         std = np.std(img)
-        half = np.median(img)
         wid = (1. / enhancement) * std
-        scaling = 1. / (np.exp(-(img - half) / wid) + 1.)
+        scaling = 1. / (np.exp(-(img - med - std) / wid) + 1.)
 
     else:
         scaling = 1.
@@ -314,20 +336,3 @@ def apply_preemphasis(sig, coeff=0.97):
     emphasized_signal = np.append(sig[0], sig[1:] - coeff * sig[:-1])
     
     return emphasized_signal
-
-def inv_magphase(mag, angle):
-    """ Computes complex value from magnitude and phase angle.
-
-        Args:
-            mag: numpy array
-                Magnitude
-            angle: float or numpy array
-                Phase angle
-
-        Returns:
-            c: numpy array
-                Complex value
-    """
-    phase = np.cos(angle) + 1.j * np.sin(angle)
-    c = mag * phase
-    return c  
