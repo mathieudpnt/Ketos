@@ -141,50 +141,6 @@ def ensure_same_length(specs, pad=False):
 
     return specs
 
-def stack_spec_attrs(filename, offset, label, mul):
-    """ Ensure that spectrogram attributes have expected multiplicity.
-
-        If the attribute is specified as a list or an array-like object, 
-        assert that the length equals the spectrogram multiplicity.
-
-        Args:
-            filename: str or list(str)
-                Filename attribute.
-            offset: float or array-like
-                Offset attribute.
-            label: int or array-like
-                Label attribute.
-            mul: int
-                Spectrogram multiplicity
-
-        Returns:
-            filename: list(str)
-                Filename attribute
-            offset: array-like
-                Offset attribute
-            label: array-like
-                Label attribute
-    """
-    if filename:
-        if isinstance(filename, str):
-            filename = [filename for _ in range(mul)]
-
-        assert len(filename) == mul, 'Number of filenames ({0}) does not match spectrogram multiplicity ({1})'.format(len(filename), mul)
-
-    if offset:
-        if isinstance(offset, float) or isinstance(offset, int):
-            offset = np.ones(mul, dtype=float) * float(offset)
-
-        assert len(offset) == mul, 'Number of offsets ({0}) does not match spectrogram multiplicity ({1})'.format(len(offset), mul)
-
-    if label:
-        if isinstance(label, float) or isinstance(label, int):
-            label = np.ones(mul, dtype=int) * int(label)
-
-        assert len(label) == mul, 'Number of labels ({0}) does not match spectrogram multiplicity ({1})'.format(len(label), mul)
-
-    return filename, offset, label
-
 def add_specs(a, b, offset=0, make_copy=False):
     """ Place two spectrograms on top of one another by adding their 
         pixel values.
@@ -487,7 +443,7 @@ class Spectrogram():
 
         if np.ndim(image) == 3:
             mul = image.shape[2]
-            filename, offset, label = stack_spec_attrs(filename, offset, label, mul)
+            filename, offset, label = ap.stack_audio_attrs(filename, offset, label, mul)
             if annot:
                 assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
 
@@ -737,19 +693,18 @@ class Spectrogram():
                     Step size in seconds.
 
             Returns:
-                segs: Spectrogram
-                    Spectrogram segments
+                specs: Spectrogram
+                    Stacked spectrograms
         """              
-        if step_size is None:
-            step_size = window_size
+        if step is None:
+            step = window
 
         time_res = self.time_res()
-
-        win_len = int(round(window / time_res))
-        step_len = int(round(step / time_res))
+        win_len = ap.num_samples(window, 1. / time_res)
+        step_len = ap.num_samples(step, 1. / time_res)
 
         # segment image
-        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad=True, center=False)
+        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad_mode='zero')
 
         window = win_len * time_res
         step = step_len * time_res

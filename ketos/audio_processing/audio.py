@@ -44,11 +44,13 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
-from ketos.data_handling.data_handling import read_wave
 from ketos.utils import ensure_dir
 
 
+import librosa
+from ketos.data_handling.data_handling import read_wave
 from ketos.audio_processing.annotation import AnnotationHandler
+import ketos.audio_processing.audio_processing as ap
 
 
 class AudioSignal():
@@ -87,13 +89,20 @@ class AudioSignal():
     def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
         self.rate = rate
         self.data = data.astype(dtype=np.float32)
+
+        if np.ndim(image) == 2:
+            mul = image.shape[1]
+            filename, offset, label = ap.stack_audio_attrs(filename, offset, label, mul)
+            if annot:
+                assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
+
         self.filename = filename
         self.offset = offset
         self.label = label
         self.annot = annot
 
     @classmethod
-    def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy')
+    def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy'):
         """ Load audio data from wave file.
 
             Args:
@@ -131,13 +140,21 @@ class AudioSignal():
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
-        """        
-        rate, data = read_wave(file=path, channel=channel)
-        _, filename = os.path.split(path)
-        return cls(rate=rate, data=data, filename=filename, offset=offset)
+        """
+        rate_orig = librosa.get_samplerate(path)
+        start = num_samples(offset, rate_orig)
+        if duration:
+            stop = num_samples(offset + duration, rate_orig)
+
+        rate_orig, data = read_wave(file=path, channel=channel, start=start, stop=stop)
+
+        if rate and rate != rate_orig:
+            data = librosa.core.resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
+            
+        return cls(rate=rate, data=data, filename=os.path.basename(path), offset=offset)
 
     @classmethod
-    def gaussian_noise(cls, rate, sigma, samples, tag=''):
+    def gaussian_noise(cls, rate, sigma, samples, filename="gaussian_noise"):
         """ Generate Gaussian noise signal
 
             Args:
@@ -147,7 +164,7 @@ class AudioSignal():
                     Standard deviation of the signal amplitude
                 samples: int
                     Length of the audio signal given as the number of samples
-                tag: str
+                filename: str
                     Meta-data string (optional)
 
             Returns:
@@ -155,27 +172,22 @@ class AudioSignal():
                     Audio signal sampling of Gaussian noise
 
             Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create gaussian noise with sampling rate of 10 Hz, standard deviation of 2.0 and 1000 samples
+                >>> a = AudioSignal.gaussian_noise(rate=10, sigma=2.0, samples=1000)
+                >>> # show signal
+                >>> fig = a.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create gaussian noise with sampling rate of 10 Hz, standard deviation of 2.0 and 1000 samples
-            >>> a = AudioSignal.gaussian_noise(rate=10, sigma=2.0, samples=1000)
-            >>> # show signal
-            >>> fig = a.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
         """        
         assert sigma > 0, "sigma must be strictly positive"
 
-        if tag == '':
-            tag = "Gaussian_noise_sigma{0:.3f}".format(sigma)
-
         y = np.random.normal(loc=0, scale=sigma, size=samples)
-        return cls(rate=rate, data=y, tag=tag)
+        return cls(rate=rate, data=y, filename=filename)
 
     @classmethod
-    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, dfdt=0, tag=''):
+    def morlet(cls, rate, frequency, width, samples=None, height=1, displacement=0, dfdt=0, filename="morlet"):
         """ Audio signal with the shape of the Morlet wavelet
 
             Uses :func:`util.morlet_func` to compute the Morlet wavelet.
@@ -196,10 +208,10 @@ class AudioSignal():
                 dfdt: float
                     Rate of change in frequency as a function of time in Hz per second.
                     If dfdt is non-zero, the frequency is computed as 
-                        
+
                         f = frequency + (time - displacement) * dfdt 
 
-                tag: str
+                filename: str
                     Meta-data string (optional)
 
             Returns:
@@ -207,24 +219,22 @@ class AudioSignal():
                     Audio signal sampling of the Morlet wavelet 
 
             Examples:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a Morlet wavelet with frequency of 3 Hz and 1-sigma width of envelope set to 2.0 seconds
+                >>> wavelet1 = AudioSignal.morlet(rate=100., frequency=3., width=2.0)
+                >>> # show signal
+                >>> fig = wavelet1.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a Morlet wavelet with frequency of 3 Hz and 1-sigma width of envelope set to 2.0 seconds
-            >>> wavelet1 = AudioSignal.morlet(rate=100., frequency=3., width=2.0)
-            >>> # show signal
-            >>> fig = wavelet1.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
 
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
+                >>> # create another wavelet, but with frequency increasing linearly with time
+                >>> wavelet2 = AudioSignal.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
+                >>> # show signal
+                >>> fig = wavelet2.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
 
-            >>> # create another wavelet, but with frequency increasing linearly with time
-            >>> wavelet2 = AudioSignal.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
-            >>> # show signal
-            >>> fig = wavelet2.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
         """        
         if samples is None:
             samples = int(6 * width * rate)
@@ -239,13 +249,10 @@ class AudioSignal():
         y = morlet_func(time=time, frequency=frequency, width=width, displacement=displacement, norm=False, dfdt=dfdt)        
         y *= height
         
-        if tag == '':
-            tag = "Morlet_f{0:.0f}Hz_s{1:.3f}s".format(frequency, width) # this is just a string with some helpful info
-
-        return cls(rate=rate, data=np.array(y), tag=tag)
+        return cls(rate=rate, data=np.array(y), filename=filename)
 
     @classmethod
-    def cosine(cls, rate, frequency, duration=1, height=1, displacement=0, tag=''):
+    def cosine(cls, rate, frequency, duration=1, height=1, displacement=0, filename="cosine"):
         """ Audio signal with the shape of a cosine function
 
             Args:
@@ -259,7 +266,7 @@ class AudioSignal():
                     Peak value of the audio signal
                 displacement: float
                     Phase offset in fractions of 2*pi
-                tag: str
+                filename: str
                     Meta-data string (optional)
 
             Returns:
@@ -267,16 +274,14 @@ class AudioSignal():
                     Audio signal sampling of the cosine function 
 
             Examples:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a Cosine wave with frequency of 7 Hz
+                >>> cos = AudioSignal.cosine(rate=1000., frequency=7.)
+                >>> # show signal
+                >>> fig = cos.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a Cosine wave with frequency of 7 Hz
-            >>> cos = AudioSignal.cosine(rate=1000., frequency=7.)
-            >>> # show signal
-            >>> fig = cos.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
         """        
         N = int(duration * rate)
 
@@ -288,13 +293,10 @@ class AudioSignal():
         x = (time * frequency + displacement) * 2 * np.pi
         y = height * np.cos(x)
         
-        if tag == '':
-            tag = "cosine_f{0:.0f}Hz".format(frequency) # this is just a string with some helpful info
+        return cls(rate=rate, data=np.array(y), filename=filename)
 
-        return cls(rate=rate, data=np.array(y), tag=tag)
-
-    def get_data(self):
-        """ Get the underlying data contained in this object.
+    def data(self):
+        """ Get the underlying data numpy array.
             
             Returns:
                 self.data: numpy array
@@ -302,68 +304,52 @@ class AudioSignal():
         """
         return self.data
 
-    def get_time_vector(self):
-        """ Get the audio signal's time vector
+    def segment(self, window, step=None):
+        """ Divide the time axis into segments of uniform length, which may or may 
+            not be overlapping.
+
+            Window length and step size are converted to the nearest integer number 
+            of time steps.
+
+            If necessary, the audio signal will be padded with zeros at the end to 
+            ensure that all segments have an equal number of samples. 
+
+            Args:
+                window: float
+                    Length of each segment in seconds.
+                step: float
+                    Step size in seconds.
 
             Returns:
-                v: 1d numpy array
-                    Time vector
-        """
-        v = self.time_vector
-        return v
+                segs: AudioSignal
+                    Stacked audio signals
+        """              
+        if step_size is None:
+            step_size = window_size
 
-    def get_file_vector(self):
-        """ Get the audio signal's file vector
+        time_res = self.time_res()
+        win_len = ap.num_samples(window, 1. / time_res)
+        step_len = ap.num_samples(step, 1. / time_res)
 
-            Returns:
-                v: 1d numpy array
-                    File vector
-        """
-        v = self.file_vector
-        return v
+        # segment audio signal
+        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad_mode='zero')
 
-    def get_file_dict(self):
-        """ Get the audio signal's file dictionary
+        window = win_len * time_res
+        step = step_len * time_res
+        num_segs = segs.shape[0]
 
-            Returns:
-                d: dict
-                    File dictionary
-        """
-        d = self.file_dict
-        return d
+        # segment annotations
+        if self.annot:
+            annots = self.annot.segment(num_segs=num_segs, window=window, step=step)
+        else:
+            annots = None
 
-    def make_frames(self, winlen, winstep, zero_padding=False, even_winlen=False):
-        """ Split the signal into frames of length 'winlen' with consecutive 
-            frames being shifted by an amount 'winstep'. 
-            
-            If 'winstep' < 'winlen', the frames overlap.
+        # compute offsets
+        offset = np.arange(num_segs) * step
 
-        Args: 
-            signal: AudioSignal
-                The signal to be framed.
-            winlen: float
-                The window length in seconds.
-            winstep: float
-                The window step (or stride) in seconds.
-            zero_padding: bool
-                If necessary, pad the signal with zeros at the end to make sure that all frames have equal number of samples.
-                This assures that sample are not truncated from the original signal.
+        audio = self.__class__(rate=self.rate, data=segs, filename=self.filename, offset=offset, label=self.label, annot=annots)
 
-        Returns:
-            frames: numpy array
-                2-d array with padded frames.
-        """
-        rate = self.rate
-        sig = self.data
-
-        winlen = int(round(winlen * rate))
-        winstep = int(round(winstep * rate))
-
-        if even_winlen and winlen%2 != 0:
-            winlen += 1
-
-        frames = ap.make_frames(sig, winlen, winstep, zero_padding)
-        return frames
+        return audio
 
     def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file

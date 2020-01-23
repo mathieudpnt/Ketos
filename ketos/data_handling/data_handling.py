@@ -76,8 +76,6 @@ def rel_path_unix(path, start=None):
 
     return u
 
-
-
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
        
@@ -226,15 +224,24 @@ def find_wave_files(path, fullpath=True, subdirs=False):
     wavefiles += find_files(path, '.WAV', fullpath, subdirs)
     return wavefiles
 
+def read_wave(file, channel=0, start=0, stop=None):
+    """ Read a wave file in either mono or stereo mode.
 
-def read_wave(file, channel=0):
-    """ Read a wave file in either mono or stereo mode
+        Wrapper method around 
+        
+            https://pysoundfile.readthedocs.io/en/latest/index.html#soundfile.read
 
         Args:
             file: str
                 path to the wave file
             channel: int
                 Which channel should be used in case of stereo data (0: left, 1: right) 
+            start: int (optional)
+                Where to start reading. A negative value counts from the end. 
+                Defaults to 0.
+            stop: int (optional)
+                The index after the last time step to be read. A negative value counts 
+                from the end.
 
         Returns: (rate,data)
             rate: int
@@ -261,13 +268,8 @@ def read_wave(file, channel=0):
             >>> len(data)/rate
             120.832
     """
-    signal, rate = sf.read(file)
-    
-           
-    if len(signal.shape) == 2:
-        data = signal[:, channel]
-    else:
-        data = signal[:]
+    signal, rate = sf.read(file=file, start=start, stop=stop, always_2d=True)               
+    data = signal[:, channel]
     return rate, data
 
 def create_dir(dir):

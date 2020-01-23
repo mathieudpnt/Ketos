@@ -37,7 +37,6 @@ from sys import getsizeof
 from psutil import virtual_memory
 from ketos.utils import complex_value
 
-
 def pad_reflect(x, pad_left=0, pad_right=0):
     """ Pad array with its own (inverted) reflection along 
         the first axis (0).
@@ -78,6 +77,48 @@ def pad_reflect(x, pad_left=0, pad_right=0):
 
     return x_padded
 
+def pad_zero(x, pad_left=0, pad_right=0):
+    """ Pad array with zeros along the first axis (0).
+
+        Args: 
+            x: numpy.array
+                The data to be padded.
+            pad_left: int
+                Amount of padding on the left
+            pad_right: int
+                Amount of padding on the right
+
+        Returns:
+            x_padded: numpy.array
+                Padded array
+
+        Example:
+            >>> from ketos.audio_processing.audio_processing import pad_zero
+            >>> arr = np.arange(9) #create a simply array
+            >>> print(arr)
+            [0 1 2 3 4 5 6 7 8]
+            >>> arr = pad_zero(arr, pad_right=3) #pad on the right
+            >>> print(arr)
+            [0 1 2 3 4 5 6 7 8 0 0 0]
+    """
+    if pad_left == 0 and pad_right == 0:
+        x_padded = x
+
+    else:
+        x_padded = x.copy()
+        pad_shape = x.shape
+        if pad_left > 0:
+            pad_shape = tuple([pad_left] + list(x.shape)[1:])
+            x_pad = np.zeros(pad_shape, dtype=x.dtype)
+            x_padded = np.concatenate((x_pad, x_padded))
+
+        if pad_right > 0:
+            pad_shape = tuple([pad_right] + list(x.shape)[1:])
+            x_pad = np.zeros(pad_shape, dtype=x.dtype)
+            x_padded = np.concatenate((x_padded, x_pad))
+
+    return x_padded
+
 def num_samples(time, rate, even=False):
     """ Convert time interval to number of samples. 
         
@@ -98,6 +139,8 @@ def num_samples(time, rate, even=False):
 
         Example:
             >>> from ketos.audio_processing.audio_processing import num_samples
+            >>> print(num_samples(rate=1000., time=0.0))
+            0
             >>> print(num_samples(rate=1000., time=2.0))
             2000
             >>> print(num_samples(rate=1000., time=2.001))
@@ -153,17 +196,17 @@ def segment_args(rate, duration, offset, window, step):
     offset_len = num_samples(offset, rate=rate) - int(win_len/2) + int(step_len/2)
     return {'win_len':win_len, 'step_len':step_len, 'num_segs':num_segs, 'offset_len':offset_len}
 
-def segment(x, win_len, step_len, num_segs=None, offset_len=0, warnings=True):
+def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect', mem_warning=True):
     """ Divide an array into segments of equal length along its first 
         axis (0), each segment being shifted by a fixed amount with respetive to the 
         previous segment.
 
         If offset_len is negative the input array will be padded with its own 
-        reflection on the left. 
+        inverted reflection on the left. 
 
         If the combined length of the segments exceeds the length of the input 
         array (minus any positive offset), the array will be padded with its 
-        own reflection on the right.
+        own inverted reflection on the right.
 
         Args: 
             x: numpy.array
@@ -176,7 +219,9 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, warnings=True):
                 Number of segments. Optional.
             offset_len: int
                 Position of the first frame. Defaults to 0, if not specified.
-            warnings: bool
+            pad_mode: str
+                Padding mode. Select between 'reflect' (default) and 'zero'.
+            mem_warning: bool
                 Print warning if the size of the array exceeds 10% of the 
                 available memory.
 
@@ -213,7 +258,10 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, warnings=True):
     # pad, if necessary
     pad_left = max(0, -offset_len)
     pad_right = max(0, max(0, offset_len) + num_segs * step_len + win_len - x.shape[0])    
-    x_pad = pad_reflect(x, pad_left, pad_right)
+    if pad_mode == 'reflect':
+        x_pad = pad_reflect(x, pad_left, pad_right)
+    else:
+        x_pad = pad_zero(x, pad_left, pad_right)
 
     # tile    
     indices = np.tile(np.arange(0, win_len), (num_segs, 1)) + np.tile(np.arange(0, num_segs * step_len, step_len), (win_len, 1)).T
@@ -498,3 +546,47 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
     # Cut 
 
     return audio
+
+def stack_audio_attrs(filename, offset, label, mul):
+    """ Ensure that audio/spectrogram attributes have expected multiplicity.
+
+        If the attribute is specified as a list or an array-like object, 
+        assert that the length equals the audio/spectrogram multiplicity.
+
+        Args:
+            filename: str or list(str)
+                Filename attribute.
+            offset: float or array-like
+                Offset attribute.
+            label: int or array-like
+                Label attribute.
+            mul: int
+                Audio/spectrogram multiplicity
+
+        Returns:
+            filename: list(str)
+                Filename attribute
+            offset: array-like
+                Offset attribute
+            label: array-like
+                Label attribute
+    """
+    if filename:
+        if isinstance(filename, str):
+            filename = [filename for _ in range(mul)]
+
+        assert len(filename) == mul, 'Number of filenames ({0}) does not match audio/spectrogram multiplicity ({1})'.format(len(filename), mul)
+
+    if offset:
+        if isinstance(offset, float) or isinstance(offset, int):
+            offset = np.ones(mul, dtype=float) * float(offset)
+
+        assert len(offset) == mul, 'Number of offsets ({0}) does not match audio/spectrogram multiplicity ({1})'.format(len(offset), mul)
+
+    if label:
+        if isinstance(label, float) or isinstance(label, int):
+            label = np.ones(mul, dtype=int) * int(label)
+
+        assert len(label) == mul, 'Number of labels ({0}) does not match audio/spectrogram multiplicity ({1})'.format(len(label), mul)
+
+    return filename, offset, label
