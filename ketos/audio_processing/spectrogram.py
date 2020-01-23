@@ -72,7 +72,7 @@ import copy
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.audio_processing.image import enhance_image, tonal_noise_reduction
+from ketos.audio_processing.image import enhance_, reduce_tonal_noise
 
 
 # TODO: This methods needs updating (or be removed)
@@ -861,7 +861,7 @@ class Spectrogram():
 
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sig_t, sig_f))
 
-    def enhance(self, enhancement=1.):
+    def enhance_signal(self, enhancement=1.):
         """ Enhance the contrast between regions of high and low intensity.
 
             See :func:`audio_processing.image.enhance_image` for implementation details.
@@ -870,13 +870,13 @@ class Spectrogram():
                 enhancement: float
                     Parameter determining the amount of enhancement.
         """
-        self.image = enhance_image(self.image, enhancement=enhancement)
+        self.image = enhance_signal(self.image, enhancement=enhancement)
 
-    def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
+    def reduce_tonal_noise(self, method='MEDIAN', **kwargs):
         """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
             background noise
 
-            See :func:`audio_processing.image.tonal_noise_reduction` for implementation details.
+            See :func:`audio_processing.image.reduce_tonal_noise` for implementation details.
 
             Currently, offers the following two methods:
 
@@ -921,7 +921,8 @@ class Spectrogram():
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
 
         """
-        self.image = tonal_noise_reduction(self.image, time_res=self.time_ax.bin_width(), kwargs['time_constant'])
+        time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
+        self.image = reduce_tonal_noise(self.image, method=method, time_const_len=time_const_len)
 
     def plot(self, spec_id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.

@@ -39,14 +39,14 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-def test_enhance_image():
+def test_enhance_signal():
     #create a toy image
     x = np.linspace(-5,5,100)
     y = np.linspace(-5,5,100)
     x,y = np.meshgrid(x,y)
     img = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
     img += 0.2 * np.random.rand(100,100)  #add some noise
-    img_enh = im.enhance_image(img, enhancement=3.0)
+    img_enh = im.enhance_signal(img, enhancement=3.0)
     idx = np.nonzero(img > np.median(img)+np.std(img)) #pixels with intensity > median + std dev
     assert np.all(img_enh[idx] > 0.5 * img[idx])
     idx = np.nonzero(img < np.median(img)+np.std(img)) #pixels with intensity < median + std dev

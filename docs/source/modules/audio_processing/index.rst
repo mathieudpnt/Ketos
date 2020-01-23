@@ -6,8 +6,10 @@ Audio Processing
    :glob:
 
    audio_processing
+   image
    audio
-   annotation
    spectrogram
+   axis
+   annotation
    spectrogram_filters
 

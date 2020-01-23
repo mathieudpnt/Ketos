@@ -34,13 +34,31 @@ import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 
 def plot_image(img, fig, ax, extent=None, xlabel='', ylabel=''):
+    """ Draw the image.
+
+        Args:
+            img: numpy array
+                Pixel values
+            fig: matplotlib.figure.Figure
+                Figure object
+            ax: matplotlib.axes.Axes
+                Axes object
+            extent: tuple(float,float,float,float)
+                Extent of axes, optional.
+            xlabel: str
+                Label for x axis, optional.
+            ylabel: str
+                Label for y axis, optional.
+
+        Returns:
+            None
+    """
     img_plt = ax.imshow(img.T, aspect='auto', origin='lower', extent=extent)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     fig.colorbar(img_plt, ax=ax, format='%.1f')
-    return fig
 
-def enhance_image(img, enhancement=1.):
+def enhance_signal(img, enhancement=1.):
     """ Enhance the contrast between regions of high and low intensity, while preserving 
         the range of pixel values.
 
@@ -71,20 +89,20 @@ def enhance_image(img, enhancement=1.):
                 Enhanced image.
 
         Example:
-            >>> from ketos.audio_processing.image import enhance_image, plot_image
+            >>> from ketos.audio_processing.image import enhance_signal, plot_image
             >>> #create an image 
             >>> x = np.linspace(-4,4,100)
             >>> y = np.linspace(-6,6,100)
-            >>> x,y = np.meshgrid(x,y)
+            >>> x,y = np.meshgrid(x,y,indexing='ij')
             >>> img = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
             >>> img += 0.2 * np.random.rand(100,100)  #add some noise
             >>> # apply enhancement
-            >>> img_enh = enhance_image(img, enhancement=3.0)
+            >>> img_enh = enhance_signal(img, enhancement=3.0)
             >>> #draw the original image and its enhanced version
             >>> import matplotlib.pyplot as plt
-            >>> fig, (ax1,ax2) = plt.subplots(1,2,figsize=(10,6)) #create canvas to draw on
-            >>> plot_image(img,fig,ax1)
-            >>> plot_image(img_enh,fig,ax1)
+            >>> fig, (ax1,ax2) = plt.subplots(1,2,figsize=(10,4)) #create canvas to draw on
+            >>> plot_image(img,fig,ax1,extent=(-4,4,-6,6))
+            >>> plot_image(img_enh,fig,ax2,extent=(-4,4,-6,6))
             >>> fig.savefig("ketos/tests/assets/tmp/image_enhancement1.png")
 
             .. image:: ../../../../ketos/tests/assets/tmp/image_enhancement1.png
@@ -101,7 +119,7 @@ def enhance_image(img, enhancement=1.):
     img_en = img * scaling
     return img_en
 
-def tonal_noise_reduction(image, method='MEDIAN', **kwargs):
+def reduce_tonal_noise(img, method='MEDIAN', **kwargs):
     """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
         background noise
 
@@ -121,11 +139,8 @@ def tonal_noise_reduction(image, method='MEDIAN', **kwargs):
                 Options are 'MEDIAN' and 'RUNNING_MEAN'
         
         Optional args:
-            time_res: float
-                Time resolution in seconds.
-                Must be provided if the method 'RUNNING_MEAN' is chosen.
-            time_constant: float
-                Time constant in seconds, used for the computation of the running mean.
+            time_const_len: int
+                Time constant in number of samples, used for the computation of the running mean.
                 Must be provided if the method 'RUNNING_MEAN' is chosen.
 
         Returns:
@@ -133,22 +148,44 @@ def tonal_noise_reduction(image, method='MEDIAN', **kwargs):
                 Corrected spectrogram image
 
         Example:
+            >>> import numpy as np
+            >>> from ketos.audio_processing.image import reduce_tonal_noise, plot_image
+            >>> #create an image 
+            >>> x = np.linspace(-4,4,100)
+            >>> y = np.linspace(-6,6,100)
+            >>> x,y = np.meshgrid(x,y,indexing='ij')
+            >>> img = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
+            >>> img += 0.2 * np.random.rand(100,100)  #add some flat noise
+            >>> #add tonal noise that exhibits sudden increase in amplitude
+            >>> img += 0.2 * (1 + np.heaviside(x,0.5)) * np.exp(-(y + 2.)**2/(2*0.1**2))
+            >>> #reduce tonal noise 
+            >>> img_m = reduce_tonal_noise(img, method='MEDIAN')
+            >>> img_r = reduce_tonal_noise(img, method='RUNNING_MEAN', time_const_len=30)
+            >>> #draw the resulting images along with the original one 
+            >>> import matplotlib.pyplot as plt
+            >>> fig, (ax1,ax2,ax3) = plt.subplots(1,3,figsize=(12,4)) #create canvas to draw on
+            >>> ext = (-4,4,-6,6)
+            >>> plot_image(img,fig,ax1,extent=ext)
+            >>> plot_image(img_m,fig,ax2,extent=ext)
+            >>> plot_image(img_r,fig,ax3,extent=ext)
+            >>> fig.savefig("ketos/tests/assets/tmp/image_tonal_noise_red1.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/image_tonal_noise_red1.png
     """
     if method is 'MEDIAN':
-        img_new = image - np.median(image, axis=0)
+        img_new = img - np.median(img, axis=0)
     
     elif method is 'RUNNING_MEAN':
-        assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
-        img_new = self.tonal_noise_reduction_running_mean(img, kwargs['time_constant'])
+        assert 'time_const_len' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
+        img_new = reduce_tonal_noise_running_mean(img, kwargs['time_const_len'])
 
     else:
         print('Invalid tonal noise reduction method:',method)
         print('Available options are: MEDIAN, RUNNING_MEAN')
-        print('Spectrogram is unchanged')
 
     return img_new
 
-def tonal_noise_reduction_running_mean(img, time_res, time_constant):
+def reduce_tonal_noise_running_mean(img, time_const_len):
     """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
         by subtracting from each row a running mean, computed according to the formula given in 
         Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
@@ -156,18 +193,16 @@ def tonal_noise_reduction_running_mean(img, time_res, time_constant):
         Args:
             img: numpy.array
                 Spectrogram image
-            time_res: float
-                Time resolution in seconds.
-            time_constant: float
-                Time constant used for the computation of the running mean (in seconds).
+            time_const_len: int
+                Time constant in number of samples, used for the computation of the running mean.
+                Must be provided if the method 'RUNNING_MEAN' is chosen.
 
         Returns:
             img_new : 2d numpy array
                 Corrected spetrogram image
     """
-    dt = time_res
-    T = time_constant
-    eps = 1 - np.exp((np.log(0.15) * dt / T))
+    T = time_const_len
+    eps = 1 - np.exp((np.log(0.15) * 1. / T))
     rmean = np.average(img, axis=0)
     img_new = np.zeros(img.shape)
     nx = img.shape[0]
@@ -192,8 +227,7 @@ def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
                 An array containing the input image without the isolated spots.
 
         Example:
-
-            >>> from ketos.audio_processing.audio_processing import filter_isolated_spots
+            >>> from ketos.audio_processing.image import filter_isolated_spots
             >>> img = np.array([[0,0,1,1,0,0],
             ...                 [0,0,0,1,0,0],
             ...                 [0,1,0,0,0,0],
@@ -244,8 +278,7 @@ def blur_image(img, size=20, sigma=5, gaussian=True):
                 Blurred image.
 
         Example:
-
-            >>> from ketos.audio_processing.audio_processing import blur_image
+            >>> from ketos.audio_processing.image import blur_image
             >>> img = np.array([[0,0,0],
             ...                 [0,1,0],
             ...                 [0,0,0]])
@@ -292,8 +325,7 @@ def apply_median_filter(img, row_factor=3, col_factor=4):
                 The filtered image with 0s and 1s.
 
         Example:
-
-            >>> from ketos.audio_processing.audio_processing import apply_median_filter
+            >>> from ketos.audio_processing.image import apply_median_filter
             >>> img = np.array([[1,4,5],
             ...                 [3,5,1],
             ...                 [1,0,9]])
@@ -329,7 +361,7 @@ def apply_preemphasis(sig, coeff=0.97):
 
         Example:
 
-            >>> from ketos.audio_processing.audio_processing import apply_preemphasis
+            >>> from ketos.audio_processing.image import apply_preemphasis
             >>> sig = np.array([1,2,3,4,5])
             >>> sig_new = apply_preemphasis(sig, coeff=0.95)
             >>> print(sig_new)
