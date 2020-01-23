@@ -46,17 +46,17 @@ def enhance_image(img, enhancement=1.):
         Multiplies each pixel value by the factor,
 
         .. math::
-            f(x) = ( e^{-(x - x_m) / w} + 1)^{-1}
+            f(x) = ( e^{-(x - m_x - \sigma_m) / w} + 1)^{-1}
 
-        where :math:`x` is the pixel value, :math:`x_m` is the pixel value median of 
-        the image, and :math:`w = x_{\sigma} / \epsilon`, where :math:`x_{\sigma}`
+        where :math:`x` is the pixel value, :math:`m_x` is the pixel value median of 
+        the image, and :math:`w = \sigma_x / \epsilon`, where :math:`\sigma_x`
         is the pixel value standard deviation of the image and :math:`\epsilon` is the 
         enhancement parameter.
 
         Some observations:
           
          * :math:`f(x)` is a smoothly increasing function from 0 to 1.
-         * :math:`f(x_m)=0.5`, i.e. the median :math:`x_m` demarks the transition from "low intensity" to "high intensity".
+         * :math:`f(m_x)=0.5`, i.e. the median :math:`m_x` demarks the transition from "low intensity" to "high intensity".
          * The smaller the width, :math:`w`, the faster the transition from 0 to 1.
 
         Args:
