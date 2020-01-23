@@ -200,7 +200,7 @@ def add_specs(a, b, offset=0, make_copy=False):
     # add the two images
     bins_x = b.image.shape[0]
     bins_y = b.image.shape[1]
-    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y]
+    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image
 
     return ab
 
@@ -554,7 +554,7 @@ class Spectrogram():
                     Start time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
-                start: str or float
+                end: str or float
                     Stop time. Can be specified either as a float, in which case the 
                     unit will be assumed to be seconds, or as a string with an SI unit, 
                     for example, '22min'.
@@ -656,7 +656,7 @@ class Spectrogram():
                 >>> spec1 = spec.crop(start=2.0, end=4.2, make_copy=True)
         """
         if make_copy:
-            spec = self.copy()
+            spec = self.deepcopy()
         else:
             spec = self
 

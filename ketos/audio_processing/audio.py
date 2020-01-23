@@ -51,6 +51,7 @@ import librosa
 from ketos.data_handling.data_handling import read_wave
 from ketos.audio_processing.annotation import AnnotationHandler
 import ketos.audio_processing.audio_processing as ap
+from ketos.audio_processing.axis import LinearAxis
 
 
 class AudioSignal():
@@ -76,6 +77,8 @@ class AudioSignal():
                 Sampling rate in Hz
             data: 1numpy array
                 Audio data 
+            time_ax: LinearAxis
+                Axis object for the time dimension
             filename: str
                 Filename of the original audio file, if available (optional)
             offset: float
@@ -89,6 +92,8 @@ class AudioSignal():
     def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
         self.rate = rate
         self.data = data.astype(dtype=np.float32)
+        length = rate * data.shape[0]
+        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
 
         if np.ndim(image) == 2:
             mul = image.shape[1]
@@ -386,15 +391,14 @@ class AudioSignal():
         
         return False
 
-    def duration(self):
+    def length(self):
         """ Signal duration in seconds
 
             Returns:
-                s: float
+                : float
                    Signal duration in seconds
         """    
-        s = float(len(self.data)) / float(self.rate)
-        return s
+        return self.time_ax.max()
 
     def max(self):
         """ Maximum value of the signal
@@ -449,20 +453,18 @@ class AudioSignal():
     def plot(self):
         """ Plot the signal with proper axes ranges and labels
             
-            Example:
-            
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> # plot the wave form
-            >>> fig = a.plot()
+            Example:            
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a morlet wavelet
+                >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
+                >>> # plot the wave form
+                >>> fig = a.plot()
 
-            .. image:: ../../_static/morlet.png
-
+                .. image:: ../../_static/morlet.png
         """
         fig, ax = plt.subplots(nrows=1)
         start = 0.5 / self.rate
-        stop = self.duration() - 0.5 / self.rate
+        stop = self.length() - 0.5 / self.rate
         num = len(self.data)
         ax.plot(np.linspace(start=start, stop=stop, num=num), self.data)
         ax = plt.gca()
@@ -470,230 +472,74 @@ class AudioSignal():
         ax.set_ylabel('Signal')
         return fig
 
-    def _selection(self, begin, end):
-        """ Convert time range to sample range.
-
+    def annotate(self, label=None, start=None, end=None, df=None, audio_id=0):
+        """ Add an annotation or a collection of annotations.
+        
+            Individual annotations may be added using the arguments start and end.
+            
+            Groups of annotations may be added by first collecting them in a pandas 
+            DataFrame or dictionary and then adding them using the 'df' argument.
+        
             Args:
-                begin: float
-                    Start time of selection window in seconds
-                end: float
-                    End time of selection window in seconds
-
-            Returns:
-                i1: int
-                    Start sample no.
-                i2: int
-                    End sample no.
-        """   
-        i1 = 0
-        i2 = len(self.data)
-
-        if begin is not None:
-            begin = max(0, begin)
-            i1 = int(begin * self.rate)
-            i1 = max(i1, 0)
-
-        if end is not None:
-            end = min(self.duration(), end)
-            i2 = int(end * self.rate)
-            i2 = min(i2, len(self.data))
-
-        return i1, i2
-
-    def _crop(self, i1, i2):
-        """ Select a portion of the audio data
-
-            Args:
-                i1: int
-                    Start bin of selection window
-                end: int
-                    End bin of selection window
-
-            Returns:
-                cropped_data: numpy array
-                   Selected portion of the audio data
+                label: int
+                    Integer label.
+                start: str or float
+                    Start time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                end: str or float
+                    Stop time. Can be specified either as a float, in which case the 
+                    unit will be assumed to be seconds, or as a string with an SI unit, 
+                    for example, '22min'.
+                df: pandas DataFrame or dict
+                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
+                    'label', 'start', 'end', and optionally also 'freq_min' 
+                    and 'freq_max'.
+                spec_id: int or tuple
+                    Unique identifier of the spectrogram. Only relevant for stacked spectrograms.
         """
-        if i2 > i1:
-            self.data = self.data[i1:i2] 
-        else:
-            self.data = None           
+        assert self.annot is not None, "Attempting to add annotations to an AudioSignal without an AnnotationHandler object" 
 
-    def crop(self, begin=None, end=None, make_copy=False):
-        """ Clip audio signal
+        self.annot.add(label=label, start=start, end=end, freq_min=None, freq_max=None, df=df, spec_id=audio_id)
 
+    def crop(self, start=None, end=None, length=None, make_copy=False, **kwargs):
+        """ Crop audio signal.
+            
             Args:
-                begin: float
-                    Start time of selection window in seconds
+                start: float
+                    Start time in seconds, measured from the left edge of spectrogram.
                 end: float
-                    End time of selection window in seconds
+                    End time in seconds, measured from the left edge of spectrogram.
+                length: int
+                    Horizontal size of the cropped image (number of pixels). If provided, 
+                    the `end` argument is ignored. 
                 make_copy: bool
-                    Create a new instance instead of modifying the present instance
+                    Return a cropped copy of the spectrogra. Leaves the present instance 
+                    unaffected. Default is False.
 
             Returns:
-                cropped_signal: AudioSignal
-                    None, unless make_copy is True
-
-            Example:
-            
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> a1 = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> # crop the first 1 second
-            >>> a2 = a1.crop(end=1.0, make_copy=True)
-            >>> # show the wave forms
-            >>> fig = a1.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_orig.png")
-            >>> fig = a2.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_cropped.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_orig.png
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_cropped.png
-
-        """ 
-        if make_copy:
-            x = self.copy()
-        else:
-            x = self
-
-        i1, i2 = x._selection(begin, end)
-        x._crop(i1, i2)
-
-        if make_copy:
-            return x
-
-    def clip(self, boxes):
-        """ Extract boxed intervals from audio signal.
-
-            After clipping, this instance contains the remaining part of the audio signal.
-
-            Args:
-                boxes: numpy array
-                    2d numpy array with shape (?,2)   
-
-            Returns:
-                segs: list(AudioSignal)
-                    List of clipped audio signals.                
-
-            Example:
-            
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> # clip segment between 1.0-1.8 sec and again between 3.1-3.8 sec
-            >>> segs = a.clip(boxes=[[1.0, 1.8],[3.1, 3.8]])
-            >>> # show the wave forms
-            >>> fig = a.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_whats_left.png")
-            >>> fig = segs[0].plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_clip_1.png")
-            >>> fig = segs[1].plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_clip_2.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_whats_left.png
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_1.png
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_clip_2.png
-
-        """ 
-
-        if np.ndim(boxes) == 1:
-            boxes = [boxes]
-
-        # sort boxes in chronological order
-        sorted(boxes, key=lambda box: box[0])
-
-        boxes = np.array(boxes)
-        N = boxes.shape[0]
-
-        # get cuts
-        segs = list()
-
-        # loop over boxes
-        t1, t2 = list(), list()
-        for i in range(N):
-            
-            b = boxes[i]
-
-            assert len(b) >= 2, "box must have dimension 2 or greater"
-
-            begin = b[0]
-            end = b[1]
-            t1i, t2i = self._selection(begin, end)
-
-            data = self.data[t1i:t2i]
-            seg = AudioSignal(rate=self.rate, data=data)
-
-            segs.append(seg)
-            t1.append(t1i)
-            t2.append(t2i)
-
-        # complement
-        t2 = np.insert(t2, 0, 0)
-        t1 = np.append(t1, len(self.data))
-        t2max = 0
-        for i in range(len(t1)):
-            t2max = max(t2[i], t2max)
-            if t2max < t1[i]:
-                if t2max == 0:
-                    data_c = self.data[t2max:t1[i]]
-                else:
-                    data_c = np.append(data_c, self.data[t2max:t1[i]], axis=0)
-
-        self.data = data_c
-        self.tmin = 0
-
-        return segs
-
-    def segment(self, length, pad=False, keep_time=False, step=None):
-        """ Split the audio signal into a number of equally long segments.
-
-            Args:
-                length: float
-                    Duration of each segment in seconds
-                pad: bool
-                    If True, pad spectrogram with zeros if necessary to ensure 
-                    that bins are used.
-                keep_time: bool
-                    If True, the extracted segments keep the time from the present instance. 
-                    If False, the time axis of each extracted segment starts at t=0
-                step: float
-                    Step size in seconds. If None, the step size is set equal to the length.
-
-            Returns:
-                segs: list
-                    List of segments
+                a: AudioSignal
+                    Cropped audio signal
         """
-        if length >= self.duration():
-            return [self]
+        if make_copy:
+            a = self.deepcopy()
+        else:
+            a = self
 
-        if step is None:
-            step = length
+        # crop axis
+        b1, b2 = self.time_ax.cut(x_min=start, x_max=end, bins=length)
 
-        # split data array into segments
-        frames = self.make_frames(winlen=length, winstep=step, zero_padding=pad)
+        # crop audio signal
+        a.data = self.data[b1:b2+1]
 
-        # create audio signals
-        segs = list()
-        tstart = self.tmin
-        for f in frames:
+        # crop annotations, if any
+        if self.annot:
+            self.annot.crop(start=start, end=end)
 
-            if not keep_time:
-                tstart = 0
+        self.offset += self.time_ax.low_edge(0) #update time offset
+        self.time_ax.zero_offset() #shift time axis to start at t=0 
 
-            # audio signal
-            a = AudioSignal(rate=self.rate, data=f, tag=self.tag, tstart=tstart)
-
-            # handle annotations
-            for l,b in zip(self.labels, self.boxes):
-                if b[0] < a.tmin + a.duration() and b[1] > a.tmin:            
-                    a.annotate(labels=l, boxes=b)
-    
-            segs.append(a)
-            tstart += step 
-
-        return segs
+        return a
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):
         """ Append another audio signal to this signal.
@@ -730,21 +576,19 @@ class AudioSignal():
                     Start time of appended part in seconds from the beginning of the original signal.
 
             Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a morlet wavelet
+                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
+                >>> # create a cosine wave
+                >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
+                >>> # append the cosine wave to the morlet wavelet, using a overlap of 100 bins
+                >>> mor.append(signal=cos, n_smooth=100)
+                5.0
+                >>> # show the wave form
+                >>> fig = mor.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> # create a cosine wave
-            >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
-            >>> # append the cosine wave to the morlet wavelet, using a overlap of 100 bins
-            >>> mor.append(signal=cos, n_smooth=100)
-            5.0
-            >>> # show the wave form
-            >>> fig = mor.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
@@ -816,32 +660,11 @@ class AudioSignal():
         else:
             signal.data = None
         
+        # re-init time axis
+        length = self.rate * data.shape[0]
+        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') 
+
         return append_time
-
-    def split(self, s):
-        """ Split audio signal.
-
-            After splitting, this instance contains the remaining part of the audio signal.        
-
-            Args:
-                s: int
-                    If s >= 0, select samples [:s]. If s < 0, select samples [-s:]
-                    
-            Returns:
-                Instance of AudioSignal
-                    Selected part of the audio signal.
-        """   
-        if s is None or s == math.inf:
-            s = len(self.data)
-        
-        if s >= 0:
-            v = self.data[:s]
-            self._crop(i1=s,i2=len(self.data))
-        else:
-            v = self.data[s:]
-            self._crop(i1=0,i2=len(self.data)+s)
- 
-        return AudioSignal(rate=self.rate, data=v, tag=self.tag)
 
     def merged_length(self, signal=None, delay=None, n_smooth=None):
         """ Compute sample size of merged signal (without actually merging the signals)
@@ -851,6 +674,10 @@ class AudioSignal():
                     Audio signal to be merged
                 delay: float
                     Delay between the two audio signals in seconds.
+
+            Returns:
+                l: int
+                    Merged length
         """   
         if signal is None:
             return len(self.data)
@@ -882,28 +709,26 @@ class AudioSignal():
                     Standard deviation of the gaussian noise
 
             Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a morlet wavelet
+                >>> morlet = AudioSignal.morlet(rate=100, frequency=2.5, width=1)
+                >>> morlet_pure = morlet.copy() # make a copy
+                >>> # add some noise
+                >>> morlet.add_gaussian_noise(sigma=0.3)
+                >>> # show the wave form
+                >>> fig = morlet_pure.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_wo_noise.png")
+                >>> fig = morlet.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> morlet = AudioSignal.morlet(rate=100, frequency=2.5, width=1)
-            >>> morlet_pure = morlet.copy() # make a copy
-            >>> # add some noise
-            >>> morlet.add_gaussian_noise(sigma=0.3)
-            >>> # show the wave form
-            >>> fig = morlet_pure.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_wo_noise.png")
-            >>> fig = morlet.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
 
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
-
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
         """
         noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
 
-    def add(self, signal, delay=0, scale=1):
+    def add(self, signal, offset=0, scale=1):
         """ Add the amplitudes of the two audio signals.
         
             The audio signals must have the same sampling rates.
@@ -918,43 +743,40 @@ class AudioSignal():
             Args:
                 signal: AudioSignal
                     Audio signal to be added
-                delay: float
+                offset: float
                     Shift the audio signal by this many seconds
                 scale: float
                     Scaling factor for signal to be added
 
             Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a morlet wavelet
+                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
+                >>> # create a cosine wave
+                >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
+                >>> # add the cosine on top of the morlet wavelet, with a delay of 2 sec and a scaling factor of 0.3
+                >>> mor.add(signal=cos, delay=2.0, scale=0.3)
+                >>> # show the wave form
+                >>> fig = mor.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # create a morlet wavelet
-            >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
-            >>> # create a cosine wave
-            >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
-            >>> # add the cosine on top of the morlet wavelet, with a delay of 2 sec and a scaling factor of 0.3
-            >>> mor.add(signal=cos, delay=2.0, scale=0.3)
-            >>> # show the wave form
-            >>> fig = mor.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
         """
         assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
 
-        if delay >= 0:
-            i_min = int(delay * self.rate)
-            j_min = 0
-            i_max = min(self.data.shape[0], signal.data.shape[0] + i_min)
-            j_max = min(signal.data.shape[0], self.data.shape[0] - i_min)
-            
-        else:
-            i_min = 0
-            j_min = int(-delay * self.rate)
-            i_max = min(self.data.shape[0], signal.data.shape[0] - j_min)
-            j_max = min(signal.data.shape[0], self.data.shape[0] + j_min)
-            
-        if i_max > i_min and i_max > 0 and j_max > j_min and j_max > 0:
-            self.data[i_min:i_max] += scale * signal.data[j_min:j_max]
+        # compute cropping boundaries for time axis
+        start = -offset
+        end = self.length() - offset
+
+        # convert to bin number
+        b = self.time_ax.bin(start, truncate=True)
+
+        # crop signal that is being added
+        signal = signal.crop(start=start, end=end)
+
+        # add the two signals
+        bins = signal.data.shape[0]
+        self.data[b:b+bins] += signal
 
     def resample(self, new_rate):
         """ Resample the acoustic signal with an arbitrary sampling rate.
@@ -987,209 +809,18 @@ class AudioSignal():
             self.rate = new_rate
             self.data = new_sig
 
-    def copy(self):
-        """ Makes a hard copy of the present instance.
+    def deepcopy(self):
+        """ Make a deep copy of the present instance
+
+            See https://docs.python.org/2/library/copy.html
 
             Returns:
-                Instance of TimeStampedAudioSignal
-                    Copied signal
-        """                
-        data = np.copy(self.data)
-        return AudioSignal(rate=self.rate, data=data, tag=self.tag, tstart=self.tmin)
+                : AudioSignal
+                Deep copy.
+        """
+        return copy.deepcopy(self)
 
 def _smoothclamp(x, mi, mx): 
         """ Smoothing function
         """    
         return (lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
-
-
-class TimeStampedAudioSignal(AudioSignal):
-    """ Audio signal with global time stamp and optionally a tag 
-        that may be used to indicate the source.
-
-        Args:
-            rate: int
-                Sampling rate in Hz
-            data: 1d numpy array
-                Audio data 
-            time_stamp: datetime
-                Global time stamp marking start of audio recording
-            tag: str
-                Optional argument that may be used to indicate the source.
-    """
-
-    def __init__(self, rate, data, time_stamp, tag=""):
-        AudioSignal.__init__(self, rate, data, tag)
-        self.time_stamp = time_stamp
-
-    @classmethod
-    def from_audio_signal(cls, audio_signal, time_stamp, tag=""):
-        """ Initialize time stamped audio signal from regular audio signal.
-
-            Args:
-                audio_signal: AudioSignal
-                    Audio signal
-                time_stamp: datetime
-                    Global time stamp marking start of audio recording
-                tag: str
-                    Optional argument that may be used to indicate the source.
-        """
-        if tag == "":
-            tag = audio_signal.tag
-
-        return cls(audio_signal.rate, audio_signal.data, time_stamp, tag)
-
-    @classmethod
-    def from_wav(cls, path, time_stamp):
-        """ Generate time stamped audio signal from wave file
-
-            Args:
-                path: str
-                    Path to input wave file
-                time_stamp: datetime
-                    Global time stamp marking start of audio recording
-
-            Returns:
-                Instance of TimeStampedAudioSignal
-                    Time stamped audio signal from wave file
-        """
-#        signal = super(TimeStampedAudioSignal, cls).from_wav(path=path)
-        signal = AudioSignal.from_wav(path=path)
-        return cls.from_audio_signal(audio_signal=signal, time_stamp=time_stamp)
-
-    def copy(self):
-        """ Makes a copy of the time stamped audio signal.
-
-            Returns:
-                Instance of TimeStampedAudioSignal
-                    Copied signal
-        """                
-        signal = super(TimeStampedAudioSignal, self).copy()
-        return self.from_audio_signal(audio_signal=signal, time_stamp=self.time_stamp)
-
-    def begin(self):
-        """ Get global time stamp marking the start of the audio signal.
-
-            Returns:
-                t: datetime
-                Global time stamp marking the start of audio the recording
-        """
-        t = self.time_stamp
-        return t
-
-    def end(self):
-        """ Get global time stamp marking the end of the audio signal.
-
-            Returns:
-                t: datetime
-                Global time stamp marking the end of audio the recording
-        """
-        duration = len(self.data) / self.rate
-        delta = datetime.timedelta(seconds=duration)
-        t = self.begin() + delta
-        return t 
-
-    def _crop(self, i1, i2):
-        """ Crop time-stamped audio signal using [i1, i2] as cropping range
-
-            Args:
-                i1: int
-                    Lower bound of cropping interval
-                i2: int
-                    Upper bound of cropping interval
-        """   
-        dt = max(0, i1/self.rate)
-        dt = min(self.duration(), dt)
-        self.time_stamp += datetime.timedelta(microseconds=1e6*dt) # update time stamp
-
-        super(TimeStampedAudioSignal, self)._crop(i1, i2)   # crop signal
-        
-    def crop(self, begin=None, end=None):
-        """ Crop time-stamped audio signal
-
-            Args:
-                begin: datetime
-                    Start date and time of selection window
-                end: datetime
-                    End date and time of selection window
-        """   
-        b, e = None, None
-        
-        if begin is not None:
-            b = (begin - self.begin()).total_seconds()
-        if end is not None:
-            e = (end - self.begin()).total_seconds()
-
-        i1, i2 = self._selection(b, e)
-        
-        self._crop(i1, i2)
-
-    def split(self, s):
-        """ Split time-stamped audio signal.
-
-            After splitting, this instance contains the remaining part of the audio signal.        
-
-            Args:
-                s: int
-                    If s >= 0, select samples [:s]. If s < 0, select samples [-s:]
-                    
-            Returns:
-                Instance of TimeStampedAudioSignal
-                    Selected part of the audio signal.
-        """   
-        if s is None:
-            s = len(self.data)
-
-        if s >= 0:
-            t = self.begin()
-        else:
-            dt = -s / self.rate
-            t = self.end() - datetime.timedelta(microseconds=1e6*dt) # update time stamp
-            
-        a = super(TimeStampedAudioSignal, self).split(s)
-        return self.from_audio_signal(audio_signal=a, time_stamp=t)
-
-    def append(self, signal, delay=None, n_smooth=0, max_length=None):
-        """ Combine two time-stamped audio signals.
-
-            If delay is None (default), the delay will be determined from the 
-            two audio signals' time stamps.
-
-            See :meth:`audio_signal.append` for more details.
-
-            Args:
-                signal: AudioSignal
-                    Audio signal to be merged
-                delay: float
-                    Delay between the two audio signals in seconds.
-                    
-            Returns:
-                t: datetime
-                    Start time of appended part.
-        """   
-        if delay is None:
-            delay = self.delay(signal)
-
-        dt = super(TimeStampedAudioSignal, self).append(signal=signal, delay=delay, n_smooth=n_smooth, max_length=max_length)
-        t = self.begin() + datetime.timedelta(microseconds=1e6*dt)
-        return t
-
-    def delay(self, signal):
-        """ Compute delay between two time stamped audio signals, defined 
-            as the time difference between the end of the first signal and 
-            the beginning of the second signal.
-
-            Args:
-                signal: TimeStampedAudioSignal
-                    Audio signal
-
-            Returns:
-                d: float
-                    Delay in seconds
-        """   
-        d = None
-        
-        if isinstance(signal, TimeStampedAudioSignal):
-            d = (signal.begin() - self.end()).total_seconds()
-        
-        return d
