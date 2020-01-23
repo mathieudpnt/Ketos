@@ -32,7 +32,6 @@
         AudioSignal class: 
         TimeStampedAudioSignal class
 """
-
 import os
 import numpy as np
 import datetime
@@ -45,59 +44,57 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quadrature
 from scipy.stats import norm
 from tqdm import tqdm
-from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.data_handling.data_handling import read_wave
 from ketos.utils import ensure_dir
 
 
-class AudioSignal(AnnotationHandler):
+from ketos.audio_processing.annotation import AnnotationHandler
+
+
+class AudioSignal():
     """ Audio signal
 
         Args:
             rate: float
                 Sampling rate in Hz
-            data: 1d numpy array
+            data: numpy array
                 Audio data 
-            tag: str
-                Meta-data string (optional)
-            tstart: float
-                Start time in seconds (optional)
+            filename: str
+                Filename of the original audio file, if available (optional)
+            offset: float
+                Position within the original audio file, in seconds 
+                measured from the start of the file. Defaults to 0 if not specified.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
 
         Attributes:
             rate: float
                 Sampling rate in Hz
-            data: 1d numpy array
+            data: 1numpy array
                 Audio data 
-            tag: str
-                Meta-data string
-            tmin: float
-                Start time in seconds              
-            file_dict: dict
-                Wave files used to generate this spectrogram
-            file_vector: 1d numpy array
-                Associates a particular wave file with each time bin in the spectrogram
-            time_vector: 1d numpy array
-                Associated a particular time within a wave file with each time bin in the spectrogram                
+            filename: str
+                Filename of the original audio file, if available (optional)
+            offset: float
+                Position within the original audio file, in seconds 
+                measured from the start of the file. Defaults to 0 if not specified.
+            label: int
+                Spectrogram label.
+            annot: AnnotationHandler
+                AnnotationHandler object.
     """
-    def __init__(self, rate, data, tag='', tstart=0):
-
-        self.rate = float(rate)
+    def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
+        self.rate = rate
         self.data = data.astype(dtype=np.float32)
-        self.tag = tag
-        self.tmin = tstart
-
-        super(AudioSignal, self).__init__() # initialize AnnotationHandler
-
-        n = self.data.shape[0]
-        self.time_vector = (1. / self.rate) * np.arange(n) + self.tmin
-        self.file_vector = np.zeros(n)
-        self.file_dict = {0: tag}
+        self.filename = filename
+        self.offset = offset
+        self.label = label
+        self.annot = annot
 
     @classmethod
-    def from_wav(cls, path, channel=0):  #path=path, rate=rate, channel=channel, offset=offset, duration=duration, res_type=resample_method
-        """ Generate audio signal from wave file
-
-            The tag attribute will be set equal to the file name.
+    def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy')
+        """ Load audio data from wave file.
 
             Args:
                 path: str
@@ -105,26 +102,39 @@ class AudioSignal(AnnotationHandler):
                 channel: int
                     In the case of stereo recordings, this argument is used 
                     to specify which channel to read from. Default is 0.
+                rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used
+                offset: float
+                    Position within the original audio file, in seconds 
+                    measured from the start of the file. Defaults to 0 if not specified.
+                duration: float
+                    Length in seconds.
+                resample_method: str
+                    Resampling method. Only relevant if `rate` is specified. Options are
+                        * kaiser_best
+                        * kaiser_fast
+                        * scipy (default)
+                        * polyphase
+                    See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
+                    for details on the individual methods.
 
             Returns:
                 Instance of AudioSignal
-                    Audio signal from wave file
+                    Audio signal
 
             Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # read audio signal from wav file
+                >>> a = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # show signal
+                >>> fig = a.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
 
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # read audio signal from wav file
-            >>> a = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
-            >>> # show signal
-            >>> fig = a.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
-
-            .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
-
+                .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """        
         rate, data = read_wave(file=path, channel=channel)
-        _, fname = os.path.split(path)
-        return cls(rate=rate, data=data, tag=fname)
+        _, filename = os.path.split(path)
+        return cls(rate=rate, data=data, filename=filename, offset=offset)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, tag=''):

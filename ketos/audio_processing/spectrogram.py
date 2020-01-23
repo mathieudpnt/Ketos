@@ -1080,7 +1080,7 @@ class MagSpectrogram(Spectrogram):
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
-                    Length of spectrogrma in seconds.
+                    Length of spectrogram in seconds.
                 resample_method: str
                     Resampling method. Only relevant if `rate` is specified. Options are
                         * kaiser_best
