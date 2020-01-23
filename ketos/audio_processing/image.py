@@ -30,18 +30,19 @@
     images.
 """
 import numpy as np
+import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 
-def plot_image(x, extent=None, xlabel='', ylabel=''):
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,7), sharex=True)
-    img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)
+def plot_image(img, fig, ax, extent=None, xlabel='', ylabel=''):
+    img_plt = ax.imshow(img.T, aspect='auto', origin='lower', extent=extent)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    fig.colorbar(img, ax=ax, format='%.1f')
+    fig.colorbar(img_plt, ax=ax, format='%.1f')
     return fig
 
 def enhance_image(img, enhancement=1.):
-    """ Enhance regions of high intensity while suppressing regions of low intensity.
+    """ Enhance the contrast between regions of high and low intensity, while preserving 
+        the range of pixel values.
 
         Multiplies each pixel value by the factor,
 
@@ -71,12 +72,22 @@ def enhance_image(img, enhancement=1.):
 
         Example:
             >>> from ketos.audio_processing.image import enhance_image, plot_image
-            >>> #create a toy image
-            >>> x = np.linspace(-4.5,4.5,10)
-            >>> y = np.linspace(-4.5,4.5,10)
+            >>> #create an image 
+            >>> x = np.linspace(-4,4,100)
+            >>> y = np.linspace(-6,6,100)
             >>> x,y = np.meshgrid(x,y)
-            >>> z = np.exp(-(x**2+y**2)/(2*2.5**2)) #symmetrical Gaussian 
-            >>> z += 0.2 * np.random.rand(10,10)  #add some noise
+            >>> img = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
+            >>> img += 0.2 * np.random.rand(100,100)  #add some noise
+            >>> # apply enhancement
+            >>> img_enh = enhance_image(img, enhancement=3.0)
+            >>> #draw the original image and its enhanced version
+            >>> import matplotlib.pyplot as plt
+            >>> fig, (ax1,ax2) = plt.subplots(1,2,figsize=(10,6)) #create canvas to draw on
+            >>> plot_image(img,fig,ax1)
+            >>> plot_image(img_enh,fig,ax1)
+            >>> fig.savefig("ketos/tests/assets/tmp/image_enhancement1.png")
+
+            .. image:: ../../../../ketos/tests/assets/tmp/image_enhancement1.png
     """
     if enhancement > 0:
         med = np.median(img)
@@ -90,8 +101,9 @@ def enhance_image(img, enhancement=1.):
     img_en = img * scaling
     return img_en
 
-def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
-    """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise
+def tonal_noise_reduction(image, method='MEDIAN', **kwargs):
+    """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
+        background noise
 
         Currently, offers the following two methods:
 
@@ -99,79 +111,71 @@ def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
             
             2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
             
-        The running mean is computed according to the formula given in Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
+        The running mean is computed according to the formula given in 
+        Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
 
         Args:
+            img: numpy.array
+                Spectrogram image
             method: str
                 Options are 'MEDIAN' and 'RUNNING_MEAN'
         
         Optional args:
+            time_res: float
+                Time resolution in seconds.
+                Must be provided if the method 'RUNNING_MEAN' is chosen.
             time_constant: float
-                Time constant used for the computation of the running mean (in seconds).
+                Time constant in seconds, used for the computation of the running mean.
                 Must be provided if the method 'RUNNING_MEAN' is chosen.
 
+        Returns:
+            img_new: numpy array
+                Corrected spectrogram image
+
         Example:
-            >>> # read audio file
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
-            >>> # compute the spectrogram
-            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-            >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
-            >>> # keep only frequencies below 800 Hz
-            >>> spec.crop(fhigh=800)
-            >>> # show spectrogram as is
-            >>> fig = spec.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
-            >>> plt.close(fig)
-            >>> # tonal noise reduction
-            >>> spec.tonal_noise_reduction()
-            >>> # show modified spectrogram
-            >>> fig = spec.plot()
-            >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
-            >>> plt.close(fig)
-
-            .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
-
-            .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
-
     """
     if method is 'MEDIAN':
-        self.image = self.image - np.median(self.image, axis=0)
+        img_new = image - np.median(image, axis=0)
     
     elif method is 'RUNNING_MEAN':
         assert 'time_constant' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'
-        self.image = self._tonal_noise_reduction_running_mean(kwargs['time_constant'])
+        img_new = self.tonal_noise_reduction_running_mean(img, kwargs['time_constant'])
 
     else:
         print('Invalid tonal noise reduction method:',method)
         print('Available options are: MEDIAN, RUNNING_MEAN')
         print('Spectrogram is unchanged')
 
-def _tonal_noise_reduction_running_mean(self, time_constant):
+    return img_new
+
+def tonal_noise_reduction_running_mean(img, time_res, time_constant):
     """ Reduce continuous tonal noise produced by e.g. ships and slowly varying background noise 
         by subtracting from each row a running mean, computed according to the formula given in 
         Baumgartner & Mussoline, Journal of the Acoustical Society of America 129, 2889 (2011); doi: 10.1121/1.3562166
 
         Args:
+            img: numpy.array
+                Spectrogram image
+            time_res: float
+                Time resolution in seconds.
             time_constant: float
                 Time constant used for the computation of the running mean (in seconds).
 
         Returns:
-            new_img : 2d numpy array
+            img_new : 2d numpy array
                 Corrected spetrogram image
     """
-    dt = self.tres
+    dt = time_res
     T = time_constant
     eps = 1 - np.exp((np.log(0.15) * dt / T))
-    nx, ny = self.image.shape
-    rmean = np.average(self.image, axis=0)
-    new_img = np.zeros(shape=(nx,ny))
+    rmean = np.average(img, axis=0)
+    img_new = np.zeros(img.shape)
+    nx = img.shape[0]
     for ix in range(nx):
-        new_img[ix,:] = self.image[ix,:] - rmean # subtract running mean
-        rmean = (1 - eps) * rmean + eps * self.image[ix,:] # update running mean
+        img_new[ix,:] = img[ix,:] - rmean # subtract running mean
+        rmean = (1 - eps) * rmean + eps * img[ix,:] # update running mean
 
-    return new_img
-
+    return img_new
 
 def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
     """ Remove isolated spots from the image.
@@ -253,7 +257,6 @@ def blur_image(img, size=20, sigma=5, gaussian=True):
              [0.08 0.62 0.08]
              [0.01 0.08 0.01]]
     """
-
     try:
         assert img.dtype == "float32", "img type {0} shoult be 'float32'".format(img.dtype)
     except AssertionError:
@@ -300,7 +303,6 @@ def apply_median_filter(img, row_factor=3, col_factor=4):
              [0 1 0]
              [0 0 1]]
     """
-
     col_median = np.median(img, axis=0, keepdims=True)
     row_median = np.median(img, axis=1, keepdims=True)
 

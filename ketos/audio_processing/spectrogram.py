@@ -72,7 +72,7 @@ import copy
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.audio_processing.augmentation import enhance_image
+from ketos.audio_processing.image import enhance_image, tonal_noise_reduction
 
 
 # TODO: This methods needs updating (or be removed)
@@ -862,15 +862,66 @@ class Spectrogram():
         self.image = ndimage.gaussian_filter(input=self.image, sigma=(sig_t, sig_f))
 
     def enhance(self, enhancement=1.):
-        """ Enhance regions of high intensity while suppressing regions of low intensity.
+        """ Enhance the contrast between regions of high and low intensity.
 
-            See :func:`audio_processing.augmentation.enhance_image` for implementation details.
+            See :func:`audio_processing.image.enhance_image` for implementation details.
 
             Args:
                 enhancement: float
                     Parameter determining the amount of enhancement.
         """
         self.image = enhance_image(self.image, enhancement=enhancement)
+
+    def tonal_noise_reduction(self, method='MEDIAN', **kwargs):
+        """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
+            background noise
+
+            See :func:`audio_processing.image.tonal_noise_reduction` for implementation details.
+
+            Currently, offers the following two methods:
+
+                1. MEDIAN: Subtracts from each row the median value of that row.
+                
+                2. RUNNING_MEAN: Subtracts from each row the running mean of that row.
+                
+            The running mean is computed according to the formula given in 
+            Baumgartner & Mussoline, JASA 129, 2889 (2011); doi: 10.1121/1.3562166
+
+            Args:
+                method: str
+                    Options are 'MEDIAN' and 'RUNNING_MEAN'
+            
+            Optional args:
+                time_constant: float
+                    Time constant in seconds, used for the computation of the running mean.
+                    Must be provided if the method 'RUNNING_MEAN' is chosen.
+
+            Example:
+                >>> # read audio file
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # compute the spectrogram
+                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec.crop(fhigh=800)
+                >>> # show spectrogram as is
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
+                >>> plt.close(fig)
+                >>> # tonal noise reduction
+                >>> spec.tonal_noise_reduction()
+                >>> # show modified spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
+
+        """
+        self.image = tonal_noise_reduction(self.image, time_res=self.time_ax.bin_width(), kwargs['time_constant'])
 
     def plot(self, spec_id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.

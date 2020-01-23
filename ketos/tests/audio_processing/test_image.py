@@ -31,58 +31,55 @@ import unittest
 import os
 import numpy as np
 import scipy.signal as sg
-import ketos.audio_processing.audio_processing as ap
+import scipy.ndimage as ndimage
+import ketos.audio_processing.image as im
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-def test_dummy():
-    from ketos.audio_processing.image import enhance_image, plot_image
-    import matplotlib.pyplot as plt
+def test_enhance_image():
     #create a toy image
     x = np.linspace(-5,5,100)
     y = np.linspace(-5,5,100)
     x,y = np.meshgrid(x,y)
-    z = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
-    z += 0.2 * np.random.rand(100,100)  #add some noise
-    plot_image(z)
-    plt.show()
-    zz = enhance_image(z, enhancement=3.0)
-    plot_image(zz)
-    plt.show()
-
-
+    img = np.exp(-(x**2+y**2)/(2*0.5**2)) #symmetrical Gaussian 
+    img += 0.2 * np.random.rand(100,100)  #add some noise
+    img_enh = im.enhance_image(img, enhancement=3.0)
+    idx = np.nonzero(img > np.median(img)+np.std(img)) #pixels with intensity > median + std dev
+    assert np.all(img_enh[idx] > 0.5 * img[idx])
+    idx = np.nonzero(img < np.median(img)+np.std(img)) #pixels with intensity < median + std dev
+    assert np.all(img_enh[idx] < 0.5 * img[idx])
 
 def test_uniform_image_is_unchanged_by_blurring():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    img_median = ap.blur_image(img,5,gaussian=False)
+    img_median = im.blur_image(img,5,gaussian=False)
     for i in range(img.shape[0]):
         for j in range(img.shape[1]):
             assert img_median[i,j] == img[i,j]
-    img_gaussian = ap.blur_image(img,9,gaussian=True)
+    img_gaussian = im.blur_image(img,9,gaussian=True)
     np.testing.assert_array_equal(img, img_gaussian)
             
 def test_median_filter_can_work_with_kernel_size_greater_than_five():
     img = np.ones(shape=(10,10), dtype=np.float32)
-    ap.blur_image(img,13,gaussian=False)
+    im.blur_image(img,13,gaussian=False)
 
 def test_median_filter_works_as_expected():
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=1)
+    img_fil = im.apply_median_filter(img,row_factor=1,col_factor=1)
     img_res = np.array([[0,0,0],[0,0,0],[0,0,1]], dtype=np.float32)
     np.testing.assert_array_equal(img_fil,img_res)
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = ap.apply_median_filter(img,row_factor=15,col_factor=1)
+    img_fil = im.apply_median_filter(img,row_factor=15,col_factor=1)
     assert img_fil[2,2] == 0
     img = np.array([[1,1,1],[1,1,1],[1,1,10]], dtype=np.float32)
-    img_fil = ap.apply_median_filter(img,row_factor=1,col_factor=15)
+    img_fil = im.apply_median_filter(img,row_factor=1,col_factor=15)
     assert img_fil[2,2] == 0
     
 def test_preemphasis_has_no_effect_if_coefficient_is_zero():
     sig = np.array([1,2,3,4,5], np.float32)
-    sig_new = ap.apply_preemphasis(sig,coeff=0)
+    sig_new = im.apply_preemphasis(sig,coeff=0)
     for i in range(len(sig)):
         assert sig[i] == sig_new[i]
 
@@ -99,7 +96,6 @@ def test_filter_isolated_spots_removes_single_pixels():
                         [0,0,0,0,0,0],
                         [0,0,0,0,0,0]])
     
-
     #Struct defines the relationship between a pixel and its neighbors.
     #If a pixel complies with this relationship, it is not removed
     #in this case, if the pixel has any neighbors, it will not be removed.
@@ -107,7 +103,7 @@ def test_filter_isolated_spots_removes_single_pixels():
                     [1,1,1],
                     [1,1,1]])
 
-    filtered_img = ap.filter_isolated_spots(img,struct)
+    filtered_img = im.filter_isolated_spots(img,struct)
 
     assert np.array_equal(filtered_img, expected)
 
