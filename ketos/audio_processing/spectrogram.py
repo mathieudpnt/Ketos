@@ -72,74 +72,9 @@ import copy
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.audio_processing.image import enhance_, reduce_tonal_noise
+from ketos.audio_processing.image import enhance_signal, reduce_tonal_noise
+from ketos.audio_processing.time_data import TimeData, segment_data
 
-
-# TODO: This methods needs updating (or be removed)
-def ensure_same_length(specs, pad=False):
-    """ Ensure that all spectrograms have the same length.
-
-        Note that all spectrograms must have the same time resolution.
-        If this is not the case, an assertion error is thrown.
-        
-        Args:
-            specs: list(Spectrogram)
-                Input spectrograms
-            pad: bool
-                If True, the shorter spectrograms will be padded with zeros 
-                on the right (i.e. at late times). If False, the longer 
-                spectrograms will be cropped on the right.
-    
-        Returns:   
-            specs: list(Spectrogram)
-                List of same-length spectrograms
-
-        Example:
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>> # Create two audio signals with different lengths
-            >>> audio1 = AudioSignal.morlet(rate=100, frequency=5, width=1)   
-            >>> audio2 = AudioSignal.morlet(rate=100, frequency=5, width=1.5)
-            >>>
-            >>> # Compute spectrograms
-            >>> spec1 = MagSpectrogram(audio1, winlen=0.2, winstep=0.05)
-            >>> spec2 = MagSpectrogram(audio2, winlen=0.2, winstep=0.05)
-            >>>
-            >>> # Print the lengths
-            >>> print('{0:.2f}, {1:.2f}'.format(spec1.duration(), spec2.duration()))
-            5.85, 8.85
-            >>>
-            >>> # Ensure all spectrograms have same length as the shortest spectrogram
-            >>> specs = ensure_same_length([spec1, spec2])
-            >>> print('{0:.2f}, {1:.2f}'.format(specs[0].duration(), specs[1].duration()))
-            5.85, 5.85
-    """
-    if len(specs) == 0:
-        return specs
-
-    tres = specs[0].tres # time resolution of 1st spectrogram
-
-    nt = list()
-    for s in specs:
-        assert s.tres == tres, 'Spectrograms must have the same time resolution' 
-        nt.append(s.tbins())
-
-    nt = np.array(nt)
-    if pad: 
-        n = np.max(nt)
-        for s in specs:
-            ns = s.tbins()
-            if n-ns > 0:
-                s.image = np.pad(s.image, pad_width=((0,n-ns),(0,0)), mode='constant')
-                s.time_vector = np.append(s.time_vector, np.zeros(n-ns))
-                s.file_vector = np.append(s.file_vector, np.zeros(n-ns))
-    else: 
-        n = np.min(nt)
-        for s in specs:
-            s.image = s.image[:n]
-            s.time_vector = s.time_vector[:n]
-            s.file_vector = s.file_vector[:n]
-
-    return specs
 
 def add_specs(a, b, offset=0, make_copy=False):
     """ Place two spectrograms on top of one another by adding their 
@@ -373,7 +308,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     return audio, seg_args
 
-class Spectrogram():
+class Spectrogram(TimeData):
     """ Spectrogram.
 
         Parent class for MagSpectrogram, PowerSpectrogram, MelSpectrogram, 
@@ -433,92 +368,12 @@ class Spectrogram():
             annot: AnnotationHandler
                 AnnotationHandler object.
 """
-    def __init__(self, image, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
-        self.image = image
-        length = time_res * image.shape[0]
-        self.time_ax = LinearAxis(bins=image.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
-        assert freq_ax.bins == image.shape[1], 'image and freq_ax have incompatible shapes'
+    def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
+        super().__init__(data=data, time_res=time_res, filename=filename, offset=offset, label=label, annot=annot)
+
+        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
         self.freq_ax = freq_ax
         self.type = spec_type
-
-        if np.ndim(image) == 3:
-            mul = image.shape[2]
-            filename, offset, label = ap.stack_audio_attrs(filename, offset, label, mul)
-            if annot:
-                assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
-
-        self.offset = offset
-        self.filename = filename
-        self.label = label
-        self.annot = annot
-
-    def deepcopy(self):
-        """ Make a deep copy of the spectrogram.
-
-            See https://docs.python.org/2/library/copy.html
-
-            Returns:
-                spec: Spectrogram
-                    Deep copy.
-        """
-        spec = copy.deepcopy(self)
-        return spec
-
-    def get_data(self, id=None):
-        """ Get the pixel values as a numpy array.
-
-            Args:
-                id: int
-                    Spectrogram ID. Only relevant if the spectrogram object 
-                    contains multiple, stacked spectrograms.
-
-            Returns:
-                d: numpy array
-                    Image
-        """
-        if id is None or np.ndim(self.image) == 2:
-            d = self.image
-        else:
-            d = self.image[:,:,id]
-
-        return d
-
-    def annotations(self, id=None):
-        """ Get annotations.
-
-            Args:
-                id: int
-                    Spectrogram ID. Only relevant if the spectrogram object 
-                    contains multiple, stacked spectrograms.
-
-            Returns:
-                ans: pandas DataFrame
-                    Annotations 
-        """
-        if self.annot:
-            ans = self.annot.get(set_id=id)
-        else:
-            ans = None
-
-        return ans
-
-    def time_res(self):
-        """ Get the time resolution of the spectrogram.
-
-            Returns:
-                : float
-                    Time resolution in seconds.
-        """
-        return self.time_ax.bin_width()
-
-    def length(self):
-        """ Get spectrogram length in seconds.
-
-            Returns:
-                : float
-                    Length in seconds
-        """
-        return self.time_ax.max()
 
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
@@ -538,76 +393,8 @@ class Spectrogram():
         """
         return self.freq_ax.max()
 
-    def annotate(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, id=0):
-        """ Add an annotation or a collection of annotations.
-        
-            Individual annotations may be added using the arguments start, end, freq_min, 
-            and freq_max.
-            
-            Groups of annotations may be added by first collecting them in a pandas 
-            DataFrame or dictionary and then adding them using the 'df' argument.
-        
-            Args:
-                label: int
-                    Integer label.
-                start: str or float
-                    Start time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                end: str or float
-                    Stop time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                freq_min: str or float
-                    Lower frequency. Can be specified either as a float, in which case the 
-                    unit will be assumed to be Hz, or as a string with an SI unit, 
-                    for example, '3.1kHz'.
-                freq_max: str or float
-                    Upper frequency. Can be specified either as a float, in which case the 
-                    unit will be assumed to be Hz, or as a string with an SI unit, 
-                    for example, '3.1kHz'.
-                df: pandas DataFrame or dict
-                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
-                    'label', 'start', 'end', and optionally also 'freq_min' 
-                    and 'freq_max'.
-                id: int or tuple
-                    Unique identifier of the spectrogram. Only relevant for stacked spectrograms.
-        """
-        assert self.annot is not None, "Attempting to add annotations to a Spectrogram without an AnnotationHandler object" 
-
-        self.annot.add(label, start, end, freq_min, freq_max, df, id)
-
-    def label_array(self, label):
-        """ Get an array indicating presence/absence (1/0) 
-            of the specified annotation label for each time bin.
-
-            Args:
-                label: int
-                    Label of interest.
-
-            Returns:
-                y: numpy.array
-                    Label array
-        """
-        assert self.annot is not None, "An AnnotationHandler object is required for computing the label vector" 
-
-        y = np.zeros(self.time_ax.bins)
-        ans = self.annot.get(label=label)
-        for _,an in ans.iterrows():
-            b1 = self.time_ax.bin(an.start, truncate=True)
-            b2 = self.time_ax.bin(an.end, truncate=True, closed_right=True)
-            y[b1:b2+1] = 1
-
-        return y
-
-    def normalize(self):
-        """ Normalize spectogram so that values range from 0 to 1
-        """
-        self.image = self.image - np.min(self.image)
-        self.image = self.image / np.max(self.image)
-
     def crop(self, start=None, end=None, length=None,\
-        freq_min=None, freq_max=None, height=None, make_copy=False, **kwargs):
+        freq_min=None, freq_max=None, height=None, make_copy=False):
         """ Crop spectogram along time axis, frequency axis, or both.
             
             Args:
@@ -643,7 +430,7 @@ class Spectrogram():
                 >>> # 0 to 300 Hz,
                 >>> ax = LinearAxis(bins=30, extent=(0.,300.), label='Frequency (Hz)')
                 >>> img = np.random.rand((20,30))
-                >>> spec = Spectrogram(image=img, time_res=0.5, spec_type='Mag', freq_ax=ax)
+                >>> spec = Spectrogram(data=img, time_res=0.5, spec_type='Mag', freq_ax=ax)
                 >>>
                 >>> # Draw the spectrogram
                 >>> fig = spec.plot()
@@ -655,24 +442,17 @@ class Spectrogram():
                 >>> # Crop the spectrogram along time axis
                 >>> spec1 = spec.crop(start=2.0, end=4.2, make_copy=True)
         """
-        if make_copy:
-            spec = self.deepcopy()
-        else:
-            spec = self
+        spec = super().crop(start=start, end=end, length=length, make_copy=make_copy) #crop time axis
 
-        # crop axes
-        bx1, bx2 = self.time_ax.cut(x_min=start, x_max=end, bins=length)
-        by1, by2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
+        # crop frequency axis
+        b1, b2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
         # crop image
-        spec.image = self.image[bx1:bx2+1, by1:by2+1]
+        spec.data = spec.data[:, b1:b2+1]
 
         # crop annotations, if any
         if self.annot:
-            self.annot.crop(start=start, end=end, freq_min=freq_min, freq_max=freq_max)
-
-        self.offset += self.time_ax.low_edge(0) #update time offset
-        self.time_ax.zero_offset() #shift time axis to start at t=0 
+            self.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
@@ -696,31 +476,10 @@ class Spectrogram():
                 specs: Spectrogram
                     Stacked spectrograms
         """              
-        if step is None:
-            step = window
-
-        time_res = self.time_res()
-        win_len = ap.num_samples(window, 1. / time_res)
-        step_len = ap.num_samples(step, 1. / time_res)
-
-        # segment image
-        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad_mode='zero')
-
-        window = win_len * time_res
-        step = step_len * time_res
-        num_segs = segs.shape[0]
-
-        # segment annotations
-        if self.annot:
-            annots = self.annot.segment(num_segs=num_segs, window=window, step=step)
-        else:
-            annots = None
-
-        # compute offsets
-        offset = np.arange(num_segs) * step
+        segs, offset = segment_data(self, window, step)           
 
         ax = copy.deepcopy(self.freq_ax)
-        specs = self.__class__(image=segs, time_res=time_res, spec_type=self.type, freq_ax=ax,\
+        specs = self.__class__(data=segs, time_res=self.time_res(), spec_type=self.type, freq_ax=ax,\
             filename=self.filename, offset=offset, label=self.label, annot=annots)
         
         return specs
@@ -814,7 +573,7 @@ class Spectrogram():
         else:
             sig_f = 0
 
-        self.image = ndimage.gaussian_filter(input=self.image, sigma=(sig_t, sig_f))
+        self.data = ndimage.gaussian_filter(input=self.data, sigma=(sig_t, sig_f))
 
     def enhance_signal(self, enhancement=1.):
         """ Enhance the contrast between regions of high and low intensity.
@@ -825,7 +584,7 @@ class Spectrogram():
                 enhancement: float
                     Parameter determining the amount of enhancement.
         """
-        self.image = enhance_signal(self.image, enhancement=enhancement)
+        self.data = enhance_signal(self.data, enhancement=enhancement)
 
     def reduce_tonal_noise(self, method='MEDIAN', **kwargs):
         """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
@@ -877,7 +636,7 @@ class Spectrogram():
 
         """
         time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
-        self.image = reduce_tonal_noise(self.image, method=method, time_const_len=time_const_len)
+        self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
 
     def plot(self, id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -992,7 +751,7 @@ class MagSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(image=img, time_res=step, spec_type='Mag', freq_ax=ax,\
+        super().__init__(data=img, time_res=step, spec_type='Mag', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -1085,7 +844,7 @@ class MagSpectrogram(Spectrogram):
                 audio: AudioSignal
                     Audio signal
         """
-        mag = ap.from_decibel(self.image) #use linear scale
+        mag = ap.from_decibel(self.data) #use linear scale
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
@@ -1104,7 +863,7 @@ class MagSpectrogram(Spectrogram):
             window_func = np.ones(num_fft)
 
         # iteratively estimate audio signal
-        audio = ap.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
+        audio = ap.spec2audio(data=mag, phase_angle=phase_angle, num_fft=num_fft,\
             step_len=step_len, num_iters=num_iters, window_func=window_func)
 
         # sampling rate of recovered audio signal should equal the original rate
@@ -1155,7 +914,7 @@ class PowerSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(image=img, time_res=step, spec_type='Pow', freq_ax=ax,\
+        super().__init__(data=img, time_res=step, spec_type='Pow', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -1278,7 +1037,7 @@ class MelSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(image=img, time_res=step, spec_type='Mel', freq_ax=ax,\
+        super().__init__(data=img, time_res=step, spec_type='Mel', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -1434,7 +1193,7 @@ class CQTSpectrogram(Spectrogram):
             min_value=freq_min, label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(image=img, time_res=step, spec_type='CQT', freq_ax=ax,\
+        super().__init__(data=img, time_res=step, spec_type='CQT', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 

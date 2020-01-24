@@ -43,9 +43,9 @@ from ketos.data_handling.data_handling import read_wave
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.utils import morlet_func
 from ketos.audio_processing.axis import LinearAxis
+from ketos.audio_processing.time_data import TimeData, segment_data
 
-
-class AudioSignal():
+class AudioSignal(TimeData):
     """ Audio signal
 
         Args:
@@ -81,21 +81,8 @@ class AudioSignal():
                 AnnotationHandler object.
     """
     def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
+        super().__init__(data=data, time_res=1./rate, filename=filename, offset=offset, label=label, annot=annot)
         self.rate = rate
-        self.data = data.astype(dtype=np.float32)
-        length = data.shape[0] / rate
-        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
-
-        if np.ndim(data) == 2:
-            mul = data.shape[1]
-            filename, offset, label = ap.stack_audio_attrs(filename, offset, label, mul)
-            if annot:
-                assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match spectrogram multiplicity ({1})'.format(annot.num_sets(), mul)
-
-        self.filename = filename
-        self.offset = offset
-        self.label = label
-        self.annot = annot
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy'):
@@ -334,32 +321,12 @@ class AudioSignal():
                 segs: AudioSignal
                     Stacked audio signals
         """              
-        if step_size is None:
-            step_size = window_size
+        segs, offset = segment_data(self, window, step)           
 
-        time_res = self.time_res()
-        win_len = ap.num_samples(window, 1. / time_res)
-        step_len = ap.num_samples(step, 1. / time_res)
+        d = self.__class__(data=segs, rate=self.rate, filename=self.filename,\
+            offset=offset, label=self.label, annot=annots)
 
-        # segment audio signal
-        segs = ap.segment(x=self.image, win_len=win_len, step_len=step_len, pad_mode='zero')
-
-        window = win_len * time_res
-        step = step_len * time_res
-        num_segs = segs.shape[0]
-
-        # segment annotations
-        if self.annot:
-            annots = self.annot.segment(num_segs=num_segs, window=window, step=step)
-        else:
-            annots = None
-
-        # compute offsets
-        offset = np.arange(num_segs) * step
-
-        audio = self.__class__(rate=self.rate, data=segs, filename=self.filename, offset=offset, label=self.label, annot=annots)
-
-        return audio
+        return d
 
     def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
@@ -382,86 +349,6 @@ class AudioSignal():
 
         wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
-    def empty(self):
-        """ Check if the signal contains any data
-
-            Returns:
-                bool
-                    True if the length of the data array is zero or array is None
-        """  
-        if self.data is None:
-            return True
-        elif len(self.data) == 0:
-            return True
-        
-        return False
-
-    def length(self):
-        """ Signal duration in seconds
-
-            Returns:
-                : float
-                   Signal duration in seconds
-        """    
-        return self.time_ax.max()
-
-    def max(self):
-        """ Maximum value of the signal
-
-            Returns:
-                v: float
-                   Maximum value of the data array
-        """    
-        v = np.max(self.data, axis=0)
-        return v
-
-    def min(self):
-        """ Minimum value of the signal
-
-            Returns:
-                v: float
-                   Minimum value of the data array
-        """    
-        v = np.min(self.data, axis=0)
-        return v
-
-    def std(self):
-        """ Standard deviation of the signal
-
-            Returns:
-                v: float
-                   Standard deviation of the data array
-        """   
-        v = np.std(self.data, axis=0) 
-        return v
-
-    def average(self):
-        """ Average value of the signal
-
-            Returns:
-                v: float
-                   Average value of the data array
-        """   
-        v = np.average(self.data, axis=0)
-        return v
-
-    def median(self):
-        """ Median value of the signal
-
-            Returns:
-                v: float
-                   Median value of the data array
-        """   
-        v = np.median(self.data, axis=0)
-        return v
-
-    def normalize(self):
-        """ Normalize audio signal so that values range from 0 to 1
-        """
-        x_min = self.min()
-        x_max = self.max()
-        self.data = (self.data - x_min) / (x_max - x_min)
-
     def plot(self):
         """ Plot the signal with proper axes ranges and labels
             
@@ -483,75 +370,6 @@ class AudioSignal():
         ax.set_xlabel('Time (s)')
         ax.set_ylabel('Signal')
         return fig
-
-    def annotate(self, label=None, start=None, end=None, df=None, audio_id=0):
-        """ Add an annotation or a collection of annotations.
-        
-            Individual annotations may be added using the arguments start and end.
-            
-            Groups of annotations may be added by first collecting them in a pandas 
-            DataFrame or dictionary and then adding them using the 'df' argument.
-        
-            Args:
-                label: int
-                    Integer label.
-                start: str or float
-                    Start time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                end: str or float
-                    Stop time. Can be specified either as a float, in which case the 
-                    unit will be assumed to be seconds, or as a string with an SI unit, 
-                    for example, '22min'.
-                df: pandas DataFrame or dict
-                    Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
-                    'label', 'start', 'end', and optionally also 'freq_min' 
-                    and 'freq_max'.
-                spec_id: int or tuple
-                    Unique identifier of the spectrogram. Only relevant for stacked spectrograms.
-        """
-        assert self.annot is not None, "Attempting to add annotations to an AudioSignal without an AnnotationHandler object" 
-
-        self.annot.add(label=label, start=start, end=end, freq_min=None, freq_max=None, df=df, spec_id=audio_id)
-
-    def crop(self, start=None, end=None, length=None, make_copy=False, **kwargs):
-        """ Crop audio signal.
-            
-            Args:
-                start: float
-                    Start time in seconds, measured from the left edge of spectrogram.
-                end: float
-                    End time in seconds, measured from the left edge of spectrogram.
-                length: int
-                    Horizontal size of the cropped image (number of pixels). If provided, 
-                    the `end` argument is ignored. 
-                make_copy: bool
-                    Return a cropped copy of the spectrogra. Leaves the present instance 
-                    unaffected. Default is False.
-
-            Returns:
-                a: AudioSignal
-                    Cropped audio signal
-        """
-        if make_copy:
-            a = self.deepcopy()
-        else:
-            a = self
-
-        # crop axis
-        b1, b2 = self.time_ax.cut(x_min=start, x_max=end, bins=length)
-
-        # crop audio signal
-        a.data = self.data[b1:b2+1]
-
-        # crop annotations, if any
-        if self.annot:
-            self.annot.crop(start=start, end=end)
-
-        self.offset += self.time_ax.low_edge(0) #update time offset
-        self.time_ax.zero_offset() #shift time axis to start at t=0 
-
-        return a
 
     def append(self, signal, delay=None, n_smooth=0, max_length=None):
         """ Append another audio signal to this signal.
@@ -820,17 +638,6 @@ class AudioSignal():
 
             self.rate = new_rate
             self.data = new_sig
-
-    def deepcopy(self):
-        """ Make a deep copy of the present instance
-
-            See https://docs.python.org/2/library/copy.html
-
-            Returns:
-                : AudioSignal
-                Deep copy.
-        """
-        return copy.deepcopy(self)
 
 def _smoothclamp(x, mi, mx): 
         """ Smoothing function
