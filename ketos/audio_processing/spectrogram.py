@@ -369,7 +369,7 @@ class Spectrogram(TimeData):
                 AnnotationHandler object.
 """
     def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
-        super().__init__(data=data, time_res=time_res, filename=filename, offset=offset, label=label, annot=annot)
+        super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot)
 
         assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
         self.freq_ax = freq_ax

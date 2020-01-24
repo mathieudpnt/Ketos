@@ -81,7 +81,7 @@ class AudioSignal(TimeData):
                 AnnotationHandler object.
     """
     def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
-        super().__init__(data=data, time_res=1./rate, filename=filename, offset=offset, label=label, annot=annot)
+        super().__init__(data=data, time_res=1./rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot)
         self.rate = rate
 
     @classmethod

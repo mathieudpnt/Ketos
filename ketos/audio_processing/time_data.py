@@ -170,7 +170,7 @@ class TimeData():
             annot: AnnotationHandler
                 AnnotationHandler object.
     """
-    def __init__(self, data, time_res, ndim=1, filename='', offset=0, label=None, annot=None):
+    def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
         self.ndim = ndim
         self.data = data
         length = data.shape[0] * time_res
