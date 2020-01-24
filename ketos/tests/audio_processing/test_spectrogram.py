@@ -39,8 +39,6 @@ import math
 import os
 import tables
 
-import ketos.audio_processing.spectrogram as ksp
-
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
