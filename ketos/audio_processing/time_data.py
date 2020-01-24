@@ -32,6 +32,7 @@
         TimeData class
 """
 import os
+import copy
 import numpy as np
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.annotation import AnnotationHandler

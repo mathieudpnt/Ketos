@@ -29,7 +29,8 @@
 
 import pytest
 import numpy as np
-from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram, ensure_same_length
+import copy
+from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.data_handling.parsing import Interval
 from ketos.audio_processing.audio import AudioSignal
 import ketos.data_handling.database_interface as di
@@ -48,19 +49,19 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 def test_init_spec__new(spec_image_with_attrs):
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(image=img, time_res=dt, spec_type='Mag', freq_ax=ax)
-    assert np.all(spec.image == img)
+    spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    assert np.all(spec.data == img)
     assert spec.type == 'Mag'
 
 def test_copy_spec__new(spec_image_with_attrs):
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(image=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
     spec2 = spec.deepcopy()
-    assert np.all(spec.image == spec2.image)
-    spec2.image += 1.5 #modify copied image
-    spec2.time_ax.x_max += 30. #modify copied time axis
-    assert np.all(spec.image + 1.5 == spec2.image) #check that original image was not affected
-    assert spec.time_ax.x_max + 30. == spec2.time_ax.x_max #check that original time axis was not affected
+    assert np.all(spec.data == spec2.data)
+    spec2.data += 1.5 #modify copied image
+    spec2.time_ax.x_min += 30. #modify copied time axis
+    assert np.all(spec.data + 1.5 == spec2.data) #check that original image was not affected
+    assert spec.time_ax.min() + 30. == spec2.time_ax.min() #check that original time axis was not affected
 
 
 
@@ -695,15 +696,6 @@ def test_interbreed_save_to_file():
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 9   
     assert specs[0].labels == [1]
-
-def test_ensure_same_length():
-    s1 = Spectrogram(image=np.ones((99,100)))
-    s2 = Spectrogram(image=np.ones((100,100)))
-    s3 = Spectrogram(image=np.ones((103,100)))
-    specs = ensure_same_length([s1, s2, s3], pad=True)
-    for s in specs:
-        assert s.tbins() == specs[2].tbins()
-        assert s.fbins() == 100
 
 def test_get_label_vector():
     labels = [1, 1]

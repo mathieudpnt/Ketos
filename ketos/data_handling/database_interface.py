@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 from ketos.utils import tostring
 from ketos.audio_processing.audio import AudioSignal
-from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram, ensure_same_length
+from ketos.audio_processing.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix, SpecProvider
 from ketos.data_handling.parsing import SpectrogramConfiguration
 from tqdm import tqdm

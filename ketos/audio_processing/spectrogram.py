@@ -297,7 +297,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
         x = x[a:b]
 
     # pad with own reflection
-    pad_right += max(0, len(x) - com_len))
+    pad_right += max(0, len(x) - com_len)
     x = ap.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
     # create AudioSignal object
