@@ -595,15 +595,23 @@ class NNInterface():
         optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
         loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        if 'metrics_batch' in recipe_dict.keys():
+            metrics_batch = cls.metrics_from_recipe(recipe_dict['metrics_batch'])
+        else:
+            metrics_batch = None
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
+            if 'metrics_batch' in recipe_dict.keys():
+                    recipe_dict['metrics_batch'] = metrics_batch
         else:
             recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
             recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
             recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+            if 'metrics_batch' in recipe_dict.keys():
+                    recipe_dict['metrics_batch'] = cls.metrics_to_recipe(metrics_batch)
 
         return recipe_dict
 
@@ -699,18 +707,23 @@ class NNInterface():
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
+        if 'metrics_batch' in recipe.keys():
+            metrics_batch = recipe['metrics_batch']
+        else:
+            metrics_batch = None
 
-        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, metrics_batch=metrics_batch)
 
         return instance
 
-    def __init__(self, optimizer, loss_function, metrics):
+    def __init__(self, optimizer, loss_function, metrics, metrics_batch=None):
         
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
+        self.metrics_batch = metrics_batch
 
-        self.model=None
+        self.model = None
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
 
@@ -736,6 +749,8 @@ class NNInterface():
         recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        if self.metrics_batch is not None:
+                recipe['metrics_batch'] = cls.metrics_to_recipe(self.metrics_batch)
 
         return recipe
 
@@ -878,56 +893,84 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False,  ):
         for epoch in range(n_epochs):
             #Reset the metric accumulators
-            train_precision = 0    
-            train_recall = 0
-            train_f_score = 0
-            train_accuracy = 0
-            val_precision = 0    
-            val_recall = 0
-            val_f_score = 0
-            val_accuracy = 0
+            batch_metrics = {}
+            if self.metrics_batch is not None:
+                for m in self.metrics_batch:
+                    batch_metrics['train_' + m.name] = 0
+                    batch_metrics['val_' + m.name] = 0
+                    batch_metrics['test_' + m.name] = 0
+            
+
+            # train_precision = 0    
+            # train_recall = 0
+            # train_f_score = 0
+            # train_accuracy = 0
+            # val_precision = 0    
+            # val_recall = 0
+            # val_f_score = 0
+            # val_accuracy = 0
             self.model.reset_metrics()
                 
             for train_batch_id in range(self.train_generator.n_batches):
                 train_X, train_Y = next(self.train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
 
-                train_set_pred = self.model.predict(train_X)
-                train_f_p_r = precision_recall_accuracy_f(y_true=train_Y, y_pred=train_set_pred, f_beta=0.5)
+                if self.metrics_batch is not None:
+                    train_set_pred = self.model.predict(train_X)
+                    for m in self.metrics_batch:
+                        batch_metrics['train_' + m.name] += m.func(y_true=train_Y, y_pred=train_set_pred)
+                        
 
-                train_f_score += train_f_p_r['f_score']
-                train_precision += train_f_p_r['precision']
-                train_recall += train_f_p_r['recall']
-                train_accuracy += train_f_p_r['accuracy']
+                # train_set_pred = self.model.predict(train_X)
+                # train_f_p_r = precision_recall_accuracy_f(y_true=train_Y, y_pred=train_set_pred, f_beta=0.5)
 
-                if verbose == True:
-                    print("train: ","Epoch:{} Batch:{}".format(epoch, train_batch_id))
-                    print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                        1-train_f_p_r['f_score'], train_f_p_r['accuracy'], train_f_p_r['precision'], train_f_p_r['recall'], train_f_p_r['f_score']) 
-                    )
-                    print("")
+                # train_f_score += train_f_p_r['f_score']
+                # train_precision += train_f_p_r['precision']
+                # train_recall += train_f_p_r['recall']
+                # train_accuracy += train_f_p_r['accuracy']
+
+                # if verbose == True:
+                #     print("train: ","Epoch:{} Batch:{}".format(epoch, train_batch_id))
+                #     print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
+                #         1-train_f_p_r['f_score'], train_f_p_r['accuracy'], train_f_p_r['precision'], train_f_p_r['recall'], train_f_p_r['f_score']) 
+                #     )
+                #     print("")
 
 
                 
                     #self.print_metrics(train_result)
-            train_precision = train_precision / self.train_generator.n_batches
-            train_recall = train_recall / self.train_generator.n_batches
-            train_f_score = train_f_score / self.train_generator.n_batches
-            train_accuracy = train_accuracy / self.train_generator.n_batches
+            # train_precision = train_precision / self.train_generator.n_batches
+            # train_recall = train_recall / self.train_generator.n_batches
+            # train_f_score = train_f_score / self.train_generator.n_batches
+            # train_accuracy = train_accuracy / self.train_generator.n_batches
+
+            if self.metrics_batch is not None:
+                for m in self.metrics_batch:
+                    batch_metrics['train_' + m.name] = batch_metrics['train_' + m.name] / self.train_generator.n_batches
             
-            if verbose == True:
-                    print("====================================================================================")
-                    print("train: ","Epoch:{}".format(epoch))
-                    print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                       1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
-                    )
+            # if verbose == True:
+            #         print("====================================================================================")
+            #         print("train: ","Epoch:{}".format(epoch))
+            #         print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
+            #            1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
+            #         )
                     
+            if verbose == True and self.metrics_batch is not None:
+                metrics_values_msg = ""
+                for m in self.metrics_batch:
+                    metrics_values_msg += 'train_' + m.name + ": " + str(round(batch_metrics['train_' + m.name],3))
+                
+                print("====================================================================================")
+                print("train: ","Epoch:{}".format(epoch))
+                print(metrics_values_msg)
 
             if log_tensorboard == True:
                 self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
+
+
             if validate == True:
                 for val_batch_id in range(self.val_generator.n_batches):
                     val_X, val_Y = next(self.val_generator)
@@ -935,31 +978,42 @@ class NNInterface():
                                                 # return accumulated metrics
                                                 reset_metrics=False)
                     
+                    if self.metrics_batch is not None:
+                        val_set_pred = self.model.predict(val_X)
+                        for m in self.metrics_batch:
+                            batch_metrics['val_' + m.name] += m.func(y_true=val_Y, y_pred=val_set_pred)
 
-                    val_set_pred = self.model.predict(val_X)
-                    val_f_p_r = precision_recall_accuracy_f(y_true=val_Y, y_pred=val_set_pred, f_beta=0.5)
 
-                    val_f_score += val_f_p_r['f_score']
-                    val_precision += val_f_p_r['precision']
-                    val_recall += val_f_p_r['recall']
-                    val_accuracy += val_f_p_r['accuracy']
+                    # val_set_pred = self.model.predict(val_X)
+                    # val_f_p_r = precision_recall_accuracy_f(y_true=val_Y, y_pred=val_set_pred, f_beta=0.5)
+
+                    # val_f_score += val_f_p_r['f_score']
+                    # val_precision += val_f_p_r['precision']
+                    # val_recall += val_f_p_r['recall']
+                    # val_accuracy += val_f_p_r['accuracy']
 
 
                 
                     #self.print_metrics(val_result)
-                val_precision = val_precision / self.val_generator.n_batches
-                val_recall = val_recall / self.val_generator.n_batches
-                val_f_score = val_f_score / self.val_generator.n_batches
-                val_accuracy = val_accuracy / self.val_generator.n_batches
-                
-                if verbose == True:
-                        print("\nval: ")
-                        print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                            1 - val_f_score, val_accuracy, val_precision, val_recall, val_f_score) 
-                        )
-                        print("====================================================================================")
+                # val_precision = val_precision / self.val_generator.n_batches
+                # val_recall = val_recall / self.val_generator.n_batches
+                # val_f_score = val_f_score / self.val_generator.n_batches
+                # val_accuracy = val_accuracy / self.val_generator.n_batches
 
-                        
+                if self.metrics_batch is not None:
+                    
+                    for m in self.metrics_batch:
+                        batch_metrics['val_' + m.name] = batch_metrics['val_' + m.name] / self.train_generator.n_batches
+                
+                if verbose == True and self.metrics_batch is not None:
+                    metrics_values_msg = ""
+                    for m in self.metrics_batch:
+                        metrics_values_msg += 'val_' + m.name + ": " + str(round(batch_metrics['val_' + m.name],3))
+                    
+                    print("====================================================================================")
+                    print("Val: ")
+                    print(metrics_values_msg)
+                            
 
 
                 # if verbose == True:
