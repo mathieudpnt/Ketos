@@ -427,8 +427,8 @@ def time_data_1d():
 @pytest.fixture
 def time_data_1d_stacked():
     """ Create a 1d TimeData object consisting of three stacked arrays (with values 1,2,3 
-        everywhere), and having a length of 10 s, time resolution of 0.001 s, filename 'x', 
-        offset of 2 s, and label 13.
+        everywhere), and having a length of 10 s, time resolution of 0.001 s, filename 'x',
+        'y','z', offset of 2 s, and label 13.
 
         Yields:
             o: TimeData
@@ -438,5 +438,5 @@ def time_data_1d_stacked():
     d = np.ones((N,3))
     d[:,1] = 2
     d[:,2] = 3
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename=['x','y','z'], offset=2., label=13)
     return o, d

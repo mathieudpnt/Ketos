@@ -33,7 +33,7 @@ import numpy as np
 
 def test_init(time_data_1d):
     """Test if the TimeData object has expected attribute values"""
-    o, d = time_data_id
+    o, d = time_data_1d
     assert o.ndim == 1
     assert o.filename == 'x'
     assert o.offset == 2.
@@ -41,10 +41,10 @@ def test_init(time_data_1d):
 
 def test_init_stacked(time_data_1d_stacked):
     """Test if a stacked TimeData object has expected attribut values"""
-    o, d = time_data_id_stacked
+    o, d = time_data_1d_stacked
     assert np.all(o.get_data(1) == d[:,1])
     assert o.ndim == 1
-    assert o.filename == ['x','x','x']
+    assert o.filename == ['x','y','z']
     assert np.all(o.offset == 2.)
     assert np.all(o.label == 13)
 
@@ -107,3 +107,48 @@ def test_segment(time_data_1d):
     assert s.ndim == o.ndim
     assert s.data.shape == (2000,9)
     assert np.all(s.data[1200:,-1] == 0) #last frame was padded with zeros
+
+def test_segment_stacked(time_data_1d_stacked):
+    """Test segment method on stacked 1d object"""
+    o, d = time_data_1d_stacked
+    s = o.segment(window=2, step=1) 
+    assert s.ndim == o.ndim
+    assert s.data.shape == (2000, 9*3)
+    assert np.all(s.data[:,:9] == 1)
+    assert np.all(s.data[:,9:18] == 2)
+    assert np.all(s.data[:,18:27] == 3)
+    assert s.filename[:9] == ['x' for _ in range(9)]
+    assert s.filename[9:18] == ['y' for _ in range(9)]
+    assert s.filename[18:27] == ['z' for _ in range(9)]
+
+def test_annotate(time_data_1d):
+    """Test that we can add annotations"""
+    o, d = time_data_1d
+    o.annotate(label=1, start=0.2, end=1.3) 
+    o.annotate(label=2, start=1.8, end=2.2) 
+    assert o.annot.num_annotations() == 2
+
+def test_label_array(time_data_1d):
+    """Check that method label_array returns expected array"""
+    o, d = time_data_1d
+    o.annotate(label=1, start=0.2, end=1.3) 
+    o.annotate(label=1, start=1.8, end=2.2) 
+    res = o.label_array(1)
+    ans = np.concatenate([np.zeros(200),np.ones(1100),np.zeros(500),np.ones(400),np.zeros(7800)]) 
+    assert np.all(res == ans)
+
+def test_segment_with_annotations(time_data_1d):
+    """Test segment method on 1d object with annotations"""
+    o, d = time_data_1d
+    o.annotate(label=1, start=0.2, end=1.3) #fully contained in first segment, partially contained in second
+    o.annotate(label=2, start=1.8, end=2.2) #partially contained in first, second and third segment
+    s = o.segment(window=2, step=1) 
+    df0 = s.annotations(id=0) #annotations for 1st segment
+    assert len(df0) == 2
+    assert np.all(df0['start'].values == [0.2, 1.8])
+    assert np.all(df0['end'].values == [1.3, 2.0])
+    df1 = s.annotations(id=1) #annotations for 2nd segment
+    assert len(df1) == 2
+    assert np.all(df1['start'].values == [0.0, 0.8])
+    assert np.all(np.abs(df1['end'].values - [0.3, 1.2]) < 1e-9)
+

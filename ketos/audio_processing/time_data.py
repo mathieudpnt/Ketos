@@ -105,6 +105,8 @@ def segment_data(x, window, step=None):
                 Stacked data segments
             offset: array-like
                 Offsets in seconds
+            annot: AnnotationHandler
+                Stacked annotation handlers, if any
     """              
     if step is None:
         step = window
@@ -122,14 +124,14 @@ def segment_data(x, window, step=None):
 
     # segment annotations
     if x.annot:
-        annots = x.annot.segment(num_segs=num_segs, window=window, step=step)
+        annot = x.annot.segment(num_segs=num_segs, window=window, step=step)
     else:
-        annots = None
+        annot = None
 
     # compute offsets
     offset = np.arange(num_segs) * step
 
-    return segs, offset
+    return segs, offset, annot
 
 class TimeData():
     """ Parent class for time-series data classes such as
@@ -179,8 +181,6 @@ class TimeData():
         if np.ndim(data) == ndim + 1: #stacked data arrays
             mul = data.shape[ndim]
             filename, offset, label = stack_attrs(filename, offset, label, mul)
-            if annot:
-                assert annot.num_sets() == mul, 'Number of annotation sets ({0}) does not match number of data sets ({1})'.format(annot.num_sets(), mul)
 
         self.filename = filename
         self.offset = offset
@@ -219,7 +219,7 @@ class TimeData():
                     Annotations 
         """
         if self.annot:
-            ans = self.annot.get(id)
+            ans = self.annot.get(id=id)
         else:
             ans = None
 
@@ -311,7 +311,8 @@ class TimeData():
 
             Input arguments are described in :method:`audio_processing.annotation.AnnotationHandler.add`
         """
-        assert self.annot is not None, "Attempting to add annotations to an AudioSignal without an AnnotationHandler object" 
+        if self.annot is None: #if the object does not have an annotation handler, create one!
+            self.annot = AnnotationHandler()
 
         self.annot.add(**kwargs)
 
@@ -358,13 +359,28 @@ class TimeData():
                 d: TimeData
                     Stacked data segments
         """   
-        segs, offset = segment_data(self, window, step)   
+        segs, offset, annot = segment_data(self, window, step)
 
         axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) #permute axes so axis 0 becomes the last axis
         segs = np.transpose(segs, axes)
 
-        d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=self.filename,\
-            offset=self.offset, label=self.label, annot=self.annot)
+        k = len(segs.shape) - (self.ndim + 1)
+        if k == 0:
+            filename = self.filename
+            label = self.label
+            offset = self.offset
+
+        else: #when segment method is applied to stacked objects, a little extra work is required:
+            num_segs = segs.shape[-1]
+            filename = [x for x in self.filename for _ in range(num_segs)]
+            label = [x for x in self.label for _ in range(num_segs)]
+            offset = [x for x in self.offset for _ in range(num_segs)]
+            newshape = list(segs.shape[:-2]) + [-1]
+            segs = segs.reshape(newshape)
+
+        # create stacked object
+        d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=filename,\
+            offset=offset, label=label, annot=annot)
 
         return d
 

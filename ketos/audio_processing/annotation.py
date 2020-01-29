@@ -200,7 +200,7 @@ class AnnotationHandler():
         return handler
 
     def num_sets(self):
-        """ Get number of seperate annotation sets managed by the handler.
+        """ Get number of annotation subsets managed by the handler.
 
             Returns:
                 num: int
@@ -210,7 +210,7 @@ class AnnotationHandler():
         num = len(ids)
         return num
 
-    def num_annotations(self, set_id=None):
+    def num_annotations(self, id=None):
         """ Get number of annotations managed by the handler.
 
             Returns:
@@ -218,10 +218,10 @@ class AnnotationHandler():
                     Unique identifier of the annotation set. If None is specified, 
                     the total number of annotations is returned.
         """
-        num = len(self.get(set_id=set_id))
+        num = len(self.get(id=id))
         return num
 
-    def get(self, label=None, set_id=None, squeeze=True, drop_freq=False, key_error=False):
+    def get(self, label=None, id=None, squeeze=True, drop_freq=False, key_error=False):
         """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
@@ -230,8 +230,8 @@ class AnnotationHandler():
             Args:
                 label: int or list(int)
                     Get only annotations with this label
-                set_id: int or tuple
-                    Unique identifier of the annotation set. If None is specified, 
+                id: int or tuple
+                    Unique identifier of the annotation subset. If None is specified, 
                     all annotations are returned.
                 squeeze: bool
                     If the handler is managing a single annotation set, drop the 0th-level 
@@ -270,19 +270,19 @@ class AnnotationHandler():
         if self.num_sets() == 1 and squeeze:
             ans = ans.loc[0]
 
-        if set_id is not None:
+        if id is not None:
 
-            if not key_error and set_id not in ans.index:
+            if not key_error and id not in ans.index:
                 return None
 
-            ans = ans.loc[set_id]
+            ans = ans.loc[id]
 
         # select label(s)
         if label is not None:
             if not isinstance(label, list):
                 label = [label]
 
-            ans = ans[ans.label.pd.isin(label)]
+            ans = ans[ans.label.isin(label)]
 
         # ensure correct ordering of columns
         cols = ['label', 'start', 'end']
@@ -293,12 +293,12 @@ class AnnotationHandler():
 
         return ans
 
-    def _next_index(self, set_id=0):
+    def _next_index(self, id=0):
         """ Get the next available index for the selected annotation set.
 
             Args:
-                set_id: int or tuple
-                    Unique identifier of the annotation set.
+                id: int or tuple
+                    Unique identifier of the annotation subset.
 
             Returns:
                 idx, int
@@ -308,11 +308,11 @@ class AnnotationHandler():
             idx = 0
 
         else:
-            idx = self._df.loc[set_id].index.values[-1] + 1
+            idx = self._df.loc[id].index.values[-1] + 1
 
         return idx
 
-    def _add(self, df, set_id=0):
+    def _add(self, df, id=0):
         """ Add annotations to the handler module.
         
             Args:
@@ -320,8 +320,8 @@ class AnnotationHandler():
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
                     'label', 'start', 'end', and optionally also 'freq_min' 
                     and 'freq_max'.
-                set_id: int or tuple
-                    Unique identifier of the annotation set.
+                id: int or tuple
+                    Unique identifier of the annotation subset.
 
             Returns: 
                 None
@@ -329,18 +329,18 @@ class AnnotationHandler():
         if isinstance(df, dict):
             df = pd.DataFrame(df, index=pd.Index([0]))
         
-        next_index = self._next_index(set_id)
+        next_index = self._next_index(id)
         new_indices = pd.Index(np.arange(next_index, next_index + len(df), dtype=int))
         df = df.set_index(new_indices)
 
         if df.index.nlevels == 1:
-            df = add_index_level(df, key=set_id)
+            df = add_index_level(df, key=id)
 
         self._df = pd.concat([self._df, df], sort=False)
 
         self._df = self._df.astype({'label': 'int'}) #cast label column to int
 
-    def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, set_id=0):
+    def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, id=0):
         """ Add an annotation or a collection of annotations to the handler module.
         
             Individual annotations may be added using the arguments start, end, freq_min, 
@@ -372,8 +372,8 @@ class AnnotationHandler():
                     Annotations stored in a pandas DataFrame or dict. Must have columns/keys 
                     'label', 'start', 'end', and optionally also 'freq_min' 
                     and 'freq_max'.
-                set_id: int or tuple
-                    Unique identifier of the annotation set.
+                id: int or tuple
+                    Unique identifier of the annotation subset.
 
             Returns: 
                 None
@@ -395,7 +395,9 @@ class AnnotationHandler():
                 1      2    8.0   12.0       NaN       NaN
                 2      1   60.0  120.0       NaN       NaN
                 3      3  660.0  720.0       NaN       NaN
-        """        
+        """   
+        assert label or df, "At least one of the arguments 'label' and 'df' must be specified."
+
         if label is not None:
             assert start is not None and end is not None, 'time range must be specified'         
             
@@ -411,7 +413,7 @@ class AnnotationHandler():
 
             df = {'label':[label], 'start':[start], 'end':[end], 'freq_min':[freq_min], 'freq_max':[freq_max]}
 
-        self._add(df, set_id)
+        self._add(df, id)
         
     def crop(self, start=0, end=None, freq_min=None, freq_max=None):
         """ Crop annotations along the time and/or frequency dimension.
@@ -569,13 +571,13 @@ class AnnotationHandler():
                 >>> # Note the double index, where the first index refers to the segment 
                 >>> # while the second index referes to the original annotation.
                 >>> # We can get the annotations for a single segment like this,
-                >>> annots3 = handler.get(set_id=3, drop_freq=True)
+                >>> annots3 = handler.get(id=3, drop_freq=True)
                 >>> print(annots3)
                    label  start  end
                 0      1    0.0  0.5
                 >>> # If we attempt to retrieve annotations for a segment that does not 
                 >>> # have any annotations, we get None,
-                >>> annots4 = handler.get(set_id=4, drop_freq=True)
+                >>> annots4 = handler.get(id=4, drop_freq=True)
                 >>> print(annots4)
                 None
         """              
