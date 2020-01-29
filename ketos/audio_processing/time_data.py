@@ -106,8 +106,8 @@ def segment_data(x, window, step=None):
             offset: array-like
                 Offsets in seconds
     """              
-    if step_size is None:
-        step_size = window_size
+    if step is None:
+        step = window
 
     time_res = x.time_res()
     win_len = ap.num_samples(window, 1. / time_res)
@@ -225,8 +225,7 @@ class TimeData():
 
         return ans
 
-
-    def time_res():
+    def time_res(self):
         """ Get the time resolution.
 
             Returns:
@@ -256,7 +255,7 @@ class TimeData():
         return self.time_ax.max()
 
     def max(self):
-        """ Maximum data value
+        """ Maximum data value along time axis
 
             Returns:
                 : array-like
@@ -265,7 +264,7 @@ class TimeData():
         return np.max(self.data, axis=0)
 
     def min(self):
-        """ Minimum dta value
+        """ Minimum data value along time axis
 
             Returns:
                 : array-like
@@ -274,7 +273,7 @@ class TimeData():
         return np.min(self.data, axis=0)
 
     def std(self):
-        """ Standard deviation
+        """ Standard deviation along time axis
 
             Returns:
                 : array-like
@@ -283,7 +282,7 @@ class TimeData():
         return np.std(self.data, axis=0) 
 
     def average(self):
-        """ Average value
+        """ Average value along time axis
 
             Returns:
                 : array-like
@@ -292,7 +291,7 @@ class TimeData():
         return np.average(self.data, axis=0)
 
     def median(self):
-        """ Median value
+        """ Median value along time axis
 
             Returns:
                 : array-like
@@ -359,10 +358,13 @@ class TimeData():
                 d: TimeData
                     Stacked data segments
         """   
-        segs, offset = segment_data(self, window, step)           
+        segs, offset = segment_data(self, window, step)   
+
+        axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) #permute axes so axis 0 becomes the last axis
+        segs = np.transpose(segs, axes)
 
         d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=self.filename,\
-            offset=offset, label=self.label, annot=annots)
+            offset=self.offset, label=self.label, annot=self.annot)
 
         return d
 

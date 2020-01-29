@@ -66,3 +66,44 @@ def test_crop(time_data_1d):
     oc = o.crop(start=0.2, end=3.8)
     assert oc.length() == 3.6
     assert np.all(oc.get_data() == d[200:3800])
+
+def test_annotations_returns_none(time_data_1d):
+    """Test that no annotations are returned when none are provided"""
+    o, d = time_data_1d
+    assert o.annotations() == None
+
+def test_time_res(time_data_1d):
+    """Test if time resolution is correct"""
+    o, d = time_data_1d
+    assert o.time_res() == 0.001
+
+def test_deep_copy(time_data_1d):
+    """Test that changes to copy to not affect original instance"""
+    o, d = time_data_1d
+    oc = o.deepcopy()
+    oc.filename = 'y'
+    oc.time_ax.label = 'new axis'
+    assert o.filename == 'x'
+    assert o.time_ax.label == 'Time (s)'
+
+def test_normalize_stacked(time_data_1d_stacked):
+    """Test that stacked object is properly normalized"""
+    N = 10000
+    d = np.arange(N)
+    d = np.concatenate([d,2*d])
+    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o.normalize()
+    assert np.all(np.min(o.data, axis=0) == 0)
+    assert np.all(np.max(o.data, axis=0) == 1)
+
+def test_segment(time_data_1d):
+    """Test segment method on 1d object"""
+    o, d = time_data_1d
+    s = o.segment(window=2, step=1) #integer number of steps
+    assert s.ndim == o.ndim
+    assert s.data.shape == (2000,9)
+    assert np.all(s.label == 13)
+    s = o.segment(window=2, step=1.1) #non-integer number of steps
+    assert s.ndim == o.ndim
+    assert s.data.shape == (2000,9)
+    assert np.all(s.data[1200:,-1] == 0) #last frame was padded with zeros
