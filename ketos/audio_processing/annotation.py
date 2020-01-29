@@ -396,7 +396,7 @@ class AnnotationHandler():
                 2      1   60.0  120.0       NaN       NaN
                 3      3  660.0  720.0       NaN       NaN
         """   
-        assert label or df, "At least one of the arguments 'label' and 'df' must be specified."
+        assert label is not None or df is not None, "At least one of the arguments 'label' and 'df' must be specified."
 
         if label is not None:
             assert start is not None and end is not None, 'time range must be specified'         
