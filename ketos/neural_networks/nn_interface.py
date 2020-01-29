@@ -595,23 +595,23 @@ class NNInterface():
         optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
         loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-        if 'metrics_batch' in recipe_dict.keys():
-            metrics_batch = cls.metrics_from_recipe(recipe_dict['metrics_batch'])
+        if 'secondary_metrics' in recipe_dict.keys():
+            secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
         else:
-            metrics_batch = None
+            secondary_metrics = None
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
-            if 'metrics_batch' in recipe_dict.keys():
-                    recipe_dict['metrics_batch'] = metrics_batch
+            if 'secondary_metrics' in recipe_dict.keys():
+                    recipe_dict['secondary_metrics'] = secondary_metrics
         else:
             recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
             recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
             recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-            if 'metrics_batch' in recipe_dict.keys():
-                    recipe_dict['metrics_batch'] = cls.metrics_to_recipe(metrics_batch)
+            if 'secondary_metrics' in recipe_dict.keys():
+                    recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
 
         return recipe_dict
 
@@ -707,21 +707,21 @@ class NNInterface():
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
-        if 'metrics_batch' in recipe.keys():
-            metrics_batch = recipe['metrics_batch']
+        if 'secondary_metrics' in recipe.keys():
+            secondary_metrics = recipe['secondary_metrics']
         else:
-            metrics_batch = None
+            secondary_metrics = None
 
-        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, metrics_batch=metrics_batch)
+        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
 
-    def __init__(self, optimizer, loss_function, metrics, metrics_batch=None):
+    def __init__(self, optimizer, loss_function, metrics, secondary_metrics=None):
         
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
-        self.metrics_batch = metrics_batch
+        self.secondary_metrics = secondary_metrics
 
         self.model = None
         self.compile_model()
@@ -749,8 +749,8 @@ class NNInterface():
         recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
-        if self.metrics_batch is not None:
-                recipe['metrics_batch'] = cls.metrics_to_recipe(self.metrics_batch)
+        if self.secondary_metrics is not None:
+                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
 
         return recipe
 
@@ -869,9 +869,11 @@ class NNInterface():
         
         """
 
-        message  = [self.metrics_names[i] + ": {} ".format(metric_values[i]) for i in range(len(self.metrics_names))]
+        message  = [self.model.metrics_names[i] + ": {:.3f} ".format(metric_values[i]) for i in range(len(self.model.metrics_names))]
         #import pdb; pdb.set_trace()
         print(''.join(message))
+
+
 
     def name_logs(self, logs, prefix="train_"):
         """ Attach the prefix string to each log name.
@@ -897,8 +899,8 @@ class NNInterface():
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             batch_metrics = {}
-            if self.metrics_batch is not None:
-                for m in self.metrics_batch:
+            if self.secondary_metrics is not None:
+                for m in self.secondary_metrics:
                     batch_metrics['train_' + m.name] = 0
                     batch_metrics['val_' + m.name] = 0
                     batch_metrics['test_' + m.name] = 0
@@ -918,9 +920,9 @@ class NNInterface():
                 train_X, train_Y = next(self.train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
 
-                if self.metrics_batch is not None:
+                if self.secondary_metrics is not None:
                     train_set_pred = self.model.predict(train_X)
-                    for m in self.metrics_batch:
+                    for m in self.secondary_metrics:
                         batch_metrics['train_' + m.name] += m.func(y_true=train_Y, y_pred=train_set_pred)
                         
 
@@ -940,15 +942,17 @@ class NNInterface():
                 #     print("")
 
 
-                
+                message  = [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                #import pdb; pdb.set_trace()
+                print(''.join(message))
                     #self.print_metrics(train_result)
             # train_precision = train_precision / self.train_generator.n_batches
             # train_recall = train_recall / self.train_generator.n_batches
             # train_f_score = train_f_score / self.train_generator.n_batches
             # train_accuracy = train_accuracy / self.train_generator.n_batches
 
-            if self.metrics_batch is not None:
-                for m in self.metrics_batch:
+            if self.secondary_metrics is not None:
+                for m in self.secondary_metrics:
                     batch_metrics['train_' + m.name] = batch_metrics['train_' + m.name] / self.train_generator.n_batches
             
             # if verbose == True:
@@ -958,13 +962,14 @@ class NNInterface():
             #            1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
             #         )
                     
-            if verbose == True and self.metrics_batch is not None:
+            if verbose == True and self.secondary_metrics is not None:
                 metrics_values_msg = ""
-                for m in self.metrics_batch:
-                    metrics_values_msg += 'train_' + m.name + ": " + str(round(batch_metrics['train_' + m.name],3))
+                for m in self.secondary_metrics:
+                    metrics_values_msg += 'train_' + m.name + ": " + str(round(float(batch_metrics['train_' + m.name]),3)) + " "
                 
                 print("====================================================================================")
                 print("train: ","Epoch:{}".format(epoch))
+                #self.print_metrics(train_result)
                 print(metrics_values_msg)
 
             if log_tensorboard == True:
@@ -978,9 +983,9 @@ class NNInterface():
                                                 # return accumulated metrics
                                                 reset_metrics=False)
                     
-                    if self.metrics_batch is not None:
+                    if self.secondary_metrics is not None:
                         val_set_pred = self.model.predict(val_X)
-                        for m in self.metrics_batch:
+                        for m in self.secondary_metrics:
                             batch_metrics['val_' + m.name] += m.func(y_true=val_Y, y_pred=val_set_pred)
 
 
@@ -1000,15 +1005,15 @@ class NNInterface():
                 # val_f_score = val_f_score / self.val_generator.n_batches
                 # val_accuracy = val_accuracy / self.val_generator.n_batches
 
-                if self.metrics_batch is not None:
+                if self.secondary_metrics is not None:
                     
-                    for m in self.metrics_batch:
+                    for m in self.secondary_metrics:
                         batch_metrics['val_' + m.name] = batch_metrics['val_' + m.name] / self.train_generator.n_batches
                 
-                if verbose == True and self.metrics_batch is not None:
+                if verbose == True and self.secondary_metrics is not None:
                     metrics_values_msg = ""
-                    for m in self.metrics_batch:
-                        metrics_values_msg += 'val_' + m.name + ": " + str(round(batch_metrics['val_' + m.name],3))
+                    for m in self.secondary_metrics:
+                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3))
                     
                     print("====================================================================================")
                     print("Val: ")
