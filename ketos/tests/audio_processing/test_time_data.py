@@ -31,33 +31,38 @@ import ketos.audio_processing.time_data as td
 import numpy as np
 
 
-def test_init():
+def test_init(time_data_1d):
     """Test if the TimeData object has expected attribute values"""
-    N = 10000
-    d = np.ones(N)
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
-    assert np.all(o.get_data() == d)
+    o, d = time_data_id
     assert o.ndim == 1
     assert o.filename == 'x'
     assert o.offset == 2.
     assert o.label == 13
 
-def test_init_stacked():
+def test_init_stacked(time_data_1d_stacked):
     """Test if a stacked TimeData object has expected attribut values"""
-    N = 10000
-    d = np.ones((N,3))
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o, d = time_data_id_stacked
     assert np.all(o.get_data(1) == d[:,1])
     assert o.ndim == 1
     assert o.filename == ['x','x','x']
     assert np.all(o.offset == 2.)
     assert np.all(o.label == 13)
 
-def test_crop(sine_audio):
+def test_get_data(time_data_1d):
+    """Test that the get_data method works as it should"""
+    o, d = time_data_1d
+    assert np.all(o.get_data() == d)
+    assert np.all(o.get_data(0) == d)
+
+def test_get_data_stacked(time_data_1d_stacked):
+    """Test that the get_data method works as it should for stacked objects"""
+    o, d = time_data_1d_stacked
+    for i in range(3):
+        assert np.all(o.get_data(i) == d[:,i])
+    
+def test_crop(time_data_1d):
     """Test if a cropped TimeData object has the expected content and length"""
-    N = 10000 # 10 seconds at 1kHz
-    d = np.ones(N)
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o, d = time_data_1d
     oc = o.crop(start=0.2, end=3.8)
     assert oc.length() == 3.6
     assert np.all(oc.get_data() == d[200:3800])
