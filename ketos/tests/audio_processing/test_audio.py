@@ -32,6 +32,7 @@ import numpy as np
 
 
 def test_init_audio_signal():
+    """Test if the audio signal has expected attribute values"""
     N = 10000
     d = np.ones(N)
     a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
@@ -42,6 +43,7 @@ def test_init_audio_signal():
     assert a.label == 13
 
 def test_init_stacked_audio_signal():
+    """Test if a stacked audio signal has expected attribut values"""
     N = 10000
     d = np.ones((N,3))
     a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
@@ -52,13 +54,13 @@ def test_init_stacked_audio_signal():
     assert np.all(a.label == 13)
 
 def test_from_wav(sine_wave_file, sine_wave):
+    """Test if an audio signal can be created from a wav file"""
     a = aud.AudioSignal.from_wav(sine_wave_file)
     sig = sine_wave[1]
     assert a.length() == 3.
     assert a.rate == 44100
     assert a.filename == "sine_wave.wav"
     assert np.all(np.isclose(a.data, sig, atol=0.001))
-
 
 # old test below ...
 
