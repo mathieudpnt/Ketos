@@ -32,7 +32,7 @@ def MLPInterface_subclass():
             super(MLP, self).__init__()
 
             self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
-            self.final_node = tf.keras.layers.Dense(1)
+            self.final_node = tf.keras.layers.Dense(2, 'softmax')
 
         def call(self, inputs):
             print(inputs.shape)
@@ -52,7 +52,6 @@ def MLPInterface_subclass():
         def transform_train_batch(cls, x, y, n_classes=2):
             X = x
             Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
-
             return (X, Y)
 
         @classmethod
@@ -62,8 +61,12 @@ def MLPInterface_subclass():
             optimizer = recipe['optimizer']
             loss_function = recipe['loss_function']
             metrics = recipe['metrics']
+            if 'secondary_metrics' in recipe.keys():
+                secondary_metrics = recipe['secondary_metrics']
+            else:
+                 secondary_metrics = None
 
-            instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+            instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
             return instance
 
@@ -77,21 +80,30 @@ def MLPInterface_subclass():
             optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
             loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
             metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+            if 'secondary_metrics' in recipe_dict.keys():
+                secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
+            else:
+                 secondary_metrics = None
 
             if return_recipe_compat == True:
                 recipe_dict['optimizer'] = optimizer
                 recipe_dict['loss_function'] = loss_function
                 recipe_dict['metrics'] = metrics
+                if 'secondary_metrics' in recipe_dict.keys():
+                    recipe_dict['secondary_metrics'] = secondary_metrics
+                
             else:
                 recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
                 recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
                 recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+                if 'secondary_metrics' in recipe_dict.keys():
+                    recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
 
             recipe_dict['n_neurons'] = recipe_dict['n_neurons']
             recipe_dict['activation'] = recipe_dict['activation']
             return recipe_dict
 
-        def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
+        def __init__(self, n_neurons, activation, optimizer, loss_function, metrics, secondary_metrics=None):
             #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
             self.n_neurons = n_neurons
             self.activation = activation
@@ -99,6 +111,7 @@ def MLPInterface_subclass():
             self.optimizer=optimizer
             self.loss_function=loss_function
             self.metrics=metrics
+            self.secondary_metrics=secondary_metrics
 
             self.model = MLP(n_neurons=n_neurons, activation=activation)
             self.compile_model()
@@ -110,6 +123,8 @@ def MLPInterface_subclass():
             recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
             recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
             recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+            if self.secondary_metrics is not None:
+                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
             recipe['n_neurons'] = self.n_neurons
             recipe['activation'] = self.activation
 
@@ -373,6 +388,39 @@ def test_write_recipe(instance_of_MLPInterface):
 
 
 def test_train_loop(instance_of_MLPInterface):
-    instance_of_MLPInterface.train_loop(n_epochs=2)
+    instance_of_MLPInterface.train_loop(n_epochs=5)
 
+
+def test_train_loop_secondary_metrics(MLPInterface_subclass):
+
+
+    recipe = { 'n_neurons':64,
+               'activation':'relu',
+               'optimizer': RecipeCompat("Adam",tf.keras.optimizers.Adam,learning_rate=0.005),
+               'loss_function': RecipeCompat("FScoreLoss",FScoreLoss),  
+               'metrics': [RecipeCompat('CategoricalAccuracy', tf.keras.metrics.CategoricalAccuracy)],
+               'secondary_metrics': [RecipeCompat('Precision',tf.keras.metrics.Precision),
+                                 RecipeCompat('Recall',tf.keras.metrics.Recall)]
+               
+    }
+
+
+    h5 = tables.open_file(os.path.join(path_to_assets, "vectors_1_0.h5"), 'r')
+    train_table = h5.get_node("/train")
+    val_table = h5.get_node("/val")
+    test_table = h5.get_node("/test")
+
+    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    
+
+    instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
+                         loss_function=recipe['loss_function'], metrics=recipe['metrics'], secondary_metrics=recipe['secondary_metrics']) 
+
+    instance.set_train_generator(train_generator)
+    instance.set_val_generator(val_generator)
+    instance.set_test_generator(test_generator)
+
+    instance.train_loop(5)
 
