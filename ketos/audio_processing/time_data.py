@@ -165,37 +165,16 @@ class TimeData():
         length = data.shape[0] * time_res
         self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
 
-        if np.ndim(data) > ndim: #stacked data arrays
+        if np.ndim(data) > ndim: #stacked arrays
             filename = stack_attr(filename, shape=data.shape[ndim:], dtype=str)
             offset = stack_attr(offset, shape=data.shape[ndim:], dtype=float)
             label = stack_attr(label, shape=data.shape[ndim:], dtype=int)
-#            mul = data.shape[ndim]
-#            filename, offset, label = stack_attrs(filename, offset, label, mul)
 
         self.filename = filename
         self.offset = offset
         self.label = label
         self.annot = annot
 
-#    def get_data(self, id=0):
-#        """ Get the underlying data numpy array.
-#
-#            Args:
-#                id: int
-#                    Data set ID. Only relevant if the object 
-#                    contains multiple, stacked data sets.
-#
-#            Returns:
-#                d: numpy array
-#                    Data
-#        """
-#        if id is None or np.ndim(self.data) == self.ndim:
-#            d = self.data
-#        else:
-#            d = self.data[:,id]
-#
-#        return d
-#
     def annotations(self, id=None):
         """ Get annotations.
 
