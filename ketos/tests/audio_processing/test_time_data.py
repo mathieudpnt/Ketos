@@ -40,32 +40,30 @@ def test_init(time_data_1d):
     assert o.label == 13
 
 def test_init_stacked(time_data_1d_stacked):
-    """Test if a stacked TimeData object has expected attribut values"""
+    """Test if a stacked TimeData object has expected attribute values"""
     o, d = time_data_1d_stacked
-    assert np.all(o.get_data(1) == d[:,1])
+    assert np.all(o.data[:,1] == d[:,1])
     assert o.ndim == 1
-    assert o.filename == ['x','y','z']
+    assert np.all(o.filename == ['x','y','z'])
     assert np.all(o.offset == 2.)
     assert np.all(o.label == 13)
 
-def test_get_data(time_data_1d):
-    """Test that the get_data method works as it should"""
+def test_data(time_data_1d):
+    """Test that the data attribute has expect contents"""
     o, d = time_data_1d
-    assert np.all(o.get_data() == d)
-    assert np.all(o.get_data(0) == d)
+    assert np.all(o.data == d)
 
-def test_get_data_stacked(time_data_1d_stacked):
-    """Test that the get_data method works as it should for stacked objects"""
+def test_data_stacked(time_data_1d_stacked):
+    """Test that the data attribute of a stacked TimeData object has expect contents"""
     o, d = time_data_1d_stacked
-    for i in range(3):
-        assert np.all(o.get_data(i) == d[:,i])
+    assert np.all(o.data == d)
     
 def test_crop(time_data_1d):
     """Test if a cropped TimeData object has the expected content and length"""
     o, d = time_data_1d
     oc = o.crop(start=0.2, end=3.8)
     assert oc.length() == 3.6
-    assert np.all(oc.get_data() == d[200:3800])
+    assert np.all(oc.data == d[200:3800])
 
 def test_annotations_returns_none(time_data_1d):
     """Test that no annotations are returned when none are provided"""
@@ -103,23 +101,28 @@ def test_segment(time_data_1d):
     assert s.ndim == o.ndim
     assert s.data.shape == (2000,9)
     assert np.all(s.label == 13)
+    assert np.all(s.offset == np.linspace(0.,8.,9))
     s = o.segment(window=2, step=1.1) #non-integer number of steps
     assert s.ndim == o.ndim
     assert s.data.shape == (2000,9)
     assert np.all(s.data[1200:,-1] == 0) #last frame was padded with zeros
+    assert np.all(s.offset == np.linspace(0.0,8.8,9))
 
 def test_segment_stacked(time_data_1d_stacked):
     """Test segment method on stacked 1d object"""
     o, d = time_data_1d_stacked
     s = o.segment(window=2, step=1) 
     assert s.ndim == o.ndim
-    assert s.data.shape == (2000, 9*3)
-    assert np.all(s.data[:,:9] == 1)
-    assert np.all(s.data[:,9:18] == 2)
-    assert np.all(s.data[:,18:27] == 3)
-    assert s.filename[:9] == ['x' for _ in range(9)]
-    assert s.filename[9:18] == ['y' for _ in range(9)]
-    assert s.filename[18:27] == ['z' for _ in range(9)]
+    assert s.data.shape == (2000, 3, 9)
+    assert np.all(s.data[:,0,:] == 1)
+    assert np.all(s.data[:,1,:] == 2)
+    assert np.all(s.data[:,2,:] == 3)
+    assert np.all(s.filename[0] == 'x')
+    assert np.all(s.filename[1] == 'y')
+    assert np.all(s.filename[2] == 'z')
+    for i in range(3):
+        assert np.all(s.offset[i] == np.linspace(0.,8.,9))
+        assert np.all(s.label[i] == 13)
 
 def test_annotate(time_data_1d):
     """Test that we can add annotations"""

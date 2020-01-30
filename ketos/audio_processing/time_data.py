@@ -38,49 +38,36 @@ import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.annotation import AnnotationHandler
 from ketos.audio_processing.axis import LinearAxis
 
-def stack_attrs(filename, offset, label, mul):
-    """ Ensure that data attributes have expected multiplicity.
-
-        If the attribute is specified as a list or an array-like object, 
-        assert that the length equals the data multiplicity.
+def stack_attr(value, shape, dtype):
+    """ Ensure that data attribute has the requested shape.
 
         Args:
-            filename: str or list(str)
-                Filename attribute.
-            offset: float or array-like
-                Offset attribute.
-            label: int or array-like
-                Label attribute.
-            mul: int
-                Audio/spectrogram multiplicity
+            value: array-like
+                Attribute values.
+            shape: tuple
+                Requested shape.
+            dtype: str
+                Type
 
         Returns:
-            filename: list(str)
-                Filename attribute
-            offset: array-like
-                Offset attribute
-            label: array-like
-                Label attribute
+            value_stacked: numpy array
+                Array containing the stacked attribute values
     """
-    if filename:
-        if isinstance(filename, str):
-            filename = [filename for _ in range(mul)]
+    if value is None:
+        return None
 
-        assert len(filename) == mul, 'Number of filenames ({0}) does not match data multiplicity ({1})'.format(len(filename), mul)
+    value_stacked = value
 
-    if offset:
-        if isinstance(offset, float) or isinstance(offset, int):
-            offset = np.ones(mul, dtype=float) * float(offset)
+    if isinstance(value_stacked, list):
+        value_stacked = np.array(value, dtype=dtype)
+    
+    if np.ndim(value_stacked) == 0:
+        value_stacked = np.empty(shape=shape, dtype=dtype)
+        value_stacked[:] = value
 
-        assert len(offset) == mul, 'Number of offsets ({0}) does not match data multiplicity ({1})'.format(len(offset), mul)
+    assert value_stacked.shape == shape, 'Attribute value shape ({0}) does not match requested shape ({1})'.format(value_stacked.shape, shape)
 
-    if label:
-        if isinstance(label, float) or isinstance(label, int):
-            label = np.ones(mul, dtype=int) * int(label)
-
-        assert len(label) == mul, 'Number of labels ({0}) does not match data multiplicity ({1})'.format(len(label), mul)
-
-    return filename, offset, label
+    return value_stacked
 
 def segment_data(x, window, step=None):
     """ Divide the time axis into segments of uniform length, which may or may 
@@ -178,34 +165,37 @@ class TimeData():
         length = data.shape[0] * time_res
         self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
 
-        if np.ndim(data) == ndim + 1: #stacked data arrays
-            mul = data.shape[ndim]
-            filename, offset, label = stack_attrs(filename, offset, label, mul)
+        if np.ndim(data) > ndim: #stacked data arrays
+            filename = stack_attr(filename, shape=data.shape[ndim:], dtype=str)
+            offset = stack_attr(offset, shape=data.shape[ndim:], dtype=float)
+            label = stack_attr(label, shape=data.shape[ndim:], dtype=int)
+#            mul = data.shape[ndim]
+#            filename, offset, label = stack_attrs(filename, offset, label, mul)
 
         self.filename = filename
         self.offset = offset
         self.label = label
         self.annot = annot
 
-    def get_data(self, id=0):
-        """ Get the underlying data numpy array.
-
-            Args:
-                id: int
-                    Data set ID. Only relevant if the object 
-                    contains multiple, stacked data sets.
-
-            Returns:
-                d: numpy array
-                    Data
-        """
-        if id is None or np.ndim(self.data) == self.ndim:
-            d = self.data
-        else:
-            d = self.data[:,id]
-
-        return d
-
+#    def get_data(self, id=0):
+#        """ Get the underlying data numpy array.
+#
+#            Args:
+#                id: int
+#                    Data set ID. Only relevant if the object 
+#                    contains multiple, stacked data sets.
+#
+#            Returns:
+#                d: numpy array
+#                    Data
+#        """
+#        if id is None or np.ndim(self.data) == self.ndim:
+#            d = self.data
+#        else:
+#            d = self.data[:,id]
+#
+#        return d
+#
     def annotations(self, id=None):
         """ Get annotations.
 
@@ -364,19 +354,21 @@ class TimeData():
         axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) #permute axes so axis 0 becomes the last axis
         segs = np.transpose(segs, axes)
 
-        k = len(segs.shape) - (self.ndim + 1)
-        if k == 0:
-            filename = self.filename
-            label = self.label
-            offset = self.offset
+        filename = self.filename
+        label = self.label
 
-        else: #when segment method is applied to stacked objects, a little extra work is required:
+        #when segment method is applied to stacked objects, a little extra work is required:
+        if len(segs.shape) > self.ndim + 1: 
             num_segs = segs.shape[-1]
-            filename = [x for x in self.filename for _ in range(num_segs)]
-            label = [x for x in self.label for _ in range(num_segs)]
-            offset = [x for x in self.offset for _ in range(num_segs)]
-            newshape = list(segs.shape[:-2]) + [-1]
-            segs = segs.reshape(newshape)
+
+            if self.filename is not None:
+                filename = [[x for _ in range(num_segs)] for x in self.filename]
+
+            if self.label is not None:
+                label = np.array([[x for _ in range(num_segs)] for x in self.label], dtype=int)
+
+            if self.offset is not None:
+                offset = np.repeat(offset[np.newaxis, :], segs.shape[self.ndim], axis=0)
 
         # create stacked object
         d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=filename,\
