@@ -199,6 +199,15 @@ class AnnotationHandler():
         handler = self.__class__(self._df.copy())
         return handler
 
+    def set_ids(self):
+        """ Get the IDs of the annotation subsets managed by the handler.
+
+            Returns:
+                : numpy array
+                    IDs of the annotation sets
+        """
+        return np.unique(self._df.index.get_level_values(0).values)
+
     def num_sets(self):
         """ Get number of annotation subsets managed by the handler.
 
@@ -206,8 +215,7 @@ class AnnotationHandler():
                 num: int
                     Number of annotation sets
         """
-        ids = np.unique(self._df.index.get_level_values(0).values)
-        num = len(ids)
+        num = len(self.set_ids())
         return num
 
     def num_annotations(self, id=None):
@@ -268,7 +276,7 @@ class AnnotationHandler():
         ans = self._df
 
         if self.num_sets() == 1 and squeeze:
-            ans = ans.loc[0]
+            ans = ans.loc[self.set_ids()[0]]
 
         if id is not None:
 
@@ -308,7 +316,10 @@ class AnnotationHandler():
             idx = 0
 
         else:
-            idx = self._df.loc[id].index.values[-1] + 1
+            if id in self._df.index:
+                idx = self._df.loc[id].index.values[-1] + 1
+            else:
+                idx = 0
 
         return idx
 
@@ -597,7 +608,7 @@ class AnnotationHandler():
         handlers, keys = [], []
         for i,(t1,t2) in enumerate(zip(start, end)):
             h = self.copy() # create a copy
-            h.crop(t1, t2) # crop 
+            h.crop(t1, t2) # crop
             if h.num_annotations() > 0:
                 handlers.append(h)
                 keys.append(i)

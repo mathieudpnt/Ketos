@@ -35,7 +35,7 @@ import os
 import copy
 import numpy as np
 import ketos.audio_processing.audio_processing as ap
-from ketos.audio_processing.annotation import AnnotationHandler
+from ketos.audio_processing.annotation import AnnotationHandler, stack_annotations
 from ketos.audio_processing.axis import LinearAxis
 
 def stack_attr(value, shape, dtype):
@@ -302,7 +302,7 @@ class TimeData():
             Input arguments are described in :method:`audio_processing.annotation.AnnotationHandler.add`
         """
         if self.annot is None: #if the object does not have an annotation handler, create one!
-            self.annot = AnnotationHandler()
+            self.annot = AnnotationHandler() 
 
         self.annot.add(**kwargs)
 

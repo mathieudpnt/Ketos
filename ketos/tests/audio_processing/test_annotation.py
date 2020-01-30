@@ -133,6 +133,14 @@ def test_stack_annotations():
     expected = np.sort(np.array([1, 0.2, 1.1, 50, 200]))
     assert np.all(h0val == expected) # check that annotations match for handler #0
 
+def test_add_annotations_to_multiple_sets():
+    h = AnnotationHandler()
+    h.add(1, 0.2, 1.1, 50, 200, id=2)
+    h.add(2, 3.1, 4.7, 0, 30, id=0)
+    h.add(1, 13.1, 14.7, id=2)
+    assert h.num_sets() == 2
+    assert h.num_annotations() == 3
+
 def test_add_annotations_to_stacked_handler():
     h1 = AnnotationHandler()
     h1.add(1, 0.2, 1.1, 0, 100)
@@ -163,4 +171,12 @@ def test_segment_stacked_annotations():
     result = np.sort(a11.to_numpy())
     assert np.all(expected == result)
     assert handler._df.index.nlevels == 3
+
+def test_segment_stacked_annotations_with_custom_ids():
+    h = AnnotationHandler()
+    h.add(1, 0.2, 1.1, 50, 200, id=2)
+    h.add(2, 3.1, 4.7, 0, 30, id=0)
+    h.add(1, 13.1, 14.7, id=2)
+    h = h.segment(num_segs=10, window=1.0, step=0.5)
+    assert h._df.index.nlevels == 3
 

@@ -155,3 +155,23 @@ def test_segment_with_annotations(time_data_1d):
     assert np.all(df1['start'].values == [0.0, 0.8])
     assert np.all(np.abs(df1['end'].values - [0.3, 1.2]) < 1e-9)
 
+def test_segment_with_annotations_stacked(time_data_1d_stacked):
+    """Test segment method on 1d object with annotations"""
+    o, d = time_data_1d_stacked
+    o.annotate(label=1, start=0.2, end=1.3, id=0) #add this annotation to 1st object
+    o.annotate(label=2, start=1.8, end=2.2, id=2) #add this annotation to 3rd object
+    s = o.segment(window=2, step=1) 
+    df00 = s.annotations(id=(0,0)) #annotations for 1st segment of 1st object
+    assert len(df00) == 1
+    assert df00['start'].values[0] == 0.2
+    assert df00['end'].values[0] == 1.3
+    df01 = s.annotations(id=(0,1)) #annotations for 2nd segment of 1st object
+    assert len(df01) == 1
+    assert df01['start'].values[0] == 0.
+    assert pytest.approx(df01['end'].values[0], 0.3, abs=0.00001)
+    df02 = s.annotations(id=(0,2)) #annotations for 3rd segment of 1st object
+    assert df02 == None
+    df20 = s.annotations(id=(2,0)) #annotations for 1st segment of 3rd object
+    assert len(df20) == 1
+    assert df20['start'].values[0] == 1.8
+    assert df20['end'].values[0] == 2.0
