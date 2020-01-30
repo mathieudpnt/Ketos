@@ -81,7 +81,7 @@ def test_add_audio_signals(sine_audio):
     v = np.copy(sine_audio.data)
     sine_audio.add(signal=sine_audio)
     assert pytest.approx(sine_audio.length(), t, abs=0.00001)
-    assert np.testing.assert_almost_equal(sine_audio.data, 2*v, decimal=6)
+    assert np.all(np.abs(sine_audio.data - 2*v) < 0.00001)
     
 
 
