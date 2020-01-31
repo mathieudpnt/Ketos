@@ -438,5 +438,5 @@ def time_data_1d_stacked():
     d = np.ones((N,3))
     d[:,1] = 2
     d[:,2] = 3
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename=['x','y','z'], offset=2., label=13)
+    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
     return o, d

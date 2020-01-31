@@ -320,11 +320,29 @@ class AudioSignal(TimeData):
             Returns:
                 segs: AudioSignal
                     Stacked audio signals
-        """              
-        segs, offset = segment_data(self, window, step)           
 
-        d = self.__class__(data=segs, rate=self.rate, filename=self.filename,\
-            offset=offset, label=self.label, annot=annots)
+            Example:
+                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> # create a morlet wavelet
+                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=0.5)
+                >>> mor.length()
+                3.0
+                >>> # segment into 2-s wide frames, using a step size of 1 s
+                >>> segs = mor.segment(window=2., step=1.)
+                >>> # show the segments
+                >>> fig0 = segs.plot(0)
+                >>> fig0.savefig("ketos/tests/assets/tmp/morlet_segmented_0.png")
+                >>> fig1 = segs.plot(1)
+                >>> fig1.savefig("ketos/tests/assets/tmp/morlet_segmented_1.png")
+
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_0.png
+
+                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_1.png
+        """              
+        segs, filename, offset, label, annot = segment_data(self, window, step)
+
+        d = self.__class__(data=segs, rate=self.rate, filename=filename,\
+            offset=offset, label=label, annot=annot)
 
         return d
 
@@ -349,9 +367,25 @@ class AudioSignal(TimeData):
 
         wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
-    def plot(self):
-        """ Plot the signal with proper axes ranges and labels
+    def plot(self, id=0, show_annot=False):
+        """ Plot the data with proper axes ranges and labels.
+
+            Optionally, also display annotations as boxes superimposed on the data.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                id: int
+                    ID of data array to be plotted. Only relevant if the object 
+                    contains multiple, stacked data arrays.
+                show_annot: bool
+                    Display annotations
             
+            Returns:
+                fig: matplotlib.figure.Figure
+                    Figure object.
+
             Example:            
                 >>> from ketos.audio_processing.audio import AudioSignal
                 >>> # create a morlet wavelet
@@ -361,14 +395,15 @@ class AudioSignal(TimeData):
 
                 .. image:: ../../_static/morlet.png
         """
-        fig, ax = plt.subplots(nrows=1)
-        start = 0.5 / self.rate
-        stop = self.length() - 0.5 / self.rate
-        num = len(self.data)
-        ax.plot(np.linspace(start=start, stop=stop, num=num), self.data)
-        ax = plt.gca()
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Signal')
+        fig, ax = super().plot(id, show_annot)
+
+        y = self.get_data(id)
+
+        x = np.linspace(start=0, stop=self.length(), num=self.data.shape[0])
+        ax.plot(x, y)
+        ax.set_ylabel('Amplitude')
+
+        fig.tight_layout()
         return fig
 
     def append(self, signal, n_smooth=0):
@@ -399,7 +434,6 @@ class AudioSignal(TimeData):
                 >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
                 >>> # append the cosine wave to the morlet wavelet, using a overlap of 100 bins
                 >>> mor.append(signal=cos, n_smooth=100)
-                5.0
                 >>> # show the wave form
                 >>> fig = mor.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
@@ -448,7 +482,7 @@ class AudioSignal(TimeData):
                 >>> from ketos.audio_processing.audio import AudioSignal
                 >>> # create a morlet wavelet
                 >>> morlet = AudioSignal.morlet(rate=100, frequency=2.5, width=1)
-                >>> morlet_pure = morlet.copy() # make a copy
+                >>> morlet_pure = morlet.deepcopy() # make a copy
                 >>> # add some noise
                 >>> morlet.add_gaussian_noise(sigma=0.3)
                 >>> # show the wave form
@@ -468,12 +502,9 @@ class AudioSignal(TimeData):
         """ Add the amplitudes of the two audio signals.
         
             The audio signals must have the same sampling rates.
-
             The summed signal always has the same length as the present instance.
-
             If the audio signals have different lengths and/or a non-zero delay is selected, 
             only the overlap region will be affected by the operation.
-            
             If the overlap region is empty, the original signal is unchanged.
 
             Args:
@@ -486,14 +517,16 @@ class AudioSignal(TimeData):
 
             Example:
                 >>> from ketos.audio_processing.audio import AudioSignal
-                >>> # create a morlet wavelet
-                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
                 >>> # create a cosine wave
-                >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
-                >>> # add the cosine on top of the morlet wavelet, with a delay of 2 sec and a scaling factor of 0.3
-                >>> mor.add(signal=cos, delay=2.0, scale=0.3)
+                >>> cos = AudioSignal.cosine(rate=100, frequency=1., duration=4)
+                >>> # create a morlet wavelet
+                >>> mor = AudioSignal.morlet(rate=100, frequency=7., width=0.5)
+                >>> mor.length()
+                3.0
+                >>> # add the morlet wavelet on top of the cosine, with a shift of 1.5 sec and a scaling factor of 0.5
+                >>> cos.add(signal=mor, offset=1.5, scale=0.5)
                 >>> # show the wave form
-                >>> fig = mor.plot()
+                >>> fig = cos.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
@@ -509,7 +542,7 @@ class AudioSignal(TimeData):
         bin_start = self.time_ax.bin(-offset, truncate=True)
 
         # crop signal that is being added
-        length = signal.data.shape[0] - bin_offset
+        length = self.data.shape[0] - bin_offset
         signal = signal.crop(start=-offset, length=length)
 
         # add the two signals

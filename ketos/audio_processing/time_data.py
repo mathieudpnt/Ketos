@@ -34,6 +34,7 @@
 import os
 import copy
 import numpy as np
+import matplotlib.pyplot as plt
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.annotation import AnnotationHandler, stack_annotations
 from ketos.audio_processing.axis import LinearAxis
@@ -62,6 +63,9 @@ def stack_attr(value, shape, dtype):
         value_stacked = np.array(value, dtype=dtype)
     
     if np.ndim(value_stacked) == 0:
+        if dtype is str or dtype is 'str':
+            dtype = 'S{0}'.format(len(value))
+
         value_stacked = np.empty(shape=shape, dtype=dtype)
         value_stacked[:] = value
 
@@ -90,8 +94,12 @@ def segment_data(x, window, step=None):
         Returns:
             segs: TimeData
                 Stacked data segments
+            filename: array-like
+                Filenames
             offset: array-like
                 Offsets in seconds
+            label: array-like
+                Labels
             annot: AnnotationHandler
                 Stacked annotation handlers, if any
     """              
@@ -118,7 +126,58 @@ def segment_data(x, window, step=None):
     # compute offsets
     offset = np.arange(num_segs) * step
 
-    return segs, offset, annot
+    #permute axes so the segment no. becomes the last axis
+    axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) 
+    segs = np.transpose(segs, axes)
+
+    # segments inherit filename and label from original instance
+    filename = x.filename
+    label = x.label
+
+    #when segment method is applied to stacked objects, a little extra work is required:
+    if len(segs.shape) > x.ndim + 1: 
+        num_segs = segs.shape[-1]
+
+        if x.filename is not None:
+            filename = [[x for _ in range(num_segs)] for x in x.filename]
+
+        if x.label is not None:
+            label = np.array([[x for _ in range(num_segs)] for x in x.label], dtype=int)
+
+        if x.offset is not None:
+            offset = np.repeat(offset[np.newaxis, :], segs.shape[x.ndim], axis=0)
+
+    return segs, filename, offset, label, annot
+
+def get_slice(arr, axis=0, indices=None):
+    """ Get a slice of an array.
+
+        Args:
+            arr: array-like
+                Input array
+            axis: int
+                The axis over which to select values.
+            indices: int or tuple
+                The indices of the values to extract.
+
+        Returns:
+            ans: array-like
+                Sliced array
+    """
+    ans = arr
+
+    if indices is None or np.ndim(arr) == 0:
+        return ans
+
+    if np.ndim(indices) == 0:
+        indices = [indices]
+
+    num_dims = min(len(indices), len(arr.shape) - axis)
+    for i in range(num_dims):
+        ans = ans.take(indices=indices[i], axis=axis + i)
+        
+    return ans
+
 
 class TimeData():
     """ Parent class for time-series data classes such as
@@ -175,7 +234,67 @@ class TimeData():
         self.label = label
         self.annot = annot
 
-    def annotations(self, id=None):
+    def get_data(self, id=None):
+        """ Get underlying data.
+
+            Args:
+                id: int
+                    Data array ID. Only relevant if the object 
+                    contains multiple, stacked arrays.
+
+            Returns:
+                : numpy array
+                    Data array 
+        """
+        return get_slice(self.data, axis=self.ndim, indices=id)
+
+    def get_filename(self, id=None):
+        """ Get filename.
+
+            Args:
+                id: int
+                    Data array ID. Only relevant if the object 
+                    contains multiple, stacked arrays.
+
+            Returns:
+                : array-like
+                    Filename
+        """
+        ans = get_slice(self.filename, axis=0, indices=id)
+        if not isinstance(ans, str) and np.ndim(ans) == 0:
+            ans = ans.decode()
+        
+        return ans
+
+    def get_offset(self, id=None):
+        """ Get offset.
+
+            Args:
+                id: int
+                    Data array ID. Only relevant if the object 
+                    contains multiple, stacked arrays.
+
+            Returns:
+                : array-like
+                    Offset
+        """
+        return get_slice(self.offset, axis=0, indices=id)
+
+    def get_label(self, id=None):
+        """ Get label.
+
+            Args:
+                id: int
+                    Data array ID. Only relevant if the object 
+                    contains multiple, stacked arrays.
+
+            Returns:
+                : array-like
+                    Label
+        """
+        return get_slice(self.label, axis=0, indices=id)
+
+    def get_annotations(self, id=None):
         """ Get annotations.
 
             Args:
@@ -328,26 +447,7 @@ class TimeData():
                 d: TimeData
                     Stacked data segments
         """   
-        segs, offset, annot = segment_data(self, window, step)
-
-        axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) #permute axes so axis 0 becomes the last axis
-        segs = np.transpose(segs, axes)
-
-        filename = self.filename
-        label = self.label
-
-        #when segment method is applied to stacked objects, a little extra work is required:
-        if len(segs.shape) > self.ndim + 1: 
-            num_segs = segs.shape[-1]
-
-            if self.filename is not None:
-                filename = [[x for _ in range(num_segs)] for x in self.filename]
-
-            if self.label is not None:
-                label = np.array([[x for _ in range(num_segs)] for x in self.label], dtype=int)
-
-            if self.offset is not None:
-                offset = np.repeat(offset[np.newaxis, :], segs.shape[self.ndim], axis=0)
+        segs, filename, offset, label, annot = segment_data(self, window, step)
 
         # create stacked object
         d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=filename,\
@@ -393,3 +493,62 @@ class TimeData():
         d.time_ax.zero_offset() #shift time axis to start at t=0 
 
         return d
+
+    def plot(self, id=0, show_annot=False, figsize=(5,4)):
+        """ Plot the data with proper axes ranges and labels.
+
+            Optionally, also display annotations as boxes superimposed on the data.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                id: int
+                    ID of data array to be plotted. Only relevant if the object 
+                    contains multiple, stacked data arrays.
+                show_annot: bool
+                    Display annotations
+                figsize: tuple
+                    Figure size
+            
+            Returns:
+                fig: matplotlib.figure.Figure
+                    A figure object.
+                ax: matplotlib.axes.Axes
+                    Axes object
+        """
+        # create canvas and axes
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, sharex=True)
+
+        # select the data array and attributes
+        x = self.get_data(id)
+        filename = self.get_filename(id)
+        offset = self.get_offset(id)
+        label = self.get_label(id)
+
+        # axis labels
+        ax.set_xlabel(self.time_ax.label)
+
+        # title
+        title = ""
+        if filename is not None: title += "{0}".format(filename)       
+        if label is not None:
+            if len(title) > 0: title += ", "
+            title += "{0}".format(label)
+
+        plt.title(title)
+
+        # if offset is non-zero, add a second time axis at the top 
+        # showing the `absolute` time
+        if offset != 0:
+            axt = ax.twiny()
+            axt.set_xlim(offset, offset + self.length())
+
+        # superimpose annotation boxes
+        if show_annot is not None:
+            ans = self.get_annotations(id)
+            if ans:
+                print('Drawing of annotations not yet implemented')
+            
+        fig.tight_layout()
+        return fig, ax

@@ -102,6 +102,14 @@ def test_add_audio_signals_with_scaling(sine_audio):
     sine_audio.add(signal=sine_audio, scale=1.3)
     assert np.all(np.abs(sine_audio.data - (1. + scale) * v) < 0.00001)
 
+def test_add_morlet_on_cosine():
+    cos = aud.AudioSignal.cosine(rate=100, frequency=1., duration=4)
+    mor = aud.AudioSignal.morlet(rate=100, frequency=7., width=0.5)
+    cos.add(signal=mor, offset=3.0, scale=0.5)
+    import matplotlib.pyplot as plt
+    plt.plot(mor.data)
+    plt.show()
+
 def test_morlet_with_default_params():
     """Test can create Morlet wavelet"""
     mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)
@@ -160,3 +168,8 @@ def test_resampling_preserves_frequency_of_sine_wave(sine_wave_file):
     new_freq = np.argmax(new_y)
     new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
     assert freqHz == new_freqHz
+
+def test_segment():
+    mor = aud.AudioSignal.morlet(rate=100, frequency=5, width=0.5)
+    segs = mor.segment(window=2., step=1.)
+    assert segs.get_filename(0) == 'morlet'

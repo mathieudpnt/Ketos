@@ -44,7 +44,7 @@ def test_init_stacked(time_data_1d_stacked):
     o, d = time_data_1d_stacked
     assert np.all(o.data[:,1] == d[:,1])
     assert o.ndim == 1
-    assert np.all(o.filename == ['x','y','z'])
+    assert np.all(o.filename == ['x','yy','z'])
     assert np.all(o.offset == 2.)
     assert np.all(o.label == 13)
 
@@ -57,7 +57,24 @@ def test_data_stacked(time_data_1d_stacked):
     """Test that the data attribute of a stacked TimeData object has expect contents"""
     o, d = time_data_1d_stacked
     assert np.all(o.data == d)
-    
+
+def test_get_data(time_data_1d):
+    """Test that the get_data method returns expected result"""
+    o, d = time_data_1d
+    assert np.all(o.get_data() == d)
+
+def test_get_data_stacked(time_data_1d_stacked):
+    """Test that the get_data method returns expected result for stacked objects"""
+    o, d = time_data_1d_stacked
+    assert np.all(o.get_data() == d)
+    assert np.all(o.get_data(1) == d[:,1])
+
+def test_get_filename_stacked(time_data_1d_stacked):
+    """Test that the get_filename method returns expected result for stacked objects"""
+    o, d = time_data_1d_stacked
+    assert np.all(o.get_filename() == ['x','yy','z'])
+    assert np.all(o.get_filename(1) == 'yy')
+
 def test_crop(time_data_1d):
     """Test if a cropped TimeData object has the expected content and length"""
     o, d = time_data_1d
@@ -68,7 +85,7 @@ def test_crop(time_data_1d):
 def test_annotations_returns_none(time_data_1d):
     """Test that no annotations are returned when none are provided"""
     o, d = time_data_1d
-    assert o.annotations() == None
+    assert o.get_annotations() == None
 
 def test_time_res(time_data_1d):
     """Test if time resolution is correct"""
@@ -79,7 +96,7 @@ def test_deep_copy(time_data_1d):
     """Test that changes to copy to not affect original instance"""
     o, d = time_data_1d
     oc = o.deepcopy()
-    oc.filename = 'y'
+    oc.filename = 'yy'
     oc.time_ax.label = 'new axis'
     assert o.filename == 'x'
     assert o.time_ax.label == 'Time (s)'
@@ -118,7 +135,7 @@ def test_segment_stacked(time_data_1d_stacked):
     assert np.all(s.data[:,1,:] == 2)
     assert np.all(s.data[:,2,:] == 3)
     assert np.all(s.filename[0] == 'x')
-    assert np.all(s.filename[1] == 'y')
+    assert np.all(s.filename[1] == 'yy')
     assert np.all(s.filename[2] == 'z')
     for i in range(3):
         assert np.all(s.offset[i] == np.linspace(0.,8.,9))
@@ -146,11 +163,11 @@ def test_segment_with_annotations(time_data_1d):
     o.annotate(label=1, start=0.2, end=1.3) #fully contained in first segment, partially contained in second
     o.annotate(label=2, start=1.8, end=2.2) #partially contained in first, second and third segment
     s = o.segment(window=2, step=1) 
-    df0 = s.annotations(id=0) #annotations for 1st segment
+    df0 = s.get_annotations(id=0) #annotations for 1st segment
     assert len(df0) == 2
     assert np.all(df0['start'].values == [0.2, 1.8])
     assert np.all(df0['end'].values == [1.3, 2.0])
-    df1 = s.annotations(id=1) #annotations for 2nd segment
+    df1 = s.get_annotations(id=1) #annotations for 2nd segment
     assert len(df1) == 2
     assert np.all(df1['start'].values == [0.0, 0.8])
     assert np.all(np.abs(df1['end'].values - [0.3, 1.2]) < 1e-9)
@@ -161,17 +178,17 @@ def test_segment_with_annotations_stacked(time_data_1d_stacked):
     o.annotate(label=1, start=0.2, end=1.3, id=0) #add this annotation to 1st object
     o.annotate(label=2, start=1.8, end=2.2, id=2) #add this annotation to 3rd object
     s = o.segment(window=2, step=1) 
-    df00 = s.annotations(id=(0,0)) #annotations for 1st segment of 1st object
+    df00 = s.get_annotations(id=(0,0)) #annotations for 1st segment of 1st object
     assert len(df00) == 1
     assert df00['start'].values[0] == 0.2
     assert df00['end'].values[0] == 1.3
-    df01 = s.annotations(id=(0,1)) #annotations for 2nd segment of 1st object
+    df01 = s.get_annotations(id=(0,1)) #annotations for 2nd segment of 1st object
     assert len(df01) == 1
     assert df01['start'].values[0] == 0.
     assert pytest.approx(df01['end'].values[0], 0.3, abs=0.00001)
-    df02 = s.annotations(id=(0,2)) #annotations for 3rd segment of 1st object
+    df02 = s.get_annotations(id=(0,2)) #annotations for 3rd segment of 1st object
     assert df02 == None
-    df20 = s.annotations(id=(2,0)) #annotations for 1st segment of 3rd object
+    df20 = s.get_annotations(id=(2,0)) #annotations for 1st segment of 3rd object
     assert len(df20) == 1
     assert df20['start'].values[0] == 1.8
     assert df20['end'].values[0] == 2.0

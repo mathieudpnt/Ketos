@@ -215,13 +215,13 @@ class Axis():
             return self
 
         # lower bin
-        if x_min:
+        if x_min is not None:
             b_min = self.bin(x_min, truncate=True)
         else:
             b_min = 0
         
         # upper bin
-        if bins:
+        if bins is not None:
             b_max = min(self.bins - 1, b_min + bins - 1)
         else:
             b_max = self.bin(x_max, truncate=True, closed_right=True)
