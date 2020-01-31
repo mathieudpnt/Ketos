@@ -371,39 +371,25 @@ class AudioSignal(TimeData):
         ax.set_ylabel('Signal')
         return fig
 
-    def append(self, signal, delay=None, n_smooth=0, max_length=None):
-        """ Append another audio signal to this signal.
+    def append(self, signal, n_smooth=0):
+        """ Append another audio signal to the present instance.
 
             The two audio signals must have the same samling rate.
             
-            If delay is None or 0, a smooth transition is made between the 
-            two signals. The width of the smoothing region where the two signals 
-            overlap is specified via the argument n_smooth.
+            If n_smooth > 0, a smooth transition is made between the 
+            two signals in a overlap region of length n_smooth.
 
             Note that the current implementation of the smoothing procedure is 
-            quite slow, so it is advisable to use small overlap regions.
-
-            If n_smooth is 0, the two signals are joint without any smoothing.
-
-            If delay > 0, a signal with zero sound intensity and duration 
-            delay is added between the two audio signals. 
-
-            If the length of the combined signal exceeds max_length, only the 
-            first max_length samples will be kept. 
+            quite slow, so it is advisable to use small value for n_smooth.
 
             Args:
                 signal: AudioSignal
-                    Audio signal to be merged.
-                delay: float
-                    Delay between the two audio signals in seconds. 
+                    Audio signal to be appended.
                 n_smooth: int
                     Width of the smoothing/overlap region (number of samples).
-                max_length: int
-                    Maximum length of the combined signal (number of samples).
 
             Returns:
-                append_time: float
-                    Start time of appended part in seconds from the beginning of the original signal.
+                None
 
             Example:
                 >>> from ketos.audio_processing.audio import AudioSignal
@@ -424,112 +410,32 @@ class AudioSignal(TimeData):
 
         # if appending signal to itself, make a copy
         if signal is self:
-            signal = self.copy()
+            signal = self.deepcopy()
 
-        if delay is None:
-            delay = 0
-
-        delay = max(0, delay)
-        if max_length is not None:
-            delay = min(max_length / self.rate, delay)
-
-        # ensure that overlap region is shorter than either signals
+        # ensure that overlap region is shorter than either signal
         n_smooth = min(n_smooth, len(self.data) - 1)
         n_smooth = min(n_smooth, len(signal.data) - 1)
 
-        # compute total length
-        len_tot = self.merged_length(signal, delay, n_smooth)
+        if n_smooth == 0:
+            self.data = np.concatenate([self.data, signal.data], axis=0)
 
-        append_time = len(self.data) / self.rate
+        else:# smoothly join
+            a = self.data[:-n_smooth]
+            ao = self.data[-n_smooth:]
+            bo = signal.data[:n_smooth]
+            b = signal.data[n_smooth:]
 
-        # extract data from overlap region
-        if delay == 0 and n_smooth > 0:
-
-            # signal 1
-            a = self.split(-n_smooth)
-
-            # signal 2
-            b = signal.split(n_smooth)
-
-            # superimpose a and b
-            # TODO: If possible, vectorize this loop for faster execution
-            # TODO: Cache values returned by _smoothclamp to avoid repeated calculation
-            # TODO: Use coarser binning for smoothing function to speed things up even more
+            # compute values in overlap region
             c = np.empty(n_smooth)
             for i in range(n_smooth):
                 w = _smoothclamp(i, 0, n_smooth-1)
-                c[i] = (1.-w) * a.data[i] + w * b.data[i]
+                c[i] = (1.-w) * ao[i] + w * bo[i]
             
-            append_time = len(self.data) / self.rate
-
-            # append
-            self.data = np.append(self.data, c)
-
-        elif delay > 0:
-            z = np.zeros(int(delay * self.rate))
-            self.data = np.append(self.data, z)
-            append_time = len(self.data) / self.rate
-            
-        self.data = np.append(self.data, signal.data) 
-        
-        assert len(self.data) == len_tot # check that length of merged signal is as expected
-
-        # mask inserted zeros
-        if delay > 0:
-            self.data = np.ma.masked_values(self.data, 0)
-
-        # remove all appended data from signal        
-        if max_length is not None:
-            if len_tot > max_length:
-                self._crop(i1=0, i2=max_length)
-                i2 = len(signal.data)
-                i1 = max(0, i2 - (len_tot - max_length))
-                signal._crop(i1=i1, i2=i2)
-            else:
-                signal.data = None
-        else:
-            signal.data = None
+            self.data = np.concatenate([a,c,b], axis=0)
         
         # re-init time axis
-        length = self.rate * data.shape[0]
-        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') 
-
-        return append_time
-
-    def merged_length(self, signal=None, delay=None, n_smooth=None):
-        """ Compute sample size of merged signal (without actually merging the signals)
-
-            Args:
-                signal: AudioSignal
-                    Audio signal to be merged
-                delay: float
-                    Delay between the two audio signals in seconds.
-
-            Returns:
-                l: int
-                    Merged length
-        """   
-        if signal is None:
-            return len(self.data)
-
-        assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
-
-        if delay is None:
-            delay = 0
-            
-        if n_smooth is None:
-            n_smooth = 0
-
-        m = len(self.data)
-        n = len(signal.data)
-        l = m + n
-        
-        if delay > 0:
-            l += int(delay * self.rate)
-        elif delay == 0:
-            l -= n_smooth
-        
-        return l
+        length = self.data.shape[0] / self.rate
+        self.time_ax = LinearAxis(bins=self.data.shape[0], extent=(0., length), label='Time (s)') 
 
     def add_gaussian_noise(self, sigma):
         """ Add Gaussian noise to the signal
@@ -576,7 +482,7 @@ class AudioSignal(TimeData):
                 offset: float
                     Shift the audio signal by this many seconds
                 scale: float
-                    Scaling factor for signal to be added
+                    Scaling factor applied to signal that is added
 
             Example:
                 >>> from ketos.audio_processing.audio import AudioSignal
@@ -594,19 +500,22 @@ class AudioSignal(TimeData):
         """
         assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
 
-        # compute cropping boundaries for time axis
-        start = -offset
-        end = self.length() - offset
+        # if appending signal to itself, make a copy
+        if signal is self:
+            signal = self.deepcopy()
 
-        # convert to bin number
-        b = self.time_ax.bin(start, truncate=True)
+        # convert to bin numbers
+        bin_offset = self.time_ax.bin(offset, truncate=True)
+        bin_start = self.time_ax.bin(-offset, truncate=True)
 
         # crop signal that is being added
-        signal = signal.crop(start=start, end=end)
+        length = signal.data.shape[0] - bin_offset
+        signal = signal.crop(start=-offset, length=length)
 
         # add the two signals
+        b = bin_offset
         bins = signal.data.shape[0]
-        self.data[b:b+bins] += signal
+        self.data[b:b+bins] = self.data[b:b+bins] + scale * signal.data
 
     def resample(self, new_rate):
         """ Resample the acoustic signal with an arbitrary sampling rate.

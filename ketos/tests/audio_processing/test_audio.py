@@ -32,6 +32,7 @@ import numpy as np
 
 
 def test_init_audio_signal():
+    """Test if the audio signal has expected attribute values"""
     N = 10000
     d = np.ones(N)
     a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
@@ -42,16 +43,18 @@ def test_init_audio_signal():
     assert a.label == 13
 
 def test_init_stacked_audio_signal():
+    """Test if a stacked audio signal has expected attribut values"""
     N = 10000
     d = np.ones((N,3))
     a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
     assert np.all(a.get_data(1) == d[:,1])
     assert a.rate == 1000
-    assert a.filename == ['x','x','x']
+    assert np.all(a.filename == 'x')
     assert np.all(a.offset == 2.)
     assert np.all(a.label == 13)
 
 def test_from_wav(sine_wave_file, sine_wave):
+    """Test if an audio signal can be created from a wav file"""
     a = aud.AudioSignal.from_wav(sine_wave_file)
     sig = sine_wave[1]
     assert a.length() == 3.
@@ -59,163 +62,48 @@ def test_from_wav(sine_wave_file, sine_wave):
     assert a.filename == "sine_wave.wav"
     assert np.all(np.isclose(a.data, sig, atol=0.001))
 
+def test_append_audio_signal(sine_audio):
+    """Test if we can append an audio signal to itself"""
+    audio_orig = sine_audio.deepcopy()
+    sine_audio.append(sine_audio)
+    assert sine_audio.length() == 2 * audio_orig.length()
+    assert np.all(sine_audio.data == np.concatenate([audio_orig.data,audio_orig.data],axis=0))
 
-# old test below ...
+def test_append_audio_signal_with_overlap(sine_audio):
+    """Test if we can append an audio signal to itself"""
+    audio_orig = sine_audio.deepcopy()
+    sine_audio.append(sine_audio, n_smooth=100)
+    assert sine_audio.length() == 2 * audio_orig.length() - 100/sine_audio.rate
 
-def test_crop_audio_signal(sine_audio):
-    audio = sine_audio
-    seconds = len(audio.data) / audio.rate
-    crop_begin = audio.begin() + datetime.timedelta(seconds=seconds/10.)
-    crop_end = audio.end() - datetime.timedelta(seconds=seconds/10.)
-    audio_cropped = audio
-    audio_cropped.crop(begin=crop_begin, end=crop_end)
-    seconds_cropped = len(audio_cropped.data) / audio_cropped.rate
-    assert seconds_cropped/seconds == pytest.approx(8./10., rel=1./audio.rate)
-    assert audio_cropped.begin() == crop_begin
-
-
-def test_append_audio_signal_to_itself(sine_audio):
-    audio = sine_audio
-    len_sum = 2 * len(audio.data)
-    audio_copy = audio.copy()
-    audio_copy.time_stamp = audio.end()
-    audio.append(audio_copy)
-    assert len(audio.data) == len_sum
+def test_add_audio_signals(sine_audio):
+    """Test if we can add an audio signal to itself"""
+    t = sine_audio.length()
+    v = np.copy(sine_audio.data)
+    sine_audio.add(signal=sine_audio)
+    assert pytest.approx(sine_audio.length(), t, abs=0.00001)
+    assert np.all(np.abs(sine_audio.data - 2*v) < 0.00001)
     
-def test_segment_audio_signal(sine_audio):
-    lentot = sine_audio.duration()
-    segs = sine_audio.segment(lentot/3)
-    assert len(segs) == 3
-    # recover original full length signal by concatenating segments
-    v = segs[0].data
-    for s in segs[1:]:
-        v = np.concatenate((v, s.data))
-    # check that the recovered audio signal matches the original
-    assert np.all(v == sine_audio.data)
-    # check behaviour when length is larger than 0.5 of total length
-    segs = sine_audio.segment(0.8*lentot)
-    assert len(segs) == 1
-    assert segs[0].duration() == pytest.approx(0.8*lentot, abs=0.01)
+def test_add_audio_signals_with_offset(sine_audio):
+    """Test if we can add an audio signal to itself with a time offset"""
+    t = sine_audio.length()
+    v = np.copy(sine_audio.data)
+    offset = 1.1
+    sine_audio.add(signal=sine_audio, offset=offset)
+    assert sine_audio.length() == t
+    b = sine_audio.time_ax.bin(offset) 
+    assert np.all(np.abs(sine_audio.data[:b] - v[:b]) < 0.00001)
+    assert np.all(np.abs(sine_audio.data[b:] - 2 * v[b:]) < 0.00001)    
 
-def test_segment_audio_signal_w_annotations(sine_audio):
-    lentot = sine_audio.duration()    
-    # add some annotations
-    t1 = 0.1 * lentot
-    t2 = 0.2 * lentot
-    sine_audio.annotate(labels=1, boxes=[t1, t2])
-    t1 = 0.4 * lentot
-    t2 = 0.6 * lentot
-    sine_audio.annotate(labels=1, boxes=[t1, t2])
-    t1 = 0.45 * lentot
-    t2 = 0.95 * lentot
-    sine_audio.annotate(labels=1, boxes=[t1, t2])
-    # segment
-    segs = sine_audio.segment(length=lentot/3, keep_time=True)
-    assert len(segs) == 3
-    # 1st segment should have one annotation
-    s = segs[0]
-    assert len(s.labels) == 1
-    assert s.boxes[0][1] == 0.2 * lentot
-    # 2nd segment should have two annotations
-    s = segs[1]
-    assert len(s.labels) == 2
-    assert s.boxes[0][0] == 0.4 * lentot
-    assert s.boxes[1][1] == 0.95 * lentot
-    # 3rd segment should have one annotation
-    s = segs[2]
-    assert len(s.labels) == 1
-    assert s.boxes[0][0] == 0.45 * lentot
-    assert s.boxes[0][1] == 0.95 * lentot
-
-def test_append_audio_signal_without_time_stamp_to_itself(sine_audio_without_time_stamp): 
-    len_sum = 2 * len(sine_audio_without_time_stamp.data)
-    sine_audio_without_time_stamp.append(sine_audio_without_time_stamp)
-    assert len(sine_audio_without_time_stamp.data) == len_sum
-
-def test_append_with_smoothing(sine_audio):
-    audio = sine_audio
-    t = audio.duration()
-    at = audio.append(signal=audio, n_smooth=100)
-    assert audio.duration() == pytest.approx(2.*t - 100/audio.rate, rel=1./audio.rate)
-    assert at == audio.begin() + datetime.timedelta(microseconds=1e6*(t - 100/audio.rate))
-
-def test_append_with_delay(sine_audio):
-    audio = sine_audio
-    t = audio.duration()
-    delay = 3.0
-    audio.append(signal=audio, delay=3)
-    assert audio.duration() == 2.*t + 3.0
-
-def test_append_with_max_length(sine_audio):
-    audio = sine_audio
-    audio2 = audio.copy()
-    t = audio.duration()
-    n = len(audio.data)
-    nmax = int(1.5 * n)
-    audio.append(signal=audio2, max_length=nmax)
-    assert len(audio.data) == nmax
-    assert len(audio2.data) == 2*n - nmax
-
-def test_append_with_max_length_and_smooth(sine_audio):
-    audio = sine_audio
-    audio2 = audio.copy()
-    t = audio.duration()
-    n = len(audio.data)
-    nmax = int(1.5 * n)
-    n_smooth = 200
-    audio.append(signal=audio2, n_smooth=n_smooth, max_length=nmax)
-    assert len(audio.data) == nmax
-    assert len(audio2.data) == 2*n - n_smooth - nmax
-
-def test_append_with_max_length_and_delay(sine_audio):
-    audio = sine_audio
-    audio2 = audio.copy()
-    t = audio.duration()
-    n = len(audio.data)
-    nmax = int(1.5 * n)
-    delay = t
-    audio.append(signal=audio2, delay=t, max_length=nmax)
-    assert len(audio.data) == nmax
-    assert len(audio2.data) == n
-    assert np.ma.is_masked(audio.data[-1]) 
-
-def test_append_delay_determined_from_time_stamps(sine_audio):
-    audio = sine_audio
-    audio2 = audio.copy()
-    dt = 5.
-    audio2.time_stamp = audio.end() + datetime.timedelta(microseconds=1e6*dt)
-    t = audio.duration()
-    n = len(audio.data)
-    audio.append(signal=audio2)
-    assert audio.duration() == 2*t + dt
-    assert np.ma.is_masked(audio.data[n]) 
-    
-def test_add_identical_audio_signals(sine_audio):
-    audio = sine_audio
-    t = audio.duration()
-    v = np.copy(audio.data)
-    audio.add(signal=audio)
-    assert audio.duration() == t
-    assert np.all(audio.data == 2*v)
-    
-def test_add_identical_audio_signals_with_delay(sine_audio):
-    audio = sine_audio
-    t = audio.duration()
-    v = np.copy(audio.data)
-    delay = 1
-    audio.add(signal=audio, delay=delay)
-    assert audio.duration() == t
-    i = int(audio.rate * delay)
-    assert audio.data[5] == v[5]
-    assert audio.data[i+5] == v[i+5] + v[5]    
-    
-def test_add_identical_audio_signals_with_scaling_factor(sine_audio):
-    audio = sine_audio
-    v = np.copy(audio.data)
-    audio.add(signal=audio, scale=0.5)
-    assert np.all(audio.data == 1.5*v)
+def test_add_audio_signals_with_scaling(sine_audio):
+    """Test if we can add an audio signal to itself with a scaling factor"""
+    t = sine_audio.length()
+    v = np.copy(sine_audio.data)
+    scale = 1.3
+    sine_audio.add(signal=sine_audio, scale=1.3)
+    assert np.all(np.abs(sine_audio.data - (1. + scale) * v) < 0.00001)
 
 def test_morlet_with_default_params():
+    """Test can create Morlet wavelet"""
     mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)
     assert len(mor.data) == int(6*1*4000) # check number of samples
     assert max(mor.data) == pytest.approx(1, abs=0.01) # check max signal is 1
@@ -223,117 +111,52 @@ def test_morlet_with_default_params():
     assert mor.data[0] == pytest.approx(0, abs=0.02) # check signal is approx zero at start
 
 def test_gaussian_noise():
+    """Test can add Gaussian noise"""
     noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
     assert noise.std() == pytest.approx(2, rel=0.05) # check standard deviation
     assert noise.average() == pytest.approx(0, abs=6*2/np.sqrt(40000)) # check mean
-    assert noise.duration() == 20 # check length
-
-def test_clip(sine_audio):
-    audio = sine_audio
-    segs = audio.clip(boxes=[[0.1, 0.4],[0.3, 0.7]])
-    assert len(segs) == 2
-    assert segs[0].duration() == pytest.approx(0.3, abs=2./audio.rate)
-    assert segs[1].duration() == pytest.approx(0.4, abs=2./audio.rate)
-    assert audio.duration() == pytest.approx(3.0-0.6, abs=2./audio.rate)
+    assert noise.length() == 20 # check length
 
 def test_resampled_signal_has_correct_rate(sine_wave_file):
+    """Test the resampling method produces audio signal with correct rate"""
     signal = aud.AudioSignal.from_wav(sine_wave_file)
-
-    new_signal = signal.copy()
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     assert new_signal.rate == 22000
-
-    new_signal = signal.copy()
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=2000)
     assert new_signal.rate == 2000
 
 def test_resampled_signal_has_correct_length(sine_wave_file):
+    """Test the resampling method produces audio signal with correct duration"""
     signal = aud.AudioSignal.from_wav(sine_wave_file)
-
-    duration = signal.duration()
-
-    new_signal = signal.copy()
+    duration = signal.length()
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     assert len(new_signal.data) == duration * new_signal.rate 
-
-    new_signal = signal.copy()
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=2000)
     assert len(new_signal.data) == duration * new_signal.rate 
 
 def test_resampling_preserves_signal_shape(const_wave_file):
+    """Test that resampling of a constant signal produces a constant signal"""
     signal = aud.AudioSignal.from_wav(const_wave_file)
-    new_signal = signal.copy()
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
+    assert np.all(np.abs(new_signal.data - np.average(signal.data)) < 0.0001)
 
-    n = min(len(signal.data), len(new_signal.data))
-    for i in range(n):
-        assert signal.data[i] == new_signal.data[i]
-
-def test_resampling_preserves_signal_frequency(sine_wave_file):
+def test_resampling_preserves_frequency_of_sine_wave(sine_wave_file):
+    """Test that resampling of a sine wave produces a sine wave with the same frequency"""
     signal = aud.AudioSignal.from_wav(sine_wave_file)
     rate = signal.rate
     sig = signal.data
     y = abs(np.fft.rfft(sig))
     freq = np.argmax(y)
     freqHz = freq * rate / len(sig)
-    signal = aud.AudioSignal(rate, sig)
-    new_signal = signal.copy()
+    signal = aud.AudioSignal(rate=rate, data=sig)
+    new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     new_y = abs(np.fft.rfft(new_signal.data))
     new_freq = np.argmax(new_y)
     new_freqHz = new_freq * new_signal.rate / len(new_signal.data)
-
     assert freqHz == new_freqHz
-
-def test_signal_is_padded(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2*duration
-    winstep = 2*duration
-    signal = aud.AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep, zero_padding=True)
-    assert frames.shape[0] == 1
-    assert frames.shape[1] == 2*len(sig)
-    assert frames[0, len(sig)] == 0
-    assert frames[0, 2*len(sig)-1] == 0
-
-def test_can_make_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/2
-    winstep = duration/4
-    signal = aud.AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen=winlen, winstep=winstep)
-    assert frames.shape[0] == 3
-    assert frames.shape[1] == len(sig)/2
-
-def test_can_make_non_overlapping_frames(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/2
-    signal = aud.AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 2
-    assert frames.shape[1] == len(sig)/4
-
-def test_first_frame_matches_original_signal(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = duration/4
-    winstep = duration/10
-    signal = aud.AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 8
-    for i in range(int(winlen*rate)):
-        assert sig[i] == pytest.approx(frames[0,i], rel=1E-6)
-
-def test_window_length_can_exceed_duration(sine_wave):
-    rate, sig = sine_wave
-    duration = len(sig) / rate
-    winlen = 2 * duration
-    winstep = duration
-    signal = aud.AudioSignal(rate, sig)
-    frames = signal.make_frames(winlen, winstep)
-    assert frames.shape[0] == 1
-

@@ -227,7 +227,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
 
         Returns:
             segs: numpy.array
-                Segmented data.
+                Segmented data, has shape (num_segs, win_len, x.shape[1:])
 
         Example:
             >>> from ketos.audio_processing.audio_processing import segment
