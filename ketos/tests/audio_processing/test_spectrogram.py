@@ -26,32 +26,31 @@
 
 """ Unit tests for the 'spectrogram' module within the ketos library
 """
-
 import pytest
 import numpy as np
 import copy
-from ketos.audio_processing.spectrogram import MagSpectrogram, PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
-from ketos.data_handling.parsing import Interval
-from ketos.audio_processing.audio import AudioSignal
+from ketos.audio_processing.spectrogram import MagSpectrogram,\
+    PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
 import ketos.data_handling.database_interface as di
 import datetime
 import math
 import os
 import tables
 
-
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
-def test_init_spec__new(spec_image_with_attrs):
+def test_init_spec(spec_image_with_attrs):
+    """Test that we can initialize an instance of the Spectrogram class"""
     img, dt, ax = spec_image_with_attrs
     spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
     assert np.all(spec.data == img)
     assert spec.type == 'Mag'
 
-def test_copy_spec__new(spec_image_with_attrs):
+def test_copy_spec(spec_image_with_attrs):
+    """Test that we can make a copy of spectrogram"""
     img, dt, ax = spec_image_with_attrs
     spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
     spec2 = spec.deepcopy()
@@ -61,6 +60,19 @@ def test_copy_spec__new(spec_image_with_attrs):
     assert np.all(spec.data + 1.5 == spec2.data) #check that original image was not affected
     assert spec.time_ax.min() + 30. == spec2.time_ax.min() #check that original time axis was not affected
 
+def test_mag_spec_of_sine_wave(sine_audio):
+    """Test that we can compute the magnitude spectrogram of a sine wave"""
+    duration = sine_audio.length()
+    win = duration / 4
+    step = duration / 10
+    spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
+    mag = spec.data
+    assert spec.time_res() == step
+    assert spec.freq_min() == 0    
+    freq = np.argmax(mag, axis=1)
+    freqHz = freq * spec.freq_ax.bin_width()
+    assert np.all(np.abs(freqHz - 2000) < spec.freq_ax.bin_width())
+    
 
 
 ### old tests ...
@@ -612,16 +624,6 @@ def test_segment_using_length_w_overlap():
     assert segs[0].image.shape[1] == 31
     assert segs[1].image.shape[0] == 40
     assert segs[1].image.shape[1] == 31
-
-def test_copy_spectrogram():
-    img = np.zeros((101,31))
-    spec = Spectrogram(image=img, fmin=14, fres=0.1)
-    spec2 = spec.copy()
-    spec = None
-    assert spec2.image.shape[0] == 101
-    assert spec2.image.shape[1] == 31
-    assert spec2.fmin == 14
-    assert spec2.fres == 0.1
 
 def test_copy_mag_spectrogram(sine_audio):
     spec = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
