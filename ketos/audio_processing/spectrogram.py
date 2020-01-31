@@ -475,12 +475,12 @@ class Spectrogram(TimeData):
             Returns:
                 specs: Spectrogram
                     Stacked spectrograms
-        """              
-        segs, offset = segment_data(self, window, step)           
+        """
+        segs, filename, offset, label, annot = segment_data(self, window, step)
 
         ax = copy.deepcopy(self.freq_ax)
         specs = self.__class__(data=segs, time_res=self.time_res(), spec_type=self.type, freq_ax=ax,\
-            filename=self.filename, offset=offset, label=self.label, annot=annots)
+            filename=filename, offset=offset, label=label, annot=annot)
         
         return specs
                 
@@ -638,7 +638,7 @@ class Spectrogram(TimeData):
         time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
 
-    def plot(self, id=0, show_annot=False):
+    def plot(self, id=0, show_annot=False, figsize=(5,4)):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -652,6 +652,8 @@ class Spectrogram(TimeData):
                     contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
+                figsize: tuple
+                    Figure size
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -671,45 +673,13 @@ class Spectrogram(TimeData):
                 >>> fig = spectrogram.plot(label=1)
                 >>> plt.show()
         """
-        # create canvas and axes
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8,7), sharex=True)
+        fig, ax = super().plot(id, show_annot, figsize)
 
-        # select image data
-        x = self.get_data(id)
-
-        # axes ranges
-        extent = (0., self.length(), self.freq_min(), self.freq_max())
-
-        # draw image
-        img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)
-
-        # axis labels
-        ax.set_xlabel(self.time_ax.label)
-        ax.set_ylabel(self.freq_ax.label)
-
-        # colobar
-        fig.colorbar(img, ax=ax, format='%+2.0f dB')
-
-        # title
-        title = ""
-        if self.filename: title += "{0}".format(self.filename)           
-        if self.label:
-            if len(title) > 0: title += ", "
-            title += "{0}".format(self.label)
-
-        fig.title(title)
-
-        # if offset is non-zero, add a second time axis at the top 
-        # showing the `absolute` time
-        if self.offset != 0:
-            axt = ax.twiny()
-            axt.set_xlim(offset, offset + self.length())
-
-        # superimpose annotation boxes
-        if show_annot:
-            ans = self.annotations(id)
-            if ans:
-                print('Drawing of annotations not yet implemented')
+        x = self.get_data(id) # select image data        
+        extent = (0., self.length(), self.freq_min(), self.freq_max()) # axes ranges        
+        img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)# draw image
+        ax.set_ylabel(self.freq_ax.label) # axis label        
+        fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
             
         fig.tight_layout()
         return fig
@@ -829,6 +799,15 @@ class MagSpectrogram(Spectrogram):
 
         return spec
 
+    def freq_res(self):
+        """ Get frequency resolution in Hz.
+
+            Returns:
+                : float
+                    Frequency resolution in Hz
+        """
+        return self.freq_ax.bin_width()
+
     def recover_audio(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
 
@@ -906,7 +885,7 @@ class PowerSpectrogram(Spectrogram):
     def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
 
         # compute STFT
-        img, freq_max, num_fft = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
 
@@ -921,6 +900,8 @@ class PowerSpectrogram(Spectrogram):
         # store number of points used for FFT and sampling rate
         self.num_fft = num_fft
         self.rate = audio.rate
+        self.window_func = window_func
+        self.seg_args = seg_args
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -989,6 +970,15 @@ class PowerSpectrogram(Spectrogram):
         cls(audio=audio, seg_args=seg_args, window_func=window_func)
 
         return spec
+
+    def freq_res(self):
+        """ Get frequency resolution in Hz.
+
+            Returns:
+                : float
+                    Frequency resolution in Hz
+        """
+        return self.freq_ax.bin_width()
 
 class MelSpectrogram(Spectrogram):
     """ Creates a Mel Spectrogram from an :class:`audio_signal.AudioSignal`.

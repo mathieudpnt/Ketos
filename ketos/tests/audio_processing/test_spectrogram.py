@@ -66,33 +66,27 @@ def test_mag_spec_of_sine_wave(sine_audio):
     win = duration / 4
     step = duration / 10
     spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
-    mag = spec.data
     assert spec.time_res() == step
     assert spec.freq_min() == 0    
-    freq = np.argmax(mag, axis=1)
-    freqHz = freq * spec.freq_ax.bin_width()
-    assert np.all(np.abs(freqHz - 2000) < spec.freq_ax.bin_width())
-    
+    freq = np.argmax(spec.data, axis=1)
+    freqHz = freq * spec.freq_res()
+    assert np.all(np.abs(freqHz - 2000) < spec.freq_res())
+
+def test_power_spec_of_sine_wave(sine_audio):
+    """Test that we can compute the power spectrogram of a sine wave"""
+    duration = sine_audio.length()
+    win = duration / 4
+    step = duration / 10
+    spec = PowerSpectrogram(audio=sine_audio, window=win, step=step)
+    assert spec.time_res() == step
+    assert spec.freq_min() == 0    
+    freq = np.argmax(spec.data, axis=1)
+    freqHz = freq * spec.freq_res()
+    assert np.all(np.abs(freqHz - 2000) < spec.freq_res())
+
 
 
 ### old tests ...
-
-def test_init_mag_spectrogram_from_sine_wave(sine_audio):
-    
-    duration = sine_audio.duration()
-    winlen = duration/4
-    winstep = duration/10
-    NFFT = 256
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep, NFFT=NFFT)
-    mag = spec.image
-    for i in range(mag.shape[0]):
-        freq = np.argmax(mag[i])
-        freqHz = freq * spec.fres
-        assert freqHz == pytest.approx(2000, abs=spec.fres)
-    
-    assert spec.NFFT == NFFT
-    assert spec.tres == winstep
-    assert spec.fmin == 0    
 
 def test_init_power_spectrogram_from_sine_wave(sine_audio):
     
