@@ -55,7 +55,7 @@ def pad_reflect(x, pad_left=0, pad_right=0):
 
         Example:
             >>> from ketos.audio_processing.audio_processing import pad_reflect
-            >>> arr = np.arange(9) #create a simply array
+            >>> arr = np.arange(9) #create a simple array
             >>> print(arr)
             [0 1 2 3 4 5 6 7 8]
             >>> arr = pad_reflect(arr, pad_right=3) #pad on the right
@@ -94,7 +94,7 @@ def pad_zero(x, pad_left=0, pad_right=0):
 
         Example:
             >>> from ketos.audio_processing.audio_processing import pad_zero
-            >>> arr = np.arange(9) #create a simply array
+            >>> arr = np.arange(9) #create a simple array
             >>> print(arr)
             [0 1 2 3 4 5 6 7 8]
             >>> arr = pad_zero(arr, pad_right=3) #pad on the right
@@ -157,7 +157,7 @@ def num_samples(time, rate, even=False):
 
 def segment_args(rate, duration, offset, window, step):
     """ Computes input arguments for :func:`audio_processing.audio_processing.make_segment` 
-        to produce a centered spectrogram with properties as close as possible to the 
+        to produce a centered spectrogram with properties as close as possible to 
         those specified.
 
         Args:
@@ -239,7 +239,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
             [[0 1 2 3]
              [2 3 4 5]
              [4 5 6 7]]
-            >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3,)    
+            >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
             >>> print(y)
             [[-3 -2 -1  0]
              [-1  0  1  2]
