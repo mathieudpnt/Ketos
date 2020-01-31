@@ -76,33 +76,35 @@ def test_append_audio_signal_with_overlap(sine_audio):
     assert sine_audio.length() == 2 * audio_orig.length() - 100/sine_audio.rate
 
 def test_add_audio_signals(sine_audio):
-    """Test if we can append an audio signal to itself"""
+    """Test if we can add an audio signal to itself"""
     t = sine_audio.length()
     v = np.copy(sine_audio.data)
     sine_audio.add(signal=sine_audio)
     assert pytest.approx(sine_audio.length(), t, abs=0.00001)
     assert np.all(np.abs(sine_audio.data - 2*v) < 0.00001)
     
+def test_add_audio_signals_with_offset(sine_audio):
+    """Test if we can add an audio signal to itself with a time offset"""
+    t = sine_audio.length()
+    v = np.copy(sine_audio.data)
+    offset = 1.1
+    sine_audio.add(signal=sine_audio, offset=offset)
+    assert sine_audio.length() == t
+    b = sine_audio.time_ax.bin(offset) 
+    assert np.all(np.abs(sine_audio.data[:b] - v[:b]) < 0.00001)
+    assert np.all(np.abs(sine_audio.data[b:] - 2 * v[b:]) < 0.00001)    
+
+def test_add_audio_signals_with_scaling(sine_audio):
+    """Test if we can add an audio signal to itself with a scaling factor"""
+    t = sine_audio.length()
+    v = np.copy(sine_audio.data)
+    scale = 1.3
+    sine_audio.add(signal=sine_audio, scale=1.3)
+    assert np.all(np.abs(sine_audio.data - (1. + scale) * v) < 0.00001)
+
 
 
 # old tests below
-
-def test_add_audio_signals_with_delay(sine_audio):
-    audio = sine_audio
-    t = audio.duration()
-    v = np.copy(audio.data)
-    delay = 1
-    audio.add(signal=audio, delay=delay)
-    assert audio.duration() == t
-    i = int(audio.rate * delay)
-    assert audio.data[5] == v[5]
-    assert audio.data[i+5] == v[i+5] + v[5]    
-    
-def test_add_identical_audio_signals_with_scaling_factor(sine_audio):
-    audio = sine_audio
-    v = np.copy(audio.data)
-    audio.add(signal=audio, scale=0.5)
-    assert np.all(audio.data == 1.5*v)
 
 def test_morlet_with_default_params():
     mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)

@@ -482,7 +482,7 @@ class AudioSignal(TimeData):
                 offset: float
                     Shift the audio signal by this many seconds
                 scale: float
-                    Scaling factor for signal to be added
+                    Scaling factor applied to signal that is added
 
             Example:
                 >>> from ketos.audio_processing.audio import AudioSignal
@@ -504,18 +504,18 @@ class AudioSignal(TimeData):
         if signal is self:
             signal = self.deepcopy()
 
-        # compute cropping boundaries for time axis
-        start = -offset
-
-        # convert to bin number
-        b = self.time_ax.bin(start, truncate=True)
+        # convert to bin numbers
+        bin_offset = self.time_ax.bin(offset, truncate=True)
+        bin_start = self.time_ax.bin(-offset, truncate=True)
 
         # crop signal that is being added
-        signal = signal.crop(start=start, length=signal.data.shape[0] - b)
+        length = signal.data.shape[0] - bin_offset
+        signal = signal.crop(start=-offset, length=length)
 
         # add the two signals
+        b = bin_offset
         bins = signal.data.shape[0]
-        self.data[b:b+bins] = self.data[b:b+bins] + signal.data
+        self.data[b:b+bins] = self.data[b:b+bins] + scale * signal.data
 
     def resample(self, new_rate):
         """ Resample the acoustic signal with an arbitrary sampling rate.
