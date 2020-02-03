@@ -266,9 +266,15 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
 
     # compute segmentation parameters
-    num_frames, offset_len, win_len, step_len = ap.segment_args(rate=rate, duration=duration,\
+    seg_args = ap.segment_args(rate=rate, duration=duration,\
         offset=offset, window=window, step=step)
-    com_len = int(num_frames * step_len + win_len) #combined length of frames
+
+    num_segs = seg_args['num_segs']
+    offset_len = seg_args['offset_len']
+    win_len = seg_args['win_len']
+    step_len = seg_args['step_len']
+
+    com_len = int(num_segs * step_len + win_len) #combined length of frames
 
     # convert back to seconds and compute required amount of zero padding
     pad_left = max(0, -offset_len)
@@ -304,8 +310,6 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     # create AudioSignal object
     filename = os.path.basename(path) #parse file name
     audio = AudioSignal(data=x, rate=rate, filename=filename, offset=offset)
-
-    seg_args = (num_segs, offset_len, win_len, step_len)
 
     return audio, seg_args
 
@@ -724,7 +728,8 @@ class MagSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=img, time_res=step, spec_type='Mag', freq_ax=ax,\
+        time_res = seg_args['step_len'] / audio.rate
+        super().__init__(data=img, time_res=time_res, spec_type='Mag', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -778,7 +783,7 @@ class MagSpectrogram(Spectrogram):
                     for details on the individual methods.
 
             Returns:
-                spec: MagSpectrogram
+                : MagSpectrogram
                     Magnitude spectrogram
 
             Example:
@@ -798,9 +803,7 @@ class MagSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # compute spectrogram
-        cls(audio=audio, seg_args=seg_args, window_func=window_func)
-
-        return spec
+        return cls(audio=audio, seg_args=seg_args, window_func=window_func)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -830,9 +833,9 @@ class MagSpectrogram(Spectrogram):
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
-        pad_low = max(0, -self.freq_ax.bin(0))
-        pad_high = max(0, self.freq_ax.bin(self.rate / 2, closed_right=True) - self.freq_ax.bins)
-
+        pad_low = max(0, int(self.freq_min() / self.freq_res()))
+        bins_tot = int(self.rate / 2 / self.freq_res())
+        pad_high = max(0, bins_tot - mag.shape[1] - pad_low)
         if pad_low or pad_high > 0:
             mag = np.pad(mag, pad_width=((0,0),(pad_low,pad_high)), mode='constant')
 
@@ -845,14 +848,14 @@ class MagSpectrogram(Spectrogram):
             window_func = np.ones(num_fft)
 
         # iteratively estimate audio signal
-        audio = ap.spec2audio(data=mag, phase_angle=phase_angle, num_fft=num_fft,\
+        audio = ap.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
             step_len=step_len, num_iters=num_iters, window_func=window_func)
 
         # sampling rate of recovered audio signal should equal the original rate
-        rate_orig = self.time_ax.bin_width() * 2 * mag.shape[1]
+        rate_orig = self.freq_ax.bin_width() * 2 * mag.shape[1]
         rate = len(audio) / (self.duration() + (num_fft - step_len) / rate_orig)
         
-        assert abs(old_rate - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, old_rate)
+        assert abs(rate_orig - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, rate_orig)
 
         audio = AudioSignal(rate=rate, data=audio)
 
@@ -897,7 +900,8 @@ class PowerSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=img, time_res=step, spec_type='Pow', freq_ax=ax,\
+        time_res = seg_args['step_len'] / audio.rate
+        super().__init__(data=img, time_res=time_res, spec_type='Pow', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -1034,7 +1038,8 @@ class MelSpectrogram(Spectrogram):
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=img, time_res=step, spec_type='Mel', freq_ax=ax,\
+        time_res = seg_args['step_len'] / audio.rate        
+        super().__init__(data=img, time_res=time_res, spec_type='Mel', freq_ax=ax,\
             filename=audio.filename, offset=audio.offset, label=audio.label,\
             annot=audio.annot)
 
@@ -1246,7 +1251,7 @@ class CQTSpectrogram(Spectrogram):
                     for details on the individual methods.
 
             Returns:
-                spec: CQTSpectrogram
+                : CQTSpectrogram
                     CQT spectrogram
 
             Example:
@@ -1274,13 +1279,11 @@ class CQTSpectrogram(Spectrogram):
 
         # load audio
         audio = AudioSignal.from_wav(path=path, rate=rate, channel=channel,\
-            offset=offset, duration=duration, res_type=resample_method)
+            offset=offset, duration=duration, resample_method=resample_method)
 
         # create CQT spectrogram
-        spec = cls(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
+        return cls(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
-
-        return spec
 
     def plot(self, id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.

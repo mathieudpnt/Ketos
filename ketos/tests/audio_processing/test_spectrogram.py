@@ -29,13 +29,10 @@
 import pytest
 import numpy as np
 import copy
+import os
 from ketos.audio_processing.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
-import ketos.data_handling.database_interface as di
-import datetime
-import math
-import os
-import tables
+from ketos.audio_processing.axis import LinearAxis
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -130,116 +127,103 @@ def test_cropped_mag_spec_has_correct_frequency_axis_range(sine_audio):
     spec.crop(freq_min=1000)
     assert pytest.approx(spec.freq_min(), 1000, 2*spec.freq_res())
 
-
-
-### old test ...
-
 def test_blur_time_axis():
-    spec = Spectrogram()
+    """Test that blurring along time axis gives expected results"""
     img = np.zeros((21,21))
     img[10,10] = 1
-    spec.image = img
+    ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
+    spec = Spectrogram(data=img, time_res=1, spec_type='Mag', freq_ax=ax)
     sig = 2.0
-    spec.blur_gaussian(tsigma=sig, fsigma=0.01)
-    xy = spec.image / np.max(spec.image)
+    spec.blur(sigma_time=sig, sigma_freq=0.01)
+    xy = spec.data / np.max(spec.data)
     x = xy[:,10]
     assert x[10] == pytest.approx(1, rel=0.001)
     assert x[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
     assert x[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
-    assert xy[10,9] == pytest.approx(0, rel=0.001) 
-    
+    assert xy[10,9] == pytest.approx(0, abs=0.001) 
+
 def test_blur_freq_axis():
-    spec = Spectrogram()
+    """Test that blurring along frequency axis gives expected results"""
     img = np.zeros((21,21))
     img[10,10] = 1
-    spec.image = img
+    ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
+    spec = Spectrogram(data=img, time_res=1, spec_type='Mag', freq_ax=ax)
     sig = 4.2
-    spec.blur_gaussian(tsigma=0.01, fsigma=sig)
-    xy = spec.image / np.max(spec.image)
+    spec.blur(sigma_time=0.01, sigma_freq=sig)
+    xy = spec.data / np.max(spec.data)
     y = xy[10,:]
     assert y[10] == pytest.approx(1, rel=0.001)
     assert y[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
     assert y[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
-    assert xy[9,10] == pytest.approx(0, rel=0.001) 
+    assert xy[9,10] == pytest.approx(0, abs=0.001) 
 
-def test_estimate_audio_from_spectrogram(sine_audio):
+def test_recover_audio(sine_audio):
+    """Test that the recovered waveform has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
-    winlen = duration/4
-    winstep = duration/10
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    audio = spec.audio_signal(num_iters=10)
+    win = duration / 4
+    step = duration / 10
+    spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
+    audio = spec.recover_audio(num_iters=10)
     assert audio.rate == sine_audio.rate
 
-def test_estimate_audio_from_spectrogram_after_time_cropping(sine_audio):
+def test_recover_audio_after_time_crop(sine_audio):
+    """Test that the recovered waveform from a time-cropped spectrogram has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
-    winlen = 0.2
-    winstep = 0.02
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    spec.crop(tlow=0.4, thigh=2.7)
-    audio = spec.audio_signal(num_iters=10)
+    win = 0.2
+    step = 0.02
+    spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
+    spec.crop(start=0.4, end=2.7)
+    audio = spec.recover_audio(num_iters=10)
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
-def test_estimate_audio_from_spectrogram_after_freq_cropping(sine_audio):
+def test_recover_audio_after_freq_crop(sine_audio):
+    """Test that the recovered waveform from a frequency-cropped spectrogram has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
-    winlen = 0.2
-    winstep = 0.02
-    spec = MagSpectrogram(audio_signal=sine_audio, winlen=winlen, winstep=winstep)
-    spec.crop(flow=200, fhigh=2300)
-    audio = spec.audio_signal(num_iters=10)
+    win = 0.2
+    step = 0.02
+    spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
+    spec.crop(freq_min=200, freq_max=2300)
+    audio = spec.recover_audio(num_iters=10)
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
-
-def test_from_wav(sine_wave_file):
-    # duration is integer multiply of step size
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=None, channel=0)
-    assert spec.tres == 0.01
+def test_mag_from_wav(sine_wave_file):
+    # duration is even integer multiply of step size
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
+    assert spec.time_res() == 0.02
     assert spec.duration() == 3.0
-
-    # duration is not integer multiply of step size
-    with pytest.raises(AssertionError):
-        spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0)
-
-    # duration is not integer multiply of step size, but adjust duration automatically
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.011, sampling_rate=None, offset=0, duration=None, channel=0, adjust_duration=True)
-    assert spec.tres == pytest.approx(0.011, abs=0.001)
+    # duration is not integer even multiply of step size, but adjust duration automatically
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01)
+    assert spec.time_res() == pytest.approx(0.01, abs=0.001)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
-
     # segment is empty raises assertion error
     with pytest.raises(AssertionError):
-        spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=4.0, duration=None, channel=0)
-
+        spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
     # duration can be less than full length
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0, duration=2.14, channel=0, adjust_duration=True)
-    assert spec.tres == 0.01
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, duration=2.14)
+    assert spec.time_res() == 0.02
     assert spec.duration() == 2.14
-
     # specify both offset and duration
-    spec = MagSpectrogram.from_wav(sine_wave_file, window_size=0.2, step_size=0.01, sampling_rate=None, offset=0.13, duration=2.14, channel=0, adjust_duration=True)
-    assert spec.tres == 0.01
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, offset=0.13, duration=2.14)
+    assert spec.time_res() == 0.02
     assert spec.duration() == 2.14
-    assert spec.tmin == 0.13
+    assert spec.offset == 0.13
     # check file name
-    assert spec.file_dict[0] == 'sine_wave.wav'
+    assert spec.filename == 'sine_wave.wav'
 
-def test_from_wav_cqt(sine_wave_file):
+def test_cqt_from_wav(sine_wave_file):
     # zero offset
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32)
-    assert spec.tmin == 0
-    assert spec.tres == pytest.approx(0.01, abs=0.002)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
-    tres = spec.tres
     # non-zero offset
     offset = 1.0
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=offset, duration=None, channel=0)
-    assert spec.tmin == offset
-    assert spec.tres == tres
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, offset=1.0)
+    assert spec.offset == offset
     assert spec.duration() == pytest.approx(3.0 - offset, abs=0.01)
     # duration is less than segment length
     duration = 1.1
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.01, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, duration=duration)
-    assert spec.tres == tres
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, duration=duration)
     assert spec.duration() == pytest.approx(duration, abs=0.01)
     # step size is not divisor of duration
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step_size=0.017, fmin=1, fmax=300, bins_per_octave=32, sampling_rate=None, offset=0, duration=None, channel=0)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
