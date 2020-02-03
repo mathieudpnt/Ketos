@@ -123,7 +123,7 @@ def add_specs(a, b, offset=0, make_copy=False):
 
     # compute cropping boundaries for time axis
     start = -offset
-    end = a.length() - offset
+    end = a.duration() - offset
 
     # determine position of b within a
     pos_x = a.time_ax.bin(start, truncate=True) #lower left corner time bin
@@ -676,7 +676,7 @@ class Spectrogram(TimeData):
         fig, ax = super().plot(id, show_annot, figsize)
 
         x = self.get_data(id) # select image data        
-        extent = (0., self.length(), self.freq_min(), self.freq_max()) # axes ranges        
+        extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
         img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)# draw image
         ax.set_ylabel(self.freq_ax.label) # axis label        
         fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
@@ -847,7 +847,7 @@ class MagSpectrogram(Spectrogram):
 
         # sampling rate of recovered audio signal should equal the original rate
         rate_orig = self.time_ax.bin_width() * 2 * mag.shape[1]
-        rate = len(audio) / (self.length() + (num_fft - step_len) / rate_orig)
+        rate = len(audio) / (self.duration() + (num_fft - step_len) / rate_orig)
         
         assert abs(old_rate - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, old_rate)
 

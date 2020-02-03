@@ -263,6 +263,9 @@ class TimeData():
         ans = get_slice(self.filename, axis=0, indices=id)
         if not isinstance(ans, str) and np.ndim(ans) == 0:
             ans = ans.decode()
+
+        if isinstance(ans, np.ndarray):
+            ans = ans.astype(str)
         
         return ans
 
@@ -333,7 +336,7 @@ class TimeData():
         """
         return copy.deepcopy(self)
 
-    def length(self):
+    def duration(self):
         """ Data array duration in seconds
 
             Returns:
@@ -542,7 +545,7 @@ class TimeData():
         # showing the `absolute` time
         if offset != 0:
             axt = ax.twiny()
-            axt.set_xlim(offset, offset + self.length())
+            axt.set_xlim(offset, offset + self.duration())
 
         # superimpose annotation boxes
         if show_annot is not None:

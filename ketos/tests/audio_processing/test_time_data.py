@@ -79,7 +79,7 @@ def test_crop(time_data_1d):
     """Test if a cropped TimeData object has the expected content and length"""
     o, d = time_data_1d
     oc = o.crop(start=0.2, end=3.8)
-    assert oc.length() == 3.6
+    assert oc.duration() == 3.6
     assert np.all(oc.data == d[200:3800])
 
 def test_annotations_returns_none(time_data_1d):

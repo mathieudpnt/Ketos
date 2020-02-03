@@ -325,7 +325,7 @@ class AudioSignal(TimeData):
                 >>> from ketos.audio_processing.audio import AudioSignal
                 >>> # create a morlet wavelet
                 >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=0.5)
-                >>> mor.length()
+                >>> mor.duration()
                 3.0
                 >>> # segment into 2-s wide frames, using a step size of 1 s
                 >>> segs = mor.segment(window=2., step=1.)
@@ -399,7 +399,7 @@ class AudioSignal(TimeData):
 
         y = self.get_data(id)
 
-        x = np.linspace(start=0, stop=self.length(), num=self.data.shape[0])
+        x = np.linspace(start=0, stop=self.duration(), num=self.data.shape[0])
         ax.plot(x, y)
         ax.set_ylabel('Amplitude')
 
@@ -521,7 +521,7 @@ class AudioSignal(TimeData):
                 >>> cos = AudioSignal.cosine(rate=100, frequency=1., duration=4)
                 >>> # create a morlet wavelet
                 >>> mor = AudioSignal.morlet(rate=100, frequency=7., width=0.5)
-                >>> mor.length()
+                >>> mor.duration()
                 3.0
                 >>> # add the morlet wavelet on top of the cosine, with a shift of 1.5 sec and a scaling factor of 0.5
                 >>> cos.add(signal=mor, offset=1.5, scale=0.5)
