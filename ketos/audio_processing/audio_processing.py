@@ -269,7 +269,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
 
     return segs
 
-def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
+def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', decibel=True):
     """ Compute Short Time Fourier Transform (STFT).
 
         Uses :func:`audio_processing.audio_processing.segment_args` to convert 
@@ -296,6 +296,8 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
                     * blackman
                     * hamming (default)
                     * hanning
+            decibel: bool
+                Convert to dB scale
 
         Returns:
             img: numpy.array
@@ -319,12 +321,16 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming'):
         segs *= eval("np.{0}".format(window_func))(segs.shape[1]) #apply Window function
 
     fft = np.fft.rfft(segs) #Compute fast fourier transform
-    img = to_decibel(np.abs(fft)) #Compute magnitude on dB scale
+
+    img = np.abs(fft)
+    if decibel:
+        img = to_decibel(img) #Compute magnitude on dB scale
+    
     num_fft = segs.shape[1] #Number of points used for the Fourier Transform        
     freq_max = rate / 2. #Maximum frequency
     return img, freq_max, num_fft, seg_args
 
-def cqt(self, x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hamming'):
+def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hamming'):
     """ Compute the CQT spectrogram of an audio signal.
 
         Uses the librosa implementation, 

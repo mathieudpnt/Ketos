@@ -82,18 +82,18 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
 
     b = pos_func(x)
 
+    if closed_right:
+        idx = np.nonzero(np.logical_and(b%1==0, b>0))
+        b[idx] = b[idx] - 1
+    else:
+        b[b == bins] = bins - 1
+
     if truncate:
         b[b < 0] = 0
         b[b >= bins] = bins - 1
     else:
         idx = np.nonzero(b<0)
         b[idx] = b[idx] - 1
-
-    if closed_right:
-        idx = np.nonzero(np.logical_and(b%1==0, b>0))
-        b[idx] = b[idx] - 1
-    else:
-        b[b == bins] = bins - 1
 
     b = b.astype(dtype=int, copy=False)
 
@@ -211,20 +211,19 @@ class Axis():
                 >>> print(ax.x_min, ax.x_max, ax.bins, ax.dx)
                 3.0 6.0 6 0.5
         """
-        if (x_min is None and bins is None) or (x_max is None and bins is None):
-            return self
-
         # lower bin
         if x_min is not None:
             b_min = self.bin(x_min, truncate=True)
         else:
             b_min = 0
-        
+
         # upper bin
         if bins is not None:
             b_max = min(self.bins - 1, b_min + bins - 1)
-        else:
+        elif x_max is not None:
             b_max = self.bin(x_max, truncate=True, closed_right=True)
+        else:
+            b_max = self.bins - 1
 
         # update attributes
         x_min = self.low_edge(b_min)

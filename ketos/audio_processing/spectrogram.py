@@ -76,7 +76,7 @@ from ketos.audio_processing.image import enhance_signal, reduce_tonal_noise
 from ketos.audio_processing.time_data import TimeData, segment_data
 
 
-def add_specs(a, b, offset=0, make_copy=False):
+def add_specs(a, b, offset=0, scale=1, make_copy=False):
     """ Place two spectrograms on top of one another by adding their 
         pixel values.
 
@@ -104,6 +104,8 @@ def add_specs(a, b, offset=0, make_copy=False):
                 Spectrogram to be added
             offset: float
                 Shift spectrogram `b` by this many seconds relative to spectrogram `a`.
+            scale: float
+                Scaling factor applied to signal that is added
             make_copy: bool
                 Make copies of both spectrograms, leaving the orignal instances 
                 unchanged by the addition operation.
@@ -122,20 +124,19 @@ def add_specs(a, b, offset=0, make_copy=False):
         ab = a
 
     # compute cropping boundaries for time axis
-    start = -offset
     end = a.duration() - offset
 
     # determine position of b within a
-    pos_x = a.time_ax.bin(start, truncate=True) #lower left corner time bin
+    pos_x = a.time_ax.bin(offset, truncate=True) #lower left corner time bin
     pos_y = a.freq_ax.bin(b.freq_min(), truncate=True) #lower left corner frequency bin
 
     # crop spectrogram b
-    b = b.crop(start=start, end=end, freq_min=a.freq_min(), freq_max=a.freq_max(), make_copy=make_copy)
+    b = b.crop(start=-offset, end=end, freq_min=a.freq_min(), freq_max=a.freq_max(), make_copy=make_copy)
 
     # add the two images
-    bins_x = b.image.shape[0]
-    bins_y = b.image.shape[1]
-    ab.image[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += b.image
+    bins_x = b.data.shape[0]
+    bins_y = b.data.shape[1]
+    ab.data[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += scale * b.data
 
     return ab
 
@@ -201,7 +202,7 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     filter_banks = 20 * np.log10(filter_banks)  # dB
     
     mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (num_ceps + 1)] # Keep 2-13
-            
+
     (nframes, ncoeff) = mel_spec.shape
     n = np.arange(ncoeff)
     lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
@@ -484,7 +485,7 @@ class Spectrogram(TimeData):
         
         return specs
                 
-    def add(self, spec, offset=0, make_copy=False):
+    def add(self, spec, offset=0, scale=1, make_copy=False):
         """ Add another spectrogram on top of this spectrogram.
 
             The spectrograms must be of the same type, and share the same 
@@ -510,6 +511,8 @@ class Spectrogram(TimeData):
                 offset: float
                     Shift the spectrograms that is being added by this many seconds 
                     relative to the original spectrogram.
+                scale: float
+                    Scaling factor applied to spectrogram that is added
                 make_copy: bool
                     Make copies of both spectrograms so as to leave the original 
                     instances unchanged.
@@ -518,7 +521,7 @@ class Spectrogram(TimeData):
                 : Spectrogram
                     Sum spectrogram
         """
-        return add_specs(a=self, b=spec, offset=offset, make_copy=make_copy)
+        return add_specs(a=self, b=spec, offset=offset, scale=scale, make_copy=make_copy)
 
     def blur(self, sigma_time, sigma_freq=0):
         """ Blur the spectrogram using a Gaussian filter.
@@ -886,9 +889,10 @@ class PowerSpectrogram(Spectrogram):
 
         # compute STFT
         img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, seg_args=seg_args, window_func=window_func)
+            step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
-
+        img = ap.to_decibel(img) # convert to dB
+        
         # create frequency axis
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
@@ -1018,12 +1022,15 @@ class MelSpectrogram(Spectrogram):
             num_filters=40, num_ceps=20, cep_lifter=20):
 
         # compute STFT
-        img, freq_max, num_fft = ap.stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, seg_args=seg_args, window_func=window_func)
-        img, filter_banks = mag2mel(img, audio.rate, num_filters, num_ceps, cep_lifter) # Magnitude->Mel conversion
+        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, seg_args=seg_args, window_func=window_func, decibel=False)
+
+        # Magnitude->Mel conversion
+        img, filter_banks = mag2mel(img=img, num_fft=num_fft, rate=audio.rate,\
+            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter) 
 
         # create frequency axis
-        # TODO: This probably needs to be modified ...
+        # TODO: This probably needs to be modified as the Mel frequency axis is not linear ...
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
 
         # create spectrogram
@@ -1034,7 +1041,7 @@ class MelSpectrogram(Spectrogram):
         # store number of points used for FFT, sampling rate, and filter banks
         self.num_fft = num_fft
         self.rate = audio.rate
-        self.filter_banks
+        self.filter_banks = filter_banks
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -1133,7 +1140,6 @@ class MelSpectrogram(Spectrogram):
             extent = (0,self.length,self.freq_min(),self.freq_max())
             img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=extent)
             ax.set_xlabel(self.time_ax.label)
-            ax.set_ylabel('Frequency (Hz)')
             fig.colorbar(img_plot,format='%+2.0f dB')
 
         else:

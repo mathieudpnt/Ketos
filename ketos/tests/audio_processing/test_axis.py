@@ -75,6 +75,11 @@ def test_linear_axis_get_bin_truncate(linear_axis_200):
     b = ax.bin([-2.1, 100.1], truncate=True)
     assert np.all(b == [0,199])
 
+def test_linear_axis_get_bin_truncate_and_closed_right(linear_axis_200):
+    ax = linear_axis_200
+    b = ax.bin([ax.max(), ax.max()+66.], closed_right=True, truncate=True)
+    assert np.all(b == [199,199])
+
 def test_log2_axis_get_bin_single_value(log2_axis_8_16):
     ax = log2_axis_8_16
     b = ax.bin(10.)
