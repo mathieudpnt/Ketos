@@ -62,7 +62,7 @@ def test_copy_spec(spec_image_with_attrs):
 
 def test_mag_spec_of_sine_wave(sine_audio):
     """Test that we can compute the magnitude spectrogram of a sine wave"""
-    duration = sine_audio.length()
+    duration = sine_audio.duration()
     win = duration / 4
     step = duration / 10
     spec = MagSpectrogram(audio=sine_audio, window=win, step=step)
@@ -74,7 +74,7 @@ def test_mag_spec_of_sine_wave(sine_audio):
 
 def test_power_spec_of_sine_wave(sine_audio):
     """Test that we can compute the power spectrogram of a sine wave"""
-    duration = sine_audio.length()
+    duration = sine_audio.duration()
     win = duration / 4
     step = duration / 10
     spec = PowerSpectrogram(audio=sine_audio, window=win, step=step)
