@@ -261,7 +261,7 @@ class TimeData():
                     Filename
         """
         ans = get_slice(self.filename, axis=0, indices=id)
-        if not isinstance(ans, str) and np.ndim(ans) == 0:
+        if ans is not None and not isinstance(ans, str) and np.ndim(ans) == 0:
             ans = ans.decode()
 
         if isinstance(ans, np.ndarray):

@@ -50,25 +50,16 @@
         MelSpectrogram class:
         CQTSpectrogram class
 """
-
 import os
+import copy
+import librosa
 import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
-from skimage.transform import rescale
 import matplotlib.pyplot as plt
-import time
-import datetime
-import math
 from ketos.audio_processing.audio import AudioSignal
 from ketos.data_handling.parsing import WinFun
-from ketos.utils import random_floats, factors
-from tqdm import tqdm
-import librosa
-
-
-import copy
 import ketos.audio_processing.audio_processing as ap
 from ketos.audio_processing.axis import LinearAxis, Log2Axis
 from ketos.audio_processing.annotation import AnnotationHandler
@@ -426,17 +417,16 @@ class Spectrogram(TimeData):
                     Cropped spectrogram
 
             Examples: 
+                >>> import numpy as np
                 >>> import matplotlib.pyplot as plt
-                >>> from.ketos.audio_processing.spectrogram import Spectrogram
-                >>> from.ketos.audio_processing.axis import LinearAxis
-                >>>
+                >>> from ketos.audio_processing.spectrogram import Spectrogram
+                >>> from ketos.audio_processing.axis import LinearAxis
                 >>> # Create a spectrogram with shape (20,30), time resolution of 
                 >>> # 0.5 s, random pixel values, and a linear frequency axis from 
                 >>> # 0 to 300 Hz,
                 >>> ax = LinearAxis(bins=30, extent=(0.,300.), label='Frequency (Hz)')
-                >>> img = np.random.rand((20,30))
+                >>> img = np.random.rand(20,30)
                 >>> spec = Spectrogram(data=img, time_res=0.5, spec_type='Mag', freq_ax=ax)
-                >>>
                 >>> # Draw the spectrogram
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
@@ -446,6 +436,12 @@ class Spectrogram(TimeData):
 
                 >>> # Crop the spectrogram along time axis
                 >>> spec1 = spec.crop(start=2.0, end=4.2, make_copy=True)
+                >>> # Draw the spectrogram
+                >>> fig = spec.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
+                >>> plt.close(fig)
+                
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
         """
         spec = super().crop(start=start, end=end, length=length, make_copy=make_copy) #crop time axis
 
@@ -550,19 +546,19 @@ class Spectrogram(TimeData):
                 >>> # create audio signal
                 >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
                 >>> # create spectrogram
-                >>> spec = MagSpectrogram(s, winlen=0.2, winstep=0.05)
+                >>> spec = MagSpectrogram(s, window=0.2, step=0.05)
                 >>> # show image
                 >>> spec.plot()
-                <Figure size 600x400 with 2 Axes>
+                <Figure size 500x400 with 2 Axes>
                 
                 >>> plt.show()
                 >>> plt.close()
                 >>> # apply very small amount (0.01 sec) of horizontal blur
                 >>> # and significant amount of vertical blur (30 Hz)  
-                >>> spec.blur_gaussian(tsigma=0.01, fsigma=30)
+                >>> spec.blur(sigma_time=0.01, sigma_freq=30)
                 >>> # show blurred image
                 >>> spec.plot()
-                <Figure size 600x400 with 2 Axes>
+                <Figure size 500x400 with 2 Axes>
 
                 >>> plt.show()
                 >>> plt.close()
@@ -623,15 +619,15 @@ class Spectrogram(TimeData):
                 >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
                 >>> # compute the spectrogram
                 >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram(aud, winlen=0.2, winstep=0.02, decibel=True)
+                >>> spec = MagSpectrogram(aud, window=0.2, step=0.02)
                 >>> # keep only frequencies below 800 Hz
-                >>> spec.crop(fhigh=800)
+                >>> spec = spec.crop(freq_max=800)
                 >>> # show spectrogram as is
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_before_tonal.png")
                 >>> plt.close(fig)
                 >>> # tonal noise reduction
-                >>> spec.tonal_noise_reduction()
+                >>> spec.reduce_tonal_noise()
                 >>> # show modified spectrogram
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
@@ -642,7 +638,11 @@ class Spectrogram(TimeData):
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
 
         """
-        time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
+        if 'time_constant' in kwargs.keys():
+            time_const_len = kwargs['time_constant'] / self.time_ax.bin_width()
+        else:
+            time_const_len = None
+
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
 
     def plot(self, id=0, show_annot=False, figsize=(5,4)):
@@ -665,21 +665,22 @@ class Spectrogram(TimeData):
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
-
-            Example:
-                >>> # extract saved spectrogram from database file
-                >>> import tables
-                >>> import ketos.data_handling.database_interface as di
-                >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
-                >>> table = di.open_table(db, "/sig") 
-                >>> spectrogram = di.load_specs(table)[0]
-                >>> db.close()
-                >>> 
-                >>> # plot the spectrogram and label '1'
-                >>> import matplotlib.pyplot as plt
-                >>> fig = spectrogram.plot(label=1)
-                >>> plt.show()
         """
+# TODO: include this example with updated version of load_specs method
+#            Example:
+#                >>> # extract saved spectrogram from database file
+#                >>> import tables
+#                >>> import ketos.data_handling.database_interface as di
+#                >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
+#                >>> table = di.open_table(db, "/sig")
+#                >>> spectrogram = di.load_specs(table)[0]
+#                >>> db.close()
+#                >>> 
+#                >>> # plot the spectrogram and label '1'
+#                >>> import matplotlib.pyplot as plt
+#                >>> fig = spectrogram.plot(label=1)
+#                >>> plt.show()
+
         fig, ax = super().plot(id, show_annot, figsize)
 
         x = self.get_data(id) # select image data        
@@ -789,9 +790,9 @@ class MagSpectrogram(Spectrogram):
             Example:
                 >>> # load spectrogram from wav file
                 >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
-                >>> spec.crop(flow=50, fhigh=800)
+                >>> spec = spec.crop(freq_min=50, freq_max=800)
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
@@ -961,9 +962,9 @@ class PowerSpectrogram(Spectrogram):
             Example:
                 >>> # load spectrogram from wav file
                 >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
-                >>> spec.crop(flow=50, fhigh=800)
+                >>> spec = spec.crop(freq_min=50, freq_max=800)
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
@@ -1104,9 +1105,9 @@ class MelSpectrogram(Spectrogram):
             Example:
                 >>> # load spectrogram from wav file
                 >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window_size=0.2, step_size=0.01)
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
-                >>> spec.crop(flow=50, fhigh=800)
+                >>> spec = spec.crop(freq_min=50, freq_max=800)
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
@@ -1257,7 +1258,7 @@ class CQTSpectrogram(Spectrogram):
             Example:
                 >>> # load spectrogram from wav file
                 >>> from ketos.audio_processing.spectrogram import CQTSpectrogram
-                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step_size=0.01, fmin=10, fmax=800, bins_per_octave=16)
+                >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step=0.01, freq_min=10, freq_max=800, bins_per_oct=16)
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
@@ -1304,7 +1305,7 @@ class CQTSpectrogram(Spectrogram):
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(sped_id, show_annot)
+        fig = super().plot(id, show_annot)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig
