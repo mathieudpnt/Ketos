@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .losses import FScoreLoss
-from .metrics import precision_recall_accuracy_f
+from .metrics import Accuracy, Precision, Recall, FScore
 import numpy as np
 import json
 
@@ -184,7 +184,11 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {'Accuracy':tf.keras.metrics.Accuracy,
+    valid_metrics = {'Accuracy_Ketos': Accuracy,
+                     'Precision_Ketos': Precision,
+                     'Recall_Ketos': Recall,
+                     'FScore_Ketos': FScore,
+                     'Accuracy':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
                      'BinaryCrossentropy':tf.keras.metrics.BinaryCrossentropy,
@@ -829,7 +833,9 @@ class NNInterface():
         self.test_generator = test_generator
 
     def set_log_dir(self, log_dir):
-        """ Defines the directory where tensorboard log files can be stored
+        """ Defines the directory where tensorboard log files and .csv log files can be stored
+        
+            Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
 
             Args:
                 log_dir:str
@@ -896,6 +902,14 @@ class NNInterface():
         return named_logs
 
     def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False,  ):
+        if log_csv == True:
+            column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
+            if self.secondary_metrics is not None:
+                secondary_metric_names = [ m.name for m in self.secondary_metrics]
+                column_names = column_names + secondary_metric_names
+                
+            log_csv_df = pd.DataFrame(columns = column_names)
+
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             batch_metrics = {}
@@ -942,7 +956,7 @@ class NNInterface():
                 #     print("")
 
 
-                message  = [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                message  = [str(epoch) + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
                 #import pdb; pdb.set_trace()
                 print(''.join(message))
                     #self.print_metrics(train_result)
@@ -972,6 +986,15 @@ class NNInterface():
                 #self.print_metrics(train_result)
                 print(metrics_values_msg)
 
+            if log_csv == True:
+                log_row = [epoch, train_result[0], "train"] + train_result[1:]
+                if self.secondary_metrics is not None:
+                    log_row = log_row + [ batch_metrics['train_' + m.name] for m in self.secondary_metrics]
+
+                log_csv_df = log_csv_df.append(pd.Series(log_row), index = log_csv_df.columns)
+
+             
+            
             if log_tensorboard == True:
                 self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
 
@@ -1018,9 +1041,16 @@ class NNInterface():
                     print("====================================================================================")
                     print("Val: ")
                     print(metrics_values_msg)
+
+
+                if log_csv == True:
+                    log_row = [epoch, train_result[0], "val"] + train_result[1:]
+                    if self.secondary_metrics is not None:
+                        log_row = log_row + [ batch_metrics['val_' + m.name] for m in self.secondary_metrics]
+
+                    log_csv_df = log_csv_df.append(pd.Series(log_row), index = log_csv_df.columns)
+
                             
-
-
                 # if verbose == True:
                 #     print("\nval: ")
                 #     self.print_metrics(val_result)
