@@ -2,7 +2,10 @@ import tensorflow as tf
 from .losses import FScoreLoss
 from .metrics import Accuracy, Precision, Recall, FScore
 import numpy as np
+import pandas as pd
 import json
+import os
+
 
 
 class RecipeCompat():
@@ -910,6 +913,11 @@ class NNInterface():
                 
             log_csv_df = pd.DataFrame(columns = column_names)
 
+        if log_tensorboard == True:
+            tensorboard_writer = tf.summary.create_file_writer(self.log_dir)
+            tensorboard_writer.set_as_default()
+
+
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             batch_metrics = {}
@@ -967,7 +975,7 @@ class NNInterface():
 
             if self.secondary_metrics is not None:
                 for m in self.secondary_metrics:
-                    batch_metrics['train_' + m.name] = batch_metrics['train_' + m.name] / self.train_generator.n_batches
+                    batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
             # if verbose == True:
             #         print("====================================================================================")
@@ -989,15 +997,20 @@ class NNInterface():
             if log_csv == True:
                 log_row = [epoch, train_result[0], "train"] + train_result[1:]
                 if self.secondary_metrics is not None:
-                    log_row = log_row + [ batch_metrics['train_' + m.name] for m in self.secondary_metrics]
+                    log_row = log_row + [batch_metrics['train_' + m.name] for m in self.secondary_metrics]
 
-                log_csv_df = log_csv_df.append(pd.Series(log_row), index = log_csv_df.columns)
+                log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
              
             
             if log_tensorboard == True:
-                self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))                
-
+                #self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))
+                tf.summary.scalar('train_loss', data=train_result[0], step=epoch)
+                for m_index, m in enumerate(self.metrics):
+                    tf.summary.scalar('train_' + m.name, data = train_result[m_index + 1], step=epoch  ) #the first train_result is the loss
+                if self.secondary_metrics is not None:
+                    for m in self.secondary_metrics:
+                        tf.summary.scalar('train_' + m.name, data = batch_metrics['train_' + m.name], step=epoch)
 
             if validate == True:
                 for val_batch_id in range(self.val_generator.n_batches):
@@ -1031,7 +1044,7 @@ class NNInterface():
                 if self.secondary_metrics is not None:
                     
                     for m in self.secondary_metrics:
-                        batch_metrics['val_' + m.name] = batch_metrics['val_' + m.name] / self.train_generator.n_batches
+                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.train_generator.n_batches)
                 
                 if verbose == True and self.secondary_metrics is not None:
                     metrics_values_msg = ""
@@ -1044,26 +1057,35 @@ class NNInterface():
 
 
                 if log_csv == True:
-                    log_row = [epoch, train_result[0], "val"] + train_result[1:]
+                    log_row = [epoch, val_result[0], "val"] + val_result[1:]
                     if self.secondary_metrics is not None:
-                        log_row = log_row + [ batch_metrics['val_' + m.name] for m in self.secondary_metrics]
+                        log_row = log_row + [batch_metrics['val_' + m.name] for m in self.secondary_metrics]
 
-                    log_csv_df = log_csv_df.append(pd.Series(log_row), index = log_csv_df.columns)
+                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns),ignore_index=True)
 
                             
                 # if verbose == True:
                 #     print("\nval: ")
                 #     self.print_metrics(val_result)
                 if log_tensorboard == True:
-                    self.tensorboard_callback.on_epoch_end(epoch, name_logs(val_result, "val_"))  
+                    #self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))
+                    tf.summary.scalar('val_loss', data=val_result[0], step=epoch)
+                    for m_index, m in enumerate(self.metrics):
+                        tf.summary.scalar('val_' + m.name, data = val_result[m_index + 1], step=epoch  ) #the first val_result is the loss
+                    if self.secondary_metrics is not None:
+                        for m in self.secondary_metrics:
+                            tf.summary.scalar('val_' + m.name, data = batch_metrics['val_' + m.name], step=epoch)
+                        
 
             
             # if epoch % 5:
             #     checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
             #     self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
         
-        if log_tensorboard == True:
-            self.tensorboard_callback.on_train_end(None)
+        # if log_tensorboard == True:
+        #     self.tensorboard_callback.on_train_end(None)
+        if log_csv == True:
+            log_csv_df.to_csv(os.path.join(self.log_dir,"log.csv"))
 
         
     def run(self, input, return_raw_output=False):
