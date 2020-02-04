@@ -164,6 +164,39 @@ class ResNetInterface(NNInterface):
 
         return instance
 
+    @classmethod
+    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        with open(json_file, 'r') as json_recipe:
+            recipe_dict = json.load(json_recipe)
+
+        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        if 'secondary_metrics' in recipe_dict.keys():
+                secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
+            else:
+                 secondary_metrics = None
+
+        if return_recipe_compat == True:
+            recipe_dict['optimizer'] = optimizer
+            recipe_dict['loss_function'] = loss_function
+            recipe_dict['metrics'] = metrics
+            if 'secondary_metrics' in recipe_dict.keys():
+                recipe_dict['secondary_metrics'] = secondary_metrics
+            
+        else:
+            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+            if 'secondary_metrics' in recipe_dict.keys():
+                recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
+
+        recipe_dict['block_list'] = recipe_dict['block_list']
+        recipe_dict['n_classes'] = recipe_dict['n_classes']
+        recipe_dict['initial_filters'] = recipe_dict['initial_filters']
+
+        return recipe_dict
+
     def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
         self.block_list = block_list
         self.n_classes = n_classes
