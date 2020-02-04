@@ -174,8 +174,8 @@ class ResNetInterface(NNInterface):
         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
         if 'secondary_metrics' in recipe_dict.keys():
                 secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
-            else:
-                 secondary_metrics = None
+        else:
+                secondary_metrics = None
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
