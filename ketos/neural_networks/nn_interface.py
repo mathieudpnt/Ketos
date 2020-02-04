@@ -942,7 +942,7 @@ class NNInterface():
 
 
                 if verbose == True:
-                    message  = ["Epoch: " + str(epoch) + "batch: " + batch_train_id + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                    message  = ["Epoch: " + str(epoch) + "batch: " + str(train_batch_id) + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
                     print(''.join(message))
 
 
