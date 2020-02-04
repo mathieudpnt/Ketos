@@ -927,15 +927,7 @@ class NNInterface():
                     batch_metrics['val_' + m.name] = 0
                     batch_metrics['test_' + m.name] = 0
             
-
-            # train_precision = 0    
-            # train_recall = 0
-            # train_f_score = 0
-            # train_accuracy = 0
-            # val_precision = 0    
-            # val_recall = 0
-            # val_f_score = 0
-            # val_accuracy = 0
+           
             self.model.reset_metrics()
                 
             for train_batch_id in range(self.train_generator.n_batches):
@@ -948,42 +940,16 @@ class NNInterface():
                         batch_metrics['train_' + m.name] += m.func(y_true=train_Y, y_pred=train_set_pred)
                         
 
-                # train_set_pred = self.model.predict(train_X)
-                # train_f_p_r = precision_recall_accuracy_f(y_true=train_Y, y_pred=train_set_pred, f_beta=0.5)
 
-                # train_f_score += train_f_p_r['f_score']
-                # train_precision += train_f_p_r['precision']
-                # train_recall += train_f_p_r['recall']
-                # train_accuracy += train_f_p_r['accuracy']
+                if verbose == True:
+                    message  = ["Epoch: " + str(epoch) + "batch: " + batch_train_id + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                    print(''.join(message))
 
-                # if verbose == True:
-                #     print("train: ","Epoch:{} Batch:{}".format(epoch, train_batch_id))
-                #     print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-                #         1-train_f_p_r['f_score'], train_f_p_r['accuracy'], train_f_p_r['precision'], train_f_p_r['recall'], train_f_p_r['f_score']) 
-                #     )
-                #     print("")
-
-
-                message  = [str(epoch) + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
-                #import pdb; pdb.set_trace()
-                print(''.join(message))
-                    #self.print_metrics(train_result)
-            # train_precision = train_precision / self.train_generator.n_batches
-            # train_recall = train_recall / self.train_generator.n_batches
-            # train_f_score = train_f_score / self.train_generator.n_batches
-            # train_accuracy = train_accuracy / self.train_generator.n_batches
 
             if self.secondary_metrics is not None:
                 for m in self.secondary_metrics:
                     batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
-            # if verbose == True:
-            #         print("====================================================================================")
-            #         print("train: ","Epoch:{}".format(epoch))
-            #         print("loss:{:.3f} accuracy:{:.3f} precision:{:.3f} recall:{:.3f} f-score:{:.3f}".format(
-            #            1 - train_f_score, train_accuracy, train_precision, train_recall, train_f_score) 
-            #         )
-                    
             if verbose == True and self.secondary_metrics is not None:
                 metrics_values_msg = ""
                 for m in self.secondary_metrics:
@@ -991,7 +957,6 @@ class NNInterface():
                 
                 print("====================================================================================")
                 print("train: ","Epoch:{}".format(epoch))
-                #self.print_metrics(train_result)
                 print(metrics_values_msg)
 
             if log_csv == True:
@@ -1004,7 +969,6 @@ class NNInterface():
              
             
             if log_tensorboard == True:
-                #self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))
                 tf.summary.scalar('train_loss', data=train_result[0], step=epoch)
                 for m_index, m in enumerate(self.metrics):
                     tf.summary.scalar('train_' + m.name, data = train_result[m_index + 1], step=epoch  ) #the first train_result is the loss
@@ -1024,22 +988,6 @@ class NNInterface():
                         for m in self.secondary_metrics:
                             batch_metrics['val_' + m.name] += m.func(y_true=val_Y, y_pred=val_set_pred)
 
-
-                    # val_set_pred = self.model.predict(val_X)
-                    # val_f_p_r = precision_recall_accuracy_f(y_true=val_Y, y_pred=val_set_pred, f_beta=0.5)
-
-                    # val_f_score += val_f_p_r['f_score']
-                    # val_precision += val_f_p_r['precision']
-                    # val_recall += val_f_p_r['recall']
-                    # val_accuracy += val_f_p_r['accuracy']
-
-
-                
-                    #self.print_metrics(val_result)
-                # val_precision = val_precision / self.val_generator.n_batches
-                # val_recall = val_recall / self.val_generator.n_batches
-                # val_f_score = val_f_score / self.val_generator.n_batches
-                # val_accuracy = val_accuracy / self.val_generator.n_batches
 
                 if self.secondary_metrics is not None:
                     
@@ -1064,11 +1012,7 @@ class NNInterface():
                     log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns),ignore_index=True)
 
                             
-                # if verbose == True:
-                #     print("\nval: ")
-                #     self.print_metrics(val_result)
                 if log_tensorboard == True:
-                    #self.tensorboard_callback.on_epoch_end(epoch, name_logs(train_result, "train_"))
                     tf.summary.scalar('val_loss', data=val_result[0], step=epoch)
                     for m_index, m in enumerate(self.metrics):
                         tf.summary.scalar('val_' + m.name, data = val_result[m_index + 1], step=epoch  ) #the first val_result is the loss
@@ -1076,14 +1020,6 @@ class NNInterface():
                         for m in self.secondary_metrics:
                             tf.summary.scalar('val_' + m.name, data = batch_metrics['val_' + m.name], step=epoch)
                         
-
-            
-            # if epoch % 5:
-            #     checkpoint_name = "cp-{:04d}.ckpt".format(epoch)
-            #     self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
-        
-        # if log_tensorboard == True:
-        #     self.tensorboard_callback.on_train_end(None)
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self.log_dir,"log.csv"))
 
