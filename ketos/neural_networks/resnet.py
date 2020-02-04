@@ -38,7 +38,7 @@ import tensorflow as tf
 import numpy as np
 from .losses import FScoreLoss
 from .metrics import precision_recall_accuracy_f
-from .nn_interface import RecipeCompat
+from .nn_interface import RecipeCompat, NNInterface
 import json
 from zipfile import ZipFile
 from glob import glob
@@ -145,10 +145,8 @@ class ResNetArch(tf.keras.Model):
 
 
 
-class ResNetInterface():
+class ResNetInterface(NNInterface):
 
-    
-    
     @classmethod
     def build_from_recipe(cls, recipe):
         block_list = recipe['block_list']
@@ -157,18 +155,23 @@ class ResNetInterface():
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
+        if 'secondary_metrics' in recipe.keys():
+            secondary_metrics = recipe['secondary_metrics']
+        else:
+            secondary_metrics = None
 
-        instance = cls(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
 
-    def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics):
+    def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
         self.block_list = block_list
         self.n_classes = n_classes
         self.initial_filters = initial_filters
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
+        self.secondary_metrics = secondary_metrics
 
         self.model=ResNetArch(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
         self.compile_model()
