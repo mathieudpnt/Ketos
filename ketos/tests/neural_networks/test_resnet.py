@@ -38,3 +38,14 @@ def test_ResNetBlock():
 
 
 
+def test_ResNetBlock_residual():
+    block = ResNetBlock(channels=1, strides=1, residual_path=True)
+
+    assert len(block.layers) == 7
+    assert isinstance(block.layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[4], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[5], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[6], tf.keras.layers.Dropout)
