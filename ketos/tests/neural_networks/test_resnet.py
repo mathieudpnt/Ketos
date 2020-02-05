@@ -26,3 +26,15 @@ def recipe_dict():
     return recipe
 
 
+def test_ResNetBlock():
+    block = ResNetBlock(channels=1, strides=1, residual_path=False)
+
+    assert len(block.layers) == 5
+    assert isinstance(block.layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[4], tf.keras.layers.Dropout)
+
+
+
