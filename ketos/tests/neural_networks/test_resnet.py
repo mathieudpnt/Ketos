@@ -13,3 +13,16 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
+@pytest.fixture
+def recipe_dict():
+    recipe = {'block_list':[2,2,2],
+               'n_classes':2,
+               'initial_filters':16,        
+               'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+        
+    }
+    return recipe
+
+
