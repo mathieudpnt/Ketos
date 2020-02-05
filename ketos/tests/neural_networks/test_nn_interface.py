@@ -6,6 +6,7 @@ from ketos.neural_networks.losses import FScoreLoss
 from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
 from ketos.data_handling.data_feeding import BatchGenerator
 import os
+import shutil
 import tables
 import json
 
@@ -435,9 +436,8 @@ def test_train_loop_log_csv(MLPInterface_subclass):
                'loss_function': RecipeCompat("FScoreLoss",FScoreLoss),  
                'metrics': [RecipeCompat('CategoricalAccuracy', tf.keras.metrics.CategoricalAccuracy)],
                'secondary_metrics': [RecipeCompat('Precision_Ketos',Precision),
-                                 RecipeCompat('Recall_Ketos',Recall),
-                                 RecipeCompat('Precision',tf.keras.metrics.Precision),
-                                 RecipeCompat('Recall',tf.keras.metrics.Recall)]
+                                     RecipeCompat('Recall_Ketos',Recall),
+                                 ]
                
     }
 
@@ -445,22 +445,21 @@ def test_train_loop_log_csv(MLPInterface_subclass):
     h5 = tables.open_file(os.path.join(path_to_assets, "vectors_1_0.h5"), 'r')
     train_table = h5.get_node("/train")
     val_table = h5.get_node("/val")
-    test_table = h5.get_node("/test")
 
     train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics'], secondary_metrics=recipe['secondary_metrics']) 
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
-    instance.set_test_generator(test_generator)
     instance.set_log_dir(os.path.join(path_to_tmp, "test_log_dir"))
 
     instance.train_loop(15, log_csv=True)
+
+    assert os.path.isfile(os.path.join(instance.log_dir, "log.csv"))
+    os.remove(os.path.join(instance.log_dir, "log.csv"))
 
 
 def test_train_loop_log_tensorboard(MLPInterface_subclass):
@@ -502,3 +501,6 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
     instance.set_log_dir(os.path.join(path_to_tmp, "test_log_dir"))
 
     instance.train_loop(15, log_tensorboard=True)
+
+    assert os.path.isdir(os.path.join(instance.log_dir, "tensorboard_metrics"))
+    shutil.rmtree(os.path.join(instance.log_dir, "tensorboard_metrics"))
