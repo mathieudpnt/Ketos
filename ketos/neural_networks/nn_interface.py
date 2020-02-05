@@ -914,7 +914,7 @@ class NNInterface():
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
-            tensorboard_writer = tf.summary.create_file_writer(self.log_dir)
+            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self.log_dir, "tensorboard_metrics"))
             tensorboard_writer.set_as_default()
 
 
