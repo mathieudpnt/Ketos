@@ -49,3 +49,86 @@ def test_ResNetBlock_residual():
     assert isinstance(block.layers[4], tf.keras.layers.Conv2D)
     assert isinstance(block.layers[5], tf.keras.layers.BatchNormalization)
     assert isinstance(block.layers[6], tf.keras.layers.Dropout)
+
+def test_ResNetArch():
+    resnet = ResNetArch(block_list=[2,2,2], n_classes=2, initial_filters=16)
+
+    assert len(resnet.layers) == 6
+    assert isinstance(resnet.layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1], tf.keras.models.Sequential)
+    assert isinstance(resnet.layers[2], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[3], tf.keras.layers.GlobalAveragePooling2D)
+    assert isinstance(resnet.layers[4], tf.keras.layers.Dense)
+    assert isinstance(resnet.layers[5], tf.keras.layers.Softmax)
+
+    #ResNet blocks
+    assert len(resnet.layers[1].layers) == 6
+    assert isinstance(resnet.layers[1].layers[0], ResNetBlock)
+    assert isinstance(resnet.layers[1].layers[1], ResNetBlock)
+    assert isinstance(resnet.layers[1].layers[2], ResNetBlock)
+    assert isinstance(resnet.layers[1].layers[3], ResNetBlock)
+    assert isinstance(resnet.layers[1].layers[4], ResNetBlock)
+    assert isinstance(resnet.layers[1].layers[5], ResNetBlock)
+
+    #Block 1
+    assert isinstance(resnet.layers[1].layers[0].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[0].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[0].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[0].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[0].layers[4], tf.keras.layers.Dropout)
+
+    #Block 2
+    assert isinstance(resnet.layers[1].layers[1].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[1].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[1].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[1].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[1].layers[4], tf.keras.layers.Dropout)
+
+    #Block 3
+    assert isinstance(resnet.layers[1].layers[2].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[2].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[2].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[2].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[2].layers[4], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[2].layers[5], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[2].layers[6], tf.keras.layers.Dropout)
+
+    #Block 4
+    assert isinstance(resnet.layers[1].layers[3].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[3].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[3].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[3].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[3].layers[4], tf.keras.layers.Dropout)
+
+    #Block 5
+    assert isinstance(resnet.layers[1].layers[4].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[4].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[4].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[4].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[4].layers[4], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[4].layers[5], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[4].layers[6], tf.keras.layers.Dropout)
+
+    #Block 6
+    assert isinstance(resnet.layers[1].layers[5].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[5].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[5].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(resnet.layers[1].layers[5].layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(resnet.layers[1].layers[5].layers[4], tf.keras.layers.Dropout)
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
