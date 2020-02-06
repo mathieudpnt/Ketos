@@ -179,7 +179,7 @@ class ResNetArch(tf.keras.Model):
 
 
 class ResNetInterface(NNInterface):
-    """ Creates an ResNet model with the standardized Ketos interface.
+    """ Creates a ResNet model with the standardized Ketos interface.
 
         Args:
              block_sets: list of ints
@@ -215,6 +215,28 @@ class ResNetInterface(NNInterface):
 
     @classmethod
     def build_from_recipe(cls, recipe):
+        """ Build a ResNet model from a recipe.
+
+            Args:
+                recipe: dict
+                    A recipe dictionary. optimizer, loss function
+                    and metrics must be instances of ketos.neural_networks.RecipeCompat.
+                    Example recipe:
+                        {{'block_sets':[2,2,2],
+                            'n_classes':2,
+                            'initial_filters':16,        
+                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+
+                        The only optional field is 'secondary_metrics'. 
+
+            Returns:
+                An instance of ResNetInterface.
+
+        """
+
         block_sets = recipe['block_sets']
         n_classes = recipe['n_classes']
         initial_filters = recipe['initial_filters']
@@ -232,6 +254,38 @@ class ResNetInterface(NNInterface):
 
     @classmethod
     def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        """ Read a ResNet recipe saved in a .json file.
+
+            Args:
+                json_file:string
+                    Full path (including silename and extension) to the .json file containing the recipe.
+                return_recipe_compat:bool
+                    If True, returns a dictionary where the optimizer, loss_function, metrics and 
+                    secondary_metrics (if available) values are instances of the ketos.neural_networks.nn_interface.RecipeCompat.
+                        The returned dictionary will be equivalent to:
+                            {'block_sets':[2,2,2],
+                            'n_classes':2,
+                            'initial_filters':16,        
+                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+
+                    If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
+                    dictionary representation of such fields instead of the RecipeCompat objects:
+                                        {'block_sets':[2,2,2],
+                                            'n_classes':2,
+                                            'initial_filters':16,        
+                                            'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                                            'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                                            'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                                            'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+
+                Returns:
+                    recipe, according to 'return_recipe_compat.
+
+        """
+
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
@@ -285,6 +339,23 @@ class ResNetInterface(NNInterface):
         self.test_generator = None
 
     def write_recipe(self):
+        """ Create a recipe dictionary from a ResNetInterface instance.
+
+            The resulting recipe contains all the fields necessary to build the same network architecture used by the instance calling this method.
+            
+            Returns:
+                recipe:dict
+                    A dictionary containing the recipe fields necessary to build the same network architecture.
+                    Example:
+                        {'block_sets':[2,2,2],
+                            'n_classes':2,
+                            'initial_filters':16,        
+                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+        """
+        
         recipe = {}
         recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
