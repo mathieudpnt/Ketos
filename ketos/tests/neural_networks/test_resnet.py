@@ -156,3 +156,30 @@ def test_write_recipe(recipe, recipe_dict):
     assert written_recipe == recipe_dict
 
 
+def test_read_recipe_file(recipe, recipe_dict):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe.json")
+    resnet = ResNetInterface.build_from_recipe(recipe)
+    written_recipe = resnet.write_recipe()
+    resnet.save_recipe(path_to_recipe_file)
+
+    #Read recipe as a recipe dict
+    read_recipe = resnet.read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    assert read_recipe == recipe_dict
+
+    #Read recipe as a recipe dict with RecipeCompat objects
+    read_recipe = resnet.read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].name ==recipe['optimizer'].name
+    assert read_recipe['optimizer'].func.__class__ == recipe['optimizer'].func.__class__
+    assert read_recipe['optimizer'].args == recipe['optimizer'].args
+
+    assert read_recipe['loss_function'].name == recipe['loss_function'].name
+    assert read_recipe['loss_function'].func.__class__ == recipe['loss_function'].func.__class__
+    assert read_recipe['loss_function'].args == recipe['loss_function'].args
+    
+    assert read_recipe['metrics'][0].name == recipe['metrics'][0].name
+    assert read_recipe['metrics'][0].func.__class__ == recipe['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
+
+    assert read_recipe['initial_filters'] == recipe['initial_filters']
+    assert read_recipe['block_list'] == recipe['block_list']
+    assert read_recipe['n_classes'] ==  recipe['n_classes']
