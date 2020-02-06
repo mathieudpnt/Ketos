@@ -16,7 +16,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_dict():
-    recipe = {'block_list':[2,2,2],
+    recipe = {'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':16,        
                'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
@@ -27,7 +27,7 @@ def recipe_dict():
     return recipe
 @pytest.fixture
 def recipe():
-    recipe = {'block_list':[2,2,2],
+    recipe = {'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':16,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
@@ -63,7 +63,7 @@ def test_ResNetBlock_residual():
     assert isinstance(block.layers[6], tf.keras.layers.Dropout)
 
 def test_ResNetArch():
-    resnet = ResNetArch(block_list=[2,2,2], n_classes=2, initial_filters=16)
+    resnet = ResNetArch(block_sets=[2,2,2], n_classes=2, initial_filters=16)
 
     assert len(resnet.layers) == 6
     assert isinstance(resnet.layers[0], tf.keras.layers.Conv2D)
@@ -145,7 +145,7 @@ def test_ResNetInterface_build_from_recipe(recipe):
     assert resnet.metrics[0].args == recipe['metrics'][0].args
 
     assert resnet.initial_filters == recipe['initial_filters']
-    assert resnet.block_list == recipe['block_list']
+    assert resnet.block_sets == recipe['block_sets']
     assert resnet.n_classes ==  recipe['n_classes']
 
 
@@ -181,5 +181,5 @@ def test_read_recipe_file(recipe, recipe_dict):
     assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
 
     assert read_recipe['initial_filters'] == recipe['initial_filters']
-    assert read_recipe['block_list'] == recipe['block_list']
+    assert read_recipe['block_sets'] == recipe['block_sets']
     assert read_recipe['n_classes'] ==  recipe['n_classes']
