@@ -149,5 +149,10 @@ def test_ResNetInterface_build_from_recipe(recipe):
     assert resnet.n_classes ==  recipe['n_classes']
 
 
+def test_write_recipe(recipe, recipe_dict):
+    resnet = ResNetInterface.build_from_recipe(recipe)
+    written_recipe = resnet.write_recipe()
+
+    assert written_recipe == recipe_dict
 
 
