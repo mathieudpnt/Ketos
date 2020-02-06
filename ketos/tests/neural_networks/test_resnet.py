@@ -39,7 +39,7 @@ def recipe():
 
 
 def test_ResNetBlock():
-    block = ResNetBlock(channels=1, strides=1, residual_path=False)
+    block = ResNetBlock(filters=1, strides=1, residual_path=False)
 
     assert len(block.layers) == 5
     assert isinstance(block.layers[0], tf.keras.layers.Conv2D)
@@ -51,7 +51,7 @@ def test_ResNetBlock():
 
 
 def test_ResNetBlock_residual():
-    block = ResNetBlock(channels=1, strides=1, residual_path=True)
+    block = ResNetBlock(filters=1, strides=1, residual_path=True)
 
     assert len(block.layers) == 7
     assert isinstance(block.layers[0], tf.keras.layers.Conv2D)
