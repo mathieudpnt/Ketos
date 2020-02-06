@@ -45,23 +45,23 @@ from glob import glob
 from shutil import rmtree
 
 class ResNetBlock(tf.keras.Model):
-    def __init__(self, channels, strides=1, residual_path=False):
+    def __init__(self, filters, strides=1, residual_path=False):
         super(ResNetBlock, self).__init__()
 
-        self.channels = channels
+        self.filters = filters
         self.strides = strides
         self.residual_path = residual_path
-        self.conv_1 = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(3,3), strides=self.strides,
+        self.conv_1 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(3,3), strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
         self.batch_norm_1 = tf.keras.layers.BatchNormalization()
-        self.conv_2 = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(3,3), strides=1,
+        self.conv_2 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(3,3), strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
         self.batch_norm_2 = tf.keras.layers.BatchNormalization()
 
         if residual_path == True:
-            self.conv_down = tf.keras.layers.Conv2D(filters=self.channels, kernel_size=(1,1), strides=self.strides,
+            self.conv_down = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(1,1), strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
             self.batch_norm_down = tf.keras.layers.BatchNormalization()
@@ -92,38 +92,38 @@ class ResNetBlock(tf.keras.Model):
 
 class ResNetArch(tf.keras.Model):
 
-    def __init__(self, block_list, n_classes, initial_filters=16, **kwargs):
+    def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
 
-        self.n_blocks = len(block_list)
+        self.n_sets = len(block_sets)
         self.n_classes = n_classes
-        self.block_list = block_list
-        self.input_channels = initial_filters
-        self.output_channels = initial_filters
-        self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_channels, kernel_size=(3,3), strides=1,
+        self.block_sets = block_sets
+        self.input_filters = initial_filters
+        self.output_filters = initial_filters
+        self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_filters, kernel_size=(3,3), strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
 
         self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
-        for block_id in range(self.n_blocks):
-            for layer_id in range(self.block_list[block_id]):
+        for set_id in range(self.n_sets):
+            for block_id in range(self.block_sets[set_id]):
                 #Frst layer of every block except the first
-                if block_id != 0 and layer_id == 0:
-                    block = ResNetBlock(self.output_channels, strides=2, residual_path=True)
+                if set_id != 0 and block_id == 0:
+                    block = ResNetBlock(self.output_filters, strides=2, residual_path=True)
                 
                 else:
-                    if self.input_channels != self.output_channels:
+                    if self.input_filters != self.output_filters:
                         residual_path = True
                     else:
                         residual_path = False
-                    block = ResNetBlock(self.output_channels, residual_path=residual_path)
+                    block = ResNetBlock(self.output_filters, residual_path=residual_path)
 
-                self.input_channels = self.output_channels
+                self.input_filters = self.output_filters
 
                 self.blocks.add(block)
             
-            self.output_channels *= 2
+            self.output_filters *= 2
 
         self.batch_norm_final = tf.keras.layers.BatchNormalization()
         self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
@@ -149,7 +149,7 @@ class ResNetInterface(NNInterface):
 
     @classmethod
     def build_from_recipe(cls, recipe):
-        block_list = recipe['block_list']
+        block_sets = recipe['block_sets']
         n_classes = recipe['n_classes']
         initial_filters = recipe['initial_filters']
         optimizer = recipe['optimizer']
@@ -160,7 +160,7 @@ class ResNetInterface(NNInterface):
         else:
             secondary_metrics = None
 
-        instance = cls(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
 
@@ -191,14 +191,14 @@ class ResNetInterface(NNInterface):
             if 'secondary_metrics' in recipe_dict.keys():
                 recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
 
-        recipe_dict['block_list'] = recipe_dict['block_list']
+        recipe_dict['block_sets'] = recipe_dict['block_sets']
         recipe_dict['n_classes'] = recipe_dict['n_classes']
         recipe_dict['initial_filters'] = recipe_dict['initial_filters']
 
         return recipe_dict
 
-    def __init__(self, block_list, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
-        self.block_list = block_list
+    def __init__(self, block_sets, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
+        self.block_sets = block_sets
         self.n_classes = n_classes
         self.initial_filters = initial_filters
         self.optimizer = optimizer
@@ -206,7 +206,7 @@ class ResNetInterface(NNInterface):
         self.metrics = metrics
         self.secondary_metrics = secondary_metrics
 
-        self.model=ResNetArch(block_list=block_list, n_classes=n_classes, initial_filters=initial_filters)
+        self.model=ResNetArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
 
@@ -220,7 +220,7 @@ class ResNetInterface(NNInterface):
 
     def write_recipe(self):
         recipe = {}
-        recipe['block_list'] = self.block_list
+        recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
         recipe['initial_filters'] = self.initial_filters
         recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
