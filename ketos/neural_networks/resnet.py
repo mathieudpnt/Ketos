@@ -45,6 +45,19 @@ from glob import glob
 from shutil import rmtree
 
 class ResNetBlock(tf.keras.Model):
+    """ Residual block for ResNet architectures.
+
+        Args: 
+            filters: int
+                The number of filters in the block
+            strides: int
+                Strides used in convolutional layers within the block
+            residual_path: bool
+                Whether or not the block will contain a residual path
+
+        Returns:
+            A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
+    """
     def __init__(self, filters, strides=1, residual_path=False):
         super(ResNetBlock, self).__init__()
 
@@ -91,6 +104,26 @@ class ResNetBlock(tf.keras.Model):
 
 
 class ResNetArch(tf.keras.Model):
+    """ Implements A ResNet architecture, building on top of ResNetBlocks.
+
+        Args:
+            block_sets: list of ints
+                A list specifying the block sets and how many blocks each  set contains.
+                Example: [2,2,2] will create a ResNet with 3 block sets, each containing
+                2 ResNetBlocks (i.e.: a total of 6 residual blocks)
+            
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+
+            initial_filters:int
+                The number of filters used in the first ResNetBlock. Subsequent blocks 
+                will have two times more filters than their previous block.
+
+        Returns:
+            A ResNetArch object, which is a tensorflow model.
+    """
 
     def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
@@ -146,6 +179,39 @@ class ResNetArch(tf.keras.Model):
 
 
 class ResNetInterface(NNInterface):
+    """ Creates an ResNet model with the standardized Ketos interface.
+
+        Args:
+             block_sets: list of ints
+                A list specifying the block sets and how many blocks each  set contains.
+                Example: [2,2,2] will create a ResNet with 3 block sets, each containing
+                2 ResNetBlocks (i.e.: a total of 6 residual blocks)
+            
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+
+            initial_filters:int
+                The number of filters used in the first ResNetBlock. Subsequent blocks 
+                will have two times more filters than their previous block.
+
+            optimizer: ketos.neural_networks.RecipeCompat object
+                A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            loss_function: ketos.neural_networks.RecipeCompat object
+                A recipe compatible loss_function (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These metrics will be computed on each batch during training.
+
+            secondary_metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These can be used as additional metrics. Computed at each batch during training but only printed or
+                logged as the average at the end of the epoch
+                
+    """
 
     @classmethod
     def build_from_recipe(cls, recipe):
