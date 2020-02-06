@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import tensorflow as tf
+from ketos.neural_networks.nn_interface import RecipeCompat
 from ketos.neural_networks.resnet import ResNetBlock, ResNetArch, ResNetInterface
 from ketos.neural_networks.losses import FScoreLoss
 from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
@@ -21,6 +22,17 @@ def recipe_dict():
                'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
                'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+        
+    }
+    return recipe
+@pytest.fixture
+def recipe():
+    recipe = {'block_list':[2,2,2],
+               'n_classes':2,
+               'initial_filters':16,        
+               'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+               'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+               'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]
         
     }
     return recipe
@@ -117,17 +129,24 @@ def test_ResNetArch():
     assert isinstance(resnet.layers[1].layers[5].layers[4], tf.keras.layers.Dropout)
 
 
+def test_ResNetInterface_build_from_recipe(recipe):
+    resnet = ResNetInterface.build_from_recipe(recipe)
 
+    assert resnet.optimizer.name == recipe['optimizer'].name
+    assert resnet.optimizer.func.__class__ == recipe['optimizer'].func.__class__
+    assert resnet.optimizer.args == recipe['optimizer'].args
 
+    assert resnet.loss_function.name == recipe['loss_function'].name
+    assert resnet.loss_function.func.__class__ == recipe['loss_function'].func.__class__
+    assert resnet.loss_function.args == recipe['loss_function'].args
 
+    assert resnet.metrics[0].name == recipe['metrics'][0].name
+    assert resnet.metrics[0].func.__class__ == recipe['metrics'][0].func.__class__
+    assert resnet.metrics[0].args == recipe['metrics'][0].args
 
-
-
-
-
-    
-
-
+    assert resnet.initial_filters == recipe['initial_filters']
+    assert resnet.block_list == recipe['block_list']
+    assert resnet.n_classes ==  recipe['n_classes']
 
 
 
