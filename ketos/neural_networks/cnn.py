@@ -127,6 +127,41 @@ class CNNArch(tf.keras.Model):
 
 
 class CNNInterface(NNInterface):
+    """ Creates a CNN model with the standardized Ketos interface.
+
+        Args:
+             convolutional_layers: list
+                A list of dictionaries containing the detailed specification for the convolutional layers.
+                Each layer is specified as a dictionary with the following format:
+                {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
+
+            fully_connected_layers: list
+                A list of dictionaries containing the detailed specification for the fully connected layers.
+                Each layer is specified as a dictionary with the following format:
+                {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+
+            n_classes:int
+                The number of classes the network will be used to classify.
+                The output will be this number of values representing the scores for each class. 
+                Scores sum to 1.0.
+                
+            optimizer: ketos.neural_networks.RecipeCompat object
+                A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            loss_function: ketos.neural_networks.RecipeCompat object
+                A recipe compatible loss_function (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These metrics will be computed on each batch during training.
+
+            secondary_metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These can be used as additional metrics. Computed at each batch during training but only printed or
+                logged as the average at the end of the epoch
+                
+    """
+
     
     @classmethod
     def build_from_recipe(cls, recipe):
