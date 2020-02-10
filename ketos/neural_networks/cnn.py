@@ -74,9 +74,10 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
 
 
 
-class CNN(tf.keras.Model):
+class CNNArch(tf.keras.Model):
+
     def __init__(self, convolutional_layers, fully_connected_layers, n_classes, **kwargs):
-        super(CNN, self).__init__(**kwargs)
+        super(CNNArch, self).__init__(**kwargs)
 
         self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
         for conv_layer in convolutional_layers:
@@ -129,7 +130,7 @@ class CNNInterface(NNInterface):
         self.loss_function = loss_function
         self.metrics = metrics
 
-        self.model=CNN(convolutional_layers=self.convolutional_layers, fully_connected_layers=self.fully_connected_layers, n_classes=n_classes)
+        self.model=CNNArch(convolutional_layers=self.convolutional_layers, fully_connected_layers=self.fully_connected_layers, n_classes=n_classes)
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
 
