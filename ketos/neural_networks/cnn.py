@@ -75,6 +75,26 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
 
 
 class CNNArch(tf.keras.Model):
+    """ Implement a Convolutional Neural Network
+
+        Args:
+            convolutional_layers: list
+                A list of dictionaries containing the detailed specification for the convolutional layers.
+                Each layer is specified as a dictionary with the following format:
+                {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
+
+            fully_connected_layers: list
+                A list of dictionaries containing the detailed specification for the fully connected layers.
+                Each layer is specified as a dictionary with the following format:
+                {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+
+            n_classes:int
+                The number of classes the network will be used to classify.
+                The output will be this number of values representing the scores for each class. 
+                Scores sum to 1.0.
+
+    """
+
 
     def __init__(self, convolutional_layers, fully_connected_layers, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
