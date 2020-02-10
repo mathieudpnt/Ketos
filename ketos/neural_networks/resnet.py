@@ -26,11 +26,13 @@
 
 """ resnet sub-module within the ketos.neural_networks module
 
-    This module provides classes that to implement Residual Networks (ResNets).
+    This module provides classes to implement Residual Networks (ResNets).
 
     Contents:
-        ResNetBlock class:
-        ResNet class:
+        ResNetBlock class
+        ResNet class
+        ResNetInterface class
+
 """
 
 import os
@@ -355,7 +357,7 @@ class ResNetInterface(NNInterface):
                             'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
                             'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
         """
-        
+
         recipe = {}
         recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
