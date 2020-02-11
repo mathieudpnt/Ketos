@@ -195,12 +195,17 @@ class CNNInterface(NNInterface):
 
     @classmethod
     def build_from_recipe(cls, recipe):
+        conv_set = None
+        dense_set = None        
         if 'convolutional_layers' in recipe.keys() and 'dense_layers' in recipe.keys():
             convolutional_layers = recipe['convolutional_layers']
             dense_layers = recipe['dense_layers']
         elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
-            convolutional_layers = cls.convolutional_layers_from_conv_set(recipe['conv_set'])
-            dense_layers = cls.dense_layers_from_dense_set(recipe['dense_set'])
+            conv_set = recipe['conv_set']
+            dense_set = recipe['dense_set']
+            convolutional_layers = cls.convolutional_layers_from_conv_set(conv_set)
+            dense_layers = cls.dense_layers_from_dense_set(dense_set)
+            
         n_classes = recipe['n_classes']
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
@@ -212,10 +217,14 @@ class CNNInterface(NNInterface):
 
 
         instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance.conv_set = conv_set
+        intance.dense_set = dense_set
 
         return instance
    
     def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics):
+        self.conv_set = None
+        self.dense_det = None
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
@@ -235,3 +244,38 @@ class CNNInterface(NNInterface):
         self.train_generator = None
         self.val_generator = None
         self.test_generator = None
+
+
+    def write_recipe(self):
+        """ Create a recipe dictionary from a CNNInterface instance.
+
+            The resulting recipe contains all the fields necessary to build the same network architecture used by the instance calling this method.
+            
+            Returns:
+                recipe:dict
+                    A dictionary containing the recipe fields necessary to build the same network architecture.
+                    Example:
+                        {'conv_set':[(64, False), (128, True), (256, True)],
+                          'dense_set: [512, 256],
+                          'convolutional_layers: ,
+                          'dense_layers: ,
+                          'n_classes':2,
+                          'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                          'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                          'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                          'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+        """
+
+        recipe = {}
+        recipe['conv_set'] = self.conv_set
+        recipe['dense_set'] = self.dense_set
+        recipe['convolutional_layers'] = self.convolutional_layers
+        recipe['dense_layers'] = self.dense_layers
+        recipe['n_classes'] = self.n_classes
+        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        if self.secondary_metrics is not None:
+                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
+
+        return recipe
