@@ -18,7 +18,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 @pytest.fixture
-def recipe_simple_dict():
+def recipe_detailed_dict():
     recipe = {'conv_set':[(64, False), (128, True), (256, True)],
                'dense_set': [512, 256],
                'n_classes':2,
@@ -75,6 +75,7 @@ def recipe_detailed():
               'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}],        
+               'n_classes':2,
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
                'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]
@@ -101,3 +102,22 @@ def test_CNNInterface_build_from_recipe_simple(recipe_simple):
     assert cnn.conv_set == recipe_simple['conv_set']
     assert cnn.dense_set == recipe_simple['dense_set']
     assert cnn.n_classes ==  recipe_simple['n_classes']
+
+def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
+    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+
+    assert cnn.optimizer.name == recipe_detailed['optimizer'].name
+    assert cnn.optimizer.func.__class__ == recipe_detailed['optimizer'].func.__class__
+    assert cnn.optimizer.args == recipe_detailed['optimizer'].args
+
+    assert cnn.loss_function.name == recipe_detailed['loss_function'].name
+    assert cnn.loss_function.func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert cnn.loss_function.args == recipe_detailed['loss_function'].args
+
+    assert cnn.metrics[0].name == recipe_detailed['metrics'][0].name
+    assert cnn.metrics[0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
+
+    assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
+    assert cnn.dense_layers == recipe_detailed['dense_layers']
+    assert cnn.n_classes ==  recipe_detailed['n_classes']
