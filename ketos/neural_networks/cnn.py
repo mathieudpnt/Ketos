@@ -222,6 +222,89 @@ class CNNInterface(NNInterface):
 
         return instance
    
+    @classmethod
+    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        """ Read a CNN recipe saved in a .json file.
+
+            Args:
+                json_file:string
+                    Full path (including silename and extension) to the .json file containing the recipe.
+                return_recipe_compat:bool
+                    If True, returns a dictionary where the optimizer, loss_function, metrics and 
+                    secondary_metrics (if available) values are instances of the ketos.neural_networks.nn_interface.RecipeCompat.
+                        The returned dictionary will be equivalent to:
+                            {'conv_set':[(64, False), (128, True), (256, True)],
+                             'dense_set: [512, 256],
+                             'convolutional_layers: ,
+                             'dense_layers: ,
+                             'n_classes': 2 ,
+                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+
+                    If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
+                    dictionary representation of such fields instead of the RecipeCompat objects:
+                                        {'conv_set':[(64, False), (128, True), (256, True)],
+                                         'dense_set: [512, 256],
+                                         'convolutional_layers: ,
+                                         'dense_layers: ,
+                                         'n_classes': 2 ,
+                                         'initial_filters':16,        
+                                         'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                                         'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                                         'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                                         'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+
+                Returns:
+                    recipe, according to 'return_recipe_compat'.
+
+        """
+
+        with open(json_file, 'r') as json_recipe:
+            recipe_dict = json.load(json_recipe)
+
+        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        if 'secondary_metrics' in recipe_dict.keys():
+                secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
+        else:
+                secondary_metrics = None
+
+        if return_recipe_compat == True:
+            recipe_dict['optimizer'] = optimizer
+            recipe_dict['loss_function'] = loss_function
+            recipe_dict['metrics'] = metrics
+            if 'secondary_metrics' in recipe_dict.keys():
+                recipe_dict['secondary_metrics'] = secondary_metrics
+            
+        else:
+            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+            if 'secondary_metrics' in recipe_dict.keys():
+                recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
+
+        if 'convolutional_layers' in recipe_dict.keys() and 'dense_layers' in recipe.keys():
+            convolutional_layers = recipe['convolutional_layers']
+            dense_layers = recipe['dense_layers']
+        elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
+            conv_set = recipe['conv_set']
+            dense_set = recipe['dense_set']
+            convolutional_layers = cls.convolutional_layers_from_conv_set(conv_set)
+            dense_layers = cls.dense_layers_from_dense_set(dense_set)
+            
+        recipe_dict['conv_set'] = recipe_dict['conv_set']
+        recipe_dict['dense_set'] = recipe_dict['dense_set']
+        recipe_dict['convolutional_layers'] = recipe_dict['convolutional_layers']
+        recipe_dict['dense_layers'] = recipe_dict['dense_layers']
+        recipe_dict['n_classes'] = recipe_dict['n_classes']
+        
+
+        return recipe_dict
+
+
     def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics):
         self.conv_set = None
         self.dense_det = None
