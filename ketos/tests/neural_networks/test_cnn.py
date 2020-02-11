@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.nn_interface import RecipeCompat
-from ketos.neural_networks.resnet import CNNArch, CNNInterface
+from ketos.neural_networks.cnn import CNNArch, CNNInterface
 from ketos.neural_networks.losses import FScoreLoss
 from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
 from ketos.data_handling.data_feeding import BatchGenerator
@@ -54,7 +54,7 @@ def recipe_detailed_dict():
                   
               'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}]
+                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}],
                'n_classes':2,
                'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
@@ -80,5 +80,24 @@ def recipe_detailed():
                'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]
         
     }
-    
+
     return recipe
+
+def test_CNNInterface_build_from_recipe_simple(recipe_simple):
+    cnn = CNNInterface.build_from_recipe(recipe_simple)
+
+    assert cnn.optimizer.name == recipe_simple['optimizer'].name
+    assert cnn.optimizer.func.__class__ == recipe_simple['optimizer'].func.__class__
+    assert cnn.optimizer.args == recipe_simple['optimizer'].args
+
+    assert cnn.loss_function.name == recipe_simple['loss_function'].name
+    assert cnn.loss_function.func.__class__ == recipe_simple['loss_function'].func.__class__
+    assert cnn.loss_function.args == recipe_simple['loss_function'].args
+
+    assert cnn.metrics[0].name == recipe_simple['metrics'][0].name
+    assert cnn.metrics[0].func.__class__ == recipe_simple['metrics'][0].func.__class__
+    assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
+
+    assert cnn.conv_set == recipe_simple['conv_set']
+    assert cnn.dense_set == recipe_simple['dense_set']
+    assert cnn.n_classes ==  recipe_simple['n_classes']
