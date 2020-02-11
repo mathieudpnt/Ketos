@@ -18,7 +18,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 @pytest.fixture
-def recipe_detailed_dict():
+def recipe_simple_dict():
     recipe = {'conv_set':[(64, False), (128, True), (256, True)],
                'dense_set': [512, 256],
                'n_classes':2,
@@ -89,9 +89,6 @@ def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
     assert detailed_layers == recipe_detailed['dense_layers']
     
  
-
-
-
 def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
     cnn = CNNInterface.build_from_recipe(recipe_simple)
 
@@ -132,4 +129,15 @@ def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
     assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
     assert cnn.dense_layers == recipe_detailed['dense_layers']
     assert cnn.n_classes ==  recipe_detailed['n_classes']
+
+def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
+    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    written_recipe = cnn.write_recipe()
+
+    #Even when the model is built from a simplified recipe, the detailed form will still be included when writing the recipe again
+
+    recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
+    recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
+
+    assert written_recipe == recipe_simple_dict
 
