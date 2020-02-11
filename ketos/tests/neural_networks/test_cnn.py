@@ -85,7 +85,7 @@ def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
     
 
 def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
-    detailed_layers = CNNInterface.dense_layers_from_dense_set(recipe_simple['conv_set'])
+    detailed_layers = CNNInterface.dense_layers_from_dense_set(recipe_simple['dense_set'])
     assert detailed_layers == recipe_detailed['dense_layers']
     
  
