@@ -180,7 +180,18 @@ class CNNInterface(NNInterface):
         return convolutional_layers
 
 
- 
+    @classmethod
+    def dense_layers_from_dense_set(cls, dense_set):
+        default_dense_layer = {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+        dense_layers = []
+        for layer_parameters in dense_set:
+            n_hidden = layer_parameters
+            layer_details = default_dense_layer
+            layer_details['n_hidden'] = n_hidden
+
+            dense_layers.append(dense_layers)
+        return dense_layers
+
 
     @classmethod
     def build_from_recipe(cls, recipe):
@@ -188,11 +199,8 @@ class CNNInterface(NNInterface):
             convolutional_layers = recipe['convolutional_layers']
             dense_layers = recipe['dense_layers']
         elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
-            convolutional_layers = DEFAULT_CONV_LAYER
-
-            dense_layers = recipe['dense_layers']
-
-
+            convolutional_layers = cls.convolutional_layers_from_conv_set(recipe['conv_set'])
+            dense_layers = cls.dense_layers_from_dense_set(recipe['dense_set'])
         n_classes = recipe['n_classes']
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
