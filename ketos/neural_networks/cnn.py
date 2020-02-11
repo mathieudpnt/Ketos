@@ -189,7 +189,7 @@ class CNNInterface(NNInterface):
             layer_details = default_dense_layer
             layer_details['n_hidden'] = n_hidden
 
-            dense_layers.append(dense_layers)
+            dense_layers.append(layer_details)
         return dense_layers
 
 
@@ -218,7 +218,7 @@ class CNNInterface(NNInterface):
 
         instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
         instance.conv_set = conv_set
-        intance.dense_set = dense_set
+        instance.dense_set = dense_set
 
         return instance
    
@@ -305,17 +305,17 @@ class CNNInterface(NNInterface):
         return recipe_dict
 
 
-    def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics):
+    def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics, secondary_metrics=None):
         self.conv_set = None
         self.dense_det = None
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
-        self.initial_filters = initial_filters
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
-
+        self.secondary_metrics = secondary_metrics
+       
         self.model=CNNArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
