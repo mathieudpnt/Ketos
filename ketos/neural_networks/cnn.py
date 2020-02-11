@@ -53,7 +53,7 @@ vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3),
                                     {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
                                     {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True,}],
                  
-                  'fully_connected_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                  'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},]
 
@@ -66,7 +66,7 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
                                     {'n_filters':384, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
                                     {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True,},],
                   
-                  'fully_connected_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                  'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}]
 
@@ -83,7 +83,7 @@ class CNNArch(tf.keras.Model):
                 Each layer is specified as a dictionary with the following format:
                 {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
 
-            fully_connected_layers: list
+            dense_layers: list
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
                 {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
@@ -96,7 +96,7 @@ class CNNArch(tf.keras.Model):
     """
 
 
-    def __init__(self, convolutional_layers, fully_connected_layers, n_classes, **kwargs):
+    def __init__(self, convolutional_layers, dense_layers, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
 
         self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
@@ -107,20 +107,20 @@ class CNNArch(tf.keras.Model):
             if conv_layer['batch_normalization'] == True:
                 self.convolutional_block.add(tf.keras.layers.BatchNormalization())
             
-        self.fully_connected_block = tf.keras.models.Sequential(name="fully_connected_block")
-        for fc_layer in fully_connected_layers:
-            self.fully_connected_block.add(tf.keras.layers.Dense(units=fc_layer['n_hidden'], activation=fc_layer['activation']))
+        self.dense_block = tf.keras.models.Sequential(name="dense_block")
+        for fc_layer in dense_layers:
+            self.dense_block.add(tf.keras.layers.Dense(units=fc_layer['n_hidden'], activation=fc_layer['activation']))
             if fc_layer['batch_normalization'] == True:
-                self.fully_connected_block.add(tf.keras.layers.BatchNormalization())
+                self.dense_block.add(tf.keras.layers.BatchNormalization())
             if fc_layer['dropout'] > 0.0:
-                self.fully_connected_block.add(tf.keras.layers.Dropout(fc_layer['dropout']))
+                self.dense_block.add(tf.keras.layers.Dropout(fc_layer['dropout']))
 
         self.softmax = tf.keras.layers.Softmax(n_classes)
 
     def call(self, inputs, training=None):
 
         output = self.convolutional_block(inputs, training=training)
-        output = self.fully_connected_block(output, training=training)
+        output = self.dense_block(output, training=training)
         output = self.softmax(output)
 
         return output
@@ -135,7 +135,7 @@ class CNNInterface(NNInterface):
                 Each layer is specified as a dictionary with the following format:
                 {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
 
-            fully_connected_layers: list
+            dense_layers: list
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
                 {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
@@ -144,7 +144,7 @@ class CNNInterface(NNInterface):
                 The number of classes the network will be used to classify.
                 The output will be this number of values representing the scores for each class. 
                 Scores sum to 1.0.
-                
+
             optimizer: ketos.neural_networks.RecipeCompat object
                 A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
 
@@ -163,29 +163,41 @@ class CNNInterface(NNInterface):
     """
 
     
+    DEFAULT_FC_LAYER = {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+
+
+ 
+
     @classmethod
     def build_from_recipe(cls, recipe):
-        convolutional_layers = recipe['convolutional_layers']
-        fully_connected_layers = recipe['fully_connected_layers']
+        if 'convolutional_layers' in recipe.keys() and 'dense_layers' in recipe.keys():
+            convolutional_layers = recipe['convolutional_layers']
+            dense_layers = recipe['dense_layers']
+        elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
+            convolutional_layers = DEFAULT_CONV_LAYER
+
+            dense_layers = recipe['dense_layers']
+
+
         n_classes = recipe['n_classes']
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
 
-        instance = cls(convolutional_layers=convolutional_layers, fully_connected_layers=fully_connected_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
    
-    def __init__(self, convolutional_layers, fully_connected_layers, n_classes, optimizer, loss_function, metrics):
+    def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics):
         self.convolutional_layers = convolutional_layers
-        self.fully_connected_layers = fully_connected_layers
+        self.dense_layers = dense_layers
         self.n_classes = n_classes
         self.initial_filters = initial_filters
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
 
-        self.model=CNNArch(convolutional_layers=self.convolutional_layers, fully_connected_layers=self.fully_connected_layers, n_classes=n_classes)
+        self.model=CNNArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
         self.compile_model()
         #self.metrics_names = self.model.metrics_names
 
