@@ -164,6 +164,20 @@ class CNNInterface(NNInterface):
 
     
     DEFAULT_FC_LAYER = {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+    @classmethod
+    def convolutional_layers_from_conv_set(cls, conv_set):
+        default_conv_layer = {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True}
+        convolutional_layers = []
+        for layer_parameters in conv_set:
+            n_filters, max_pool = layer_parameters
+            
+            layer_details = default_conv_layer
+            layer_details['n_filters'] = n_filters
+            if max_pool is False:
+                layer_details['max_pool'] = None
+            convolutional_layers.append(layer_details)
+
+        return convolutional_layers
 
 
  
