@@ -205,8 +205,13 @@ class CNNInterface(NNInterface):
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
+        if 'secondary_metrics' in recipe.keys():
+            secondary_metrics = recipe['secondary_metrics']
+        else:
+            secondary_metrics = None
 
-        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
+        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
    
