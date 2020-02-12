@@ -183,7 +183,7 @@ class CNNInterface(NNInterface):
             ... }
 
             >>> # To create the CNN, simply  use the  'build_from_recipe' method:
-            >>> cnn = CNINterface.build_from_recipe(recipe)
+            >>> cnn = CNNInterface.build_from_recipe(recipe)
                 
     """
 
