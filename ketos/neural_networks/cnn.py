@@ -190,7 +190,23 @@ class CNNInterface(NNInterface):
     
     @classmethod
     def convolutional_layers_from_conv_set(cls, conv_set):
-        """
+        """ Create a detailed description of the convolutional layers based on the simplified description in 'conv_set'
+
+            The resulting detailed description can then be used to build the convolutional layers in the model
+
+            Args:
+                conv_set:list
+                    A list describing the convolutional layers in a CNN.
+                    each layer is represented by a list of 2 elements: The number of filters (int) and
+                    whether or not that layer is followed by a max_pooling operation (boolean).
+                    Example: [[64,False], [128, True]] 
+                    This conv_set would describe two convolutional layers, with 64 and 128 filters, respectively.
+                    Only the second would have max_pooling.
+
+            Returns:
+                convolutional_layers: list
+                    A list of detailed layer description dictionaries. 
+
         """
         
         convolutional_layers = []
