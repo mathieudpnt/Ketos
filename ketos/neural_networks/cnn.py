@@ -117,13 +117,15 @@ class CNNArch(tf.keras.Model):
             if fc_layer['dropout'] > 0.0:
                 self.dense_block.add(tf.keras.layers.Dropout(fc_layer['dropout']))
 
-        self.softmax = tf.keras.layers.Softmax(n_classes)
+        
+        self.dense_block.add(tf.keras.layers.Dense(n_classes))
+        self.dense_block.add(tf.keras.layers.Softmax(n_classes))
 
     def call(self, inputs, training=None):
 
         output = self.convolutional_block(inputs, training=training)
         output = self.dense_block(output, training=training)
-        output = self.softmax(output)
+        #output = self.softmax(output)
 
         return output
 
