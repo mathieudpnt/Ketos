@@ -205,7 +205,11 @@ class CNNInterface(NNInterface):
 
             Returns:
                 convolutional_layers: list
-                    A list of detailed layer description dictionaries. 
+                    A list of detailed layer description dictionaries.
+                    Example: [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                              {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                              ]
+                              
 
         """
         
@@ -227,6 +231,29 @@ class CNNInterface(NNInterface):
 
     @classmethod
     def dense_layers_from_dense_set(cls, dense_set):
+        """ Create a detailed description of the dense layers based on the simplified description in 'dense_set'
+
+            The resulting detailed description can then be used to build the convolutional layers in the model.
+
+            Args:
+                dense_set:list
+                    A list describing the dense layers in a CNN.
+                    Each layer is represented by a one integer describing the number of output nodes in that layer.
+                    The number of input nodes is automatically determined from the previous layer.
+                    Example: [512, 256] 
+                    This cdense_set would describe two dense layers, with 512 and 256 nodes, respectively.
+                    Note that, the last layer of a CNN does not need to be especified in the dense_set, as the output layer
+                    is automatically created according with the number of classes to be classified.
+
+            Returns:
+                dense_layers: list
+                    A list of detailed layer description dictionaries.
+                    Example: [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                              {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                              ]  
+
+        """
+
        
         dense_layers = []
         for layer_parameters in dense_set:
