@@ -79,6 +79,10 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
 class CNNArch(tf.keras.Model):
     """ Implement a Convolutional Neural Network
 
+        Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense
+              layer will always be added to the end. The output of this layer is determined by the 'n_classes'
+              parameter. 
+
         Args:
             convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
@@ -89,6 +93,7 @@ class CNNArch(tf.keras.Model):
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
                 {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+                This list should not include the output layr, which will be automatically added based on the 'n_classes' parameter.
 
             n_classes:int
                 The number of classes the network will be used to classify.
@@ -163,12 +168,30 @@ class CNNInterface(NNInterface):
                 A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
                 These can be used as additional metrics. Computed at each batch during training but only printed or
                 logged as the average at the end of the epoch
+
+        Examples:
+
+            >>> # Most users will create a model based on a Ketos recipe
+            >>> # The one below, specifies a CNN with 3 convolutional layers and 2 dense layers
+            >>>
+            >>> recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+            ...   'dense_set': [512, ],
+            ...   'n_classes':2,
+            ...   'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+            ...   'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+            ...   'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+            ... }
+
+            >>> # To create the CNN, simply  use the  'build_from_recipe' method:
+            >>> cnn = CNINterface.build_from_recipe(recipe)
                 
     """
 
     
     @classmethod
     def convolutional_layers_from_conv_set(cls, conv_set):
+        """
+        """
         
         convolutional_layers = []
         for layer_parameters in conv_set:
