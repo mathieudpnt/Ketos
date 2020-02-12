@@ -34,6 +34,8 @@
 """
 import tensorflow as tf
 from .nn_interface import NNInterface
+import json
+
 
 
 vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
@@ -171,7 +173,7 @@ class CNNInterface(NNInterface):
             n_filters, max_pool = layer_parameters
             
             #default layer details
-            layer_details = {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True}
+            layer_details = {'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}
             layer_details['n_filters'] = n_filters
                        
             if max_pool is False:
@@ -288,12 +290,12 @@ class CNNInterface(NNInterface):
             if 'secondary_metrics' in recipe_dict.keys():
                 recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
 
-        if 'convolutional_layers' in recipe_dict.keys() and 'dense_layers' in recipe.keys():
-            convolutional_layers = recipe['convolutional_layers']
-            dense_layers = recipe['dense_layers']
-        elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
-            conv_set = recipe['conv_set']
-            dense_set = recipe['dense_set']
+        if 'convolutional_layers' in recipe_dict.keys() and 'dense_layers' in recipe_dict.keys():
+            convolutional_layers = recipe_dict['convolutional_layers']
+            dense_layers = recipe_dict['dense_layers']
+        elif 'conv_set' in recipe.keys() and 'dense_set' in recipe_dict.keys():
+            conv_set = recipe_dict['conv_set']
+            dense_set = recipe_dict['dense_set']
             convolutional_layers = cls.convolutional_layers_from_conv_set(conv_set)
             dense_layers = cls.dense_layers_from_dense_set(dense_set)
             
