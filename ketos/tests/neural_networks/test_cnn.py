@@ -11,7 +11,6 @@ import tables
 import json
 
 
-
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
@@ -113,16 +112,6 @@ def test_CNNArch():
     assert isinstance(cnn.layers[1].layers[6], tf.keras.layers.Dense)
     assert isinstance(cnn.layers[1].layers[7], tf.keras.layers.Softmax)
    
-    
-
-
-
-
-
-
-
-
-
 
 def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
     detailed_layers = CNNInterface.convolutional_layers_from_conv_set(recipe_simple['conv_set'])
