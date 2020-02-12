@@ -46,9 +46,9 @@ def recipe_simple():
 
 @pytest.fixture
 def recipe_detailed_dict():
-    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                    {'n_filters':128, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
-                                    {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
+    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
               'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     ],
@@ -140,6 +140,7 @@ def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed)
     recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
 
     assert written_recipe == recipe_simple_dict
+    
 
 def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detailed):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_simple.json")
@@ -152,6 +153,7 @@ def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detai
     recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
     recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
     assert read_recipe == recipe_simple_dict
+    
 
     #Read recipe as a recipe dict with RecipeCompat objects
     recipe_simple['convolutional_layers'] = recipe_detailed['convolutional_layers']
@@ -175,6 +177,39 @@ def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detai
     assert read_recipe['convolutional_layers'] == recipe_simple['convolutional_layers']
     assert read_recipe['dense_layers'] == recipe_simple['dense_layers']
 
+
+def test_read_recipe_simple_detailedd(recipe_detailed, recipe_detailed_dict):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed.json")
+    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+    #written_recipe = resnet.write_recipe()
+    cnn.save_recipe(path_to_recipe_file)
+
+    #Read recipe as a recipe dict
+    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    recipe_detailed_dict['conv_set'] = None
+    recipe_detailed_dict['dense_set'] = None
+    assert read_recipe == recipe_detailed_dict
     
+    #Read recipe as a recipe dict with RecipeCompat objects
+    recipe_detailed['conv_set'] = None
+    recipe_detailed['dense_set'] = None
+
+    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].name == recipe_detailed['optimizer'].name
+    assert read_recipe['optimizer'].func.__class__ == recipe_detailed['optimizer'].func.__class__
+    assert read_recipe['optimizer'].args == recipe_detailed['optimizer'].args
+
+    assert read_recipe['loss_function'].name == recipe_detailed['loss_function'].name
+    assert read_recipe['loss_function'].func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert read_recipe['loss_function'].args == recipe_detailed['loss_function'].args
+    
+    assert read_recipe['metrics'][0].name == recipe_detailed['metrics'][0].name
+    assert read_recipe['metrics'][0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].args == recipe_detailed['metrics'][0].args
+
+    assert read_recipe['conv_set'] == recipe_detailed['conv_set']
+    assert read_recipe['dense_set'] == recipe_detailed['dense_set']
+    assert read_recipe['convolutional_layers'] == recipe_detailed['convolutional_layers']
+    assert read_recipe['dense_layers'] == recipe_detailed['dense_layers']
 
 
