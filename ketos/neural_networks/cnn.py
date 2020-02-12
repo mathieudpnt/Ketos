@@ -429,7 +429,6 @@ class CNNInterface(NNInterface):
        
         self.model=CNNArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
         self.compile_model()
-        #self.metrics_names = self.model.metrics_names
 
         
         self.log_dir = None
@@ -471,5 +470,4 @@ class CNNInterface(NNInterface):
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
         if self.secondary_metrics is not None:
                 recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
-
         return recipe
