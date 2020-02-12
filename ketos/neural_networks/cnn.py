@@ -254,7 +254,6 @@ class CNNInterface(NNInterface):
 
         """
 
-       
         dense_layers = []
         for layer_parameters in dense_set:
             n_hidden = layer_parameters
@@ -267,6 +266,46 @@ class CNNInterface(NNInterface):
 
     @classmethod
     def build_from_recipe(cls, recipe):
+        """ Build a CNN model from a recipe.
+
+            Args:
+                recipe: dict
+                    A recipe dictionary. The optimizer, loss function
+                    and metrics must be instances of ketos.neural_networks.RecipeCompat.
+                    Example recipe:
+                        {'conv_set':[[64, False], [128, True], [256, True]],
+                          'dense_set': [512, ],
+                          'n_classes':2,
+                          'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                          'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                          'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                          'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
+                          ]
+
+                        The only optional field is 'secondary_metrics'.
+
+                    Alternatively, the 'conv_set' and 'dense_set' can be replaced by detailed descriptions in
+                    'convolutional_layers' and 'dense_layers'.
+                    Note that these need to be provided in pairs ('conv_set' + 'dense_set' OR 'convolutional_layers' and 'dense_layers')
+                    Example:
+                        {'conv_set': [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                      {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                      ],
+                          'dense_set': [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                        {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                        ],
+                          'n_classes':2,
+                          'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                          'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                          'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                          'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
+                          ]
+
+
+            Returns:
+                An instance of CNNInterface.
+        """
+
         conv_set = None
         dense_set = None        
         if 'convolutional_layers' in recipe.keys() and 'dense_layers' in recipe.keys():
