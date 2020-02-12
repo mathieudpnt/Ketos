@@ -79,6 +79,51 @@ def recipe_detailed():
     return recipe
 
 
+def test_CNNArch():
+    conv_layers =  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}]
+
+    dense_layers = [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    ]
+    
+    cnn = CNNArch(convolutional_layers=conv_layers, dense_layers=dense_layers, n_classes=2)
+    assert len(cnn.layers) == 2
+
+    #convolutional block
+    assert len(cnn.layers[0].layers) == 8
+    assert isinstance(cnn.layers[0].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[3], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[4], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[5], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[6], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[7], tf.keras.layers.BatchNormalization)
+
+    #Dense block
+    assert len(cnn.layers[1].layers) == 8
+    assert isinstance(cnn.layers[1].layers[0], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[1].layers[2], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[1].layers[3], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[4], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[1].layers[5], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[1].layers[6], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[7], tf.keras.layers.Softmax)
+   
+    
+
+
+
+
+
+
+
+
+
+
 def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
     detailed_layers = CNNInterface.convolutional_layers_from_conv_set(recipe_simple['conv_set'])
     assert detailed_layers == recipe_detailed['convolutional_layers']
@@ -106,8 +151,6 @@ def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
 
     assert cnn.conv_set == recipe_simple['conv_set']
     assert cnn.dense_set == recipe_simple['dense_set']
-    # assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
-    # assert cnn.dense_layers == recipe_detailed['dense_layers']
     assert cnn.n_classes ==  recipe_simple['n_classes']
     
 
