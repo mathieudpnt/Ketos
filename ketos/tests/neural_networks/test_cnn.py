@@ -121,7 +121,8 @@ def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
 def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
     detailed_layers = CNNInterface.dense_layers_from_dense_set(recipe_simple['dense_set'])
     assert detailed_layers == recipe_detailed['dense_layers']
-    
+
+
  
 def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
     cnn = CNNInterface.build_from_recipe(recipe_simple)
@@ -141,10 +142,49 @@ def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
     assert cnn.conv_set == recipe_simple['conv_set']
     assert cnn.dense_set == recipe_simple['dense_set']
     assert cnn.n_classes ==  recipe_simple['n_classes']
-    
+
+
+def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_simple, recipe_detailed):
+    cnn = CNNInterface.build_from_recipe(recipe_simple_dict, recipe_compat=False)
+
+    assert cnn.optimizer.name == recipe_simple['optimizer'].name
+    assert cnn.optimizer.func.__class__ == recipe_simple['optimizer'].func.__class__
+    assert cnn.optimizer.args == recipe_simple['optimizer'].args
+
+    assert cnn.loss_function.name == recipe_simple['loss_function'].name
+    assert cnn.loss_function.func.__class__ == recipe_simple['loss_function'].func.__class__
+    assert cnn.loss_function.args == recipe_simple['loss_function'].args
+
+    assert cnn.metrics[0].name == recipe_simple['metrics'][0].name
+    assert cnn.metrics[0].func.__class__ == recipe_simple['metrics'][0].func.__class__
+    assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
+
+    assert cnn.conv_set == recipe_simple['conv_set']
+    assert cnn.dense_set == recipe_simple['dense_set']
+    assert cnn.n_classes ==  recipe_simple['n_classes']
+
 
 def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
     cnn = CNNInterface.build_from_recipe(recipe_detailed)
+
+    assert cnn.optimizer.name == recipe_detailed['optimizer'].name
+    assert cnn.optimizer.func.__class__ == recipe_detailed['optimizer'].func.__class__
+    assert cnn.optimizer.args == recipe_detailed['optimizer'].args
+
+    assert cnn.loss_function.name == recipe_detailed['loss_function'].name
+    assert cnn.loss_function.func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert cnn.loss_function.args == recipe_detailed['loss_function'].args
+
+    assert cnn.metrics[0].name == recipe_detailed['metrics'][0].name
+    assert cnn.metrics[0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
+
+    assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
+    assert cnn.dense_layers == recipe_detailed['dense_layers']
+    assert cnn.n_classes ==  recipe_detailed['n_classes']
+
+def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_detailed_dict):
+    cnn = CNNInterface.build_from_recipe(recipe_detailed_dict, recipe_compat=False)
 
     assert cnn.optimizer.name == recipe_detailed['optimizer'].name
     assert cnn.optimizer.func.__class__ == recipe_detailed['optimizer'].func.__class__
