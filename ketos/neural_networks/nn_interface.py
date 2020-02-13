@@ -723,6 +723,25 @@ class NNInterface():
 
         return instance
 
+    def build_from_recipe_file(cls, recipe_file):
+        """ Build a model from a recipe file
+
+            Args:
+                recipe:str
+                    path to .json file containing the recipe
+
+            Returns:
+                instance:
+                    An instance of the neural network interface 
+
+        """
+
+        recipe = cls.read_recipe_file(recipe_file)
+        instance = cls.build_from_recipe(recipe)
+
+        return instance
+       
+
     def __init__(self, optimizer, loss_function, metrics, secondary_metrics=None):
         
         self.optimizer = optimizer
