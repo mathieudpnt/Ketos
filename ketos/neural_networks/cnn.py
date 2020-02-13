@@ -183,7 +183,7 @@ class CNNInterface(NNInterface):
             ... }
 
             >>> # To create the CNN, simply  use the  'build_from_recipe' method:
-            >>> cnn = CNNInterface.build_from_recipe(recipe)
+            >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False)
                 
     """
 
@@ -335,7 +335,6 @@ class CNNInterface(NNInterface):
                 secondary_metrics = cls.metrics_from_recipe(recipe['secondary_metrics'])
             else:
                 secondary_metrics = None
-                print("recipe_compat = False")
 
         
 
