@@ -216,7 +216,7 @@ class ResNetInterface(NNInterface):
     """
 
     @classmethod
-    def build_from_recipe(cls, recipe):
+    def build_from_recipe(cls, recipe, recipe_compat=True):
         """ Build a ResNet model from a recipe.
 
             Args:
@@ -242,13 +242,23 @@ class ResNetInterface(NNInterface):
         block_sets = recipe['block_sets']
         n_classes = recipe['n_classes']
         initial_filters = recipe['initial_filters']
-        optimizer = recipe['optimizer']
-        loss_function = recipe['loss_function']
-        metrics = recipe['metrics']
-        if 'secondary_metrics' in recipe.keys():
-            secondary_metrics = recipe['secondary_metrics']
+        
+        if recipe_compat == True:
+            optimizer = recipe['optimizer']
+            loss_function = recipe['loss_function']
+            metrics = recipe['metrics']
+            if 'secondary_metrics' in recipe.keys():
+                secondary_metrics = recipe['secondary_metrics']
+            else:
+                secondary_metrics = None
         else:
-            secondary_metrics = None
+            optimizer = cls.optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls.loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls.metrics_from_recipe(recipe['metrics'])
+            if 'secondary_metrics' in recipe.keys():
+                secondary_metrics = cls.metrics_from_recipe(recipe['secondary_metrics'])
+            else:
+                secondary_metrics = None
 
         instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
