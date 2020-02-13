@@ -265,7 +265,7 @@ class CNNInterface(NNInterface):
 
 
     @classmethod
-    def build_from_recipe(cls, recipe):
+    def build_from_recipe(cls, recipe, recipe_compat=True ):
         """ Build a CNN model from a recipe.
 
             Args:
@@ -318,14 +318,26 @@ class CNNInterface(NNInterface):
             dense_layers = cls.dense_layers_from_dense_set(dense_set)
             
         n_classes = recipe['n_classes']
-        optimizer = recipe['optimizer']
-        loss_function = recipe['loss_function']
-        metrics = recipe['metrics']
-        if 'secondary_metrics' in recipe.keys():
-            secondary_metrics = recipe['secondary_metrics']
+        
+        if recipe_compat == True:
+            optimizer = recipe['optimizer']
+            loss_function = recipe['loss_function']
+            metrics = recipe['metrics']
+            if 'secondary_metrics' in recipe.keys():
+                secondary_metrics = recipe['secondary_metrics']
+            else:
+                secondary_metrics = None
         else:
-            secondary_metrics = None
+            optimizer = cls.optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls.loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls.metrics_from_recipe(recipe['metrics'])
+            if 'secondary_metrics' in recipe.keys():
+                secondary_metrics = cls.metrics_from_recipe(recipe['secondary_metrics'])
+            else:
+                secondary_metrics = None
+                print("recipe_compat = False")
 
+        
 
         instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
         instance.conv_set = conv_set
