@@ -1285,6 +1285,15 @@ class CQTSpectrogram(Spectrogram):
         return cls(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
 
+    def bins_per_octave(self):
+        """ Get no. bins per octave.
+
+            Returns:
+                : int
+                    No. bins per octave.
+        """
+        return self.freq_ax.bins_per_oct
+
     def plot(self, id=0, show_annot=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 

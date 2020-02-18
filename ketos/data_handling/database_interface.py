@@ -24,7 +24,7 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" database_interface module within the ketos library
+""" 'data_handling.database_interface' module within the ketos library
 
     This module provides functions to create and use HDF5 databases as storage for acoustic data. 
 """
@@ -37,7 +37,7 @@ import math
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring
-from ketos.audio.waveform import AudioSignal
+from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
 from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix, SpecProvider
 from ketos.data_handling.parsing import SpectrogramConfiguration
@@ -63,11 +63,10 @@ def open_file(path, mode):
                     * ’r+’: It is similar to ‘a’, but the file must already exist.
 
         Returns:
-            h5file: table.File object
+            : table.File object
                 The h5file.
     """
-    h5file = tables.open_file(path, mode)
-    return h5file
+    return tables.open_file(path, mode)
 
 def open_table(h5file, table_path):
     """ Open a table from an HDF5 file.
@@ -86,15 +85,12 @@ def open_table(h5file, table_path):
                 The table, if it exists. Otherwise, raises an exeption and returns None.
 
         Examples:
-            >>> import tables
-            >>> from ketos.data_handling.database_interface import open_table
-            >>>
-            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> from ketos.data_handling.database_interface import open_file, open_table
+            >>> h5file = open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> data = open_table(h5file, "/train/species1")
             >>> #data is a pytables 'Table' object
             >>> type(data)
             <class 'tables.table.Table'>
-            >>>
             >>> # with 15 items (rows)
             >>> data.nrows
             15
@@ -110,7 +106,7 @@ def open_table(h5file, table_path):
 
     return table
 
-def create_table_new(h5file, path, name, description, chunkshape=None, verbose=False):
+def create_table(h5file, path, name, description, chunkshape=None, verbose=False):
     """ Create a new table.
         
         If the table already exists, open it.
@@ -180,89 +176,6 @@ def create_table_new(h5file, path, name, description, chunkshape=None, verbose=F
 
     return table
 
-def create_table(h5file, path, name, shape, max_annotations=10, chunkshape=None, verbose=False):
-    """ Create a new table.
-        
-        If the table already exists, open it.
-
-        Args:
-            h5file: tables.file.File object
-                HDF5 file handler.
-            path: str
-                The group where the table will be located. Ex: '/features/spectrograms'
-            name: str
-                The name of the table.
-            shape : tuple (ints)
-                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
-                to be stored in the table. Optionally, a third integer can be added if the 
-                spectrogram has multiple channels (n_rows, n_cols, n_channels).
-            max_annotations: int
-                Maximum number of annotations allowed for any of the items in this table.
-            chunkshape: tuple
-                The chunk shape to be used for compression
-
-        Returns:
-            table: table.Table object
-                The created/open table.    
-
-        Examples:
-
-            >>> import tables
-            >>> from ketos.data_handling.database_interface import create_table
-            >>>
-            >>> # Open a connection to the database
-            >>> h5file = tables.open_file("ketos/tests/assets/tmp/database1.h5", 'w')
-            >>> # Create 'table1' within 'group1'
-            >>> my_table = create_table(h5file, "/group1/", "table1", shape=(64,20)) 
-            >>> # Show the table description, with the field names (columns)
-            >>> # and information about types and shapes
-            >>> my_table
-            /group1/table1 (Table(0,), fletcher32, shuffle, zlib(1)) ''
-              description := {
-              "boxes": StringCol(itemsize=421, shape=(), dflt=b'', pos=0),
-              "data": Float32Col(shape=(64, 20), dflt=0.0, pos=1),
-              "file_vector": UInt8Col(shape=(64,), dflt=0, pos=2),
-              "files": StringCol(itemsize=100, shape=(), dflt=b'', pos=3),
-              "id": StringCol(itemsize=25, shape=(), dflt=b'', pos=4),
-              "labels": StringCol(itemsize=31, shape=(), dflt=b'', pos=5),
-              "time_vector": Float32Col(shape=(64,), dflt=0.0, pos=6)}
-              byteorder := 'little'
-              chunkshape := (21,)
-            >>>
-            >>> h5file.close()
-            
-    """
-    max_annotations = max(1, int(max_annotations))
-
-    try:
-       group = h5file.get_node(path)
-    
-    except tables.NoSuchNodeError:
-        if verbose:
-            print("group '{0}' not found. Creating it now...".format(path))
-    
-        if path.endswith('/'): 
-            path = path[:-1]
-
-        group_name = os.path.basename(path)
-        path_to_group = path.split(group_name)[0]
-        if path_to_group.endswith('/'): 
-            path_to_group = path_to_group[:-1]
-        
-        group = h5file.create_group(path_to_group, group_name, createparents=True)
-        
-    try:
-        table = h5file.get_node("{0}/{1}".format(path, name))
-    
-    except tables.NoSuchNodeError:    
-        filters = tables.Filters(complevel=1, fletcher32=True)
-        labels_len = 2 + max_annotations * 3 - 1 # assumes that labels have at most 2 digits (i.e. 0-99)
-        boxes_len = 2 + max_annotations * (6 + 4*9) - 1 # assumes that box values have format xxxxx.xxx  
-        descrip = table_description(shape=shape, labels_len=labels_len, boxes_len=boxes_len)
-        table = h5file.create_table(group, "{0}".format(name), descrip, filters=filters, chunkshape=chunkshape)
-
-    return table
-
 def table_description_data(data_shape, track_source=True, filename_len=100):
     """ Description of table structure for storing audio signals or spectrograms.
 
@@ -327,7 +240,7 @@ def table_description_strong_annot(freq_range=False):
 
     return TableDescription
 
-def table_description_new(data_shape, annot_type='weak', track_source=True, filename_len=100, freq_range=False):
+def table_description(data_shape, annot_type='weak', track_source=True, filename_len=100, freq_range=False):
     """ Create HDF5 table structure description.
 
         The annotation type must be specified as either 'weak' or 'strong'.
@@ -371,13 +284,13 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
 
         Examples:
             >>> import numpy as np
-            >>> from ketos.data_handling.database_interface import table_description_new
+            >>> from ketos.data_handling.database_interface import table_description
             >>> 
             >>> #Create a 64 x 20 image
             >>> spec = np.random.random_sample((64,20))
             >>>
             >>> #Create a table description for weakly labeled spectrograms of this shape
-            >>> descr_data, descr_annot = table_description_new(spec)
+            >>> descr_data, descr_annot = table_description(spec)
             >>>
             >>> #Inspect the table structure
             >>> cols = descr_data.columns
@@ -394,7 +307,7 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
             label: UInt8Col(shape=(), dflt=0, pos=None)
             >>>
             >>> #Create a table description for strongly labeled spectrograms
-            >>> descr_data, descr_annot =  table_description_new(spec, annot_type='strong')
+            >>> descr_data, descr_annot =  table_description(spec, annot_type='strong')
             >>>
             >>> #Inspect the annotation table structure
             >>> cols = descr_annot.columns
@@ -421,72 +334,6 @@ def table_description_new(data_shape, annot_type='weak', track_source=True, file
         tbl_descr_annot = table_description_strong_annot(freq_range=freq_range)
 
     return tbl_descr_data, tbl_descr_annot
-
-def table_description(shape, id_len=25, labels_len=100, boxes_len=100, files_len=100):
-    """ Create the class that describes the table structure for the HDF5 database.
-
-        The columns in the table are described as the class Attributes (see Attr section below)
-             
-        Args:
-            shape : tuple (ints)
-                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
-                to be stored in the table. Optionally, a third integer can be added if the 
-                spectrogram has multiple channels (n_rows, n_cols, n_channels).
-            id_len : int
-                The number of characters for the 'id' field
-            labels_len : int
-                The number of characters for the 'labels' field
-            boxes_len : int
-                The number of characters for the 'boxes' field
-            files_len: int
-                The number of characters for the 'files' field.
-
-
-        Attr:
-            id: A string column to store a unique identifier for each entry
-            labels: A string column to store the labels associated with each entry
-                    Conventional format: '[1], [2], [1]'
-            data: A Float32  columns to store arrays with shape defined by the 'shape' argument
-            boxes: A string column to store the coordinates (as start time, end time, start frequency, end frequency)\
-                    of the acoustic events labelled in the 'labels' field.
-                    Conventional format: '[[2, 5, 200, 400],[8, 14, 220, 450],[21, 25, 200, 400]]'
-                    Where the first box correspond to the first label ([1]), the second box to the second label ([2]) and so forth. 
-            files: A string column to store file names. In case the spectrogram is created from multiple files, this field stores all of them.
-            file_vector: An Int8 column to store an array with length equal to the number of bins in the spectrogram.
-                         Each value indicates the file that originated that bin, with 0 representing the first file listed in the 'files' field, 1 the second and so on. 
-            time_vector: A Float32 column to store an array with length equal to the number of bins in the spectrogram. The array maps each bin to the time (seconds from start) in the original audio file (as stored in the file_vector_field)
-
-
-        Results:
-            TableDescription: class (tables.IsDescription)
-                The class describing the table structure to be used when creating tables that 
-                will store images in the HDF5 database.
-
-        Examples:
-            >>> from ketos.data_handling.database_interface import table_description
-            >>> # create a table description with shape (64,20)
-            >>> descr =  table_description(shape=(64,20))
-            >>> cols = descr.columns
-            >>> for key in sorted(cols.keys()):
-            ...     print("%s: %s" % (key, cols[key]))
-            boxes: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
-            data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
-            file_vector: UInt8Col(shape=(64,), dflt=0, pos=None)
-            files: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
-            id: StringCol(itemsize=25, shape=(), dflt=b'', pos=None)
-            labels: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
-            time_vector: Float32Col(shape=(64,), dflt=0.0, pos=None)
-    """
-    class TableDescription(tables.IsDescription):
-            id = tables.StringCol(id_len)
-            labels = tables.StringCol(labels_len)
-            data = tables.Float32Col(shape)
-            boxes = tables.StringCol(boxes_len) 
-            files = tables.StringCol(files_len)
-            file_vector = tables.UInt8Col(shape[0])
-            time_vector = tables.Float32Col(shape[0])
-    
-    return TableDescription
 
 def write_spec_attrs(table, spec):
     """ Writes the spectrogram attributes into the HDF5 table.
@@ -516,12 +363,12 @@ def write_spec_attrs(table, spec):
 
         Examples:
             >>> import tables
-            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_data, write_spec_attrs
-            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> from ketos.data_handling.database_interface import open_file, create_table, table_description_data, write_spec_attrs
+            >>> from ketos.audio.spectrogram import MagSpectrogram
+            >>> from ketos.audio.waveform import Waveform
             >>>
-            >>> # Create an AudioSignal object from a .wav file
-            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> # Create an Waveform object from a .wav file
+            >>> audio = Waveform.from_wav('ketos/tests/assets/2min.wav')
             >>> # Use that signal to create a spectrogram
             >>> spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
             >>>
@@ -530,7 +377,7 @@ def write_spec_attrs(table, spec):
             >>> # Create table descriptions for storing the spectrogram data
             >>> descr = table_description_data(spec.image.shape)
             >>> # Create 'table_data' within 'group1'
-            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr) 
+            >>> my_table = create_table(h5file, "/group1/", "table_data", descr) 
             >>> # Write spectrogram attributes to the table
             >>> write_spec_attrs(my_table, spec)
             >>>
@@ -550,24 +397,24 @@ def write_spec_attrs(table, spec):
     except AssertionError:
         raise TypeError("spec must be an instance of Spectrogram")      
 
-    table.attrs.time_res = spec.tres
-    table.attrs.freq_min = spec.fmin
+    table.attrs.time_res = spec.time_res()
+    table.attrs.freq_min = spec.freq_min()
 
     if isinstance(spec, CQTSpectrogram):
         table.attrs.type = 'CQT'
-        table.attrs.bins_per_octave = spec.bins_per_octave
+        table.attrs.bins_per_octave = spec.bins_per_octave()
     
     elif isinstance(spec, MagSpectrogram):
         table.attrs.type = 'Mag'
-        table.attrs.freq_res = spec.fres
+        table.attrs.freq_res = spec.freq_res()
     
     elif isinstance(spec, PowerSpectrogram):
         table.attrs.type = 'Pow'
-        table.attrs.freq_res = spec.fres
+        table.attrs.freq_res = spec.freq_res()
 
     elif isinstance(spec, MelSpectrogram):
         table.attrs.type = 'Mel'
-        table.attrs.freq_res = spec.fres
+        table.attrs.freq_res = spec.freq_res() #OBS: this will fail
 
 def write_spec_annot(spec, table, id):
     """ Write a spectrogram's annotations to a HDF5 table.
@@ -657,7 +504,7 @@ def write_spec_data(spec, table, id=None):
 
     return id
 
-def write_spec_new(spec, table_data, table_annot=None, id=None):
+def write_spec(spec, table_data, table_annot=None, id=None):
     """ Write the spectrogram and its annotations to HDF5 tables.
 
         Note: If the id argument is not specified, the row number will 
@@ -690,10 +537,10 @@ def write_spec_new(spec, table_data, table_annot=None, id=None):
             >>> import tables
             >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_data, write_spec_new
             >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-            >>> from ketos.audio_processing.audio import AudioSignal
+            >>> from ketos.audio_processing.audio import Waveform
             >>>
-            >>> # Create an AudioSignal object from a .wav file
-            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
+            >>> # Create an Waveform object from a .wav file
+            >>> audio = Waveform.from_wav('ketos/tests/assets/2min.wav')
             >>> # Use that signal to create a spectrogram
             >>> spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
             >>> # Add a single annotation
@@ -734,115 +581,9 @@ def write_spec_new(spec, table_data, table_annot=None, id=None):
     if table_annot is not None:
         write_spec_annot(spec, table=table_annot, id=id)
 
-def write_spec(table, spec, id=None):
-    """ Write data into the HDF5 table.
 
-        Note: If the id field is left blank, it 
-        will be replaced with the tag attribute.
 
-        Note: If the spectrogram is a CQT spectrogram, the number of 
-        bins per octave is encoded as a negative float in the  
-        table attribute 'freq_res'. The sign of this attribute is 
-        used to distinguish between ordinary and CQT spectrograms 
-        when spectrograms are loaded from a table. (See load_tables 
-        method.)
 
-        Args:
-            table: tables.Table
-                Table in which the spectrogram will be stored
-                (described by spec_description()).
-
-            spec: instance of :class:`spectrogram.MagSpectrogram', \
-            :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
-                the spectrogram object to be stored in the table.
-
-        Raises:
-            TypeError: if spec is not an Spectrogram object    
-
-        Returns:
-            None.
-
-        Examples:
-            >>> import tables
-            >>> from ketos.data_handling.database_interface import create_table
-            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-            >>> from ketos.audio_processing.audio import AudioSignal
-            >>>
-            >>> # Create an AudioSignal object from a .wav file
-            >>> audio = AudioSignal.from_wav('ketos/tests/assets/2min.wav')
-            >>> # Use that signal to create a spectrogram
-            >>> spec = MagSpectrogram(audio,winlen=0.2, winstep=0.05)
-            >>> # Annotate the spectrogram, adding two boxes and their corresponding labels
-            >>> spec.annotate(boxes=[[5.3,8.9,200,350], [103.3,105.8,180,320]], labels=[1,2])
-            >>>
-            >>> # Open a connection to a database (and create the file)
-            >>> h5file = tables.open_file("ketos/tests/assets/tmp/database2.h5", 'w')
-            >>> # Create a table
-            >>> my_table = create_table(h5file, "/group1/", "table1", shape=spec.image.shape)
-            >>> # And write the spectrogram in the table
-            >>> write_spec(my_table, spec)
-            
-            >>> # The table now has one item
-            >>> my_table.nrows
-            1
-            >>> # We can check that the labels and boxes are the ones we created
-            >>> my_table[0]['labels']
-            b'[1,2]'
-            >>> my_table[0]['boxes']
-            b'[[5.3,8.9,200.0,350.0],[103.3,105.8,180.0,320.0]]'
-            >>>
-            >>> h5file.close()
-    """
-
-    try:
-        assert(isinstance(spec, Spectrogram))
-    except AssertionError:
-        raise TypeError("spec must be an instance of Spectrogram")      
-
-    table.attrs.time_res = spec.tres
-    table.attrs.freq_min = spec.fmin
-
-    if isinstance(spec, CQTSpectrogram):
-        table.attrs.freq_res = -spec.bins_per_octave  # encode bins_per_octave as a negative float
-    else:
-        table.attrs.freq_res = spec.fres
-
-    if id is None:
-        id_str = ''
-    else:
-        id_str = id
-
-    # spectrogram offset is not stored, so shift annotations
-    spec._shift_annotations(delay=-spec.tmin)
-
-    if spec.labels is not None:
-        labels_str = tostring(spec.labels, decimals=0)
-    else:
-        labels_str = ''
-
-    if spec.boxes is not None:          
-        boxes_str = tostring(spec.boxes, decimals=3)
-    else:
-        boxes_str = ''
-
-    files_str = '['
-    for it in spec.get_file_dict().items():
-        val = it[1]
-        files_str += val + ','
-    if files_str[-1] == ',':
-        files_str = files_str[:-1] 
-    files_str += ']'    
-
-    seg_r = table.row
-    seg_r["data"] = spec.get_data()
-    seg_r["id"] = id_str
-    seg_r["labels"] = labels_str
-    seg_r["boxes"] = boxes_str
-    seg_r["files"] = files_str
-    seg_r["file_vector"] = spec.get_file_vector()
-    seg_r["time_vector"] = spec.get_time_vector()
-
-    seg_r.append()
 
 def filter_by_label(table, label):
     """ Find all spectrograms in the table with the specified label.
@@ -1258,10 +999,10 @@ def create_spec_database(output_file, input_dir, annotations_file=None, spec_con
             Example:
 
                 >>> # create a few audio files and save them as *.wav files
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> cos7 = AudioSignal.cosine(rate=1000, frequency=7.0, duration=1.0)
-                >>> cos8 = AudioSignal.cosine(rate=1000, frequency=8.0, duration=1.0)
-                >>> cos21 = AudioSignal.cosine(rate=1000, frequency=21.0, duration=1.0)
+                >>> from ketos.audio_processing.audio import Waveform
+                >>> cos7 = Waveform.cosine(rate=1000, frequency=7.0, duration=1.0)
+                >>> cos8 = Waveform.cosine(rate=1000, frequency=8.0, duration=1.0)
+                >>> cos21 = Waveform.cosine(rate=1000, frequency=21.0, duration=1.0)
                 >>> folder = "ketos/tests/assets/tmp/harmonic/"
                 >>> cos7.to_wav(folder+'cos7.wav')
                 >>> cos8.to_wav(folder+'cos8.wav')
@@ -1394,10 +1135,10 @@ class SpecWriter():
             Example:
 
                 >>> # create a few cosine wave forms
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> cos7 = AudioSignal.cosine(rate=1000, frequency=7.0, duration=1.0)
-                >>> cos8 = AudioSignal.cosine(rate=1000, frequency=8.0, duration=1.0)
-                >>> cos21 = AudioSignal.cosine(rate=1000, frequency=21.0, duration=1.0)
+                >>> from ketos.audio_processing.audio import Waveform
+                >>> cos7 = Waveform.cosine(rate=1000, frequency=7.0, duration=1.0)
+                >>> cos8 = Waveform.cosine(rate=1000, frequency=8.0, duration=1.0)
+                >>> cos21 = Waveform.cosine(rate=1000, frequency=21.0, duration=1.0)
                 >>> # compute spectrograms
                 >>> from ketos.audio_processing.spectrogram import MagSpectrogram
                 >>> s7 = MagSpectrogram(cos7, winlen=0.2, winstep=0.02)

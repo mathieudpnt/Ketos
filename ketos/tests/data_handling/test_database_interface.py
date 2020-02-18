@@ -24,16 +24,15 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the database_interface module within the ketos library
+""" Unit tests for the 'data_handling.database_interface' module within the ketos library
 """
 import pytest
 import tables
 import os
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
-from ketos.audio_processing.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
-from ketos.audio_processing.audio import AudioSignal
-
+from ketos.audio.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
+from ketos.audio.waveform import Waveform
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -44,7 +43,7 @@ def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp1_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # open non-existing table
     with pytest.raises(tables.NoSuchNodeError):
         tbl = di.open_table(h5file=h5file, table_path='/group_1/table_1')
@@ -57,7 +56,7 @@ def test_open_existing_table():
     """ Test if the expected table is open """
     # open h5 file
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = tables.open_file(fpath, 'r')
+    h5file = di.open_file(fpath, 'r')
     # open non-existing table
     tbl = di.open_table(h5file=h5file, table_path='/train/species1')
     assert isinstance(tbl, tables.table.Table)
@@ -73,13 +72,13 @@ def test_create_table():
     # create table description
     descr_data, descr_annot = di.table_description_new((32,64))
     # create data table
-    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
+    _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
     assert isinstance(group, tables.group.Group)
     table = h5file.get_node("/group_1/table_1")
     assert isinstance(table, tables.table.Table)    
     # create annotation table
-    _ = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    _ = di.create_table(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
     group = h5file.get_node("/group_1")
     assert isinstance(group, tables.group.Group)
     table = h5file.get_node("/group_1/table_2")
@@ -96,7 +95,7 @@ def test_add_row_to_annot_table():
     # create table description
     descr_annot = di.table_description_weak_annot()
     # create annotation table
-    table = di.create_table_new(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
+    table = di.create_table(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
     # add a row
     row = table.row
     row['label'] = 12
@@ -112,16 +111,22 @@ def test_create_table_existing():
     """Test if a table is open when it already exists"""
     # open h5 file
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = tables.open_file(fpath, 'a')
+    h5file = di.open_file(fpath, 'a')
+    # create table description
+    descr_annot = di.table_description_weak_annot()
     # create table
-    _ = di.create_table(h5file=h5file, path='/train/', name='species1', shape=(20,60))
+    _ = di.create_table(h5file=h5file, path='/train/', name='species1', description=descr_annot)
     table = h5file.get_node("/train/species1")
     assert table.nrows == 15
     assert table[0]['data'].shape == (2413,201)
     assert table[1]['id'] == b'1'
     # clean
     h5file.close()
-    
+
+
+# ---- above tests are passing ------ #
+
+
 def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
@@ -136,12 +141,12 @@ def test_write_spec(sine_audio):
     # Create table descriptions for storing the spectrogram data
     descr_data, descr_annot = di.table_description_new(spec, annot_type='strong')
     # Create tables
-    tbl_data = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
-    tbl_annot = di.create_table_new(h5file, "/group1/", "table_annot", descr_annot) 
+    tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
+    tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
     # write spectrogram to table
-    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
     # write spectrogram to table with id
-    di.write_spec_new(spec=spec, table_data=tbl_data, table_annot=tbl_annot, id=7)
+    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot, id=7)
     tbl_data.flush()
     tbl_annot.flush()
     x = tbl_annot[0]
@@ -170,7 +175,7 @@ def test_write_spec_TypeError(sine_audio):
     sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
     # write spectrogram to table
@@ -190,14 +195,14 @@ def test_write_spec_cqt(sine_audio):
     spec.annotate(labels=(1,2), boxes=((1,2,300,400),(1.5,2.5,300.5,400.5)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
     # write spectrogram to table
     di.write_spec(table=tbl, spec=spec) 
     h5file.close()
     # re-open
-    h5file = tables.open_file(fpath, 'r')
+    h5file = di.open_file(fpath, 'r')
     tbl = h5file.get_node("/group_1/table_1")
     # check
     assert int(tbl.attrs.freq_res) == -32
@@ -218,7 +223,7 @@ def test_extract(sine_audio):
     tshape_orig = spec1.image.shape[0]
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrograms to table
@@ -256,7 +261,7 @@ def test_parse_labels(sine_audio):
     tshape_orig = spec1.image.shape[0]
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrograms to table
@@ -286,7 +291,7 @@ def test_parse_boxes(sine_audio):
     tshape_orig = spec1.image.shape[0]
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrograms to table
@@ -319,7 +324,7 @@ def test_filter_by_label(sine_audio):
     spec3.annotate(labels=(2,3), boxes=((1.0, 1.4, 50, 300), (2.0, 2.4, 80, 200)))
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
-    h5file = tables.open_file(fpath, 'w')
+    h5file = di.open_file(fpath, 'w')
     # create table
     tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
     # write spectrogram to table
@@ -352,7 +357,7 @@ def test_filter_by_label_raises(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
     # open h5 file
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = tables.open_file(fpath, 'r')
+    h5file = di.open_file(fpath, 'r')
     tbl = di.open_table(h5file,"/train/species1")
     
     with pytest.raises(TypeError):
@@ -378,7 +383,7 @@ def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
 
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = tables.open_file(fpath, 'r')
+    h5file = di.open_file(fpath, 'r')
     tbl = di.open_table(h5file,"/train/species1")
     
     selected_specs = di.load_specs(tbl)
@@ -392,7 +397,7 @@ def test_load_specs_with_index_list():
     """Test if load_specs loads the spectrograms specified by index_list""" 
 
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = tables.open_file(fpath, 'r')
+    h5file = di.open_file(fpath, 'r')
     tbl = di.open_table(h5file,"/train/species1")
     
     selected_specs = di.load_specs(tbl, index_list=[0,3,14])
@@ -410,7 +415,7 @@ def test_create_spec_database_with_default_args():
     di.create_spec_database(output_file=output_file, input_dir=input_dir)
 
     path = os.path.join(path_to_assets, 'tmp/db_spec.h5')
-    fil = tables.open_file(path, 'r')
+    fil = di.open_file(path, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
@@ -430,7 +435,7 @@ def test_create_spec_database_with_cqt_specs():
     di.create_spec_database(output_file=output_file, input_dir=input_dir, cqt=True, bins_per_octave=16)
 
     path = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
-    fil = tables.open_file(path, 'r')
+    fil = di.open_file(path, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
@@ -450,7 +455,7 @@ def test_create_spec_database_with_size_limit():
     di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=10E6)
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
-    fil = tables.open_file(path, 'r')
+    fil = di.open_file(path, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 1
@@ -460,7 +465,7 @@ def test_create_spec_database_with_size_limit():
     fil.close()
 
     path = os.path.join(path_to_assets, 'tmp/db2_spec_001.h5')
-    fil = tables.open_file(path, 'r')
+    fil = di.open_file(path, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 1
@@ -481,7 +486,7 @@ def test_create_spec_database_with_annotations():
     # create database
     di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile)
 
-    fil = tables.open_file(output_file, 'r')
+    fil = di.open_file(output_file, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
@@ -498,7 +503,7 @@ def test_create_spec_database_with_annotations():
     output_file = os.path.join(path_to_assets, 'tmp/db3_spec_cqt.h5')
     di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile, cqt=True)
 
-    fil = tables.open_file(output_file, 'r')
+    fil = di.open_file(output_file, 'r')
     tbl = di.open_table(fil, "/spec")
     specs = di.load_specs(tbl)
     assert len(specs) == 2
@@ -522,7 +527,7 @@ def test_spec_writer_can_write_one_spec(sine_audio):
     writer.write(spec=spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 1
@@ -535,7 +540,7 @@ def test_spec_writer_can_write_two_specs_to_same_node(sine_audio):
     writer.write(spec=spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db6.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 2
@@ -551,7 +556,7 @@ def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
     writer.write(spec=spec, path='/second', name='temp')
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db7.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/first/test' in fil
     assert '/second/temp' in fil
     specs = di.load_specs(fil.root.first.test)
@@ -569,13 +574,13 @@ def test_spec_writer_splits_into_several_files_when_max_size_is_reached(sine_aud
     writer.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 2
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/spec' in fil
     specs = di.load_specs(fil.root.spec)
     assert len(specs) == 1
@@ -593,7 +598,7 @@ def test_spec_writer_change_directory(sine_audio):
     writer.write(spec=spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db9.h5')
-    fil = tables.open_file(fname, 'r')
+    fil = di.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
     specs = di.load_specs(fil.root.home.fish)
@@ -622,13 +627,13 @@ def test_two_spec_writers_simultaneously(sine_audio):
     writer1.close()
     writer2.close()
     # check file 1
-    fil1 = tables.open_file(out1, 'r')
+    fil1 = di.open_file(out1, 'r')
     assert '/home/fish' in fil1
     specs = di.load_specs(fil1.root.home.fish)
     assert len(specs) == 3
     fil1.close()
     # check file 2
-    fil2 = tables.open_file(out2, 'r')
+    fil2 = di.open_file(out2, 'r')
     assert '/home/whale' in fil2
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
