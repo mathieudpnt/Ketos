@@ -313,8 +313,8 @@ def annot_table_std():
     N = len(label)
     filename = ['f{0}.wav'.format(x%3) for x in np.arange(N)]
     start = np.arange(N, dtype=float)
-    stop = start + 3.3
-    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    end = start + 3.3
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
     return tbl
 
 @pytest.fixture
@@ -330,7 +330,7 @@ def annot_table():
     filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
     start = np.arange(N)
     stop = start + 1
-    tbl = pd.DataFrame({'fname': filename, 'label': label, 'time_start': start, 'STOP': stop})
+    tbl = pd.DataFrame({'fname': filename, 'label': label, 'start': start, 'STOP': stop})
     return tbl
 
 @pytest.fixture
@@ -346,15 +346,15 @@ def annot_table_mult_labels():
     N = len(label)
     filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
     start = np.arange(N)
-    stop = start + 1
-    tbl = pd.DataFrame({'filename': filename, 'label': label, 'time_start': start, 'time_stop': stop})
+    end = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
     return tbl
 
 @pytest.fixture
 def annot_table_file(annot_table):
     """ Create an annotations table csv file with the 'annot_table()' fixture
     
-        The file is saved as tests/assets/annot_001.csv.
+        The file is saved as tests/assets/tmp/annot_002.csv.
         When the tests using this fixture are done, 
         the file is deleted.
 
@@ -362,7 +362,7 @@ def annot_table_file(annot_table):
             csv_file : str
                 A string containing the path to the .csv file.
     """
-    csv_file = os.path.join(path_to_assets, "annot_001.csv")
+    csv_file = os.path.join(os.path.join(path_to_assets, "tmp"), "annot_002.csv")
     tbl = annot_table
     tbl.to_csv(csv_file, index=False)
     yield csv_file
