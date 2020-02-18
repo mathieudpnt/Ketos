@@ -24,10 +24,10 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Image module within the ketos library
+""" 'audio.utils.filter' module within the ketos library
 
-    This module provides utilities to manipulate spectrogram 
-    images.
+    This module provides utilities for manipulating and filtering waveforms and
+    spectrograms.
 """
 import numpy as np
 import scipy.ndimage as ndimage
@@ -89,7 +89,7 @@ def enhance_signal(img, enhancement=1.):
                 Enhanced image.
 
         Example:
-            >>> from ketos.audio_processing.image import enhance_signal, plot_image
+            >>> from ketos.audio.utils.filter import enhance_signal, plot_image
             >>> #create an image 
             >>> x = np.linspace(-4,4,100)
             >>> y = np.linspace(-6,6,100)
@@ -149,7 +149,7 @@ def reduce_tonal_noise(img, method='MEDIAN', **kwargs):
 
         Example:
             >>> import numpy as np
-            >>> from ketos.audio_processing.image import reduce_tonal_noise, plot_image
+            >>> from ketos.audio.utils.filter import reduce_tonal_noise, plot_image
             >>> #create an image 
             >>> x = np.linspace(-4,4,100)
             >>> y = np.linspace(-6,6,100)
@@ -227,7 +227,7 @@ def filter_isolated_spots(img, struct=np.array([[1,1,1],[1,1,1],[1,1,1]])):
                 An array containing the input image without the isolated spots.
 
         Example:
-            >>> from ketos.audio_processing.image import filter_isolated_spots
+            >>> from ketos.audio.utils.filter import filter_isolated_spots
             >>> img = np.array([[0,0,1,1,0,0],
             ...                 [0,0,0,1,0,0],
             ...                 [0,1,0,0,0,0],
@@ -278,7 +278,7 @@ def blur_image(img, size=20, sigma=5, gaussian=True):
                 Blurred image.
 
         Example:
-            >>> from ketos.audio_processing.image import blur_image
+            >>> from ketos.audio.utils.filter import blur_image
             >>> img = np.array([[0,0,0],
             ...                 [0,1,0],
             ...                 [0,0,0]])
@@ -325,7 +325,7 @@ def apply_median_filter(img, row_factor=3, col_factor=4):
                 The filtered image with 0s and 1s.
 
         Example:
-            >>> from ketos.audio_processing.image import apply_median_filter
+            >>> from ketos.audio.utils.filter import apply_median_filter
             >>> img = np.array([[1,4,5],
             ...                 [3,5,1],
             ...                 [1,0,9]])
@@ -361,7 +361,7 @@ def apply_preemphasis(sig, coeff=0.97):
 
         Example:
 
-            >>> from ketos.audio_processing.image import apply_preemphasis
+            >>> from ketos.audio.utils.filter import apply_preemphasis
             >>> sig = np.array([1,2,3,4,5])
             >>> sig_new = apply_preemphasis(sig, coeff=0.95)
             >>> print(sig_new)

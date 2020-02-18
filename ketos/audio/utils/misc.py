@@ -24,7 +24,7 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Audio processing module within the ketos library
+""" 'audio.utils.misc' module within the ketos library
 
     This module provides utilities to perform various types of 
     operations on audio data, acting either in the time domain 
@@ -54,7 +54,7 @@ def pad_reflect(x, pad_left=0, pad_right=0):
                 Padded array
 
         Example:
-            >>> from ketos.audio_processing.audio_processing import pad_reflect
+            >>> from ketos.audio.utils.misc import pad_reflect
             >>> arr = np.arange(9) #create a simple array
             >>> print(arr)
             [0 1 2 3 4 5 6 7 8]
@@ -93,7 +93,7 @@ def pad_zero(x, pad_left=0, pad_right=0):
                 Padded array
 
         Example:
-            >>> from ketos.audio_processing.audio_processing import pad_zero
+            >>> from ketos.audio.utils.misc import pad_zero
             >>> arr = np.arange(9) #create a simple array
             >>> print(arr)
             [0 1 2 3 4 5 6 7 8]
@@ -138,7 +138,7 @@ def num_samples(time, rate, even=False):
                 Number of samples
 
         Example:
-            >>> from ketos.audio_processing.audio_processing import num_samples
+            >>> from ketos.audio.utils.misc import num_samples
             >>> print(num_samples(rate=1000., time=0.0))
             0
             >>> print(num_samples(rate=1000., time=2.0))
@@ -156,7 +156,7 @@ def num_samples(time, rate, even=False):
     return n
 
 def segment_args(rate, duration, offset, window, step):
-    """ Computes input arguments for :func:`audio_processing.audio_processing.make_segment` 
+    """ Computes input arguments for :func:`audio.utils.misc.make_segment` 
         to produce a centered spectrogram with properties as close as possible to 
         those specified.
 
@@ -181,7 +181,7 @@ def segment_args(rate, duration, offset, window, step):
                 * offset_len: Offset in number of samples (int)
 
         Example: 
-            >>> from ketos.audio_processing.audio_processing import segment_args
+            >>> from ketos.audio.utils.misc import segment_args
             >>> args = segment_args(rate=1000., duration=3., offset=0., window=0.1, step=0.02)
             >>> for key,value in sorted(args.items()):
             ...     print(key,':',value)
@@ -212,13 +212,13 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
             x: numpy.array
                 The data to be segmented
             win_len: int
-                Window length.
+                Window length in no. of samples
             step_len: float
-                Step size.
+                Step size in no. of samples
             num_segs: int
                 Number of segments. Optional.
             offset_len: int
-                Position of the first frame. Defaults to 0, if not specified.
+                Position of the first frame in no. of samples. Defaults to 0, if not specified.
             pad_mode: str
                 Padding mode. Select between 'reflect' (default) and 'zero'.
             mem_warning: bool
@@ -230,7 +230,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
                 Segmented data, has shape (num_segs, win_len, x.shape[1:])
 
         Example:
-            >>> from ketos.audio_processing.audio_processing import segment
+            >>> from ketos.audio.utils.misc import segment
             >>> x = np.arange(10)
             >>> print(x)
             [0 1 2 3 4 5 6 7 8 9]
@@ -272,7 +272,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
 def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', decibel=True):
     """ Compute Short Time Fourier Transform (STFT).
 
-        Uses :func:`audio_processing.audio_processing.segment_args` to convert 
+        Uses :func:`audio.utils.misc.segment_args` to convert 
         the window size and step size into an even integer number of samples.
         
         The number of points used for the Fourier Transform is equal to the 
@@ -288,7 +288,7 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', 
             step: float
                 Step size in seconds 
             seg_args: dict
-                Input arguments for :func:`audio_processing.audio_processing.segment_args`. 
+                Input arguments for :func:`audio.utils.misc.segment_args`. 
                 Optional. If specified, the arguments  `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
@@ -307,7 +307,7 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', 
             num_fft: int
                 Number of points used for the Fourier Transform.
             seg_args: dict
-                Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
+                Input arguments used for evaluating :func:`audio.utils.misc.segment_args`. 
     """
     if seg_args is None:
         assert window and step, "if seg_args is not specified, window and step must both be specified."
@@ -431,7 +431,8 @@ def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hammi
     return img, step
 
 def to_decibel(x):
-    """ Convert to decibels
+    """ Convert any data array, :math:`y`, typically a spectrogram, from linear scale 
+        to decibel scale by applying the operation :math:`20\log_{10}(y)`.
 
     Args:
         x : numpy array
@@ -443,7 +444,7 @@ def to_decibel(x):
 
     Example:
         >>> import numpy as np
-        >>> from ketos.audio_processing.audio_processing import to_decibel 
+        >>> from ketos.audio.utils.misc import to_decibel 
         >>> img = np.array([[10., 20.],[30., 40.]])
         >>> img_db = to_decibel(img)
         >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
@@ -455,7 +456,8 @@ def to_decibel(x):
     return y
 
 def from_decibel(y):
-    """ Convert from decibels
+    """ Convert any data array, :math:`y`, typically a spectrogram, from decibel scale 
+        to linear scale by applying the operation :math:`10^{y/20}`.
 
     Args:
         y : numpy array
@@ -467,7 +469,7 @@ def from_decibel(y):
 
     Example:
         >>> import numpy as np
-        >>> from ketos.audio_processing.audio_processing import from_decibel 
+        >>> from ketos.audio.utils.misc import from_decibel 
         >>> img = np.array([[10., 20.],[30., 40.]])
         >>> img_db = from_decibel(img)
         >>> img_db = np.around(img_db, decimals=2) # only keep up to two decimals
@@ -514,11 +516,11 @@ def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
             >>> audio = 32600 * np.sin(2 * np.pi * 10 * x / 1000) 
             >>> #Compute the Short Time Fourier Transform of the audio signal 
             >>> #using a window size of 200, step size of 40, and a Hamming window,
-            >>> from ketos.audio_processing.audio_processing import stft
+            >>> from ketos.audio.utils.misc import stft
             >>> win_fun = 'hamming'
             >>> mag, freq_max, num_fft, _ = stft(x=audio, rate=1000, seg_args={'win_len':200, 'step_len':40}, window_func=win_fun)
             >>> #Estimate the original audio signal            
-            >>> from ketos.audio_processing.audio_processing import spec2audio
+            >>> from ketos.audio.utils.misc import spec2audio
             >>> audio_est = spec2audio(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window_func=win_fun)
             >>> #plot the original and the estimated audio signal
             >>> import matplotlib.pyplot as plt

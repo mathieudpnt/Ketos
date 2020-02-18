@@ -27,7 +27,7 @@
 """ Unit tests for the 'audio' module within the ketos library
 """
 import pytest
-import ketos.audio_processing.audio as aud
+from ketos.audio.waveform import Waveform
 import numpy as np
 
 
@@ -35,7 +35,7 @@ def test_init_audio_signal():
     """Test if the audio signal has expected attribute values"""
     N = 10000
     d = np.ones(N)
-    a = aud.AudioSignal(rate=1000, data=d, filename='x', offset=2., label=13)
+    a = Waveform(rate=1000, data=d, filename='x', offset=2., label=13)
     assert np.all(a.get_data() == d)
     assert a.rate == 1000
     assert a.filename == 'x'
@@ -46,7 +46,7 @@ def test_init_stacked_audio_signal():
     """Test if a stacked audio signal has expected attribut values"""
     N = 10000
     d = np.ones((N,3))
-    a = aud.AudioSignal(rate=1000, data=d, filename='xx', offset=2., label=13)
+    a = Waveform(rate=1000, data=d, filename='xx', offset=2., label=13)
     assert np.all(a.get_data(1) == d[:,1])
     assert a.rate == 1000
     assert np.all(a.get_filename() == 'xx')
@@ -55,7 +55,7 @@ def test_init_stacked_audio_signal():
 
 def test_from_wav(sine_wave_file, sine_wave):
     """Test if an audio signal can be created from a wav file"""
-    a = aud.AudioSignal.from_wav(sine_wave_file)
+    a = Waveform.from_wav(sine_wave_file)
     sig = sine_wave[1]
     assert a.duration() == 3.
     assert a.rate == 44100
@@ -103,13 +103,13 @@ def test_add_audio_signals_with_scaling(sine_audio):
     assert np.all(np.abs(sine_audio.data - (1. + scale) * v) < 0.00001)
 
 def test_add_morlet_on_cosine():
-    cos = aud.AudioSignal.cosine(rate=100, frequency=1., duration=4)
-    mor = aud.AudioSignal.morlet(rate=100, frequency=7., width=0.5)
+    cos = Waveform.cosine(rate=100, frequency=1., duration=4)
+    mor = Waveform.morlet(rate=100, frequency=7., width=0.5)
     cos.add(signal=mor, offset=3.0, scale=0.5)
 
 def test_morlet_with_default_params():
     """Test can create Morlet wavelet"""
-    mor = aud.AudioSignal.morlet(rate=4000, frequency=20, width=1)
+    mor = Waveform.morlet(rate=4000, frequency=20, width=1)
     assert len(mor.data) == int(6*1*4000) # check number of samples
     assert max(mor.data) == pytest.approx(1, abs=0.01) # check max signal is 1
     assert np.argmax(mor.data) == pytest.approx(0.5*len(mor.data), abs=1) # check peak is centered
@@ -117,14 +117,14 @@ def test_morlet_with_default_params():
 
 def test_gaussian_noise():
     """Test can add Gaussian noise"""
-    noise = aud.AudioSignal.gaussian_noise(rate=2000, sigma=2, samples=40000)
+    noise = Waveform.gaussian_noise(rate=2000, sigma=2, samples=40000)
     assert noise.std() == pytest.approx(2, rel=0.05) # check standard deviation
     assert noise.average() == pytest.approx(0, abs=6*2/np.sqrt(40000)) # check mean
     assert noise.duration() == 20 # check length
 
 def test_resampled_signal_has_correct_rate(sine_wave_file):
     """Test the resampling method produces audio signal with correct rate"""
-    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    signal = Waveform.from_wav(sine_wave_file)
     new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     assert new_signal.rate == 22000
@@ -134,7 +134,7 @@ def test_resampled_signal_has_correct_rate(sine_wave_file):
 
 def test_resampled_signal_has_correct_duration(sine_wave_file):
     """Test the resampling method produces audio signal with correct duration"""
-    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    signal = Waveform.from_wav(sine_wave_file)
     duration = signal.duration()
     new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
@@ -145,20 +145,20 @@ def test_resampled_signal_has_correct_duration(sine_wave_file):
 
 def test_resampling_preserves_signal_shape(const_wave_file):
     """Test that resampling of a constant signal produces a constant signal"""
-    signal = aud.AudioSignal.from_wav(const_wave_file)
+    signal = Waveform.from_wav(const_wave_file)
     new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     assert np.all(np.abs(new_signal.data - np.average(signal.data)) < 0.0001)
 
 def test_resampling_preserves_frequency_of_sine_wave(sine_wave_file):
     """Test that resampling of a sine wave produces a sine wave with the same frequency"""
-    signal = aud.AudioSignal.from_wav(sine_wave_file)
+    signal = Waveform.from_wav(sine_wave_file)
     rate = signal.rate
     sig = signal.data
     y = abs(np.fft.rfft(sig))
     freq = np.argmax(y)
     freqHz = freq * rate / len(sig)
-    signal = aud.AudioSignal(rate=rate, data=sig)
+    signal = Waveform(rate=rate, data=sig)
     new_signal = signal.deepcopy()
     new_signal.resample(new_rate=22000)
     new_y = abs(np.fft.rfft(new_signal.data))
@@ -167,6 +167,6 @@ def test_resampling_preserves_frequency_of_sine_wave(sine_wave_file):
     assert freqHz == new_freqHz
 
 def test_segment():
-    mor = aud.AudioSignal.morlet(rate=100, frequency=5, width=0.5)
+    mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
     segs = mor.segment(window=2., step=1.)
     assert segs.get_filename(0) == 'morlet'

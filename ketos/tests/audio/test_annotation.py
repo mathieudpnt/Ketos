@@ -24,14 +24,14 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the 'annotation' module within the ketos library
+""" Unit tests for the 'audio.annotation' module within the ketos library
 """
 
 import pytest
 import unittest
 import numpy as np
 import pandas as pd
-from ketos.audio_processing.annotation import AnnotationHandler, stack_annotations
+from ketos.audio.annotation import AnnotationHandler, stack_annotations
 
 
 def test_empty_annotation_handler_has_correct_columns():

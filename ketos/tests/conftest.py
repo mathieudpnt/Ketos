@@ -31,11 +31,11 @@ import numpy as np
 import scipy.signal as sg
 import soundfile as sf
 import pandas as pd
-import ketos.audio_processing.audio_processing as ap
+import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
-import ketos.audio_processing.audio as aud
-from ketos.audio_processing.axis import LinearAxis, Log2Axis
-import ketos.audio_processing.time_data as td
+from ketos.audio.waveform import Waveform
+from ketos.audio.utils.axis import LinearAxis, Log2Axis
+import ketos.audio.base_audio as aba
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -223,7 +223,7 @@ def database_prepared_for_NN_2_classes():
 @pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave
-    a = aud.AudioSignal(rate=rate, data=data, filename='sine_wave')
+    a = Waveform(rate=rate, data=data, filename='sine_wave')
     return a
     
 @pytest.fixture
@@ -411,32 +411,32 @@ def spec_image_with_attrs():
     return img,dt,ax
 
 @pytest.fixture
-def time_data_1d():
-    """ Create a simple 1d TimeData object with value 1 everywhere, length 
+def base_audio_1d():
+    """ Create a simple 1d BaseAudio object with value 1 everywhere, length 
         of 10 s, time resolution of 0.001 s, filename 'x', offset of 2 s, and label 13.
 
         Yields:
-            o: TimeData
-                TimeData object
+            o: BaseAudio
+                BaseAudio object
     """
     N = 10000
     d = np.ones(N)
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
     return o, d
 
 @pytest.fixture
-def time_data_1d_stacked():
-    """ Create a 1d TimeData object consisting of three stacked arrays (with values 1,2,3 
+def base_audio_1d_stacked():
+    """ Create a 1d BaseAudio object consisting of three stacked arrays (with values 1,2,3 
         everywhere), and having a length of 10 s, time resolution of 0.001 s, filename 'x',
         'y','z', offset of 2 s, and label 13.
 
         Yields:
-            o: TimeData
-                TimeData object
+            o: BaseAudio
+                BaseAudio object
     """
     N = 10000
     d = np.ones((N,3))
     d[:,1] = 2
     d[:,2] = 3
-    o = td.TimeData(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
+    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
     return o, d

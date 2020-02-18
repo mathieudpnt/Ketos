@@ -24,15 +24,15 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the 'spectrogram' module within the ketos library
+""" Unit tests for the 'audio.spectrogram' module within the ketos library
 """
 import pytest
 import numpy as np
 import copy
 import os
-from ketos.audio_processing.spectrogram import MagSpectrogram,\
+from ketos.audio.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
-from ketos.audio_processing.axis import LinearAxis
+from ketos.audio.utils.axis import LinearAxis
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")

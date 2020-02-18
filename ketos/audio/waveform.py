@@ -29,7 +29,7 @@
     This module provides utilities to work with audio data.
 
     Contents:
-        AudioSignal class
+        Waveform class
 """
 import os
 import numpy as np
@@ -37,15 +37,14 @@ import librosa
 import scipy.io.wavfile as wave
 from scipy import interpolate
 import matplotlib.pyplot as plt
-import ketos.audio_processing.audio_processing as ap
-from ketos.utils import ensure_dir
+from ketos.utils import ensure_dir, morlet_func
 from ketos.data_handling.data_handling import read_wave
-from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.utils import morlet_func
-from ketos.audio_processing.axis import LinearAxis
-from ketos.audio_processing.time_data import TimeData, segment_data
+from ketos.audio.annotation import AnnotationHandler
+from ketos.audio.utils.axis import LinearAxis
+from ketos.audio.base_audio import BaseAudio, segment_data
+import ketos.audio.utils.misc as aum
 
-class AudioSignal(TimeData):
+class Waveform(BaseAudio):
     """ Audio signal
 
         Args:
@@ -111,13 +110,13 @@ class AudioSignal(TimeData):
                     for details on the individual methods.
 
             Returns:
-                Instance of AudioSignal
+                Instance of Waveform
                     Audio signal
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # read audio signal from wav file
-                >>> a = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> a = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
                 >>> # show signal
                 >>> fig = a.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
@@ -125,9 +124,9 @@ class AudioSignal(TimeData):
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
         rate_orig = librosa.get_samplerate(path)
-        start = ap.num_samples(offset, rate_orig)
+        start = aum.num_samples(offset, rate_orig)
         if duration:
-            stop = ap.num_samples(offset + duration, rate_orig)
+            stop = aum.num_samples(offset + duration, rate_orig)
         else:
             stop = None
 
@@ -155,13 +154,13 @@ class AudioSignal(TimeData):
                     Meta-data string (optional)
 
             Returns:
-                Instance of AudioSignal
+                Instance of Waveform
                     Audio signal sampling of Gaussian noise
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create gaussian noise with sampling rate of 10 Hz, standard deviation of 2.0 and 1000 samples
-                >>> a = AudioSignal.gaussian_noise(rate=10, sigma=2.0, samples=1000)
+                >>> a = Waveform.gaussian_noise(rate=10, sigma=2.0, samples=1000)
                 >>> # show signal
                 >>> fig = a.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
@@ -202,13 +201,13 @@ class AudioSignal(TimeData):
                     Meta-data string (optional)
 
             Returns:
-                Instance of AudioSignal
+                Instance of Waveform
                     Audio signal sampling of the Morlet wavelet 
 
             Examples:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a Morlet wavelet with frequency of 3 Hz and 1-sigma width of envelope set to 2.0 seconds
-                >>> wavelet1 = AudioSignal.morlet(rate=100., frequency=3., width=2.0)
+                >>> wavelet1 = Waveform.morlet(rate=100., frequency=3., width=2.0)
                 >>> # show signal
                 >>> fig = wavelet1.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
@@ -216,7 +215,7 @@ class AudioSignal(TimeData):
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
 
                 >>> # create another wavelet, but with frequency increasing linearly with time
-                >>> wavelet2 = AudioSignal.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
+                >>> wavelet2 = Waveform.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
                 >>> # show signal
                 >>> fig = wavelet2.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
@@ -257,13 +256,13 @@ class AudioSignal(TimeData):
                     Meta-data string (optional)
 
             Returns:
-                Instance of AudioSignal
+                Instance of Waveform
                     Audio signal sampling of the cosine function 
 
             Examples:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a Cosine wave with frequency of 7 Hz
-                >>> cos = AudioSignal.cosine(rate=1000., frequency=7.)
+                >>> cos = Waveform.cosine(rate=1000., frequency=7.)
                 >>> # show signal
                 >>> fig = cos.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
@@ -287,7 +286,7 @@ class AudioSignal(TimeData):
 
             Args:
                 id: int
-                    Audio signal ID. Only relevant if the AudioSignal object 
+                    Audio signal ID. Only relevant if the Waveform object 
                     contains multiple, stacked audio signals.
 
             Returns:
@@ -318,13 +317,13 @@ class AudioSignal(TimeData):
                     Step size in seconds.
 
             Returns:
-                segs: AudioSignal
+                segs: Waveform
                     Stacked audio signals
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a morlet wavelet
-                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=0.5)
+                >>> mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
                 >>> mor.duration()
                 3.0
                 >>> # segment into 2-s wide frames, using a step size of 1 s
@@ -387,9 +386,9 @@ class AudioSignal(TimeData):
                     Figure object.
 
             Example:            
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a morlet wavelet
-                >>> a = AudioSignal.morlet(rate=100, frequency=5, width=1)
+                >>> a = Waveform.morlet(rate=100, frequency=5, width=1)
                 >>> # plot the wave form
                 >>> fig = a.plot()
 
@@ -418,7 +417,7 @@ class AudioSignal(TimeData):
             quite slow, so it is advisable to use small value for n_smooth.
 
             Args:
-                signal: AudioSignal
+                signal: Waveform
                     Audio signal to be appended.
                 n_smooth: int
                     Width of the smoothing/overlap region (number of samples).
@@ -427,11 +426,11 @@ class AudioSignal(TimeData):
                 None
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a morlet wavelet
-                >>> mor = AudioSignal.morlet(rate=100, frequency=5, width=1)
+                >>> mor = Waveform.morlet(rate=100, frequency=5, width=1)
                 >>> # create a cosine wave
-                >>> cos = AudioSignal.cosine(rate=100, frequency=3, duration=4)
+                >>> cos = Waveform.cosine(rate=100, frequency=3, duration=4)
                 >>> # append the cosine wave to the morlet wavelet, using a overlap of 100 bins
                 >>> mor.append(signal=cos, n_smooth=100)
                 >>> # show the wave form
@@ -479,9 +478,9 @@ class AudioSignal(TimeData):
                     Standard deviation of the gaussian noise
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a morlet wavelet
-                >>> morlet = AudioSignal.morlet(rate=100, frequency=2.5, width=1)
+                >>> morlet = Waveform.morlet(rate=100, frequency=2.5, width=1)
                 >>> morlet_pure = morlet.deepcopy() # make a copy
                 >>> # add some noise
                 >>> morlet.add_gaussian_noise(sigma=0.3)
@@ -495,7 +494,7 @@ class AudioSignal(TimeData):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
         """
-        noise = AudioSignal.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
+        noise = Waveform.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
 
     def add(self, signal, offset=0, scale=1):
@@ -508,7 +507,7 @@ class AudioSignal(TimeData):
             If the overlap region is empty, the original signal is unchanged.
 
             Args:
-                signal: AudioSignal
+                signal: Waveform
                     Audio signal to be added
                 offset: float
                     Shift the audio signal by this many seconds
@@ -516,11 +515,11 @@ class AudioSignal(TimeData):
                     Scaling factor applied to signal that is added
 
             Example:
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.waveform import Waveform
                 >>> # create a cosine wave
-                >>> cos = AudioSignal.cosine(rate=100, frequency=1., duration=4)
+                >>> cos = Waveform.cosine(rate=100, frequency=1., duration=4)
                 >>> # create a morlet wavelet
-                >>> mor = AudioSignal.morlet(rate=100, frequency=7., width=0.5)
+                >>> mor = Waveform.morlet(rate=100, frequency=7., width=0.5)
                 >>> mor.duration()
                 3.0
                 >>> # add the morlet wavelet on top of the cosine, with a shift of 1.5 sec and a scaling factor of 0.5

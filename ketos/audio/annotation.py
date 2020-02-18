@@ -24,10 +24,10 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Annotation module within the ketos library
+""" 'audio.annotation' module within the ketos library
 
     This module provides utilities to handle annotations associated 
-    with audio files and spectrograms.
+    with waveform and spectrogram objects.
 
     Contents:
         AnnotationHandler class
@@ -255,7 +255,7 @@ class AnnotationHandler():
                     Annotations 
 
             Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> from ketos.audio.annotation import AnnotationHandler
                 >>> # Initialize an empty instance of the annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
@@ -390,7 +390,7 @@ class AnnotationHandler():
                 None
 
             Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> from ketos.audio.annotation import AnnotationHandler
                 >>> # Create an annotation table containing two annotations
                 >>> annots = pd.DataFrame({'label':[1,2], 'start':[4.,8.], 'end':[6.,12.]})
                 >>> # Initialize the annotation handler
@@ -451,7 +451,7 @@ class AnnotationHandler():
                 None
 
             Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> from ketos.audio.annotation import AnnotationHandler
                 >>> # Initialize an empty annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations
@@ -560,7 +560,7 @@ class AnnotationHandler():
                         * level 2: individual annotation
 
             Example:
-                >>> from ketos.audio_processing.annotation import AnnotationHandler
+                >>> from ketos.audio.annotation import AnnotationHandler
                 >>> # Initialize an empty annotation handler
                 >>> handler = AnnotationHandler()
                 >>> # Add a couple of annotations

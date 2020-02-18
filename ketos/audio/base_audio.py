@@ -24,20 +24,20 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" time_data module within the ketos library
+""" 'audio.base_audio' module within the ketos library
 
-    This module provides utilities to work with time series data.
+    This module contains the base class for the Waveform and Spectrogram classes.
 
     Contents:
-        TimeData class
+        BaseAudio class
 """
 import os
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-import ketos.audio_processing.audio_processing as ap
-from ketos.audio_processing.annotation import AnnotationHandler, stack_annotations
-from ketos.audio_processing.axis import LinearAxis
+import ketos.audio.utils.misc as aum
+from ketos.audio.annotation import AnnotationHandler, stack_annotations
+from ketos.audio.utils.axis import LinearAxis
 
 def stack_attr(value, shape, dtype):
     """ Ensure that data attribute has the requested shape.
@@ -84,7 +84,7 @@ def segment_data(x, window, step=None):
         ensure that all segments have an equal number of samples. 
 
         Args:
-            x: TimeData
+            x: BaseAudio
                 Data to be segmented
             window: float
                 Length of each segment in seconds.
@@ -92,7 +92,7 @@ def segment_data(x, window, step=None):
                 Step size in seconds.
 
         Returns:
-            segs: TimeData
+            segs: BaseAudio
                 Stacked data segments
             filename: array-like
                 Filenames
@@ -107,11 +107,11 @@ def segment_data(x, window, step=None):
         step = window
 
     time_res = x.time_res()
-    win_len = ap.num_samples(window, 1. / time_res)
-    step_len = ap.num_samples(step, 1. / time_res)
+    win_len = aum.num_samples(window, 1. / time_res)
+    step_len = aum.num_samples(step, 1. / time_res)
 
     # segment data array
-    segs = ap.segment(x=x.data, win_len=win_len, step_len=step_len, pad_mode='zero')
+    segs = aum.segment(x=x.data, win_len=win_len, step_len=step_len, pad_mode='zero')
 
     window = win_len * time_res
     step = step_len * time_res
@@ -179,10 +179,10 @@ def get_slice(arr, axis=0, indices=None):
     return ans
 
 
-class TimeData():
+class BaseAudio():
     """ Parent class for time-series data classes such as
-        :class:`audio_processing.audio_signal.AudioSignal` 
-        and :class:`audio_processing.spectrogram.Spectrogram`.
+        :class:`audio.waveform.Waveform` 
+        and :class:`audio.spectrogram.Spectrogram`.
 
         Args:
             data: numpy array
@@ -331,7 +331,7 @@ class TimeData():
             See https://docs.python.org/2/library/copy.html
 
             Returns:
-                : TimeData
+                : BaseAudio
                     Deep copy.
         """
         return copy.deepcopy(self)
@@ -400,7 +400,7 @@ class TimeData():
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
 
-            Input arguments are described in :method:`audio_processing.annotation.AnnotationHandler.add`
+            Input arguments are described in :method:`audio.annotation.AnnotationHandler.add`
         """
         if self.annot is None: #if the object does not have an annotation handler, create one!
             self.annot = AnnotationHandler() 
@@ -447,7 +447,7 @@ class TimeData():
                     Step size in seconds.
 
             Returns:
-                d: TimeData
+                d: BaseAudio
                     Stacked data segments
         """   
         segs, filename, offset, label, annot = segment_data(self, window, step)
@@ -474,7 +474,7 @@ class TimeData():
                     unaffected. Default is False.
 
             Returns:
-                a: TimeData
+                a: BaseAudio
                     Cropped data array
         """
         if make_copy:

@@ -24,7 +24,7 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Axis module within the ketos library
+""" 'audio.utils.axis' module within the ketos library
 
     This module provides utilities to convert bin numbers to 
     continuous variable values and vice versa.
@@ -32,12 +32,13 @@
     Bins are numbered 0,1,2,3,...,N-1, counting from lower to 
     higher values, where N is the number of bins.
 
-    Each bin represents a half-open endpoint, including the lower 
-    (left) end point while excluding the upper (right) end point, 
-    i.e., [a,b), except for the last bin, which represents a closed 
-    interval with both end points included, i.e. [a,b].
+    By default, each bin represents a half-open interval, including 
+    the lower (left) boundary while excluding the upper (right) 
+    boudary, i.e., [a,b), except for the last bin, which represents 
+    a closed interval with both boundaries included, i.e. [a,b].
 
     Contents:
+        Axis class:
         LinearAxis class:
         Log2Axis class
 """
@@ -103,7 +104,7 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
     return b
 
 class Axis():
-    """ Abstract base class for all Axis classes.
+    """ Base class for all Axis classes.
 
         Child classes must implement the methods `bin` and  `low_edge`.
 
@@ -196,7 +197,7 @@ class Axis():
                     Lower and upper bin number of the cut
 
             Example:
-                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> from ketos.audio.utils.axis import LinearAxis
                 >>> #Linear axis between 0. and 10. with 20 bins.
                 >>> ax = LinearAxis(bins=20, extent=(0.,10.))
                 >>> #Select interval from 5.3 to 8.7
@@ -344,7 +345,7 @@ class LinearAxis(Axis):
                     Bin number
 
             Example:
-                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> from ketos.audio.utils.axis import LinearAxis
                 >>> #Linear axis between 0. and 100. with 200 bins.
                 >>> ax = LinearAxis(bins=200, extent=(0.,100.))
                 >>> #Get bin number corresponding to x=0.6
@@ -393,7 +394,7 @@ class LinearAxis(Axis):
                     Lower-edge bin value
 
             Example:
-                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> from ketos.audio.utils.axis import LinearAxis
                 >>> #Linear axis between 12. and 22. with 5 bins.
                 >>> ax = LinearAxis(bins=5, extent=(12.,22.))
                 >>> #Get lower-edge values of bins 1 and 4
@@ -481,7 +482,7 @@ class Log2Axis(Axis):
                     Bin number
 
             Example:
-                >>> from ketos.audio_processing.axis import Log2Axis
+                >>> from ketos.audio.utils.axis import Log2Axis
                 >>> ax = Log2Axis(bins=4*8, bins_per_oct=8, min_value=200.)
                 >>> ax.bin([400.,800.])
                 array([ 8, 16])
@@ -501,7 +502,7 @@ class Log2Axis(Axis):
                     Lower-edge bin value
 
             Example:
-                >>> from ketos.audio_processing.axis import Log2Axis
+                >>> from ketos.audio.utils.axis import Log2Axis
                 >>> ax = Log2Axis(bins=4*8, bins_per_oct=8, min_value=200.)
                 >>> ax.low_edge([0,16])
                 array([200., 800.])

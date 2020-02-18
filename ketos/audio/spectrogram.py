@@ -24,7 +24,7 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Spectrogram module within the ketos library
+""" 'audio.spectrogram' module within the ketos library.
 
     This module provides utilities to work with spectrograms.
 
@@ -58,13 +58,12 @@ from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from ketos.audio_processing.audio import AudioSignal
-from ketos.data_handling.parsing import WinFun
-import ketos.audio_processing.audio_processing as ap
-from ketos.audio_processing.axis import LinearAxis, Log2Axis
-from ketos.audio_processing.annotation import AnnotationHandler
-from ketos.audio_processing.image import enhance_signal, reduce_tonal_noise
-from ketos.audio_processing.time_data import TimeData, segment_data
+from ketos.audio.waveform import Waveform
+import ketos.audio.utils.misc as aum
+from ketos.audio.utils.axis import LinearAxis, Log2Axis
+from ketos.audio.annotation import AnnotationHandler
+from ketos.audio.utils.filter import enhance_signal, reduce_tonal_noise
+from ketos.audio.base_audio import BaseAudio, segment_data
 
 
 def add_specs(a, b, offset=0, scale=1, make_copy=False):
@@ -238,10 +237,10 @@ def load_audio_for_spec(path, channel, rate, window, step,\
                 for details on the individual methods.
 
         Returns:
-            audio: AudioSignal
+            audio: Waveform
                 The audio signal
             seg_args: tuple(int,int,int,int)
-                Input arguments for :func:`audio_processing.audio_processing.make_segment`
+                Input arguments for :func:`audio.utils.misc.segment`
     """
     if rate is None:
         rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
@@ -257,7 +256,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
 
     # compute segmentation parameters
-    seg_args = ap.segment_args(rate=rate, duration=duration,\
+    seg_args = aum.segment_args(rate=rate, duration=duration,\
         offset=offset, window=window, step=step)
 
     num_segs = seg_args['num_segs']
@@ -296,15 +295,15 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     # pad with own reflection
     pad_right += max(0, len(x) - com_len)
-    x = ap.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
+    x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
-    # create AudioSignal object
+    # create Waveform object
     filename = os.path.basename(path) #parse file name
-    audio = AudioSignal(data=x, rate=rate, filename=filename, offset=offset)
+    audio = Waveform(data=x, rate=rate, filename=filename, offset=offset)
 
     return audio, seg_args
 
-class Spectrogram(TimeData):
+class Spectrogram(BaseAudio):
     """ Spectrogram.
 
         Parent class for MagSpectrogram, PowerSpectrogram, MelSpectrogram, 
@@ -419,8 +418,8 @@ class Spectrogram(TimeData):
             Examples: 
                 >>> import numpy as np
                 >>> import matplotlib.pyplot as plt
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> from ketos.audio_processing.axis import LinearAxis
+                >>> from ketos.audio.spectrogram import Spectrogram
+                >>> from ketos.audio.utils.axis import LinearAxis
                 >>> # Create a spectrogram with shape (20,30), time resolution of 
                 >>> # 0.5 s, random pixel values, and a linear frequency axis from 
                 >>> # 0 to 300 Hz,
@@ -540,11 +539,11 @@ class Spectrogram(TimeData):
                     Gaussian kernel standard deviation along frequency axis in Hz.
 
             Example:        
-                >>> from ketos.audio_processing.spectrogram import Spectrogram
-                >>> from ketos.audio_processing.audio import AudioSignal
+                >>> from ketos.audio.spectrogram import Spectrogram
+                >>> from ketos.audio.waveform import Waveform
                 >>> import matplotlib.pyplot as plt
                 >>> # create audio signal
-                >>> s = AudioSignal.morlet(rate=1000, frequency=300, width=1)
+                >>> s = Waveform.morlet(rate=1000, frequency=300, width=1)
                 >>> # create spectrogram
                 >>> spec = MagSpectrogram(s, window=0.2, step=0.05)
                 >>> # show image
@@ -581,7 +580,7 @@ class Spectrogram(TimeData):
     def enhance_signal(self, enhancement=1.):
         """ Enhance the contrast between regions of high and low intensity.
 
-            See :func:`audio_processing.image.enhance_image` for implementation details.
+            See :func:`audio.image.enhance_image` for implementation details.
 
             Args:
                 enhancement: float
@@ -593,7 +592,7 @@ class Spectrogram(TimeData):
         """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
             background noise
 
-            See :func:`audio_processing.image.reduce_tonal_noise` for implementation details.
+            See :func:`audio.image.reduce_tonal_noise` for implementation details.
 
             Currently, offers the following two methods:
 
@@ -615,10 +614,10 @@ class Spectrogram(TimeData):
 
             Example:
                 >>> # read audio file
-                >>> from ketos.audio_processing.audio import AudioSignal
-                >>> aud = AudioSignal.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> from ketos.audio.waveform import Waveform
+                >>> aud = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
                 >>> # compute the spectrogram
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> from ketos.audio.spectrogram import MagSpectrogram
                 >>> spec = MagSpectrogram(aud, window=0.2, step=0.02)
                 >>> # keep only frequencies below 800 Hz
                 >>> spec = spec.crop(freq_max=800)
@@ -693,18 +692,18 @@ class Spectrogram(TimeData):
         return fig
 
 class MagSpectrogram(Spectrogram):
-    """ Create a Magnitude Spectrogram from an :class:`audio_signal.AudioSignal` by 
+    """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
         computing the Short Time Fourier Transform (STFT).
     
         Args:
-            audio: AudioSignal
+            audio: Waveform
                 Audio signal 
             window: float
                 Window length in seconds
             step: float
                 Step size in seconds
             seg_args: dict
-                Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
+                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
                 Optional. If specified, the arguments `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
@@ -722,7 +721,7 @@ class MagSpectrogram(Spectrogram):
     def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func)
 
         # create frequency axis
@@ -789,7 +788,7 @@ class MagSpectrogram(Spectrogram):
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> from ketos.audio.spectrogram import MagSpectrogram
                 >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
                 >>> spec = spec.crop(freq_min=50, freq_max=800)
@@ -818,7 +817,7 @@ class MagSpectrogram(Spectrogram):
     def recover_audio(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
 
-            Uses :func:`audio_processing.audio_processing.spec2audio`.
+            Uses :func:`audio.audio.spec2audio`.
 
             Args:
                 num_iters: 
@@ -827,10 +826,10 @@ class MagSpectrogram(Spectrogram):
                     Initial condition for phase.
 
             Returns:
-                audio: AudioSignal
+                audio: Waveform
                     Audio signal
         """
-        mag = ap.from_decibel(self.data) #use linear scale
+        mag = aum.from_decibel(self.data) #use linear scale
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
@@ -849,7 +848,7 @@ class MagSpectrogram(Spectrogram):
             window_func = np.ones(num_fft)
 
         # iteratively estimate audio signal
-        audio = ap.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
+        audio = aum.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
             step_len=step_len, num_iters=num_iters, window_func=window_func)
 
         # sampling rate of recovered audio signal should equal the original rate
@@ -858,23 +857,23 @@ class MagSpectrogram(Spectrogram):
         
         assert abs(rate_orig - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, rate_orig)
 
-        audio = AudioSignal(rate=rate, data=audio)
+        audio = Waveform(rate=rate, data=audio)
 
         return audio
 
 class PowerSpectrogram(Spectrogram):
-    """ Create a Power Spectrogram from an :class:`audio_signal.AudioSignal` by 
+    """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
         computing the Short Time Fourier Transform (STFT).
     
         Args:
-            audio: AudioSignal
+            audio: Waveform
                 Audio signal 
             window: float
                 Window length in seconds
             step: float
                 Step size in seconds 
             seg_args: dict
-                Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
+                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
                 Optional. If specified, the arguments `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
@@ -892,10 +891,10 @@ class PowerSpectrogram(Spectrogram):
     def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
-        img = ap.to_decibel(img) # convert to dB
+        img = aum.to_decibel(img) # convert to dB
         
         # create frequency axis
         ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
@@ -961,7 +960,7 @@ class PowerSpectrogram(Spectrogram):
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> from ketos.audio.spectrogram import MagSpectrogram
                 >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
                 >>> spec = spec.crop(freq_min=50, freq_max=800)
@@ -990,17 +989,17 @@ class PowerSpectrogram(Spectrogram):
         return self.freq_ax.bin_width()
 
 class MelSpectrogram(Spectrogram):
-    """ Creates a Mel Spectrogram from an :class:`audio_signal.AudioSignal`.
+    """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
 
         Args:
-            audio: AudioSignal
+            audio: Waveform
                 Audio signal 
             window: float
                 Window length in seconds
             step: float
                 Step size in seconds 
             seg_args: dict
-                Input arguments used for evaluating :func:`audio_processing.audio_processing.segment_args`. 
+                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
                 Optional. If specified, the arguments `window` and `step` are ignored.
             window_func: str
                 Window function (optional). Select between
@@ -1027,7 +1026,7 @@ class MelSpectrogram(Spectrogram):
             num_filters=40, num_ceps=20, cep_lifter=20):
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = ap.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
@@ -1104,7 +1103,7 @@ class MelSpectrogram(Spectrogram):
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio_processing.spectrogram import MagSpectrogram
+                >>> from ketos.audio.spectrogram import MagSpectrogram
                 >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
                 >>> spec = spec.crop(freq_min=50, freq_max=800)
@@ -1161,10 +1160,10 @@ class CQTSpectrogram(Spectrogram):
         The frequency axis of a CQT spectrogram is essentially a logarithmic axis with base 2. It is 
         characterized by an integer number of bins per octave (an octave being a doubling of the frequency.) 
 
-        For further details, see :func:`audio_processing.audio_processing.cqt`.
+        For further details, see :func:`audio.audio.cqt`.
 
         Args:
-            audio: AudioSignal
+            audio: Waveform
                 Audio signal 
             step: float
                 Step size in seconds 
@@ -1187,7 +1186,7 @@ class CQTSpectrogram(Spectrogram):
         window_func='hamming'):
 
         # compute CQT
-        img, step = ap.cqt(x=audio.data, rate=audio.rate, step=step,\
+        img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
         # create logarithmic frequency axis
@@ -1257,7 +1256,7 @@ class CQTSpectrogram(Spectrogram):
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio_processing.spectrogram import CQTSpectrogram
+                >>> from ketos.audio.spectrogram import CQTSpectrogram
                 >>> spec = CQTSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', step=0.01, freq_min=10, freq_max=800, bins_per_oct=16)
                 >>> # show
                 >>> fig = spec.plot()
@@ -1279,7 +1278,7 @@ class CQTSpectrogram(Spectrogram):
         duration = min(duration, file_duration - offset) # cap duration at end of file minus offset        
 
         # load audio
-        audio = AudioSignal.from_wav(path=path, rate=rate, channel=channel,\
+        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,\
             offset=offset, duration=duration, resample_method=resample_method)
 
         # create CQT spectrogram

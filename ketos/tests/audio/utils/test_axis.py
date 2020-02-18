@@ -24,12 +24,12 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the 'axis' module within the ketos library
+""" Unit tests for the 'audio.utils.axis' module within the ketos library
 """
 import os
 import pytest
 import numpy as np
-from ketos.audio_processing.axis import LinearAxis, Log2Axis
+from ketos.audio.utils.axis import LinearAxis, Log2Axis
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")

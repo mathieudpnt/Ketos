@@ -24,14 +24,14 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" Unit tests for the 'audio_processing' module within the ketos library
+""" Unit tests for the 'audio.utils.misc' module within the ketos library
 """
 import pytest
 import unittest
 import os
 import numpy as np
 import scipy.signal as sg
-import ketos.audio_processing.audio_processing as ap
+import ketos.audio.utils.misc as aum
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -41,14 +41,14 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 def test_pad_reflect_1d():
     x = np.random.rand(9)
     # default does nothing
-    res = ap.pad_reflect(x)
+    res = aum.pad_reflect(x)
     assert np.all(res == x)
     # padding on left only
-    res = ap.pad_reflect(x, pad_left=5)
+    res = aum.pad_reflect(x, pad_left=5)
     assert np.all(res[5:] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     # padding on both sides
-    res = ap.pad_reflect(x, pad_left=5, pad_right=2)
+    res = aum.pad_reflect(x, pad_left=5, pad_right=2)
     assert np.all(res[5:-2] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
@@ -56,65 +56,65 @@ def test_pad_reflect_1d():
 def test_pad_reflect_2d():
     x = np.random.rand(9,14)
     # default does nothing
-    res = ap.pad_reflect(x)
+    res = aum.pad_reflect(x)
     assert np.all(res == x)
     # padding on left only
-    res = ap.pad_reflect(x, pad_left=5)
+    res = aum.pad_reflect(x, pad_left=5)
     assert np.all(res[5:] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     # padding on both sides
-    res = ap.pad_reflect(x, pad_left=5, pad_right=2)
+    res = aum.pad_reflect(x, pad_left=5, pad_right=2)
     assert np.all(res[5:-2] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
 
 def test_num_samples():
-    assert ap.num_samples(time=1.0, rate=10.) == 10
-    assert ap.num_samples(time=1.1, rate=10.) == 11
-    assert ap.num_samples(time=1.11, rate=10., even=True) == 12
+    assert aum.num_samples(time=1.0, rate=10.) == 10
+    assert aum.num_samples(time=1.1, rate=10.) == 11
+    assert aum.num_samples(time=1.11, rate=10., even=True) == 12
 
 def test_segment_args():
     # simple cases produces expected output
-    args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.)
+    args = aum.segment_args(rate=10., duration=8., offset=0., window=4., step=2.)
     assert args == {'win_len':40, 'step_len':20, 'num_segs':4, 'offset_len':-10}
-    args = ap.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
+    args = aum.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
     assert args == {'win_len':200, 'step_len':40, 'num_segs':25, 'offset_len':-80}
     # change in offset produces expected change in offset_len
-    args = ap.segment_args(rate=10., duration=8., offset=3., window=4., step=2.)
+    args = aum.segment_args(rate=10., duration=8., offset=3., window=4., step=2.)
     assert args == {'win_len':40, 'step_len':20, 'num_segs':4, 'offset_len':20}
     # window_len is always even
-    args = ap.segment_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
+    args = aum.segment_args(rate=10., duration=8., offset=0., window=4.11, step=2.)
     assert args == {'win_len':42, 'step_len':20, 'num_segs':4, 'offset_len':-11}
     # step_len is always even
-    args = ap.segment_args(rate=10., duration=8., offset=0., window=4., step=2.11)
+    args = aum.segment_args(rate=10., duration=8., offset=0., window=4., step=2.11)
     assert args == {'win_len':40, 'step_len':22, 'num_segs':4, 'offset_len':-9}
     # if the duration is not an integer multiple of the step size, we still get the expected output
-    args = ap.segment_args(rate=10., duration=9., offset=0., window=4., step=2.)
+    args = aum.segment_args(rate=10., duration=9., offset=0., window=4., step=2.)
     assert args == {'win_len':40, 'step_len':20, 'num_segs':5, 'offset_len':-10}
 
 def test_segment_1d():
     x = np.arange(10)
     # check that segment with zero offset yields expected result
-    res = ap.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=0, )    
+    res = aum.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=0, )    
     ans = np.array([[0, 1, 2, 3],\
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7]])
     assert np.all(ans == res)
     # check that segment with non-zero offset yields expected result
-    res = ap.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
+    res = aum.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
     ans = np.array([[-3, -2, -1,  0],\
                     [-1,  0,  1,  2],\
                     [ 1,  2,  3,  4]])
     assert np.all(ans == res)
     # check that segment with num_segs not specified yields expected result
-    res = ap.segment(x, win_len=4, step_len=2)    
+    res = aum.segment(x, win_len=4, step_len=2)    
     ans = np.array([[0, 1, 2, 3],\
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7],\
                     [6, 7, 8, 9]])
     assert np.all(ans == res)
     x = np.arange(11)
-    res = ap.segment(x, win_len=4, step_len=2)    
+    res = aum.segment(x, win_len=4, step_len=2)    
     ans = np.array([[0, 1, 2, 3],\
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7],\
@@ -126,7 +126,7 @@ def test_segment_2d():
     x = [[n for _ in range(4)] for n in range(8)]
     x = np.array(x)
     # check that segment yields expected result
-    res = ap.segment(x, num_segs=3, offset_len=0, win_len=3, step_len=2)    
+    res = aum.segment(x, num_segs=3, offset_len=0, win_len=3, step_len=2)    
     ans = np.array([[[0, 0, 0, 0],\
                      [1, 1, 1, 1],\
                      [2, 2, 2, 2]],\
@@ -141,7 +141,7 @@ def test_segment_2d():
 def test_segment_pass_args_as_dict():
     x = np.arange(10)
     d = {'win_len':4, 'step_len':2}
-    res = ap.segment(x, **d)    
+    res = aum.segment(x, **d)    
     ans = np.array([[0, 1, 2, 3],\
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7],\
@@ -153,8 +153,8 @@ def test_stft():
     x = np.arange(1000)
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
     # compute STFT with window length of 200, step length of 40, and offset of -(200-40)/2=-80
-    seg_args = ap.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
-    mag, freq_max, num_fft, seg_args = ap.stft(x=sig, rate=1000, seg_args=seg_args)
+    seg_args = aum.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
+    mag, freq_max, num_fft, seg_args = aum.stft(x=sig, rate=1000, seg_args=seg_args)
     assert freq_max == 500.
     assert num_fft == 200
     assert seg_args == {'win_len':200, 'step_len':40, 'num_segs':25, 'offset_len':-80}
@@ -162,7 +162,7 @@ def test_stft():
     # compute STFT with window size of 0.2 s and step size of 0.04 s, and check that results are identical to above
     x = np.arange(1000)
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
-    mag_s, freq_max_s, num_fft_s, seg_args_s = ap.stft(x=sig, rate=1000, window=0.2, step=0.04)
+    mag_s, freq_max_s, num_fft_s, seg_args_s = aum.stft(x=sig, rate=1000, window=0.2, step=0.04)
     assert freq_max_s == freq_max
     assert num_fft_s == num_fft
     assert seg_args_s == {'win_len':200, 'step_len':40, 'num_segs':mag_s.shape[0], 'offset_len':-80}
@@ -170,17 +170,17 @@ def test_stft():
 
 def test_to_decibel_returns_decibels():
     x = 7
-    y = ap.to_decibel(x)
+    y = aum.to_decibel(x)
     assert y == 20 * np.log10(x) 
 
 def test_to_decibel_can_handle_arrays():
     x = np.array([7,8])
-    y = ap.to_decibel(x)
+    y = aum.to_decibel(x)
     assert np.all(y == 20 * np.log10(x))
 
 def test_to_decibel_returns_inf_if_input_is_negative():
     x = -7
-    y = ap.to_decibel(x)
+    y = aum.to_decibel(x)
     assert np.ma.getmask(y) == True
 
 def test_spec2audio():
@@ -190,11 +190,11 @@ def test_spec2audio():
     # compute STFT
     win_fun = 'hamming'
     seg_args = dict(win_len=100, step_len=20, offset_len=0)
-    mag, freq_max, num_fft, seg_args = ap.stft(x=sig, rate=1000, seg_args=seg_args, window_func=win_fun)
+    mag, freq_max, num_fft, seg_args = aum.stft(x=sig, rate=1000, seg_args=seg_args, window_func=win_fun)
     print(seg_args)
-    img = ap.from_decibel(mag)
+    img = aum.from_decibel(mag)
     # invert
-    aud = ap.spec2audio(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
+    aud = aum.spec2audio(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
     # check that recovered signal looks like a harmonic with frequency of 10 Hz
     assert sig.shape == aud.shape
     fft = np.fft.rfft(aud)
