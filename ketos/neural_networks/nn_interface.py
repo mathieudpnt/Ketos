@@ -78,78 +78,77 @@ class NNInterface():
 
         First, the new architecture must be defined. Here, a simple multi-layer perceptron is defined in the following class.
 
-        class MLP(tf.keras.Model):
-            def __init__(self, n_neurons, activation):
-                super(MLP, self).__init__()
-
-                self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
-                self.final_node = tf.keras.layers.Dense(1)
-
-            def call(self, inputs):
-                output = self.dense(inputs)
-                output = self.dense(output)
-                output = self.final_node(output)
+        >>> class MLP(tf.keras.Model): # doctest: +SKIP
+        ...    def __init__(self, n_neurons, activation):
+        ...        super(MLP, self).__init__()
+        ... 
+        ...        self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
+        ...        self.final_node = tf.keras.layers.Dense(1)
+        ... 
+        ...    def call(self, inputs):
+        ...        output = self.dense(inputs)
+        ...        output = self.dense(output)
+        ...        output = self.final_node(output)
 
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
-                class MLPInterface(NNInterface):
-
-            @classmethod
-            def build_from_recipe(cls, recipe):
-                n_neurons = recipe['n_neurons']
-                activation = recipe['activation']
-                optimizer = recipe['optimizer']
-                loss_function = recipe['loss_function']
-                metrics = recipe['metrics']
-
-                instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
-
-                return instance
-
-            @classmethod
-            def read_recipe_file(cls, json_file, return_recipe_compat=True):
-                
-                with open(json_file, 'r') as json_recipe:
-                    recipe_dict = json.load(json_recipe)
-                
-               
-                optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-                loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-                metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-
-                if return_recipe_compat == True:
-                    recipe_dict['optimizer'] = optimizer
-                    recipe_dict['loss_function'] = loss_function
-                    recipe_dict['metrics'] = metrics
-                else:
-                    recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-                    recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-                    recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-
-                recipe_dict['n_neurons'] = recipe_dict['n_neurons']
-                recipe_dict['activation'] = recipe_dict['activation']
-                return recipe_dict
-
-            def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
-                #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
-                self.n_neurons = n_neurons
-                self.activation = activation
-                self.model = MLP(n_neurons=n_neurons, activation=activation)
-                self.optimizer=optimizer
-                self.loss_function=loss_function
-                self.metrics=metrics
-
-            def write_recipe(self):
-           
-                recipe = {}
-                recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-                recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-                recipe['metrics'] = self.metrics_to_recipe(self.metrics)
-                recipe['n_neurons'] = self.n_neurons
-                recipe['activation'] = self.activation
-
-                return recipe
+        >>> class MLPInterface(NNInterface): # doctest: +SKIP
+        ...
+        ...    @classmethod
+        ...    def build_from_recipe(cls, recipe):
+        ...        n_neurons = recipe['n_neurons']
+        ...        activation = recipe['activation']
+        ...        optimizer = recipe['optimizer']
+        ...        loss_function = recipe['loss_function']
+        ...        metrics = recipe['metrics']
+        ...
+        ...        instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        ...
+        ...        return instance
+        ... 
+        ...   @classmethod
+        ...   def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        ...        
+        ...        with open(json_file, 'r') as json_recipe:
+        ...            recipe_dict = json.load(json_recipe)
+        ...       
+        ...
+        ...        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+        ...        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+        ...        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        ...
+        ...        if return_recipe_compat == True:
+        ...            recipe_dict['optimizer'] = optimizer
+        ...            recipe_dict['loss_function'] = loss_function
+        ...            recipe_dict['metrics'] = metrics
+        ...        else:
+        ...            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
+        ...            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
+        ...            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+        ...
+        ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']
+        ...        recipe_dict['activation'] = recipe_dict['activation']
+        ...        return recipe_dict
+        ...
+        ...     def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
+        ...        #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+        ...        self.n_neurons = n_neurons
+        ...        self.activation = activation
+        ...        self.model = MLP(n_neurons=n_neurons, activation=activation)
+        ...        self.optimizer=optimizer
+        ...        self.loss_function=loss_function
+        ...        self.metrics=metrics
+        ...
+        ...    def write_recipe(self):
+        ...   
+        ...        recipe = {}
+        ...        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
+        ...        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
+        ...        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        ...        recipe['n_neurons'] = self.n_neurons
+        ...        recipe['activation'] = self.activation
+        ...        return recipe
             
        
             

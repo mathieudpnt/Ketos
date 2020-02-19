@@ -166,9 +166,7 @@ class ResNetArch(tf.keras.Model):
         self.softmax = tf.keras.layers.Softmax()
     
     def call(self, inputs, training=None):
-
         output = self.conv_initial(inputs)
-
         output = self.blocks(output, training=training)
         output = self.batch_norm_final(output, training=training)
         output = tf.nn.relu(output)
@@ -223,14 +221,16 @@ class ResNetInterface(NNInterface):
                 recipe: dict
                     A recipe dictionary. optimizer, loss function
                     and metrics must be instances of ketos.neural_networks.RecipeCompat.
+                    
                     Example recipe:
-                        {{'block_sets':[2,2,2],
-                            'n_classes':2,
-                            'initial_filters':16,        
-                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                    
+                    >>> {{'block_sets':[2,2,2], # doctest: +SKIP
+                    ...    'n_classes':2,
+                    ...    'initial_filters':16,        
+                    ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    ...    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                    ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                    ...    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
 
                         The only optional field is 'secondary_metrics'. 
 
@@ -270,28 +270,29 @@ class ResNetInterface(NNInterface):
 
             Args:
                 json_file:string
-                    Full path (including silename and extension) to the .json file containing the recipe.
+                    Full path (including filename and extension) to the .json file containing the recipe.
                 return_recipe_compat:bool
                     If True, returns a dictionary where the optimizer, loss_function, metrics and 
                     secondary_metrics (if available) values are instances of the ketos.neural_networks.nn_interface.RecipeCompat.
-                        The returned dictionary will be equivalent to:
-                            {'block_sets':[2,2,2],
-                            'n_classes':2,
-                            'initial_filters':16,        
-                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                    The returned dictionary will be equivalent to:
+                            
+                            >>> {'block_sets':[2,2,2], # doctest: +SKIP
+                            ... 'n_classes':2,
+                            ... 'initial_filters':16,        
+                            ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            ... 'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                            ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                            ... 'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
 
                     If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
                     dictionary representation of such fields instead of the RecipeCompat objects:
-                                        {'block_sets':[2,2,2],
-                                            'n_classes':2,
-                                            'initial_filters':16,        
-                                            'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-                                            'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                                            'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                                            'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+                            >>> {'block_sets':[2,2,2], # doctest: +SKIP
+                            ... 'n_classes':2,
+                            ... 'initial_filters':16,        
+                            ... 'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                            ... 'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                            ... 'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                            ... 'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
 
                 Returns:
                     recipe, according to 'return_recipe_compat.
@@ -358,14 +359,14 @@ class ResNetInterface(NNInterface):
             Returns:
                 recipe:dict
                     A dictionary containing the recipe fields necessary to build the same network architecture.
-                    Example:
-                        {'block_sets':[2,2,2],
-                            'n_classes':2,
-                            'initial_filters':16,        
-                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                    The output is equivalent to:
+                        >>> {'block_sets':[2,2,2], # doctest: +SKIP
+                        ...    'n_classes':2,
+                        ...    'initial_filters':16,        
+                        ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                        ...    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                        ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                        ...    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
         """
 
         recipe = {}

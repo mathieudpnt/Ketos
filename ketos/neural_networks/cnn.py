@@ -87,12 +87,12 @@ class CNNArch(tf.keras.Model):
             convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
                 Each layer is specified as a dictionary with the following format:
-                {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
+                >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
 
             dense_layers: list
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
-                {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+                >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
                 This list should not include the output layr, which will be automatically added based on the 'n_classes' parameter.
 
             n_classes:int
@@ -142,12 +142,12 @@ class CNNInterface(NNInterface):
              convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
                 Each layer is specified as a dictionary with the following format:
-                {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True}
+                >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
 
             dense_layers: list
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
-                {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+                >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
 
             n_classes:int
                 The number of classes the network will be used to classify.
@@ -171,19 +171,18 @@ class CNNInterface(NNInterface):
 
         Examples:
 
-            >>> # Most users will create a model based on a Ketos recipe
+            >>> # Most users will create a model based on a Ketos recipe 
             >>> # The one below, specifies a CNN with 3 convolutional layers and 2 dense layers
             >>>
-            >>> recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+            >>> recipe = {'conv_set':[[64, False], [128, True], [256, True]], # doctest: +SKIP
             ...   'dense_set': [512, ],
             ...   'n_classes':2,
             ...   'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
             ...   'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
             ...   'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
             ... }
-
             >>> # To create the CNN, simply  use the  'build_from_recipe' method:
-            >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False)
+            >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False) # doctest: +SKIP
                 
     """
 
@@ -199,16 +198,21 @@ class CNNInterface(NNInterface):
                     A list describing the convolutional layers in a CNN.
                     each layer is represented by a list of 2 elements: The number of filters (int) and
                     whether or not that layer is followed by a max_pooling operation (boolean).
-                    Example: [[64,False], [128, True]] 
+                    Example:
+                   
+                    >>> [[64,False], [128, True]] # doctest: +SKIP
+                   
                     This conv_set would describe two convolutional layers, with 64 and 128 filters, respectively.
                     Only the second would have max_pooling.
 
             Returns:
                 convolutional_layers: list
                     A list of detailed layer description dictionaries.
-                    Example: [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                              {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
-                              ]
+                    Example: 
+                   
+                    >>> [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True}, # doctest: +SKIP
+                    ...          {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                    ...          ]
                               
 
         """
@@ -248,9 +252,10 @@ class CNNInterface(NNInterface):
             Returns:
                 dense_layers: list
                     A list of detailed layer description dictionaries.
-                    Example: [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                              {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                              ]  
+                    Example: 
+                    >>> [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}, # doctest: +SKIP
+                    ...       {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                    ...       ]  
 
         """
 
@@ -273,14 +278,14 @@ class CNNInterface(NNInterface):
                     A recipe dictionary. The optimizer, loss function
                     and metrics must be instances of ketos.neural_networks.RecipeCompat.
                     Example recipe:
-                        {'conv_set':[[64, False], [128, True], [256, True]],
-                          'dense_set': [512, ],
-                          'n_classes':2,
-                          'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-                          'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                          'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                          'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
-                          ]
+                        >>> {'conv_set':[[64, False], [128, True], [256, True]], # doctest: +SKIP
+                        ...  'dense_set': [512, ],
+                        ...  'n_classes':2,
+                        ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                        ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                        ...  'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
+                        ...  ]
 
                         The only optional field is 'secondary_metrics'.
 
@@ -288,18 +293,18 @@ class CNNInterface(NNInterface):
                     'convolutional_layers' and 'dense_layers'.
                     Note that these need to be provided in pairs ('conv_set' + 'dense_set' OR 'convolutional_layers' and 'dense_layers')
                     Example:
-                        {'conv_set': [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                      {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
-                                      ],
-                          'dense_set': [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                        {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                        ],
-                          'n_classes':2,
-                          'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-                          'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                          'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                          'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
-                          ]
+                        >>> {'conv_set': [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True}, # doctest: +SKIP
+                        ...              {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                        ...              ],
+                        ...  'dense_set': [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                        ...                {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                        ...                ],
+                        ...  'n_classes':2,
+                        ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                        ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                        ...  'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
+                        ...  ]
 
 
             Returns:
@@ -355,28 +360,28 @@ class CNNInterface(NNInterface):
                     If True, returns a dictionary where the optimizer, loss_function, metrics and 
                     secondary_metrics (if available) values are instances of the ketos.neural_networks.nn_interface.RecipeCompat.
                         The returned dictionary will be equivalent to:
-                            {'conv_set':[(64, False), (128, True), (256, True)],
-                             'dense_set: [512, 256],
-                             'convolutional_layers: ,
-                             'dense_layers: ,
-                             'n_classes': 2 ,
-                            'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                            'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                            'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                           >>> {'conv_set':[(64, False), (128, True), (256, True)], # doctest: +SKIP
+                           ...  'dense_set: [512, 256],
+                           ...  'convolutional_layers: ,
+                           ...  'dense_layers: ,
+                           ...  'n_classes': 2 ,
+                           ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                           ... 'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                           ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                           ... 'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
 
                     If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
                     dictionary representation of such fields instead of the RecipeCompat objects:
-                                        {'conv_set':[(64, False), (128, True), (256, True)],
-                                         'dense_set: [512, 256],
-                                         'convolutional_layers: ,
-                                         'dense_layers: ,
-                                         'n_classes': 2 ,
-                                         'initial_filters':16,        
-                                         'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-                                         'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                                         'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                                         'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+                            >>> {'conv_set':[(64, False), (128, True), (256, True)], # doctest: +SKIP
+                            ...    'dense_set: [512, 256],
+                            ...    'convolutional_layers: ,
+                            ...    'dense_layers: ,
+                            ...    'n_classes': 2 ,
+                            ...    'initial_filters':16,        
+                            ...    'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                            ...    'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                            ...    'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                            ...    'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
 
                 Returns:
                     recipe, according to 'return_recipe_compat'.
@@ -459,15 +464,15 @@ class CNNInterface(NNInterface):
                 recipe:dict
                     A dictionary containing the recipe fields necessary to build the same network architecture.
                     Example:
-                        {'conv_set':[(64, False), (128, True), (256, True)],
-                          'dense_set: [512, 256],
-                          'convolutional_layers: ,
-                          'dense_layers: ,
-                          'n_classes':2,
-                          'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                          'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                          'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                          'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                        >>> {'conv_set':[(64, False), (128, True), (256, True)], # doctest: +SKIP
+                        ...  'dense_set: [512, 256],
+                        ...  'convolutional_layers: ,
+                        ...  'dense_layers: ,
+                        ...  'n_classes':2,
+                        ...  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                        ...  'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                        ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                        ...  'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
         """
 
         recipe = {}
