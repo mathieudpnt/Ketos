@@ -323,7 +323,7 @@ def table_description(data_shape, annot_type='weak', track_source=True, filename
     if isinstance(data_shape, np.ndarray):
         data_shape = data_shape.shape
     elif isinstance(data_shape, Spectrogram):
-        data_shape = data_shape.image.shape
+        data_shape = data_shape.data.shape
 
     tbl_descr_data = table_description_data(data_shape=data_shape,  track_source=track_source, filename_len=filename_len)
 
@@ -335,7 +335,7 @@ def table_description(data_shape, annot_type='weak', track_source=True, filename
 
     return tbl_descr_data, tbl_descr_annot
 
-def write_spec_attrs(table, spec):
+def write_spec_attrs(spec, table):
     """ Writes the spectrogram attributes into the HDF5 table.
 
         The attributes include,
@@ -397,8 +397,11 @@ def write_spec_attrs(table, spec):
     except AssertionError:
         raise TypeError("spec must be an instance of Spectrogram")      
 
-    table.attrs.time_res = spec.time_res()
-    table.attrs.freq_min = spec.freq_min()
+    table.attrs.time_res    = spec.time_res()
+    table.attrs.freq_min    = spec.freq_min()
+    table.attrs.sampl_rate  = spec.rate
+    table.attrs.window_func = spec.window_func
+    table.attrs.num_fft     = sepc.num_fft
 
     if isinstance(spec, CQTSpectrogram):
         table.attrs.type = 'CQT'
@@ -444,20 +447,26 @@ def write_spec_annot(spec, table, id):
     write_time = ("start" in table.colnames)
     write_freq = ("freq_min" in table.colnames)
 
-    for box,label in zip(spec.boxes, spec.labels):
-        row = table.row
+    if write_time:
+        annots = spec.get_annotations()
+        assert annots is not None, "Attempting to save using strong-label formatting, but spectrogram only has weak labelling"
 
+        for idx,annot in annots.iterrows():
+            row = table.row
+            row["data_id"] = id
+            row["label"] = annot['label']
+            row["start"] = annot['start']
+            row["end"]   = annot['end']
+            if write_freq:
+                row["freq_min"] = annot['freq_min']
+                row["freq_max"] = annot['freq_max']
+
+            row.append()
+
+    else:
+        row = table.row
         row["data_id"] = id
         row["label"] = label
-
-        if write_time:
-            row["start"] = box[0]
-            row["end"] = box[1]
-
-        if write_freq:
-            row["freq_min"] = box[2]
-            row["freq_max"] = box[3]
-
         row.append()
 
 def write_spec_data(spec, table, id=None):
@@ -581,33 +590,27 @@ def write_spec(spec, table_data, table_annot=None, id=None):
     if table_annot is not None:
         write_spec_annot(spec, table=table_annot, id=id)
 
-
-
-
-
 def filter_by_label(table, label):
     """ Find all spectrograms in the table with the specified label.
 
         Args:
             table: tables.Table
-                The table containing the spectrograms
+                The table containing the annotations
             label: int or list of ints
                 The labels to be searched
         Raises:
             TypeError: if label is not an int or list of ints.
 
         Returns:
-            rows: list(int)
-                List of row numbers of the objects that have the specified label.
+            indices: list(int)
+                Indices of the spectrograms with the specified label(s).
                 If there are no spectrograms that match the label, returs an empty list.
 
         Examples:
-
-            >>> import tables
-            >>> from ketos.data_handling.database_interface import open_table
+            >>> from ketos.data_handling.database_interface import open_file,open_table
             >>>
             >>> # Open a database and an existing table
-            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+            >>> h5file = open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
             >>> table = open_table(h5file, "/train/species1")
             >>>
             >>> # Retrieve the indices for all spectrograms that contain the label 1
@@ -619,7 +622,6 @@ def filter_by_label(table, label):
             >>> # an empty list is returned
             >>> filter_by_label(table, 2)
             []
-            >>>
             >>> h5file.close()
     """
     if isinstance(label, (list)):
@@ -630,20 +632,19 @@ def filter_by_label(table, label):
     else:
         raise TypeError("label must be an int or a list of ints")    
     
+    indices = []
+
+    for row in table.iterrows():
+        if row['label'] in label:
+            indices.append(row['data_id'])
     
-    matching_rows = []
+    return indices
 
-    for i,row in enumerate(table.iterrows()):
-        r_labels = row['labels']
-        r_labels = parse_labels(r_labels)
 
-        if any([l in label for l in r_labels]):
-            matching_rows.append(i)
-    
 
-    return matching_rows
 
-def load_specs(table, index_list=None):
+
+def load_specs(table, index_list=None, table_annot=None):
     """ Retrieve all the spectrograms in a table or a subset specified by the index_list
 
         Warnings: Loading all spectrograms in a table might cause memory problems.
@@ -654,16 +655,16 @@ def load_specs(table, index_list=None):
             index_list: list of ints or None
                 A list with the indices of the spectrograms that will be retrieved.
                 If set to None, loads all spectrograms in the table.
+            table_annot: tables.Table
+                The table containing the annotations. If no such table is provided, 
+                the spectrograms are still loaded, but without annotations.
 
         Returns:
             res: list
                 List of spectrogram objects.
 
-
         Examples:
-
-            >>> import tables
-            >>> from ketos.data_handling.database_interface import open_table
+            >>> from ketos.data_handling.database_interface import open_file, open_table
             >>>
             >>> # Open a connection to the database.
             >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
@@ -689,6 +690,7 @@ def load_specs(table, index_list=None):
     for idx in index_list:
 
         it = table[idx]
+
         # parse labels and boxes
         labels = it['labels']
         labels = parse_labels(labels)

@@ -123,10 +123,6 @@ def test_create_table_existing():
     # clean
     h5file.close()
 
-
-# ---- above tests are passing ------ #
-
-
 def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
@@ -139,7 +135,7 @@ def test_write_spec(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description_new(spec, annot_type='strong')
+    descr_data, descr_annot = di.table_description(spec, annot_type='strong')
     # Create tables
     tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
     tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
@@ -172,17 +168,20 @@ def test_write_spec(sine_audio):
 
 def test_write_spec_TypeError(sine_audio):
     """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
-    sine_audio.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
+    sine_audio.annotate(df={'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[3,3.5], 'freq_max':[4,4.5]})
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
     h5file = di.open_file(fpath, 'w')
+    # Create table description
+    descr_data, descr_annot = di.table_description(sine_audio.data.shape, annot_type='strong')
     # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=sine_audio.data.shape)
+    tbl_data = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
+    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
     # write spectrogram to table
     with pytest.raises(TypeError):
-        di.write_spec(table=tbl, spec=sine_audio)
+        di.write_spec(spec=sine_audio, table_data=tbl_data, table_annot=tbl_annot)
        
-    assert tbl.nrows == 0
+    assert tbl_data.nrows == 0
     
     h5file.close()
     os.remove(fpath)
@@ -190,28 +189,116 @@ def test_write_spec_TypeError(sine_audio):
 def test_write_spec_cqt(sine_audio):
     """Test if CQT spectrograms are written with appropriate encoding"""
     # create cqt spectrogram    
-    spec = CQTSpectrogram(audio_signal=sine_audio, fmin=1, fmax=8000, winstep=0.1, bins_per_octave=32)
+    spec = CQTSpectrogram(audio=sine_audio, freq_min=1, freq_max=8000, step=0.1, bins_per_oct=32)
     # add annotation
-    spec.annotate(labels=(1,2), boxes=((1,2,300,400),(1.5,2.5,300.5,400.5)))
+    df = {'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[300,300.5], 'freq_max':[400,400.5]}
+    spec.annotate(df=df)
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
     h5file = di.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec.image.shape)
+    # Create table descriptions for storing the spectrogram data
+    descr_data, descr_annot = di.table_description(spec, annot_type='strong', freq_range=True)
+    # create tables
+    tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
+    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
     # write spectrogram to table
-    di.write_spec(table=tbl, spec=spec) 
+    di.write_spec_attrs(table=tbl_data, spec=spec)
+    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
     h5file.close()
     # re-open
     h5file = di.open_file(fpath, 'r')
-    tbl = h5file.get_node("/group_1/table_1")
+    tbl_d = h5file.get_node("/group_1/table_data")
+    tbl_a = h5file.get_node("/group_1/table_annot")
     # check
-    assert int(tbl.attrs.freq_res) == -32
-    assert tbl.nrows == 1
-    assert tbl[0]['labels'].decode() == '[1,2]'
-    assert tbl[0]['boxes'].decode() == '[[1.0,2.0,300.0,400.0],[1.5,2.5,300.5,400.5]]'
+    assert int(tbl_d.attrs.bins_per_octave) == 32
+    assert tbl_d.nrows == 1
+    assert tbl_a.nrows == 2
+    for i in range(2):
+        assert tbl_a[i]['label']    == df['label'][i]
+        assert tbl_a[i]['start']    == df['start'][i]
+        assert tbl_a[i]['end']      == df['end'][i]
+        assert tbl_a[i]['freq_min'] == df['freq_min'][i]
+        assert tbl_a[i]['freq_max'] == df['freq_max'][i]
     # clean
     h5file.close()
     os.remove(fpath)
+
+def test_filter_by_label(sine_audio):
+    """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
+    # create spectrogram  
+    spec1 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec1.annotate(label=1, start=1.0, end=1.4, freq_min=50, freq_max=300)
+    spec2 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec2.annotate(label=2, start=1.0, end=1.4, freq_min=50, freq_max=300)
+    spec3 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,80], 'freq_max':[300,200]})
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for storing the spectrogram data
+    descr_data, descr_annot = di.table_description(spec1, annot_type='strong', freq_range=True)
+    # create tables
+    tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
+    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
+    # write spectrogram to table
+    di.write_spec(spec=spec1, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write_spec(spec=spec1, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write_spec(spec=spec2, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write_spec(spec=spec2, table_data=tbl_data, table_annot=tbl_annot)
+    di.write_spec(spec=spec3, table_data=tbl_data, table_annot=tbl_annot) 
+    tbl_data.flush()
+    tbl_annot.flush()
+    # select spectrograms containing the label 1
+    rows = di.filter_by_label(table=tbl_annot, label=1)
+    assert len(rows) == 2
+    assert rows == [0,1]
+    # select spectrograms containing the label 2
+    rows = di.filter_by_label(table=tbl_annot, label=[2])
+    assert len(rows) == 3
+    assert rows == [2,3,4]
+    # select spectrograms containing the labels 1 or 3
+    rows = di.filter_by_label(table=tbl_annot, label=[1,3])
+    assert len(rows) == 3
+    assert rows == [0,1,4]
+    h5file.close()
+    os.remove(fpath)
+
+def test_filter_by_label_raises_exception(sine_audio):
+    """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
+    # open h5 file
+    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    h5file = di.open_file(fpath, 'r')
+    tbl = di.open_table(h5file,"/train/species1")
+    
+    with pytest.raises(TypeError):
+        di.filter_by_label(table=tbl, label='a')
+    with pytest.raises(TypeError):
+        di.filter_by_label(table=tbl, label=['a','b'])
+    with pytest.raises(TypeError):        
+        di.filter_by_label(table=tbl, label='1')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label='1,2')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=b'1')
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=1.0)
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label= (1,2))
+    with pytest.raises(TypeError):    
+        di.filter_by_label(table=tbl, label=[1.0,2])
+   
+    h5file.close()
+
+
+
+# ---- above tests are passing ------ #
+
+
+
+
+
+
+
 
 def test_extract(sine_audio):
     """ Test if annotations are correctly extracted from spectrograms"""
@@ -310,74 +397,6 @@ def test_parse_boxes(sine_audio):
 
     h5file.close()
     os.remove(fpath)
-
-def test_filter_by_label(sine_audio):
-    """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
-    # create spectrogram  
-    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec1.annotate(labels=(1), boxes=((1.0, 1.4, 50, 300)))
-
-    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec2.annotate(labels=(2), boxes=((1.0, 1.4, 50, 300)))
-
-    spec3 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec3.annotate(labels=(2,3), boxes=((1.0, 1.4, 50, 300), (2.0, 2.4, 80, 200)))
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
-    h5file = di.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
-    # write spectrogram to table
-    di.write_spec(table=tbl, spec=spec1, id='A') 
-    di.write_spec(table=tbl, spec=spec1, id='B') 
-    di.write_spec(table=tbl, spec=spec2, id='C') 
-    di.write_spec(table=tbl, spec=spec2, id='D')
-    di.write_spec(table=tbl, spec=spec3, id='E') 
-    
-
-    # select spectrograms containing the label 1
-    rows = di.filter_by_label(table=tbl, label=1)
-    assert len(rows) == 2
-    assert rows == [0,1]
-
-    # select spectrograms containing the label 2
-    rows = di.filter_by_label(table=tbl, label=[2])
-    assert len(rows) == 3
-    assert rows == [2,3,4]
-
-    # select spectrograms containing the labels 1 or 3
-    rows = di.filter_by_label(table=tbl, label=[1,3])
-    assert len(rows) == 3
-    assert rows == [0,1,4]
-
-    h5file.close()
-    os.remove(fpath)
-
-def test_filter_by_label_raises(sine_audio):
-    """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
-    # open h5 file
-    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
-    h5file = di.open_file(fpath, 'r')
-    tbl = di.open_table(h5file,"/train/species1")
-    
-    with pytest.raises(TypeError):
-        di.filter_by_label(table=tbl, label='a')
-    with pytest.raises(TypeError):
-        di.filter_by_label(table=tbl, label=['a','b'])
-    with pytest.raises(TypeError):        
-        di.filter_by_label(table=tbl, label='1')
-    with pytest.raises(TypeError):    
-        di.filter_by_label(table=tbl, label='1,2')
-    with pytest.raises(TypeError):    
-        di.filter_by_label(table=tbl, label=b'1')
-    with pytest.raises(TypeError):    
-        di.filter_by_label(table=tbl, label=1.0)
-    with pytest.raises(TypeError):    
-        di.filter_by_label(table=tbl, label= (1,2))
-    with pytest.raises(TypeError):    
-        di.filter_by_label(table=tbl, label=[1.0,2])
-   
-    h5file.close()
 
 def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 

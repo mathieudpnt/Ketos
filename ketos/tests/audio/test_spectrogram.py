@@ -46,6 +46,14 @@ def test_init_spec(spec_image_with_attrs):
     assert np.all(spec.data == img)
     assert spec.type == 'Mag'
 
+def test_init_mag_spec_from_kwargs():
+    """Test that we can initialize an instance of the MagSpectrogram class
+       from keyword arguments"""
+    img = np.ones((20,10))
+    spec = MagSpectrogram(data=img, time_res=1.0, rate=1000, freq_min=100, freq_max=200, num_fft=100)
+    assert np.all(spec.data == img)
+    assert spec.type == 'Mag'
+
 def test_copy_spec(spec_image_with_attrs):
     """Test that we can make a copy of spectrogram"""
     img, dt, ax = spec_image_with_attrs

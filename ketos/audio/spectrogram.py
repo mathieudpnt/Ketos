@@ -718,26 +718,38 @@ class MagSpectrogram(Spectrogram):
             rate: float
                 Sampling rate in Hz.
     """
-    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+    def __init__(self, audio=None, window=None, step=None, seg_args=None, window_func='hamming', **kwargs):
 
-        # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, seg_args=seg_args, window_func=window_func)
+        if audio is None:
+            rate      = kwargs.pop('rate', None)
+            freq_min  = kwargs.pop('freq_min', 0)
+            freq_max  = kwargs.pop('freq_max')
+            freq_bins = kwargs['data'].shape[1]
+            num_fft   = kwargs.pop('num_fft', None)
+
+        else:
+            freq_min = 0.
+            rate = audio.rate
+            
+            # compute STFT
+            img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
+                step=step, seg_args=seg_args, window_func=window_func)
+
+            freq_bins = img.shape[1]
+            time_res = seg_args['step_len'] / audio.rate
+            kwargs = {'data':img, 'time_res':time_res, 'filename':audio.filename, 
+                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
 
         # create frequency axis
-        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
+        ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        time_res = seg_args['step_len'] / audio.rate
-        super().__init__(data=img, time_res=time_res, spec_type='Mag', freq_ax=ax,\
-            filename=audio.filename, offset=audio.offset, label=audio.label,\
-            annot=audio.annot)
+        super().__init__(spec_type='Mag', freq_ax=ax, **kwargs)
 
         # store number of points used for FFT, sampling rate, and window function
         self.num_fft = num_fft
-        self.rate = audio.rate
+        self.rate = rate
         self.window_func = window_func
-        self.seg_args = seg_args
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -841,7 +853,7 @@ class MagSpectrogram(Spectrogram):
 
         # retrieve settings used for computing STFT
         num_fft = self.num_fft
-        step_len = self.seg_args['step_len']
+        step_len = int(self.rate * self.time_res())  #self.seg_args['step_len']
         if self.window_func:
             window_func = get_window(self.window_func, num_fft)
         else:
@@ -888,28 +900,35 @@ class PowerSpectrogram(Spectrogram):
             rate: float
                 Sampling rate in Hz.
     """
-    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming', **kwargs):
 
-        # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
-            step=step, seg_args=seg_args, window_func=window_func, decibel=False)
-        img = mag2pow(img, num_fft) # Magnitude->Power conversion
-        img = aum.to_decibel(img) # convert to dB
-        
+        if audio is None:
+            rate      = kwargs.pop('rate', None)
+            freq_min  = kwargs.pop('freq_min', 0)
+            freq_max  = kwargs.pop('freq_max')
+            freq_bins = kwargs['data'].shape[1]
+            num_fft   = kwargs.pop('num_fft', None)
+
+        else:
+            freq_min = 0.
+            rate = audio.rate
+
+            # compute STFT
+            img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+                step=step, seg_args=seg_args, window_func=window_func, decibel=False)
+            img = mag2pow(img, num_fft) # Magnitude->Power conversion
+            img = aum.to_decibel(img) # convert to dB
+
+            freq_bins = img.shape[1]
+            time_res = seg_args['step_len'] / audio.rate
+            kwargs = {'data':img, 'time_res':time_res, 'filename':audio.filename, 
+                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
+
         # create frequency axis
-        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
+        ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        time_res = seg_args['step_len'] / audio.rate
-        super().__init__(data=img, time_res=time_res, spec_type='Pow', freq_ax=ax,\
-            filename=audio.filename, offset=audio.offset, label=audio.label,\
-            annot=audio.annot)
-
-        # store number of points used for FFT and sampling rate
-        self.num_fft = num_fft
-        self.rate = audio.rate
-        self.window_func = window_func
-        self.seg_args = seg_args
+        super().__init__(spec_type='Mag', freq_ax=ax, **kwargs)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\

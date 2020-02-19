@@ -306,15 +306,13 @@ class BaseAudio():
                     contains multiple, stacked arrays.
 
             Returns:
-                ans: pandas DataFrame
+                : pandas DataFrame
                     Annotations 
         """
-        if self.annot:
-            ans = self.annot.get(id=id)
-        else:
-            ans = None
-
-        return ans
+        if self.annot is None: 
+            return None
+        else: 
+            return self.annot.get(id=id)
 
     def time_res(self):
         """ Get the time resolution.
