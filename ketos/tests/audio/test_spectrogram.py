@@ -95,7 +95,7 @@ def test_mel_spec_of_sine_wave(sine_audio):
     duration = sine_audio.duration()
     win = duration / 4
     step = duration / 10
-    spec = MelSpectrogram(audio=sine_audio, window=win, step=step)
+    spec = MelSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     assert spec.time_res() == step
     assert spec.freq_min() == 0    
 

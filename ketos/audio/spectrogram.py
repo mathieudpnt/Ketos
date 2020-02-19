@@ -695,7 +695,7 @@ class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram.
     
         Args:
-            image: 2d or 3d numpy array
+            data: 2d or 3d numpy array
                 Spectrogram pixel values. 
             rate: int
                 Sampling rate of the audio signal from which the spectrogram was created.
@@ -705,6 +705,8 @@ class MagSpectrogram(Spectrogram):
                 Lower value of the frequency axis in Hz
             freq_res: float
                 Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
+            num_fft: int
+                Number of points used for the FFT.
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -905,7 +907,7 @@ class PowerSpectrogram(Spectrogram):
     """ Power Spectrogram.
     
         Args:
-            image: 2d or 3d numpy array
+            data: 2d or 3d numpy array
                 Spectrogram pixel values. 
             rate: int
                 Sampling rate of the audio signal from which the spectrogram was created.
@@ -915,6 +917,8 @@ class PowerSpectrogram(Spectrogram):
                 Lower value of the frequency axis in Hz
             freq_res: float
                 Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
+            num_fft: int
+                Number of points used for the FFT.
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -1067,42 +1071,94 @@ class PowerSpectrogram(Spectrogram):
         return self.freq_ax.bin_width()
 
 class MelSpectrogram(Spectrogram):
-    """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
-
+    """ Mel Spectrogram.
+    
         Args:
-            audio: Waveform
-                Audio signal 
-            window: float
-                Window length in seconds
-            step: float
-                Step size in seconds 
-            seg_args: dict
-                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
-                Optional. If specified, the arguments `window` and `step` are ignored.
+            data: 2d or 3d numpy array
+                Mel spectrogram pixel values. 
+            filter_banks: numpy.array
+                Filter banks
+            rate: int
+                Sampling rate of the audio signal from which the spectrogram was created.
+            time_res: float
+                Time resolution in seconds (corresponds to the bin size used on the time axis)
+            freq_min: float
+                Lower value of the frequency axis in Hz
+            freq_max: float
+                Upper value of the frequency axis in Hz
+            num_fft: int
+                Number of points used for the FFT.
             window_func: str
-                Window function (optional). Select between
-                    * bartlett
-                    * blackman
-                    * hamming (default)
-                    * hanning
-            num_filters: int
-                The number of filters in the filter bank.
-            num_ceps: int
-                The number of Mel-frequency cepstrums.
-            cep_lifters: int
-                The number of cepstum filters.
+                Window function used for computing the spectrogram
+            filename: str or list(str)
+                Name of the source audio file, if available.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file, if available.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
 
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
             rate: float
                 Sampling rate in Hz.
+            window_func: str
+                Window function.
             filter_banks: numpy.array
                 Filter banks
     """
-    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming',\
-            num_filters=40, num_ceps=20, cep_lifter=20):
+    def __init__(self, data, filter_banks, rate, time_res, freq_min, freq_max, num_fft, 
+        window_func=None, filename=None, offset=0, label=None, annot=None):
 
+        # create frequency axis
+        # TODO: this needs to be modified as the Mel frequency axis is not linear
+        ax = LinearAxis(bins=data.shape[1], extent=(freq_min, freq_max), label='Frequency (Hz)')
+
+        # create spectrogram
+        super().__init__(data=data, time_res=time_res, spec_type='Mel', freq_ax=ax,
+            filename=filename, offset=offset, label=label, annot=annot)
+
+        # store number of points used for FFT, sampling rate, and filter banks
+        self.num_fft = num_fft
+        self.rate = rate
+        self.window_func = window_func
+        self.filter_banks = filter_banks
+
+    @classmethod
+    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming',
+        num_filters=40, num_ceps=20, cep_lifter=20):
+        """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
+        
+            Args:
+                audio: Waveform
+                    Audio signal 
+                window: float
+                    Window length in seconds
+                step: float
+                    Step size in seconds
+                seg_args: dict
+                    Input arguments used for evaluating :func:`audio.audio.segment_args`. 
+                    Optional. If specified, the arguments `window` and `step` are ignored.
+                window_func: str
+                    Window function (optional). Select between
+                        * bartlett
+                        * blackman
+                        * hamming (default)
+                        * hanning
+                num_filters: int
+                    The number of filters in the filter bank.
+                num_ceps: int
+                    The number of Mel-frequency cepstrums.
+                cep_lifters: int
+                    The number of cepstum filters.
+
+            Returns:
+                : MelSpectrogram
+                    Mel spectrogram
+        """
         # compute STFT
         img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
@@ -1111,20 +1167,11 @@ class MelSpectrogram(Spectrogram):
         img, filter_banks = mag2mel(img=img, num_fft=num_fft, rate=audio.rate,\
             num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter) 
 
-        # create frequency axis
-        # TODO: This probably needs to be modified as the Mel frequency axis is not linear ...
-        ax = LinearAxis(bins=img.shape[1], extent=(0., freq_max), label='Frequency (Hz)')
+        time_res = seg_args['step_len'] / audio.rate   
 
-        # create spectrogram
-        time_res = seg_args['step_len'] / audio.rate        
-        super().__init__(data=img, time_res=time_res, spec_type='Mel', freq_ax=ax,\
-            filename=audio.filename, offset=audio.offset, label=audio.label,\
-            annot=audio.annot)
-
-        # store number of points used for FFT, sampling rate, and filter banks
-        self.num_fft = num_fft
-        self.rate = audio.rate
-        self.filter_banks = filter_banks
+        return cls(data=img, filter_banks=filter_banks, rate=audio.rate, time_res=time_res, 
+            freq_min=0, freq_max=freq_max, num_fft=num_fft, window_func=window_func, 
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
