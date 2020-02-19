@@ -928,7 +928,12 @@ class PowerSpectrogram(Spectrogram):
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(spec_type='Mag', freq_ax=ax, **kwargs)
+        super().__init__(spec_type='Pow', freq_ax=ax, **kwargs)
+
+        # store number of points used for FFT, sampling rate, and window function
+        self.num_fft = num_fft
+        self.rate = rate
+        self.window_func = window_func
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -1201,24 +1206,33 @@ class CQTSpectrogram(Spectrogram):
                     * hamming (default)
                     * hanning
     """
-    def __init__(self, audio, step, bins_per_oct, freq_min=1, freq_max=None,\
-        window_func='hamming'):
+    def __init__(self, audio, step, bins_per_oct, freq_min=1, freq_max=None, 
+        window_func='hamming', **kwargs):
 
-        # compute CQT
-        img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
-            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
+        if audio is None:
+            rate      = kwargs.pop('rate', None)
+            freq_bins = kwargs['data'].shape[1]
+
+        else:
+            rate = audio.rate
+
+            # compute CQT
+            img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
+                bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
+
+            freq_bins = img.shape[1]
+            kwargs = {'data':img, 'time_res':step, 'filename':audio.filename, 
+                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
 
         # create logarithmic frequency axis
-        ax = Log2Axis(bins=img.shape[1], bins_per_oct=bins_per_oct,\
+        ax = Log2Axis(bins=freq_bins, bins_per_oct=bins_per_oct,\
             min_value=freq_min, label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=img, time_res=step, spec_type='CQT', freq_ax=ax,\
-            filename=audio.filename, offset=audio.offset, label=audio.label,\
-            annot=audio.annot)
+        super().__init__(spec_type='CQT', freq_ax=ax, **kwargs)
 
         # store sampling rate
-        self.rate = audio.rate
+        self.rate = rate
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,\
