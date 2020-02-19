@@ -422,7 +422,7 @@ def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hammi
     r = int(np.ceil(h / h0))
     h = int(r * h0)
 
-    img = librosa.core.cqt(y=x, sr=rate, hop_length=h, fmin=freq_min, n_bins=bins, bins_per_octave=b)
+    img = librosa.core.cqt(y=x, sr=rate, hop_length=h, fmin=freq_min, n_bins=bins, bins_per_octave=b, window=window_func)
     img = to_decibel(np.abs(img))
     img = np.swapaxes(img, 0, 1)
     

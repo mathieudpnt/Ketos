@@ -692,64 +692,92 @@ class Spectrogram(BaseAudio):
         return fig
 
 class MagSpectrogram(Spectrogram):
-    """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
-        computing the Short Time Fourier Transform (STFT).
+    """ Magnitude Spectrogram.
     
         Args:
-            audio: Waveform
-                Audio signal 
-            window: float
-                Window length in seconds
-            step: float
-                Step size in seconds
-            seg_args: dict
-                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
-                Optional. If specified, the arguments `window` and `step` are ignored.
+            image: 2d or 3d numpy array
+                Spectrogram pixel values. 
+            rate: int
+                Sampling rate of the audio signal from which the spectrogram was created.
+            time_res: float
+                Time resolution in seconds (corresponds to the bin size used on the time axis)
+            freq_min: float
+                Lower value of the frequency axis in Hz
+            freq_res: float
+                Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
             window_func: str
-                Window function (optional). Select between
-                    * bartlett
-                    * blackman
-                    * hamming (default)
-                    * hanning
+                Window function used for computing the spectrogram
+            filename: str or list(str)
+                Name of the source audio file, if available.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file, if available.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
 
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
             rate: float
                 Sampling rate in Hz.
+            window_func: str
+                Window function.
     """
-    def __init__(self, audio=None, window=None, step=None, seg_args=None, window_func='hamming', **kwargs):
-
-        if audio is None:
-            rate      = kwargs.pop('rate', None)
-            freq_min  = kwargs.pop('freq_min', 0)
-            freq_bins = kwargs['data'].shape[1]
-            freq_max  = freq_min + freq_bins * kwargs.pop('freq_res')
-            num_fft   = kwargs.pop('num_fft', None)
-
-        else:
-            freq_min = 0.
-            rate = audio.rate
-            
-            # compute STFT
-            img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
-                step=step, seg_args=seg_args, window_func=window_func)
-
-            freq_bins = img.shape[1]
-            time_res = seg_args['step_len'] / audio.rate
-            kwargs = {'data':img, 'time_res':time_res, 'filename':audio.filename, 
-                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
+    def __init__(self, data, rate, time_res, freq_min, freq_res, num_fft, 
+        window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
+        freq_bins = data.shape[1]
+        freq_max  = freq_min + freq_bins * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(spec_type='Mag', freq_ax=ax, **kwargs)
+        super().__init__(data=data, time_res=time_res, spec_type='Mag', freq_ax=ax,
+            filename=filename, offset=offset, label=label, annot=annot)
 
         # store number of points used for FFT, sampling rate, and window function
         self.num_fft = num_fft
         self.rate = rate
         self.window_func = window_func
+
+    @classmethod
+    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+        """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
+            computing the Short Time Fourier Transform (STFT).
+        
+            Args:
+                audio: Waveform
+                    Audio signal 
+                window: float
+                    Window length in seconds
+                step: float
+                    Step size in seconds
+                seg_args: dict
+                    Input arguments used for evaluating :func:`audio.audio.segment_args`. 
+                    Optional. If specified, the arguments `window` and `step` are ignored.
+                window_func: str
+                    Window function (optional). Select between
+                        * bartlett
+                        * blackman
+                        * hamming (default)
+                        * hanning
+
+            Returns:
+                : MagSpectrogram
+                    Magnitude spectrogram
+        """
+        # compute STFT
+        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
+            step=step, seg_args=seg_args, window_func=window_func)
+
+        time_res = seg_args['step_len'] / audio.rate
+        freq_res = freq_max / img.shape[1]
+
+        return cls(data=img, rate=audio.rate, time_res=time_res, freq_min=0, freq_res=freq_res, 
+            num_fft=num_fft, window_func=window_func, filename=audio.filename, offset=audio.offset, 
+            label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -815,7 +843,7 @@ class MagSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # compute spectrogram
-        return cls(audio=audio, seg_args=seg_args, window_func=window_func)
+        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -874,66 +902,94 @@ class MagSpectrogram(Spectrogram):
         return audio
 
 class PowerSpectrogram(Spectrogram):
-    """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
-        computing the Short Time Fourier Transform (STFT).
+    """ Power Spectrogram.
     
         Args:
-            audio: Waveform
-                Audio signal 
-            window: float
-                Window length in seconds
-            step: float
-                Step size in seconds 
-            seg_args: dict
-                Input arguments used for evaluating :func:`audio.audio.segment_args`. 
-                Optional. If specified, the arguments `window` and `step` are ignored.
+            image: 2d or 3d numpy array
+                Spectrogram pixel values. 
+            rate: int
+                Sampling rate of the audio signal from which the spectrogram was created.
+            time_res: float
+                Time resolution in seconds (corresponds to the bin size used on the time axis)
+            freq_min: float
+                Lower value of the frequency axis in Hz
+            freq_res: float
+                Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
             window_func: str
-                Window function (optional). Select between
-                    * bartlett
-                    * blackman
-                    * hamming (default)
-                    * hanning
+                Window function used for computing the spectrogram
+            filename: str or list(str)
+                Name of the source audio file, if available.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file, if available.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
 
         Attrs:
             num_fft: int
                 Number of points used for the FFT.
             rate: float
                 Sampling rate in Hz.
+            window_func: str
+                Window function.
     """
-    def __init__(self, audio, window=None, step=None, seg_args=None, window_func='hamming', **kwargs):
-
-        if audio is None:
-            rate      = kwargs.pop('rate', None)
-            freq_min  = kwargs.pop('freq_min', 0)
-            freq_bins = kwargs['data'].shape[1]
-            freq_max  = freq_min + freq_bins * kwargs.pop('freq_res')
-            num_fft   = kwargs.pop('num_fft', None)
-
-        else:
-            freq_min = 0.
-            rate = audio.rate
-
-            # compute STFT
-            img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
-                step=step, seg_args=seg_args, window_func=window_func, decibel=False)
-            img = mag2pow(img, num_fft) # Magnitude->Power conversion
-            img = aum.to_decibel(img) # convert to dB
-
-            freq_bins = img.shape[1]
-            time_res = seg_args['step_len'] / audio.rate
-            kwargs = {'data':img, 'time_res':time_res, 'filename':audio.filename, 
-                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
+    def __init__(self, data, rate, time_res, freq_min, freq_res, num_fft, 
+        window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
+        freq_bins = data.shape[1]
+        freq_max  = freq_min + freq_bins * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(spec_type='Pow', freq_ax=ax, **kwargs)
+        super().__init__(data=data, time_res=time_res, spec_type='Pow', freq_ax=ax,
+            filename=filename, offset=offset, label=label, annot=annot)
 
         # store number of points used for FFT, sampling rate, and window function
         self.num_fft = num_fft
         self.rate = rate
         self.window_func = window_func
+
+    @classmethod
+    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+        """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
+            computing the Short Time Fourier Transform (STFT).
+        
+            Args:
+                audio: Waveform
+                    Audio signal 
+                window: float
+                    Window length in seconds
+                step: float
+                    Step size in seconds
+                seg_args: dict
+                    Input arguments used for evaluating :func:`audio.audio.segment_args`. 
+                    Optional. If specified, the arguments `window` and `step` are ignored.
+                window_func: str
+                    Window function (optional). Select between
+                        * bartlett
+                        * blackman
+                        * hamming (default)
+                        * hanning
+
+            Returns:
+                : MagSpectrogram
+                    Magnitude spectrogram
+        """
+        # compute STFT
+        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+            step=step, seg_args=seg_args, window_func=window_func, decibel=False)
+        img = mag2pow(img, num_fft) # Magnitude->Power conversion
+        img = aum.to_decibel(img) # convert to dB
+
+        time_res = seg_args['step_len'] / audio.rate
+        freq_res = freq_max / img.shape[1]
+
+        return cls(data=img, rate=audio.rate, time_res=time_res, freq_min=0, freq_res=freq_res, 
+            num_fft=num_fft, window_func=window_func, filename=audio.filename, offset=audio.offset, 
+            label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -999,9 +1055,7 @@ class PowerSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # compute spectrogram
-        cls(audio=audio, seg_args=seg_args, window_func=window_func)
-
-        return spec
+        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1177,62 +1231,94 @@ class MelSpectrogram(Spectrogram):
         return fig
 
 class CQTSpectrogram(Spectrogram):
-    """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
-
-            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
-
-        The frequency axis of a CQT spectrogram is essentially a logarithmic axis with base 2. It is 
-        characterized by an integer number of bins per octave (an octave being a doubling of the frequency.) 
-
-        For further details, see :func:`audio.audio.cqt`.
-
+    """ Magnitude Spectrogram computed from Constant Q Transform (CQT).
+    
         Args:
-            audio: Waveform
-                Audio signal 
-            step: float
-                Step size in seconds 
-            bins_per_oct: int
-                Number of bins per octave
+            image: 2d or 3d numpy array
+                Spectrogram pixel values. 
+            rate: int
+                Sampling rate of the audio signal from which the spectrogram was created.
+            time_res: float
+                Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
-                Minimum frequency in Hz
-                If None, it is set to 1 Hz.
-            freq_max: float
-                Maximum frequency in Hz. 
-                If None, it is set equal to half the sampling rate.
+                Lower value of the frequency axis in Hz
+            freq_res: float
+                Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
             window_func: str
-                Window function (optional). Select between
-                    * bartlett
-                    * blackman
-                    * hamming (default)
-                    * hanning
+                Window function used for computing the spectrogram
+            filename: str or list(str)
+                Name of the source audio file, if available.   
+            offset: float or array-like
+                Position in seconds of the left edge of the spectrogram within the source 
+                audio file, if available.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
+
+        Attrs:
+            rate: float
+                Sampling rate in Hz.
+            window_func: str
+                Window function.
     """
-    def __init__(self, audio, step, bins_per_oct, freq_min=1, freq_max=None, 
-        window_func='hamming', **kwargs):
-
-        if audio is None:
-            rate      = kwargs.pop('rate', None)
-            freq_bins = kwargs['data'].shape[1]
-
-        else:
-            rate = audio.rate
-
-            # compute CQT
-            img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
-                bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
-
-            freq_bins = img.shape[1]
-            kwargs = {'data':img, 'time_res':step, 'filename':audio.filename, 
-                'offset':audio.offset, 'label':audio.label, 'annot':audio.annot}
+    def __init__(self, data, rate, time_res, freq_min, bins_per_oct, 
+        window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create logarithmic frequency axis
-        ax = Log2Axis(bins=freq_bins, bins_per_oct=bins_per_oct,\
+        ax = Log2Axis(bins=data.shape[1], bins_per_oct=bins_per_oct,\
             min_value=freq_min, label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(spec_type='CQT', freq_ax=ax, **kwargs)
+        super().__init__(data=data, time_res=time_res, spec_type='CQT', freq_ax=ax,
+            filename=filename, offset=offset, label=label, annot=annot)
 
-        # store sampling rate
+        # store number of points used for FFT, sampling rate, and window function
         self.rate = rate
+        self.window_func = window_func
+
+    @classmethod
+    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hamming'):
+        """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
+
+            https://librosa.github.io/librosa/generated/librosa.core.cqt.html
+
+            The frequency axis of a CQT spectrogram is essentially a logarithmic axis with base 2. It is 
+            characterized by an integer number of bins per octave (an octave being a doubling of the frequency.) 
+
+            For further details, see :func:`audio.audio.cqt`.
+        
+            Args:
+                audio: Waveform
+                    Audio signal 
+                step: float
+                    Step size in seconds 
+                bins_per_oct: int
+                    Number of bins per octave
+                freq_min: float
+                    Minimum frequency in Hz
+                    If None, it is set to 1 Hz.
+                freq_max: float
+                    Maximum frequency in Hz. 
+                    If None, it is set equal to half the sampling rate.
+                window_func: str
+                    Window function (optional). Select between
+                        * bartlett
+                        * blackman
+                        * hamming (default)
+                        * hanning
+
+            Returns:
+                : CQTSpectrogram
+                    CQT spectrogram
+        """
+        # compute CQT
+        img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
+            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
+
+        return cls(data=img, rate=audio.rate, time_res=step, freq_min=freq_min, 
+            bins_per_oct=bins_per_oct, window_func=window_func, filename=audio.filename, 
+            offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,\
@@ -1315,7 +1401,7 @@ class CQTSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # create CQT spectrogram
-        return cls(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
+        return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
 
     def bins_per_octave(self):
