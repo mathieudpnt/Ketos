@@ -338,7 +338,10 @@ class AnnotationHandler():
                 None
         """
         if isinstance(df, dict):
-            df = pd.DataFrame(df, index=pd.Index([0]))
+            if isinstance(df['label'], list):
+                df = pd.DataFrame(df)
+            else:
+                df = pd.DataFrame(df, index=pd.Index([0]))
         
         next_index = self._next_index(id)
         new_indices = pd.Index(np.arange(next_index, next_index + len(df), dtype=int))

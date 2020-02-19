@@ -79,12 +79,18 @@ def test_add_annotations_as_dataframe():
 
 def test_add_annotations_as_dict():
     handler = AnnotationHandler()
-    df = {'start':1, 'end':7, 'label':14}
+    df = {'start':1, 'end':7, 'label':14} #single annotation
     handler.add(df=df)
     a = handler.get()
     assert len(a) == 1
     assert a['start'][0] == 1
     assert a['end'][0] == 7
+    df={'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[3,3.5], 'freq_max':[4,4.5]} #multiple annotations
+    handler.add(df=df)
+    a = handler.get()
+    assert len(a) == 3
+    assert a['start'][1] == 1
+    assert a['start'][2] == 1.5
 
 def test_crop_annotations_along_time_axis():
     handler = AnnotationHandler()

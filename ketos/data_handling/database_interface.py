@@ -497,8 +497,8 @@ def write_spec_data(spec, table, id=None):
     row['data'] = spec.get_data()
 
     if write_source:
-        row['filename'] = spec.tag
-        row['offset'] = spec.tmin
+        row['filename'] = spec.filename
+        row['offset'] = spec.offset
 
     row.append()
 

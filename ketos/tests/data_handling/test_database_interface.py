@@ -131,10 +131,10 @@ def test_write_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
     spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    spec.tag = 'file.wav'
-    spec.tmin = 0.1
+    spec.filename = 'file.wav'
+    spec.offset = 0.1
     # add annotation
-    spec.annotate(labels=(1,2), boxes=((1,2,3,4),(1.5,2.5,3.5,4.5)))
+    spec.annotate(df={'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[3,3.5], 'freq_max':[4,4.5]})
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     h5file = di.open_file(fpath, 'w')
