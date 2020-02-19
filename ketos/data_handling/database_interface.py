@@ -401,7 +401,6 @@ def write_spec_attrs(spec, table):
     table.attrs.freq_min    = spec.freq_min()
     table.attrs.sampl_rate  = spec.rate
     table.attrs.window_func = spec.window_func
-    table.attrs.num_fft     = sepc.num_fft
 
     if isinstance(spec, CQTSpectrogram):
         table.attrs.type = 'CQT'
@@ -410,10 +409,12 @@ def write_spec_attrs(spec, table):
     elif isinstance(spec, MagSpectrogram):
         table.attrs.type = 'Mag'
         table.attrs.freq_res = spec.freq_res()
+        table.attrs.num_fft = spec.num_fft
     
     elif isinstance(spec, PowerSpectrogram):
         table.attrs.type = 'Pow'
         table.attrs.freq_res = spec.freq_res()
+        table.attrs.num_fft = spec.num_fft
 
     elif isinstance(spec, MelSpectrogram):
         table.attrs.type = 'Mel'
@@ -660,7 +661,7 @@ def load_specs(table, index_list=None, table_annot=None):
                 the spectrograms are still loaded, but without annotations.
 
         Returns:
-            res: list
+            specs: list
                 List of spectrogram objects.
 
         Examples:
@@ -691,41 +692,31 @@ def load_specs(table, index_list=None, table_annot=None):
 
         it = table[idx]
 
-        # parse labels and boxes
-        labels = it['labels']
-        labels = parse_labels(labels)
-        boxes = it['boxes']
-        boxes = parse_boxes(boxes)
-        
-        # get the spectrogram data
-        data = it['data']
+        if table.attrs.type == 'Mag':
+            spec = MagSpectrogram(data=it['data'], 
+                                  rate=table.attrs.sampl_rate, 
+                                  time_res=table.attrs.time_res,
+                                  freq_res=table.attrs.freq_res,
+                                  freq_min=table.attrs.freq_min,
+                                  window_func=table.attrs.window_func,
+                                  num_fft=table.attrs.num_fft)
 
-        # create spectrogram object
-        if table.attrs.freq_res >= 0:
-            x = Spectrogram(image=data, tres=table.attrs.time_res, fres=table.attrs.freq_res, fmin=table.attrs.freq_min, tag='')
-        else:
-            x = CQTSpectrogram(image=data, winstep=table.attrs.time_res, bins_per_octave=int(-table.attrs.freq_res), fmin=table.attrs.freq_min, tag='')
+        if 'filename' in it: spec.filename = it['filename']
+        if 'offset' in it: spec.offset = it['offset']
 
-        # annotate
-        #import pdb; pdb.set_trace()
-        x.annotate(labels=labels, boxes=boxes)
+        if table_annot is not None:
+            # query those rows with data_id=it['id']
+            # then add annotations using spec.annotate()
 
-        # handle file and time info
-        x.time_vector = it['time_vector']
-        x.file_vector = it['file_vector']
-        files = it['files'].decode()[1:-1]
-        if len(files) == 0:
-            x.file_dict = {0: ''}
-        else:
-            files = files.split(',')
-            file_dict = {}
-            for i, f in enumerate(files):
-                file_dict[i] = f
-            x.file_dict = file_dict
+        specs.append(spec)
 
-        res.append(x)
+    return specs
 
-    return res
+
+
+
+
+
 
 def extract(table, label, length=None, min_length=None, center=False, fpad=True, keep_time=False):
     """ Create new spectrograms by croping segments annotated with the specified label.

@@ -723,8 +723,8 @@ class MagSpectrogram(Spectrogram):
         if audio is None:
             rate      = kwargs.pop('rate', None)
             freq_min  = kwargs.pop('freq_min', 0)
-            freq_max  = kwargs.pop('freq_max')
             freq_bins = kwargs['data'].shape[1]
+            freq_max  = freq_min + freq_bins * kwargs.pop('freq_res')
             num_fft   = kwargs.pop('num_fft', None)
 
         else:
@@ -905,8 +905,8 @@ class PowerSpectrogram(Spectrogram):
         if audio is None:
             rate      = kwargs.pop('rate', None)
             freq_min  = kwargs.pop('freq_min', 0)
-            freq_max  = kwargs.pop('freq_max')
             freq_bins = kwargs['data'].shape[1]
+            freq_max  = freq_min + freq_bins * kwargs.pop('freq_res')
             num_fft   = kwargs.pop('num_fft', None)
 
         else:
