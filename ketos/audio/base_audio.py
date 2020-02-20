@@ -626,10 +626,12 @@ class AudioSegmenter():
             rep: str
                 Audio data representation. Options are Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram.
             seg_length: float
-                Segment length in seconds. If None, the length of the first audio file is used.
+                Segment length in seconds.
             seg_step: float
                 Separation between consecutive segments in seconds. If None, the separation 
                 equals the segment length.
+            max_padding: float [0,1)
+                Maximum allowed padding. Default is 0.
             sampling_rate: float
                 If specified, audio data will be resampled at this rate
             window: float
@@ -644,7 +646,7 @@ class AudioSegmenter():
             freq_max: float
                 Upper cut on frequency in Hz.
     """
-    def __init__(self, path, channel=0, rep='MagSpectrogram', seg_length=None, seg_step=None, 
+    def __init__(self, path, channel=0, rep='MagSpectrogram', seg_length, seg_step=None, 
         sampling_rate=None, window=None, bins_per_oct=None, step=None, freq_min=None, freq_max=None):
 
         self.rep = rep
