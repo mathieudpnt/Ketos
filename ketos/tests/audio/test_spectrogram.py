@@ -222,19 +222,19 @@ def test_mag_from_wav(sine_wave_file):
 
 def test_cqt_from_wav(sine_wave_file):
     # zero offset
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, bins_per_oct=32)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
     # non-zero offset
     offset = 1.0
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, bins_per_oct=32, offset=1.0)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, offset=1.0)
     assert spec.offset == offset
     assert spec.duration() == pytest.approx(3.0 - offset, abs=0.01)
     # duration is less than segment length
     duration = 1.1
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, bins_per_oct=32, duration=duration)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, duration=duration)
     assert spec.duration() == pytest.approx(duration, abs=0.01)
     # step size is not divisor of duration
-    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, bins_per_oct=32)
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
 
 def test_stack_mag_specs():
