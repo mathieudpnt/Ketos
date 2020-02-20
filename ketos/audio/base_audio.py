@@ -234,6 +234,37 @@ class BaseAudio():
         self.label = label
         self.annot = annot
 
+    @classmethod
+    def stack(cls, audio):
+        """ Stack audio objects 
+
+            Args:
+                audio: list(BaseAudio)
+                    List of audio objects to be stacked.
+
+            Returns:
+                : BaseAudio
+                    Stacked audio object        
+        """
+        assert len(audio) > 0, 'audio must contain at least one object'
+
+        time_res = audio[0].time_res()
+        ndim     = audio[0].ndim
+
+        filename = [a.filename for a in audio]
+        offset   = [a.offset for a in audio]
+
+        label = [a.label for a in audio if a.label is not None]
+        if len(label) == 0: label = None
+
+        annot    = [a.annot for a in audio if a.annot is not None]
+        if len(annot) == 0: annot = None
+        else: annot = stack_annotations(annot)
+
+        data = np.swapaxes(np.concatenate([a.data[np.newaxis,:] for a in audio], axis=0), 0, -1)
+
+        return cls(data=data, time_res=time_res, ndim=ndim, filename=filename, offset=offset, label=label, annot=annot)
+
     def get_data(self, id=None):
         """ Get underlying data.
 
