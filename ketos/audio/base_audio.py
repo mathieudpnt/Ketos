@@ -615,52 +615,40 @@ class BaseAudio():
         return fig, ax
 
 
+class AudioSegmenter():
+    """ Load waveforms or compute spectrograms from raw audio (*.wav) files.
 
-
-
-class SpecProvider():
-    """ Compute spectrograms from raw audio (*.wav) files.
-
-        Note that if spec_config is specified, the following arguments are ignored: 
-        sampling_rate, window_size, step_size, length, overlap, flow, fhigh, cqt, bins_per_octave.
-
-        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
-    
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
-            spec_config: SpectrogramConfiguration
-                Spectrogram configuration object.
+            rep: str
+                Audio data representation. Options are Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram.
+            seg_length: float
+                Segment length in seconds. If None, the length of the first audio file is used.
+            seg_step: float
+                Separation between consecutive segments in seconds. If None, the separation 
+                equals the segment length.
             sampling_rate: float
                 If specified, audio data will be resampled at this rate
-            window_size: float
-                Window size (seconds) used for computing the spectrogram
-            step_size: float
-                Step size (seconds) used for computing the spectrogram
-            length: float
-                Duration in seconds of individual spectrograms.
-            overlap: float
-                Overlap in seconds between consecutive spectrograms.
-            flow: float
-                Lower cut on frequency (Hz)
-            fhigh: float
-                Upper cut on frequency (Hz)
-            cqt: bool
-                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
-                spectrogram.
-            bins_per_octave: int
-                Number of bins per octave. Only applicable if cqt is True.
-            pad: bool
-                If True (default), audio files will be padded with zeros at the end to produce an 
-                integer number of spectrogram if necessary. If False, audio files 
-                will be truncated at the end.
-
-            Example:
+            window: float
+                Window size used for computing the spectrogram in seconds. Only relevant for 
+                STFT spectrograms (Mag, Power, Mel).
+            bins_per_oct: int
+                Number of bins per octave. Only relevant for CQT spectrograms.
+            step: float
+                Step size used for computing the spectrogram in seconds.
+            freq_min: float
+                Lower cut on frequency in Hz.
+            freq_max: float
+                Upper cut on frequency in Hz.
     """
-    def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
+    def __init__(self, path, channel=0, rep='MagSpectrogram', seg_length=None, seg_step=None, 
+        sampling_rate=None, window=None, bins_per_oct=None, step=None, freq_min=None, freq_max=None):
+
+        self.rep = rep
+        self.config = {}
 
         if spec_config is None:
             spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
