@@ -214,3 +214,78 @@ def test_stack_with_annotations(base_audio_1d):
         assert np.all(stacked.get_data(i) == d)
         assert stacked.get_filename(i) == o.filename
         assert len(stacked.get_annotations(i)) == 2
+
+
+
+
+
+
+### old tests below ...
+
+def test_init_spec_provider_with_folder(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+
+def test_init_spec_provider_with_wav_file(sine_wave_file):
+    sp = dh.SpecProvider(path=sine_wave_file)
+    assert len(sp.files) == 1
+
+def test_use_spec_provider_on_five_wav_files(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.5
+    s = next(sp)
+    assert s.duration() == 0.5
+    assert sp.fid == 2
+
+def test_use_spec_provider_on_five_wav_files_specify_length(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.fid == 1
+
+def test_use_spec_provider_on_five_wav_files_specify_overlap(five_time_stamped_wave_files):
+    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, overlap=0.05, step_size=0.01, window_size=0.1)
+    assert len(sp.files) == 5
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    s = next(sp)
+    assert s.duration() == 0.2
+    assert sp.time == pytest.approx(0.45, abs=1e-6)
+    assert sp.fid == 0
+
+def test_spec_provider_number_of_segments(sine_wave_file):
+    import librosa
+    dur = librosa.core.get_duration(filename=sine_wave_file)
+    # duration is an integer number of lengths
+    l = 0.2
+    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
+    assert len(sp.files) == 1
+    N = int(dur / l)
+    assert N == sp.num_segs
+    # duration is *not* an integer number of lengths
+    l = 0.21
+    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
+    N = int(np.ceil(dur / l))
+    assert N == sp.num_segs
+    # loop over all segments
+    for _ in range(N):
+        _ = next(sp)
+    # non-zero overlap
+    l = 0.21
+    o = 0.8*l
+    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=o, step_size=0.01, window_size=0.1, sampling_rate=2341)
+    step = l - o
+    N = int(np.ceil(dur / step))
+    assert N == sp.num_segs
+    # loop over all segments
+    for _ in range(N):
+        _ = next(sp)

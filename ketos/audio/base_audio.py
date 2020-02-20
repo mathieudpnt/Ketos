@@ -613,3 +613,182 @@ class BaseAudio():
             
         fig.tight_layout()
         return fig, ax
+
+
+
+
+
+class SpecProvider():
+    """ Compute spectrograms from raw audio (*.wav) files.
+
+        Note that if spec_config is specified, the following arguments are ignored: 
+        sampling_rate, window_size, step_size, length, overlap, flow, fhigh, cqt, bins_per_octave.
+
+        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
+    
+        Args:
+            path: str
+                Full path to audio file (*.wav) or folder containing audio files
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            spec_config: SpectrogramConfiguration
+                Spectrogram configuration object.
+            sampling_rate: float
+                If specified, audio data will be resampled at this rate
+            window_size: float
+                Window size (seconds) used for computing the spectrogram
+            step_size: float
+                Step size (seconds) used for computing the spectrogram
+            length: float
+                Duration in seconds of individual spectrograms.
+            overlap: float
+                Overlap in seconds between consecutive spectrograms.
+            flow: float
+                Lower cut on frequency (Hz)
+            fhigh: float
+                Upper cut on frequency (Hz)
+            cqt: bool
+                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
+                spectrogram.
+            bins_per_octave: int
+                Number of bins per octave. Only applicable if cqt is True.
+            pad: bool
+                If True (default), audio files will be padded with zeros at the end to produce an 
+                integer number of spectrogram if necessary. If False, audio files 
+                will be truncated at the end.
+
+            Example:
+    """
+    def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
+        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
+
+        if spec_config is None:
+            spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
+                bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
+                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
+
+        if spec_config.length is not None:
+            assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
+
+        self.spec_config = spec_config
+        self.channel = channel
+        self.pad = pad
+
+        # get all wav files in the folder, including any subfolders
+        if path[-3:].lower() == 'wav':
+            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
+            self.files = [path]
+        else:
+            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
+
+        # file ID
+        self.fid = -1
+        self._next_file()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """ Compute next spectrogram.
+
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
+        """
+        # get spectrogram
+        spec = self.get(time=self.time, file_id=self.fid)
+
+        # increment time
+        self.time += spec.duration() - self.spec_config.overlap
+
+        # increment segment ID
+        self.sid += 1
+
+        # if this was the last segment, jump to the next file
+        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
+        if self.sid == self.num_segs or self.time >= file_duration:
+            self._next_file()
+
+        return spec
+
+    def reset(self):
+        """ Go back to the beginning of the first file.
+        """
+        self.jump(0)
+
+    def jump(self, file_id=0):
+        """ Go to the beginning of the selected file.
+
+            Args:
+                file_id: int
+                    File ID
+        """
+        self.fid = file_id - 1
+        self._next_file()
+
+    def get(self, time=0, file_id=0):
+        """ Compute spectrogram from specific file and time.
+
+            Args:
+                time: float
+                    Start time of the spectrogram in seconds, measured from the 
+                    beginning of the file.
+                file_id: int
+                    Integer file identifier.
+        
+            Returns: 
+                spec: instance of MagSpectrogram or CQTSpectrogram
+                    Spectrogram.
+        """
+        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
+
+        # file
+        f = self.files[file_id]
+
+        # compute spectrogram
+        if self.spec_config.type == 'CQT':
+            spec = CQTSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, channel=self.channel)
+
+        else:
+            spec = MagSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
+                offset=time, decibel=True, adjust_duration=True, channel=self.channel)
+
+        return spec
+
+    def _next_file(self):
+        """ Jump to next file. 
+        """
+        # increment file ID
+        self.fid += 1
+
+        if self.fid == len(self.files):
+            self.fid = 0
+
+        # check if file exists
+        f = self.files[self.fid]
+        exists = os.path.exists(f)
+
+        # if not, jump to the next file
+        if not exists:
+            self._next_file()
+
+        # get duration
+        duration = librosa.get_duration(filename=f)
+
+        if self.spec_config.length is None:
+            self.num_segs = 1
+        else:
+            if self.pad:
+                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
+            else:
+                x = (duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)
+                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
+                self.num_segs += 1
+
+        # reset segment ID and time
+        self.sid = 0
+        self.time = 0
+
+
