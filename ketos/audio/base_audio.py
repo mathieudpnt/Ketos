@@ -261,8 +261,7 @@ class BaseAudio():
         """
         assert len(objects) > 0, 'at least one object required'
 
-        time_res = objects[0].time_res()
-        kwargs = objects[0]._kwargs()
+        kwargs = objects[0].get_attrs()
 
         filename = [a.filename for a in objects]
         offset   = [a.offset for a in objects]
@@ -276,10 +275,15 @@ class BaseAudio():
 
         data = np.moveaxis(np.concatenate([a.data[np.newaxis,:] for a in objects], axis=0), 0, -1)
 
-        return cls(data=data, time_res=time_res, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
+        return cls(data=data, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
 
-    def _kwargs(self):
-        return {'ndim':self.ndim}
+    @classmethod
+    def get(cls, id):
+        return cls(data=self.get_data(id), filename=self.get_filename(id), 
+            offset=self.get_offset(id), label=get_label(id), annot=get_annotations(id), **self.get_attrs())
+
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'ndim':self.ndim}
 
     def num_objects(self):
         num = 1

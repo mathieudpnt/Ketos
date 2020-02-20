@@ -42,9 +42,9 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 def test_init_spec(spec_image_with_attrs):
     """Test that we can initialize an instance of the Spectrogram class"""
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=dt, spec_type='MagSpectrogram', freq_ax=ax)
     assert np.all(spec.data == img)
-    assert spec.type == 'Mag'
+    assert spec.type == 'MagSpectrogram'
 
 def test_init_mag_spec():
     """Test that we can initialize an instance of the MagSpectrogram class
@@ -52,12 +52,12 @@ def test_init_mag_spec():
     img = np.ones((20,10))
     spec = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4)
     assert np.all(spec.data == img)
-    assert spec.type == 'Mag'
+    assert spec.type == 'MagSpectrogram'
 
 def test_copy_spec(spec_image_with_attrs):
     """Test that we can make a copy of spectrogram"""
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(data=img, time_res=dt, spec_type='Mag', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=dt, spec_type='MagSpectrogram', freq_ax=ax)
     spec2 = spec.deepcopy()
     assert np.all(spec.data == spec2.data)
     spec2.data += 1.5 #modify copied image
@@ -85,7 +85,7 @@ def test_power_spec_of_sine_wave(sine_audio):
     spec = PowerSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     assert spec.time_res() == step
     assert spec.freq_min() == 0
-    assert spec.type == 'Pow'
+    assert spec.type == 'PowerSpectrogram'
     freq = np.argmax(spec.data, axis=1)
     freqHz = freq * spec.freq_res()
     assert np.all(np.abs(freqHz - 2000) < spec.freq_res())
@@ -141,7 +141,7 @@ def test_blur_time_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
-    spec = Spectrogram(data=img, time_res=1, spec_type='Mag', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=1, spec_type='MagSpectrogram', freq_ax=ax)
     sig = 2.0
     spec.blur(sigma_time=sig, sigma_freq=0.01)
     xy = spec.data / np.max(spec.data)
@@ -156,7 +156,7 @@ def test_blur_freq_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
-    spec = Spectrogram(data=img, time_res=1, spec_type='Mag', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=1, spec_type='MagSpectrogram', freq_ax=ax)
     sig = 4.2
     spec.blur(sigma_time=0.01, sigma_freq=sig)
     xy = spec.data / np.max(spec.data)

@@ -370,8 +370,8 @@ class Spectrogram(BaseAudio):
         self.freq_ax = freq_ax
         self.type = spec_type
 
-    def _kwargs(self):
-        return {'spec_type':self.type, 'freq_ax':self.freq_ax}
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'spec_type':self.type, 'freq_ax':self.freq_ax}
 
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
@@ -723,7 +723,7 @@ class MagSpectrogram(Spectrogram):
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
-        filename=None, offset=0, label=None, annot=None):
+        filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create frequency axis
         freq_bins = data.shape[1]
@@ -731,7 +731,7 @@ class MagSpectrogram(Spectrogram):
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type='Mag', freq_ax=ax,
+        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
@@ -838,8 +838,9 @@ class MagSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
-    def _kwargs(self):
-        return {'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func}
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
+            'window_func':self.window_func, 'type':self.__class__.__name__}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -921,7 +922,7 @@ class PowerSpectrogram(Spectrogram):
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
-        filename=None, offset=0, label=None, annot=None):
+        filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create frequency axis
         freq_bins = data.shape[1]
@@ -929,7 +930,7 @@ class PowerSpectrogram(Spectrogram):
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type='Pow', freq_ax=ax,
+        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
@@ -1038,8 +1039,9 @@ class PowerSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
-    def _kwargs(self):
-        return {'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func}
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
+            'window_func':self.window_func, 'type':self.__class__.__name__}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1083,14 +1085,14 @@ class MelSpectrogram(Spectrogram):
                 Filter banks
     """
     def __init__(self, data, filter_banks, time_res, freq_min, freq_max, 
-        window_func=None, filename=None, offset=0, label=None, annot=None):
+        window_func=None, filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create frequency axis
         # TODO: this needs to be modified as the Mel frequency axis is not linear
         ax = LinearAxis(bins=data.shape[1], extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type='Mel', freq_ax=ax,
+        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
@@ -1216,8 +1218,9 @@ class MelSpectrogram(Spectrogram):
 
         return spec
 
-    def _kwargs(self):
-        return {'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 'filter_banks':self.filter_banks}
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 
+            'filter_banks':self.filter_banks, 'type':self.__class__.__name__}
 
     def plot(self, filter_bank=False):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -1278,14 +1281,14 @@ class CQTSpectrogram(Spectrogram):
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, bins_per_oct, 
-        window_func=None, filename=None, offset=0, label=None, annot=None):
+        window_func=None, filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create logarithmic frequency axis
         ax = Log2Axis(bins=data.shape[1], bins_per_oct=bins_per_oct,\
             min_value=freq_min, label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type='CQT', freq_ax=ax,
+        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
@@ -1417,8 +1420,9 @@ class CQTSpectrogram(Spectrogram):
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
 
-    def _kwargs(self):
-        return {'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave()}
+    def get_attrs(self):
+        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave(), 
+            'window_func':self.window_func, 'type':self.__class__.__name__}
 
     def bins_per_octave(self):
         """ Get no. bins per octave.

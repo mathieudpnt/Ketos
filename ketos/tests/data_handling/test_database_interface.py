@@ -70,7 +70,7 @@ def test_create_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_data, descr_annot = di.table_description_new((32,64))
+    descr_data, descr_annot = di.table_description((32,64))
     # create data table
     _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
@@ -123,10 +123,10 @@ def test_create_table_existing():
     # clean
     h5file.close()
 
-def test_write_spec(sine_audio):
+def test_write_mag_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     spec.filename = 'file.wav'
     spec.offset = 0.1
     # add annotation
@@ -140,11 +140,12 @@ def test_write_spec(sine_audio):
     tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
     tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
     # write spectrogram to table
-    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec, table=tbl_data, table_annot=tbl_annot) 
     # write spectrogram to table with id
-    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot, id=7)
+    di.write(x=spec, table=tbl_data, table_annot=tbl_annot, id=7)
     tbl_data.flush()
     tbl_annot.flush()
+    # check that annotations have been properly saved
     x = tbl_annot[0]
     assert x['data_id'] == 0
     assert x['label'] == 1
@@ -163,33 +164,20 @@ def test_write_spec(sine_audio):
     x = tbl_data[0]
     assert x['filename'].decode() == 'file.wav'
     assert x['offset'] == 0.1
+    # check that attributes have been properly saved
+    assert tbl_data.attrs.time_res == 0.1
+    assert tbl_data.attrs.freq_min == 0
+    assert tbl_data.attrs.freq_res == 0.5 * sine_audio.rate / spec.data.shape[1]
+    assert tbl_data.attrs.type == 'MagSpectrogram'
+    assert tbl_data.attrs.window_func == 'hamming'
+    # clean up
     h5file.close()
     os.remove(fpath)
 
-def test_write_spec_TypeError(sine_audio):
-    """Test if a type error is raised when trying to pass an object that isn't an instance of Spectrogram (or its subclasses)"""
-    sine_audio.annotate(df={'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[3,3.5], 'freq_max':[4,4.5]})
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp4_db.h5')
-    h5file = di.open_file(fpath, 'w')
-    # Create table description
-    descr_data, descr_annot = di.table_description(sine_audio.data.shape, annot_type='strong')
-    # create table
-    tbl_data = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
-    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
-    # write spectrogram to table
-    with pytest.raises(TypeError):
-        di.write_spec(spec=sine_audio, table_data=tbl_data, table_annot=tbl_annot)
-       
-    assert tbl_data.nrows == 0
-    
-    h5file.close()
-    os.remove(fpath)
-
-def test_write_spec_cqt(sine_audio):
+def test_write_cqt_spec(sine_audio):
     """Test if CQT spectrograms are written with appropriate encoding"""
     # create cqt spectrogram    
-    spec = CQTSpectrogram(audio=sine_audio, freq_min=1, freq_max=8000, step=0.1, bins_per_oct=32)
+    spec = CQTSpectrogram.from_waveform(audio=sine_audio, freq_min=1, freq_max=8000, step=0.1, bins_per_oct=32)
     # add annotation
     df = {'label':[1,2], 'start':[1,1.5], 'end':[2,2.5], 'freq_min':[300,300.5], 'freq_max':[400,400.5]}
     spec.annotate(df=df)
@@ -202,15 +190,15 @@ def test_write_spec_cqt(sine_audio):
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
     # write spectrogram to table
-    di.write_spec_attrs(table=tbl_data, spec=spec)
-    di.write_spec(spec=spec, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec, table=tbl_data, table_annot=tbl_annot) 
+    tbl_data.flush()
+    tbl_annot.flush()
     h5file.close()
     # re-open
     h5file = di.open_file(fpath, 'r')
     tbl_d = h5file.get_node("/group_1/table_data")
     tbl_a = h5file.get_node("/group_1/table_annot")
-    # check
-    assert int(tbl_d.attrs.bins_per_octave) == 32
+    # check that annotations have ben properly saved
     assert tbl_d.nrows == 1
     assert tbl_a.nrows == 2
     for i in range(2):
@@ -219,6 +207,12 @@ def test_write_spec_cqt(sine_audio):
         assert tbl_a[i]['end']      == df['end'][i]
         assert tbl_a[i]['freq_min'] == df['freq_min'][i]
         assert tbl_a[i]['freq_max'] == df['freq_max'][i]
+    # check that attributes have been properly saved
+    assert tbl_d.attrs.time_res > 0.
+    assert tbl_d.attrs.freq_min == 1
+    assert tbl_d.attrs.bins_per_oct == 32
+    assert tbl_d.attrs.type == 'CQTSpectrogram'
+    assert tbl_d.attrs.window_func == 'hamming'
     # clean
     h5file.close()
     os.remove(fpath)
@@ -226,11 +220,11 @@ def test_write_spec_cqt(sine_audio):
 def test_filter_by_label(sine_audio):
     """ Test if filter_by_label works when providing an int or list of ints as the label argument"""
     # create spectrogram  
-    spec1 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec1 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
     spec1.annotate(label=1, start=1.0, end=1.4, freq_min=50, freq_max=300)
-    spec2 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec2 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
     spec2.annotate(label=2, start=1.0, end=1.4, freq_min=50, freq_max=300)
-    spec3 = MagSpectrogram(sine_audio, window=0.2, step=0.02)
+    spec3 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
     spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,80], 'freq_max':[300,200]})
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
@@ -241,11 +235,11 @@ def test_filter_by_label(sine_audio):
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
     # write spectrogram to table
-    di.write_spec(spec=spec1, table_data=tbl_data, table_annot=tbl_annot) 
-    di.write_spec(spec=spec1, table_data=tbl_data, table_annot=tbl_annot) 
-    di.write_spec(spec=spec2, table_data=tbl_data, table_annot=tbl_annot) 
-    di.write_spec(spec=spec2, table_data=tbl_data, table_annot=tbl_annot)
-    di.write_spec(spec=spec3, table_data=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec1, table=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec1, table=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec2, table=tbl_data, table_annot=tbl_annot) 
+    di.write(x=spec2, table=tbl_data, table_annot=tbl_annot)
+    di.write(x=spec3, table=tbl_data, table_annot=tbl_annot) 
     tbl_data.flush()
     tbl_annot.flush()
     # select spectrograms containing the label 1
@@ -289,290 +283,74 @@ def test_filter_by_label_raises_exception(sine_audio):
    
     h5file.close()
 
-
-
-# ---- above tests are passing ------ #
-
-
-
-
-
-
-
-
-def test_extract(sine_audio):
-    """ Test if annotations are correctly extracted from spectrograms"""
-    # create spectrogram    
-    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec1.annotate(labels=(1), boxes=((1.001, 1.401, 50, 300)))
-    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec2.annotate(labels=(1), boxes=((1.1, 1.5)))
-    tshape_orig = spec1.image.shape[0]
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp5_db.h5')
-    h5file = di.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
-    # write spectrograms to table
-    di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
-    di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
-   
-    # get segments with label=1
-    selection, complements = di.extract(table=tbl, label=1, min_length=0.8, fpad=False, center=True)
-    assert len(selection) == 2
-    assert len(complements) == 2
-    
-    assert selection[0].image.shape == (40,51)
-    assert complements[0].image.shape[0] == (spec1.image.shape[0] - selection[0].image.shape[0])
-
-    assert selection[1].image.shape == (40,4411)
-    assert complements[1].image.shape[0] == (spec2.image.shape[0] - selection[1].image.shape[0])
-
-    tshape = int(0.8 / spec1.tres)
-    assert selection[0].image.shape[0] == tshape
-    fshape = int(250 / spec1.fres) + 1
-    assert selection[0].image.shape[1] == fshape
-    assert selection[0].boxes[0][0] == pytest.approx(0.201, abs=0.000001)
-    assert selection[0].boxes[0][1] == pytest.approx(0.601, abs=0.000001)
-
-    h5file.close()
-    os.remove(fpath)
-
-def test_parse_labels(sine_audio):
-    """Test if labels with the expected format are correctly parsed"""
-    # create spectrogram    
-    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec1.annotate(labels=(1), boxes=[[1.001, 1.401, 50, 300]])
-    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec2.annotate(labels=(1,2), boxes=[[1.1, 1.5], [1.6, 1.7]])
-    tshape_orig = spec1.image.shape[0]
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp6_db.h5')
-    h5file = di.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
-    # write spectrograms to table
-    di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
-    di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
-    #parse labels
-    labels = tbl[0]['labels']
-    labels = di.parse_labels(labels)
-    assert type(labels) == list
-    assert labels == [1]
-
-    labels = tbl[1]['labels']
-    labels = di.parse_labels(labels)
-    assert type(labels) == list
-    assert labels == [1,2]
-
-    h5file.close()
-    os.remove(fpath)
-    
-def test_parse_boxes(sine_audio):
-    """Test if boxes with the expected format are correctly parsed"""
-    # create spectrogram    
-    spec1 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec1.annotate(labels=(1), boxes=[[1.001, 1.401, 50, 300]])
-    spec2 = MagSpectrogram(sine_audio, winlen=0.2, winstep=0.02)
-    spec2.annotate(labels=(1,2), boxes=[[1.1, 1.5], [1.6, 1.7]])
-    tshape_orig = spec1.image.shape[0]
-    # open h5 file
-    fpath = os.path.join(path_to_tmp, 'tmp7_db.h5')
-    h5file = di.open_file(fpath, 'w')
-    # create table
-    tbl = di.create_table(h5file=h5file, path='/group_1/', name='table_1', shape=spec1.image.shape)
-    # write spectrograms to table
-    di.write_spec(table=tbl, spec=spec1, id='1')  # Box: 1.0-1.4 s & 50-300 Hz
-    di.write_spec(table=tbl, spec=spec2, id='2')  # Box: 1.1-1.5 s Hz
-    # parse boxes
-    boxes = tbl[0]['boxes']
-    boxes = di.parse_boxes(boxes)
-    assert type(boxes) == list
-    assert boxes == [[1.001, 1.401, 50, 300]]
-
-    boxes = tbl[1]['boxes']
-    boxes = di.parse_boxes(boxes)
-    assert type(boxes) == list
-    assert boxes == [[1.1, 1.5, 0.0, 22050.0], [1.6, 1.7, 0.0, 22050.0]]
-
-    h5file.close()
-    os.remove(fpath)
-
 def test_load_specs_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
-
-    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
-    tbl = di.open_table(h5file,"/train/species1")
-    
-    selected_specs = di.load_specs(tbl)
-    assert len(selected_specs) == tbl.nrows
+    tbl_data = di.open_table(h5file,"/group_1/table_data")
+    tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
+    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot)
+    assert len(selected_specs) == tbl_data.nrows
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
-    assert all(is_spec)
-    
+    assert all(is_spec)    
     h5file.close()
 
 def test_load_specs_with_index_list():
     """Test if load_specs loads the spectrograms specified by index_list""" 
-
-    fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
+    fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
-    tbl = di.open_table(h5file,"/train/species1")
-    
-    selected_specs = di.load_specs(tbl, index_list=[0,3,14])
+    tbl_data = di.open_table(h5file,"/group_1/table_data")
+    tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
+    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     assert len(selected_specs) == 3
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
-
     h5file.close()
 
-def test_create_spec_database_with_default_args():
 
-    output_file = os.path.join(path_to_assets, 'tmp/db_spec.h5')
-    input_dir = os.path.join(path_to_assets, 'wav_files/')
 
-    di.create_spec_database(output_file=output_file, input_dir=input_dir)
+# ---- above tests are passing ------ #
 
-    path = os.path.join(path_to_assets, 'tmp/db_spec.h5')
-    fil = di.open_file(path, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 2
-    assert specs[0].tres == 0.02
-    tbl = di.open_table(fil, "/subf/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    assert specs[0].tres == 0.02
-
-    fil.close()
-
-def test_create_spec_database_with_cqt_specs():
-
-    output_file = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
-    input_dir = os.path.join(path_to_assets, 'wav_files/')
-
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, cqt=True, bins_per_octave=16)
-
-    path = os.path.join(path_to_assets, 'tmp/db_spec_cqt.h5')
-    fil = di.open_file(path, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 2
-    assert specs[0].bins_per_octave == 16
-    tbl = di.open_table(fil, "/subf/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    assert specs[0].bins_per_octave == 16
-
-    fil.close()
-
-def test_create_spec_database_with_size_limit():
-
-    output_file = os.path.join(path_to_assets, 'tmp/db2_spec.h5')
-    input_dir = os.path.join(path_to_assets, 'wav_files/')
-
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, max_size=10E6)
-
-    path = os.path.join(path_to_assets, 'tmp/db2_spec_000.h5')
-    fil = di.open_file(path, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    tbl = di.open_table(fil, "/subf/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    fil.close()
-
-    path = os.path.join(path_to_assets, 'tmp/db2_spec_001.h5')
-    fil = di.open_file(path, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    fil.close()
-
-def test_create_spec_database_with_annotations():
-
-    csvfile = os.path.join(path_to_assets, 'tmp/ann.csv')
-    output_file = os.path.join(path_to_assets, 'tmp/db3_spec.h5')
-    input_dir = os.path.join(path_to_assets, 'wav_files/')
-
-    # create annotations
-    import pandas as pd
-    d = {'filename': ['w1.wav'], 'start': [0.1], 'end': [0.7], 'label': [1]}
-    df = pd.DataFrame(data=d)
-    df.to_csv(csvfile)
-
-    # create database
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile)
-
-    fil = di.open_file(output_file, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 2
-    assert len(specs[0].labels) == 1
-    assert specs[0].labels[0] == 1
-    tbl = di.open_table(fil, "/subf/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    assert len(specs[0].labels) == 0
-
-    fil.close()
-
-    # create database with cqt specs
-    output_file = os.path.join(path_to_assets, 'tmp/db3_spec_cqt.h5')
-    di.create_spec_database(output_file=output_file, input_dir=input_dir, annotations_file=csvfile, cqt=True)
-
-    fil = di.open_file(output_file, 'r')
-    tbl = di.open_table(fil, "/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 2
-    assert len(specs[0].labels) == 1
-    assert specs[0].labels[0] == 1
-    tbl = di.open_table(fil, "/subf/spec")
-    specs = di.load_specs(tbl)
-    assert len(specs) == 1
-    assert len(specs[0].labels) == 0
-
-    fil.close()
-
-def test_init_spec_writer():
+def test_init_audio_writer():
     out = os.path.join(path_to_assets, 'tmp/db4.h5')
-    di.SpecWriter(output_file=out)
+    di.AudioWriter(output_file=out)
 
-def test_spec_writer_can_write_one_spec(sine_audio):
+def test_audio_writer_can_write_one_spec(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db5.h5')
-    writer = di.SpecWriter(output_file=out)
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    writer.write(spec=spec)
+    writer = di.AudioWriter(output_file=out)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    writer.write(spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
     fil = di.open_file(fname, 'r')
-    assert '/spec' in fil
-    specs = di.load_specs(fil.root.spec)
+    assert '/audio' in fil
+    specs = di.load_specs(fil.root.audio)
     assert len(specs) == 1
+    fil.close()
 
-def test_spec_writer_can_write_two_specs_to_same_node(sine_audio):
+def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db6.h5')
-    writer = di.SpecWriter(output_file=out)
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    writer.write(spec=spec)
-    writer.write(spec=spec)
+    writer = di.AudioWriter(output_file=out)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    writer.write(spec)
+    writer.write(spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db6.h5')
     fil = di.open_file(fname, 'r')
-    assert '/spec' in fil
-    specs = di.load_specs(fil.root.spec)
+    assert '/audio' in fil
+    specs = di.load_specs(fil.root.audio)
     assert len(specs) == 2
+    fil.close()
 
-def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
+def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db7.h5')
-    writer = di.SpecWriter(output_file=out)
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    writer.write(spec=spec, path='/first', name='test')
-    writer.write(spec=spec, path='/first', name='test')
-    writer.write(spec=spec, path='/second', name='temp')
-    writer.write(spec=spec, path='/second', name='temp')
-    writer.write(spec=spec, path='/second', name='temp')
+    writer = di.AudioWriter(output_file=out)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    writer.write(spec, path='/first', name='test')
+    writer.write(spec, path='/first', name='test')
+    writer.write(spec, path='/second', name='temp')
+    writer.write(spec, path='/second', name='temp')
+    writer.write(spec, path='/second', name='temp')
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db7.h5')
     fil = di.open_file(fname, 'r')
@@ -582,39 +360,41 @@ def test_spec_writer_can_write_several_specs_to_different_nodes(sine_audio):
     assert len(specs) == 2
     specs = di.load_specs(fil.root.second.temp)
     assert len(specs) == 3
+    fil.close()
 
-def test_spec_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
+def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db8.h5')
-    writer = di.SpecWriter(output_file=out, max_size=1E6) # max size: 1 Mbyte
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
-    writer.write(spec=spec)
-    writer.write(spec=spec)
-    writer.write(spec=spec)
+    writer = di.AudioWriter(output_file=out, max_size=1E6) # max size: 1 Mbyte
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    writer.write(spec)
+    writer.write(spec)
+    writer.write(spec)
     writer.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
     fil = di.open_file(fname, 'r')
-    assert '/spec' in fil
-    specs = di.load_specs(fil.root.spec)
+    assert '/audio' in fil
+    specs = di.load_specs(fil.root.audio)
     assert len(specs) == 2
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = di.open_file(fname, 'r')
-    assert '/spec' in fil
-    specs = di.load_specs(fil.root.spec)
+    assert '/audio' in fil
+    specs = di.load_specs(fil.root.audio)
     assert len(specs) == 1
+    fil.close()
 
-def test_spec_writer_change_directory(sine_audio):
+def test_audio_writer_change_directory(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db9.h5')
-    writer = di.SpecWriter(output_file=out)
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    writer = di.AudioWriter(output_file=out)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     writer.cd('/home/fish')
-    writer.write(spec=spec)
-    writer.write(spec=spec)
-    writer.write(spec=spec)
+    writer.write(spec)
+    writer.write(spec)
+    writer.write(spec)
     writer.cd('/home/whale')
-    writer.write(spec=spec)
-    writer.write(spec=spec)
+    writer.write(spec)
+    writer.write(spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db9.h5')
     fil = di.open_file(fname, 'r')
@@ -626,22 +406,22 @@ def test_spec_writer_change_directory(sine_audio):
     assert len(specs) == 2
     fil.close()
 
-def test_two_spec_writers_simultaneously(sine_audio):
+def test_two_audio_writers_simultaneously(sine_audio):
     # init two spec writers
     out1 = os.path.join(path_to_assets, 'tmp/db10.h5')
-    writer1 = di.SpecWriter(output_file=out1)
+    writer1 = di.AudioWriter(output_file=out1)
     out2 = os.path.join(path_to_assets, 'tmp/db11.h5')
-    writer2 = di.SpecWriter(output_file=out2)
+    writer2 = di.AudioWriter(output_file=out2)
     # create spec
-    spec = MagSpectrogram(sine_audio, 0.5, 0.1)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     # write 
     writer1.cd('/home/fish')
-    writer1.write(spec=spec)
-    writer1.write(spec=spec)
-    writer1.write(spec=spec)
+    writer1.write(spec)
+    writer1.write(spec)
+    writer1.write(spec)
     writer2.cd('/home/whale')
-    writer2.write(spec=spec)
-    writer2.write(spec=spec)
+    writer2.write(spec)
+    writer2.write(spec)
     # close
     writer1.close()
     writer2.close()
@@ -657,25 +437,3 @@ def test_two_spec_writers_simultaneously(sine_audio):
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
-
-def test_write_spec_attrs():
-    audio = AudioSignal.from_wav(os.path.join(path_to_assets, '2min.wav'))
-    # Use that signal to create a spectrogram
-    spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
-    # Open a connection to a new HDF5 database file
-    fpath = os.path.join(path_to_assets, "tmp/database3.h5")
-    h5file = di.open_file(fpath, 'w')
-    # Create table descriptions for weakly labeled spectrograms
-    descr_data, descr_annot = di.table_description_new(spec)
-    # Create 'table_data' within 'group1'
-    my_table = di.create_table_new(h5file, "/group1/", "table_data", descr_data) 
-    # Write spectrogram attributes to the table
-    di.write_spec_attrs(my_table, spec)
-    # The table now has the following attributes
-    assert my_table.attrs.freq_min == 0
-    assert pytest.approx(my_table.attrs.freq_res, 4.975, abs=0.001)
-    assert my_table.attrs.time_res == 0.05
-    assert my_table.attrs.type == 'Mag'
-    h5file.close()
-    os.remove(fpath)
-

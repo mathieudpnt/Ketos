@@ -287,6 +287,9 @@ class Waveform(BaseAudio):
         
         return cls(rate=rate, data=np.array(y), filename=filename)
 
+    def get_attrs(self):
+        return {'rate':self.rate, 'type':self.__class__.__name__}
+
     def get_data(self, id=0):
         """ Get the underlying data numpy array.
 
