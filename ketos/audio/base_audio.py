@@ -248,53 +248,47 @@ class BaseAudio():
         return idx
 
     @classmethod
-    def stack(cls, audio):
-        """ Stack audio objects 
+    def stack(cls, objects):
+        """ Stack objects 
 
             Args:
-                audio: list(BaseAudio)
-                    List of audio objects to be stacked.
+                objects: list(BaseAudio)
+                    List of objects to be stacked.
 
             Returns:
                 : BaseAudio
-                    Stacked audio object        
+                    Stacked objects        
         """
-        assert len(audio) > 0, 'audio must contain at least one object'
+        assert len(objects) > 0, 'at least one object required'
 
-        time_res = audio[0].time_res()
-        ndim     = audio[0].ndim
+        time_res = objects[0].time_res()
+        kwargs = objects[0]._kwargs()
 
-        filename = [a.filename for a in audio]
-        offset   = [a.offset for a in audio]
+        filename = [a.filename for a in objects]
+        offset   = [a.offset for a in objects]
 
-        label = [a.label for a in audio if a.label is not None]
+        label = [a.label for a in objects if a.label is not None]
         if len(label) == 0: label = None
 
-        annot    = [a.annot for a in audio if a.annot is not None]
+        annot    = [a.annot for a in objects if a.annot is not None]
         if len(annot) == 0: annot = None
         else: annot = stack_annotations(annot)
 
-        data = np.swapaxes(np.concatenate([a.data[np.newaxis,:] for a in audio], axis=0), 0, -1)
+        data = np.moveaxis(np.concatenate([a.data[np.newaxis,:] for a in objects], axis=0), 0, -1)
 
-        return cls(data=data, time_res=time_res, ndim=ndim, filename=filename, offset=offset, label=label, annot=annot)
+        return cls(data=data, time_res=time_res, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
 
-    def _get_index(self, x):
-        if   n == 0: return 0
-        elif n == 1: return x
-        else:
-            idx = []
-            for d in dims:
-                i = int(x/d)
-                idx.append(i)
+    def _kwargs(self):
+        return {'ndim':self.ndim}
 
-    def multiplicity(self):
-        mul = 1
+    def num_objects(self):
+        num = 1
         n = np.ndim(self.data) - self.ndim
         if n > 0:
             dims = self.data.shape[n:]
-            for d in dims: mul *= d
+            for d in dims: num *= d
         
-        return mul
+        return num
 
     def get_data(self, id=None):
         """ Get underlying data.

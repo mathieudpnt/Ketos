@@ -370,26 +370,8 @@ class Spectrogram(BaseAudio):
         self.freq_ax = freq_ax
         self.type = spec_type
 
-    @classmethod
-    def stack(cls, specs):
-        """ Stack spectrograms
-
-            Args:
-                specs: list(Spectrogram)
-                    List of spectrograms to be stacked.
-
-            Returns:
-                : Spectrogram
-                    Stacked spectrogram        
-        """
-        spec = super().stack(specs)
-
-        time_res  = specs[0].time_res()
-        spec_type = specs[0].type
-        freq_ax   = specs[0].freq_ax
-
-        return cls(data=spec.data, time_res=time_res, spec_type=spec_type, freq_ax=freq_ax,
-            filename=spec.filename, offset=spec.offset, label=spec.label, annot=spec.annot)
+    def _kwargs(self):
+        return {'spec_type':self.type, 'freq_ax':self.freq_ax}
 
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
@@ -718,16 +700,12 @@ class MagSpectrogram(Spectrogram):
         Args:
             data: 2d or 3d numpy array
                 Spectrogram pixel values. 
-            rate: int
-                Sampling rate of the audio signal from which the spectrogram was created.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
                 Lower value of the frequency axis in Hz
             freq_res: float
                 Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
-            num_fft: int
-                Number of points used for the FFT.
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -741,15 +719,11 @@ class MagSpectrogram(Spectrogram):
                 AnnotationHandler object. Optional
 
         Attrs:
-            num_fft: int
-                Number of points used for the FFT.
-            rate: float
-                Sampling rate in Hz.
             window_func: str
                 Window function.
     """
-    def __init__(self, data, time_res, freq_min, freq_res, rate=None, num_fft=None, 
-        window_func=None, filename=None, offset=0, label=None, annot=None):
+    def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
+        filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
         freq_bins = data.shape[1]
@@ -760,9 +734,6 @@ class MagSpectrogram(Spectrogram):
         super().__init__(data=data, time_res=time_res, spec_type='Mag', freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
-        # store number of points used for FFT, sampling rate, and window function
-        self.num_fft = num_fft
-        self.rate = rate
         self.window_func = window_func
 
     @classmethod
@@ -798,9 +769,8 @@ class MagSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_max / img.shape[1]
 
-        return cls(data=img, rate=audio.rate, time_res=time_res, freq_min=0, freq_res=freq_res, 
-            num_fft=num_fft, window_func=window_func, filename=audio.filename, offset=audio.offset, 
-            label=audio.label, annot=audio.annot)
+        return cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -868,27 +838,8 @@ class MagSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
-    @classmethod
-    def stack(cls, specs):
-        """ Stack magnitude spectrograms
-
-            Args:
-                specs: list(Spectrogram)
-                    List of spectrograms to be stacked.
-
-            Returns:
-                : Spectrogram
-                    Stacked spectrogram        
-        """
-        spec = super().stack(specs)
-
-        num_fft     = specs[0].num_fft
-        rate        = specs[0].rate
-        window_func = specs[0].window_func
-
-        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, freq_res=spec.freq_res, 
-            rate=rate, num_fft=num_fft, window_func=window_func, filename=spec.filename, offset=spec.offset, 
-            label=spec.label, annot=spec.annot)
+    def _kwargs(self):
+        return {'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -911,24 +862,22 @@ class MagSpectrogram(Spectrogram):
                     Initial condition for phase.
 
             Returns:
-                audio: Waveform
+                : Waveform
                     Audio signal
         """
-        assert self.rate is not None and self.num_fft is not None, "Sampling rate and number of points used for FFT computation needed to recover waveform"
-
         mag = aum.from_decibel(self.data) #use linear scale
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
-        pad_low = max(0, int(self.freq_min() / self.freq_res()))
-        bins_tot = int(self.rate / 2 / self.freq_res())
-        pad_high = max(0, bins_tot - mag.shape[1] - pad_low)
-        if pad_low or pad_high > 0:
-            mag = np.pad(mag, pad_width=((0,0),(pad_low,pad_high)), mode='constant')
+        pad_low  = max(0, int(self.freq_min() / self.freq_res()))
+        if pad_low > 0:
+            mag = np.pad(mag, pad_width=((0,0),(pad_low,0)), mode='constant')
+
+        target_rate = self.freq_ax.bin_width() * 2 * mag.shape[1]
 
         # retrieve settings used for computing STFT
-        num_fft = self.num_fft
-        step_len = int(self.rate * self.time_res())  #self.seg_args['step_len']
+        num_fft = 2 * (mag.shape[1] - 1)
+        step_len = int(target_rate * self.time_res())  #self.seg_args['step_len']
         if self.window_func:
             window_func = get_window(self.window_func, num_fft)
         else:
@@ -938,15 +887,10 @@ class MagSpectrogram(Spectrogram):
         audio = aum.spec2wave(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
             step_len=step_len, num_iters=num_iters, window_func=window_func)
 
-        # sampling rate of recovered audio signal should equal the original rate
-        rate_orig = self.freq_ax.bin_width() * 2 * mag.shape[1]
-        rate = len(audio) / (self.duration() + (num_fft - step_len) / rate_orig)
+        # sampling rate of recovered audio signal
+        rate = len(audio) / (self.duration() + (num_fft - step_len) / target_rate)
         
-        assert abs(rate_orig - rate) < 0.1, 'The sampling rate of the recovered audio signal ({0:.1f} Hz) does not match that of the original signal ({1:.1f} Hz).'.format(rate, rate_orig)
-
-        audio = Waveform(rate=rate, data=audio)
-
-        return audio
+        return Waveform(rate=rate, data=audio)
 
 class PowerSpectrogram(Spectrogram):
     """ Power Spectrogram.
@@ -954,16 +898,12 @@ class PowerSpectrogram(Spectrogram):
         Args:
             data: 2d or 3d numpy array
                 Spectrogram pixel values. 
-            rate: int
-                Sampling rate of the audio signal from which the spectrogram was created.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
                 Lower value of the frequency axis in Hz
             freq_res: float
                 Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
-            num_fft: int
-                Number of points used for the FFT.
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -977,15 +917,11 @@ class PowerSpectrogram(Spectrogram):
                 AnnotationHandler object. Optional
 
         Attrs:
-            num_fft: int
-                Number of points used for the FFT.
-            rate: float
-                Sampling rate in Hz.
             window_func: str
                 Window function.
     """
-    def __init__(self, data, time_res, freq_min, freq_res, rate=None, num_fft=None, 
-        window_func=None, filename=None, offset=0, label=None, annot=None):
+    def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
+        filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
         freq_bins = data.shape[1]
@@ -996,9 +932,6 @@ class PowerSpectrogram(Spectrogram):
         super().__init__(data=data, time_res=time_res, spec_type='Pow', freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
-        # store number of points used for FFT, sampling rate, and window function
-        self.num_fft = num_fft
-        self.rate = rate
         self.window_func = window_func
 
     @classmethod
@@ -1036,9 +969,8 @@ class PowerSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_max / img.shape[1]
 
-        return cls(data=img, rate=audio.rate, time_res=time_res, freq_min=0, freq_res=freq_res, 
-            num_fft=num_fft, window_func=window_func, filename=audio.filename, offset=audio.offset, 
-            label=audio.label, annot=audio.annot)
+        return cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
@@ -1106,27 +1038,8 @@ class PowerSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
-    @classmethod
-    def stack(cls, specs):
-        """ Stack power spectrograms
-
-            Args:
-                specs: list(Spectrogram)
-                    List of spectrograms to be stacked.
-
-            Returns:
-                : Spectrogram
-                    Stacked spectrogram        
-        """
-        spec = super().stack(specs)
-
-        num_fft     = specs[0].num_fft
-        rate        = specs[0].rate
-        window_func = specs[0].window_func
-
-        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, freq_res=spec.freq_res, 
-            rate=rate, num_fft=num_fft, window_func=window_func, filename=spec.filename, offset=spec.offset, 
-            label=spec.label, annot=spec.annot)
+    def _kwargs(self):
+        return {'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1145,16 +1058,12 @@ class MelSpectrogram(Spectrogram):
                 Mel spectrogram pixel values. 
             filter_banks: numpy.array
                 Filter banks
-            rate: int
-                Sampling rate of the audio signal from which the spectrogram was created.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
                 Lower value of the frequency axis in Hz
             freq_max: float
                 Upper value of the frequency axis in Hz
-            num_fft: int
-                Number of points used for the FFT.
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -1168,16 +1077,12 @@ class MelSpectrogram(Spectrogram):
                 AnnotationHandler object. Optional
 
         Attrs:
-            num_fft: int
-                Number of points used for the FFT.
-            rate: float
-                Sampling rate in Hz.
             window_func: str
                 Window function.
             filter_banks: numpy.array
                 Filter banks
     """
-    def __init__(self, data, filter_banks, time_res, freq_min, freq_max, rate=None, num_fft=None, 
+    def __init__(self, data, filter_banks, time_res, freq_min, freq_max, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
@@ -1188,9 +1093,6 @@ class MelSpectrogram(Spectrogram):
         super().__init__(data=data, time_res=time_res, spec_type='Mel', freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
-        # store number of points used for FFT, sampling rate, and filter banks
-        self.num_fft = num_fft
-        self.rate = rate
         self.window_func = window_func
         self.filter_banks = filter_banks
 
@@ -1236,8 +1138,8 @@ class MelSpectrogram(Spectrogram):
 
         time_res = seg_args['step_len'] / audio.rate   
 
-        return cls(data=img, filter_banks=filter_banks, rate=audio.rate, time_res=time_res, 
-            freq_min=0, freq_max=freq_max, num_fft=num_fft, window_func=window_func, 
+        return cls(data=img, filter_banks=filter_banks, time_res=time_res, 
+            freq_min=0, freq_max=freq_max, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
@@ -1314,6 +1216,9 @@ class MelSpectrogram(Spectrogram):
 
         return spec
 
+    def _kwargs(self):
+        return {'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 'filter_banks':self.filter_banks}
+
     def plot(self, filter_bank=False):
         """ Plot the spectrogram with proper axes ranges and labels.
 
@@ -1350,14 +1255,12 @@ class CQTSpectrogram(Spectrogram):
         Args:
             image: 2d or 3d numpy array
                 Spectrogram pixel values. 
-            rate: int
-                Sampling rate of the audio signal from which the spectrogram was created.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
                 Lower value of the frequency axis in Hz
-            freq_res: float
-                Frequency resolution in Hz (corresponds to the bin size used on the frequency axis)
+            bins_per_oct: int
+                Number of bins per octave
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -1371,12 +1274,10 @@ class CQTSpectrogram(Spectrogram):
                 AnnotationHandler object. Optional
 
         Attrs:
-            rate: float
-                Sampling rate in Hz.
             window_func: str
                 Window function.
     """
-    def __init__(self, data, time_res, freq_min, bins_per_oct, rate=None, 
+    def __init__(self, data, time_res, freq_min, bins_per_oct, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create logarithmic frequency axis
@@ -1387,8 +1288,6 @@ class CQTSpectrogram(Spectrogram):
         super().__init__(data=data, time_res=time_res, spec_type='CQT', freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot)
 
-        # store number of points used for FFT, sampling rate, and window function
-        self.rate = rate
         self.window_func = window_func
 
     @classmethod
@@ -1430,8 +1329,8 @@ class CQTSpectrogram(Spectrogram):
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
-        return cls(data=img, rate=audio.rate, time_res=step, freq_min=freq_min, 
-            bins_per_oct=bins_per_oct, window_func=window_func, filename=audio.filename, 
+        return cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
+            window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
@@ -1518,27 +1417,8 @@ class CQTSpectrogram(Spectrogram):
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
 
-    @classmethod
-    def stack(cls, specs):
-        """ Stack CQT spectrograms
-
-            Args:
-                specs: list(Spectrogram)
-                    List of spectrograms to be stacked.
-
-            Returns:
-                : Spectrogram
-                    Stacked spectrogram        
-        """
-        spec = super().stack(specs)
-
-        rate         = specs[0].rate
-        window_func  = specs[0].window_func
-        bins_per_oct = specs[0].bins_per_octave()
-
-        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, bins_per_oct=bins_per_oct, 
-            rate=rate, window_func=window_func, filename=spec.filename, offset=spec.offset, 
-            label=spec.label, annot=spec.annot)
+    def _kwargs(self):
+        return {'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave()}
 
     def bins_per_octave(self):
         """ Get no. bins per octave.

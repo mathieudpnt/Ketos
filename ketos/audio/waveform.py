@@ -79,9 +79,15 @@ class Waveform(BaseAudio):
             annot: AnnotationHandler
                 AnnotationHandler object.
     """
-    def __init__(self, rate, data, filename='', offset=0, label=None, annot=None):
-        super().__init__(data=data, time_res=1./rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot)
-        self.rate = rate
+    def __init__(self, data, time_res=None, filename='', offset=0, label=None, annot=None, **kwargs):
+        assert time_res is not None or 'rate' in kwargs, "either time_res or rate must be specified"
+
+        if time_res is None:
+            self.rate = kwargs['rate']
+        else:
+            self.rate = 1. / time_res
+
+        super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot)
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy'):
@@ -579,6 +585,8 @@ class Waveform(BaseAudio):
 
             self.rate = new_rate
             self.data = new_sig
+            self.time_ax = LinearAxis(bins=self.data.shape[0], extent=(0., self.data.shape[0] / self.rate), label='Time (s)') #new time axis
+
 
 def _smoothclamp(x, mi, mx): 
         """ Smoothing function

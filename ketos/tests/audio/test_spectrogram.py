@@ -50,7 +50,7 @@ def test_init_mag_spec():
     """Test that we can initialize an instance of the MagSpectrogram class
        from keyword arguments"""
     img = np.ones((20,10))
-    spec = MagSpectrogram(data=img, time_res=1.0, rate=1000, freq_min=100, freq_res=4, num_fft=100)
+    spec = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4)
     assert np.all(spec.data == img)
     assert spec.type == 'Mag'
 
@@ -194,7 +194,7 @@ def test_recover_waveform_after_freq_crop(sine_audio):
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     spec.crop(freq_min=200, freq_max=2300)
     audio = spec.recover_waveform(num_iters=10)
-    assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
+    assert audio.rate == pytest.approx(2*2300, abs=0.5)
 
 def test_mag_from_wav(sine_wave_file):
     # duration is even integer multiply of step size
@@ -236,3 +236,16 @@ def test_cqt_from_wav(sine_wave_file):
     # step size is not divisor of duration
     spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
+
+def test_stack_mag_specs():
+    img = np.ones((20,10))
+    s = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4, window_func='hamming')
+    s.annotate(label=1, start=0.2, end=1.3)
+    s.annotate(label=2, start=1.8, end=2.2)
+    stacked = MagSpectrogram.stack([s, s])
+    assert stacked.ndim == 2
+    assert np.ndim(stacked.get_data()) == 3
+    for i in range(2):
+        assert np.all(np.abs(stacked.get_data(i) - img) < 1e-6)
+        assert len(stacked.get_annotations(i)) == 2
+        assert stacked.window_func == 'hamming'
