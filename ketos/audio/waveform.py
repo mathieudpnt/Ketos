@@ -142,6 +142,12 @@ class Waveform(BaseAudio):
             data = librosa.core.resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
         else:
             rate = rate_orig
+
+        # pad with zeros to achieve desired duration, if necessary
+        if duration is not None:
+            num_sampl = int(duration * rate - data.shape[0])
+            if num_sampl > 0:
+                data = np.pad(data, pad_width=((0,num_sampl)), mode='constant')
             
         return cls(rate=rate, data=data, filename=os.path.basename(path), offset=offset)
 

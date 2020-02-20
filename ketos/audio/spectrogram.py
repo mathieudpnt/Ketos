@@ -253,7 +253,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     if duration is None:
         duration = file_duration - offset #if not specified, use file duration minus offset
 
-    duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
+    ###duration = min(duration, file_duration - offset) # cap duration at end of file minus offset
 
     # compute segmentation parameters
     seg_args = aum.segment_args(rate=rate, duration=duration,\
@@ -1294,7 +1294,7 @@ class CQTSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
-    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hamming'):
+    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, window_func='hamming'):
         """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
             https://librosa.github.io/librosa/generated/librosa.core.cqt.html
@@ -1314,9 +1314,6 @@ class CQTSpectrogram(Spectrogram):
                 freq_min: float
                     Minimum frequency in Hz
                     If None, it is set to 1 Hz.
-                freq_max: float
-                    Maximum frequency in Hz. 
-                    If None, it is set equal to half the sampling rate.
                 window_func: str
                     Window function (optional). Select between
                         * bartlett
@@ -1329,16 +1326,16 @@ class CQTSpectrogram(Spectrogram):
                     CQT spectrogram
         """
         # compute CQT
-        img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,\
-            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
+        img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
+            bins_per_oct=bins_per_oct, freq_min=freq_min)
 
         return cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
             window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
-    def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,\
-        channel=0, rate=None, window_func='hamming', offset=0, duration=None, \
+    def from_wav(cls, path, step, bins_per_oct, freq_min=1,
+        channel=0, rate=None, window_func='hamming', offset=0, duration=None,
         resample_method='scipy'):
         """ Create CQT spectrogram directly from wav file.
 
@@ -1359,9 +1356,6 @@ class CQTSpectrogram(Spectrogram):
                 freq_min: float
                     Minimum frequency in Hz
                     If None, it is set to 1 Hz.
-                freq_max: float
-                    Maximum frequency in Hz. 
-                    If None, it is set equal to half the sampling rate.
                 channel: int
                     Channel to read from. Only relevant for stereo recordings
                 rate: float
@@ -1410,15 +1404,15 @@ class CQTSpectrogram(Spectrogram):
         if duration is None:
             duration = file_duration - offset #if not specified, use file duration minus offset
 
-        duration = min(duration, file_duration - offset) # cap duration at end of file minus offset        
+        ###duration = min(duration, file_duration - offset) # cap duration at end of file minus offset        
 
         # load audio
-        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,\
+        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
             offset=offset, duration=duration, resample_method=resample_method)
 
         # create CQT spectrogram
-        return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
-            freq_max=freq_max, window_func=window_func)
+        return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,
+            window_func=window_func)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave(), 

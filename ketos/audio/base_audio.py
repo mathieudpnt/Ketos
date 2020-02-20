@@ -615,25 +615,25 @@ class BaseAudio():
         return fig, ax
 
 
-class AudioSegmenter():
+class AudioProvider():
     """ Load waveforms or compute spectrograms from raw audio (*.wav) files.
+
+        TODO: Add annotations to created Waveform/Spectrogram objects
 
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
-            channel: int
-                For stereo recordings, this can be used to select which channel to read from
-            rep: str
-                Audio data representation. Options are Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram.
-            seg_length: float
+            seg_dur: float
                 Segment length in seconds.
             seg_step: float
                 Separation between consecutive segments in seconds. If None, the separation 
                 equals the segment length.
-            max_padding: float [0,1)
-                Maximum allowed padding. Default is 0.
-            sampling_rate: float
-                If specified, audio data will be resampled at this rate
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            rep: str
+                Audio data representation. Options are Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram.
+            rate: float
+                Sampling rate in Hz. If specified, audio data will be resampled at this rate
             window: float
                 Window size used for computing the spectrogram in seconds. Only relevant for 
                 STFT spectrograms (Mag, Power, Mel).
@@ -641,66 +641,59 @@ class AudioSegmenter():
                 Number of bins per octave. Only relevant for CQT spectrograms.
             step: float
                 Step size used for computing the spectrogram in seconds.
-            freq_min: float
-                Lower cut on frequency in Hz.
-            freq_max: float
-                Upper cut on frequency in Hz.
+            window_func: str
+                Window function (optional). Select between
+                    * bartlett
+                    * blackman
+                    * hamming (default)
+                    * hanning
+            annot: pandas DataFrame
+                Annotation table
     """
-    def __init__(self, path, channel=0, rep='MagSpectrogram', seg_length, seg_step=None, 
-        sampling_rate=None, window=None, bins_per_oct=None, step=None, freq_min=None, freq_max=None):
+    def __init__(self, path, seg_dur, seg_step=None, channel=0, rep='MagSpectrogram',
+        rate=None, window=None, step=None, freq_min=1, bins_per_oct=None, window_func=None, annot=None):
 
-        self.rep = rep
-        self.config = {}
-
-        if spec_config is None:
-            spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
-                bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
-
-        if spec_config.length is not None:
-            assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
-
-        self.spec_config = spec_config
         self.channel = channel
-        self.pad = pad
+        self.rep = rep
+        self.seg_dur = seg_dur
+        if seg_step is None: self.seg_step = seg_dur
+        else: self.seg_step = seg_step
+        self.annot = annot
 
-        # get all wav files in the folder, including any subfolders
-        if path[-3:].lower() == 'wav':
-            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
+        if rep is 'Waveform':
+            self.config = {'rate': rate}
+        elif rep is 'CQTSpectrogram':
+            self.config = {'rate': rate, 'step':step, 'freq_min':freq_min, 'bins_per_oct':bins_per_oct, 'window_func':window_func}
+        elif rep in ['MagSpectrogram', 'PowerSpectrogram', 'MelSpectrogram']:
+            self.config = {'rate': rate, 'window': window, 'step':step, 'window_func':window_func}
+
+        # get all wav files in the folder, including subfolders
+        ext = os.path.splitext(path)[1].lower()
+        if ext == 'wav':
+            assert os.path.exists(path), '{0} could not find {1}'.format(self.__class__.__name__, path)
             self.files = [path]
         else:
             self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
-            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
+            assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
 
-        # file ID
-        self.fid = -1
+        self.file_id = -1
         self._next_file()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        """ Compute next spectrogram.
+        """ Load next waveform segment or compute next spectrogram.
 
             Returns: 
-                spec: instance of MagSpectrogram or CQTSpectrogram
-                    Spectrogram.
+                seg: Waveform or Spectrogram
+                    Next segment
         """
-        # get spectrogram
-        spec = self.get(time=self.time, file_id=self.fid)
-
-        # increment time
-        self.time += spec.duration() - self.spec_config.overlap
-
-        # increment segment ID
-        self.sid += 1
-
-        # if this was the last segment, jump to the next file
-        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
-        if self.sid == self.num_segs or self.time >= file_duration:
-            self._next_file()
-
-        return spec
+        seg = self.get(time=self.time, file_id=self.file_id) #get next segment
+        self.time += seg.duration() - self.config.seg_step #increment time        
+        self.seg_id += 1 #increment segment ID
+        if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
+        return seg
 
     def reset(self):
         """ Go back to the beginning of the first file.
@@ -714,11 +707,11 @@ class AudioSegmenter():
                 file_id: int
                     File ID
         """
-        self.fid = file_id - 1
+        self.file_id = file_id - 1
         self._next_file()
 
     def get(self, time=0, file_id=0):
-        """ Compute spectrogram from specific file and time.
+        """ Load audio segment for specified file and time.
 
             Args:
                 time: float
@@ -728,57 +721,32 @@ class AudioSegmenter():
                     Integer file identifier.
         
             Returns: 
-                spec: instance of MagSpectrogram or CQTSpectrogram
-                    Spectrogram.
+                : BaseAudio
+                    Audio segment
         """
-        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
-
-        # file
-        f = self.files[file_id]
-
-        # compute spectrogram
-        if self.spec_config.type == 'CQT':
-            spec = CQTSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
-                offset=time, decibel=True, channel=self.channel)
-
-        else:
-            spec = MagSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
-                offset=time, decibel=True, adjust_duration=True, channel=self.channel)
-
-        return spec
+        path = self.files[file_id]
+        return eval(self.rep).from_wav(path=path, channel=self.channel, offset=time, 
+            duration=self.seg_dur, **self.config)
 
     def _next_file(self):
         """ Jump to next file. 
         """
         # increment file ID
-        self.fid += 1
-
-        if self.fid == len(self.files):
-            self.fid = 0
+        self.file_id = (self.file_id + 1) % len(self.files)
 
         # check if file exists
         f = self.files[self.fid]
         exists = os.path.exists(f)
 
         # if not, jump to the next file
-        if not exists:
-            self._next_file()
+        if not exists: self._next_file()
 
-        # get duration
-        duration = librosa.get_duration(filename=f)
-
-        if self.spec_config.length is None:
-            self.num_segs = 1
-        else:
-            if self.pad:
-                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
-            else:
-                x = (duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)
-                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
-                self.num_segs += 1
+        # number of segments
+        file_duration = librosa.get_duration(filename=f)
+        self.num_segs = int(np.ceil(file_duration / self.seg_dur))
 
         # reset segment ID and time
-        self.sid = 0
+        self.seg_id = 0
         self.time = 0
 
 
