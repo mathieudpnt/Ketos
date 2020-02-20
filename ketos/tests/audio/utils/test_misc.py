@@ -183,7 +183,7 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = aum.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-def test_spec2audio():
+def test_spec2wave():
     # 1-s sinus signal with frequency of 10 Hz and 1 kHz sampling rate
     x = np.arange(1000)
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
@@ -191,10 +191,9 @@ def test_spec2audio():
     win_fun = 'hamming'
     seg_args = dict(win_len=100, step_len=20, offset_len=0)
     mag, freq_max, num_fft, seg_args = aum.stft(x=sig, rate=1000, seg_args=seg_args, window_func=win_fun)
-    print(seg_args)
     img = aum.from_decibel(mag)
     # invert
-    aud = aum.spec2audio(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
+    aud = aum.spec2wave(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
     # check that recovered signal looks like a harmonic with frequency of 10 Hz
     assert sig.shape == aud.shape
     fft = np.fft.rfft(aud)

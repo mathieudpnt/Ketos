@@ -467,7 +467,7 @@ def write_spec_annot(spec, table, id):
     else:
         row = table.row
         row["data_id"] = id
-        row["label"] = label
+        row["label"] = spec.get_label()
         row.append()
 
 def write_spec_data(spec, table, id=None):
@@ -507,8 +507,8 @@ def write_spec_data(spec, table, id=None):
     row['data'] = spec.get_data()
 
     if write_source:
-        row['filename'] = spec.filename
-        row['offset'] = spec.offset
+        row['filename'] = spec.get_filename()
+        row['offset'] = spec.get_offset()
 
     row.append()
 
@@ -645,7 +645,7 @@ def filter_by_label(table, label):
 
 
 
-def load_specs(table, index_list=None, table_annot=None):
+def load_specs(table, index_list=None, table_annot=None, stack=False):
     """ Retrieve all the spectrograms in a table or a subset specified by the index_list
 
         Warnings: Loading all spectrograms in a table might cause memory problems.
@@ -659,10 +659,12 @@ def load_specs(table, index_list=None, table_annot=None):
             table_annot: tables.Table
                 The table containing the annotations. If no such table is provided, 
                 the spectrograms are still loaded, but without annotations.
+            stack: bool
+                Stack the spectrograms into a single spectrogram object
 
         Returns:
-            specs: list
-                List of spectrogram objects.
+            specs: list or Spectrogram
+                List of spectrogram objects, or a single stacked spectrogram object
 
         Examples:
             >>> from ketos.data_handling.database_interface import open_file, open_table
@@ -681,7 +683,6 @@ def load_specs(table, index_list=None, table_annot=None):
             <class 'ketos.audio_processing.spectrogram.Spectrogram'>
             >>>
             >>> h5file.close()
-
     """
     res = list()
     if index_list is None:
@@ -694,11 +695,11 @@ def load_specs(table, index_list=None, table_annot=None):
 
         if table.attrs.type == 'Mag':
             spec = MagSpectrogram(data=it['data'], 
-                                  rate=table.attrs.sampl_rate, 
                                   time_res=table.attrs.time_res,
                                   freq_res=table.attrs.freq_res,
                                   freq_min=table.attrs.freq_min,
                                   window_func=table.attrs.window_func,
+                                  rate=table.attrs.sampl_rate, 
                                   num_fft=table.attrs.num_fft)
 
         if 'filename' in it: spec.filename = it['filename']
@@ -709,6 +710,9 @@ def load_specs(table, index_list=None, table_annot=None):
             # then add annotations using spec.annotate()
 
         specs.append(spec)
+
+    if stack:
+        specs = MagSpectrogram.stack(specs)
 
     return specs
 

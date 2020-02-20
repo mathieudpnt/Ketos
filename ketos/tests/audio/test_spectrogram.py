@@ -166,34 +166,34 @@ def test_blur_freq_axis():
     assert y[8] == pytest.approx(np.exp(-pow(2,2)/(2.*pow(sig,2))), rel=0.001)    
     assert xy[9,10] == pytest.approx(0, abs=0.001) 
 
-def test_recover_audio(sine_audio):
+def test_recover_waveform(sine_audio):
     """Test that the recovered waveform has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
     duration = sine_audio.duration()
     win = duration / 4
     step = duration / 10
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
-    audio = spec.recover_audio(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10)
     assert audio.rate == sine_audio.rate
 
-def test_recover_audio_after_time_crop(sine_audio):
+def test_recover_waveform_after_time_crop(sine_audio):
     """Test that the recovered waveform from a time-cropped spectrogram has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
     win = 0.2
     step = 0.02
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     spec.crop(start=0.4, end=2.7)
-    audio = spec.recover_audio(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10)
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
-def test_recover_audio_after_freq_crop(sine_audio):
+def test_recover_waveform_after_freq_crop(sine_audio):
     """Test that the recovered waveform from a frequency-cropped spectrogram has the correct sampling rate"""
     sine_audio.resample(new_rate=16000)
     win = 0.2
     step = 0.02
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     spec.crop(freq_min=200, freq_max=2300)
-    audio = spec.recover_audio(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10)
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
 def test_mag_from_wav(sine_wave_file):

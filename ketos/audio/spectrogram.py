@@ -370,6 +370,27 @@ class Spectrogram(BaseAudio):
         self.freq_ax = freq_ax
         self.type = spec_type
 
+    @classmethod
+    def stack(cls, specs):
+        """ Stack spectrograms
+
+            Args:
+                specs: list(Spectrogram)
+                    List of spectrograms to be stacked.
+
+            Returns:
+                : Spectrogram
+                    Stacked spectrogram        
+        """
+        spec = super().stack(specs)
+
+        time_res  = specs[0].time_res()
+        spec_type = specs[0].type
+        freq_ax   = specs[0].freq_ax
+
+        return cls(data=spec.data, time_res=time_res, spec_type=spec_type, freq_ax=freq_ax,
+            filename=spec.filename, offset=spec.offset, label=spec.label, annot=spec.annot)
+
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
 
@@ -727,7 +748,7 @@ class MagSpectrogram(Spectrogram):
             window_func: str
                 Window function.
     """
-    def __init__(self, data, rate, time_res, freq_min, freq_res, num_fft, 
+    def __init__(self, data, time_res, freq_min, freq_res, rate=None, num_fft=None, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
@@ -847,6 +868,28 @@ class MagSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
+    @classmethod
+    def stack(cls, specs):
+        """ Stack magnitude spectrograms
+
+            Args:
+                specs: list(Spectrogram)
+                    List of spectrograms to be stacked.
+
+            Returns:
+                : Spectrogram
+                    Stacked spectrogram        
+        """
+        spec = super().stack(specs)
+
+        num_fft     = specs[0].num_fft
+        rate        = specs[0].rate
+        window_func = specs[0].window_func
+
+        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, freq_res=spec.freq_res, 
+            rate=rate, num_fft=num_fft, window_func=window_func, filename=spec.filename, offset=spec.offset, 
+            label=spec.label, annot=spec.annot)
+
     def freq_res(self):
         """ Get frequency resolution in Hz.
 
@@ -856,10 +899,10 @@ class MagSpectrogram(Spectrogram):
         """
         return self.freq_ax.bin_width()
 
-    def recover_audio(self, num_iters=25, phase_angle=0):
+    def recover_waveform(self, num_iters=25, phase_angle=0):
         """ Estimate audio signal from magnitude spectrogram.
 
-            Uses :func:`audio.audio.spec2audio`.
+            Uses :func:`audio.audio.spec2wave`.
 
             Args:
                 num_iters: 
@@ -871,6 +914,8 @@ class MagSpectrogram(Spectrogram):
                 audio: Waveform
                     Audio signal
         """
+        assert self.rate is not None and self.num_fft is not None, "Sampling rate and number of points used for FFT computation needed to recover waveform"
+
         mag = aum.from_decibel(self.data) #use linear scale
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
@@ -890,7 +935,7 @@ class MagSpectrogram(Spectrogram):
             window_func = np.ones(num_fft)
 
         # iteratively estimate audio signal
-        audio = aum.spec2audio(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
+        audio = aum.spec2wave(image=mag, phase_angle=phase_angle, num_fft=num_fft,\
             step_len=step_len, num_iters=num_iters, window_func=window_func)
 
         # sampling rate of recovered audio signal should equal the original rate
@@ -939,7 +984,7 @@ class PowerSpectrogram(Spectrogram):
             window_func: str
                 Window function.
     """
-    def __init__(self, data, rate, time_res, freq_min, freq_res, num_fft, 
+    def __init__(self, data, time_res, freq_min, freq_res, rate=None, num_fft=None, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
@@ -1061,6 +1106,28 @@ class PowerSpectrogram(Spectrogram):
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
 
+    @classmethod
+    def stack(cls, specs):
+        """ Stack power spectrograms
+
+            Args:
+                specs: list(Spectrogram)
+                    List of spectrograms to be stacked.
+
+            Returns:
+                : Spectrogram
+                    Stacked spectrogram        
+        """
+        spec = super().stack(specs)
+
+        num_fft     = specs[0].num_fft
+        rate        = specs[0].rate
+        window_func = specs[0].window_func
+
+        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, freq_res=spec.freq_res, 
+            rate=rate, num_fft=num_fft, window_func=window_func, filename=spec.filename, offset=spec.offset, 
+            label=spec.label, annot=spec.annot)
+
     def freq_res(self):
         """ Get frequency resolution in Hz.
 
@@ -1110,7 +1177,7 @@ class MelSpectrogram(Spectrogram):
             filter_banks: numpy.array
                 Filter banks
     """
-    def __init__(self, data, filter_banks, rate, time_res, freq_min, freq_max, num_fft, 
+    def __init__(self, data, filter_banks, time_res, freq_min, freq_max, rate=None, num_fft=None, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create frequency axis
@@ -1309,7 +1376,7 @@ class CQTSpectrogram(Spectrogram):
             window_func: str
                 Window function.
     """
-    def __init__(self, data, rate, time_res, freq_min, bins_per_oct, 
+    def __init__(self, data, time_res, freq_min, bins_per_oct, rate=None, 
         window_func=None, filename=None, offset=0, label=None, annot=None):
 
         # create logarithmic frequency axis
@@ -1450,6 +1517,28 @@ class CQTSpectrogram(Spectrogram):
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, freq_min=freq_min,\
             freq_max=freq_max, window_func=window_func)
+
+    @classmethod
+    def stack(cls, specs):
+        """ Stack CQT spectrograms
+
+            Args:
+                specs: list(Spectrogram)
+                    List of spectrograms to be stacked.
+
+            Returns:
+                : Spectrogram
+                    Stacked spectrogram        
+        """
+        spec = super().stack(specs)
+
+        rate         = specs[0].rate
+        window_func  = specs[0].window_func
+        bins_per_oct = specs[0].bins_per_octave()
+
+        return cls(data=spec.data, time_res=spec.time_res, freq_min=spec.freq_min, bins_per_oct=bins_per_oct, 
+            rate=rate, window_func=window_func, filename=spec.filename, offset=spec.offset, 
+            label=spec.label, annot=spec.annot)
 
     def bins_per_octave(self):
         """ Get no. bins per octave.

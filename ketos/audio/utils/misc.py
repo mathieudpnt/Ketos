@@ -480,7 +480,7 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
-def spec2audio(image, phase_angle, num_fft, step_len, num_iters, window_func):
+def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
     """ Estimate audio signal from magnitude spectrogram.
 
         Implements the algorithm described in 

@@ -234,6 +234,19 @@ class BaseAudio():
         self.label = label
         self.annot = annot
 
+        self.counter = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        n = np.ndim(self.data) - self.ndim
+        if n == 0:   idx = 0
+        elif n == 1: idx = self.counter
+        else: idx = np.unravel_index(self.counter, shape=self.data.shape[n:])
+        self.counter += 1
+        return idx
+
     @classmethod
     def stack(cls, audio):
         """ Stack audio objects 
@@ -264,6 +277,24 @@ class BaseAudio():
         data = np.swapaxes(np.concatenate([a.data[np.newaxis,:] for a in audio], axis=0), 0, -1)
 
         return cls(data=data, time_res=time_res, ndim=ndim, filename=filename, offset=offset, label=label, annot=annot)
+
+    def _get_index(self, x):
+        if   n == 0: return 0
+        elif n == 1: return x
+        else:
+            idx = []
+            for d in dims:
+                i = int(x/d)
+                idx.append(i)
+
+    def multiplicity(self):
+        mul = 1
+        n = np.ndim(self.data) - self.ndim
+        if n > 0:
+            dims = self.data.shape[n:]
+            for d in dims: mul *= d
+        
+        return mul
 
     def get_data(self, id=None):
         """ Get underlying data.
