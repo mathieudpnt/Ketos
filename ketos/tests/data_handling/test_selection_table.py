@@ -250,10 +250,12 @@ def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table
         any miscellaneous columns"""
     np.random.seed(1)
     df, _ = st.standardize(annot_table_std)
-    df['extra'] = 'testing'
     dur = file_duration_table 
+    dur['extra'] = 'testing'
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5)
-#    assert np.all(df_bgr['extra'].values == 'testing')
+    assert np.all(df_bgr['extra'].values == 'testing')
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5, trim_table=True)
+    assert 'extra' not in df_bgr.columns.values.tolist()
 
 def test_complement(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
