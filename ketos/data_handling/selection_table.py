@@ -776,18 +776,18 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
             >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10, trim_table=True) 
             >>> print(df_bgr.round(2))
-                              start    end
+                              start    end  label
             filename  sel_id              
-            file1.wav 0        1.70   4.70
-                      1       14.14  17.14
-                      2       16.84  19.84
-                      3       19.60  22.60
-                      4       24.55  27.55
-                      5       26.86  29.86
-            file2.wav 0       14.18  17.18
-            file3.wav 0        2.37   5.37
-                      1        8.47  11.47
-                      2        8.58  11.58
+            file1.wav 0        1.70   4.70      0
+                      1       14.14  17.14      0
+                      2       16.84  19.84      0
+                      3       19.60  22.60      0
+                      4       24.55  27.55      0
+                      5       26.86  29.86      0
+            file2.wav 0       14.18  17.18      0
+            file3.wav 0        2.37   5.37      0
+                      1        8.47  11.47      0
+                      2        8.58  11.58      0
     """
     # create complement
     c = complement(annotations=annotations, files=files)
@@ -831,6 +831,8 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
         col_names += names
 
     df = df[col_names]
+
+    df['label'] = 0 #add label
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'sel_id')
