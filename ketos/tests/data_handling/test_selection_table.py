@@ -88,7 +88,7 @@ def test_unfold(annot_table_mult_labels):
     res = st.unfold(annot_table_mult_labels)
     ans = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'start':[0,0,1], 'end':[1,1,2]})
     res = res.reset_index(drop=True)[ans.columns]
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_standardize(annot_table_std):
     res, d = st.standardize(annot_table_std)
@@ -100,7 +100,7 @@ f1.wav   1             2    4.0  7.3
 f2.wav   0             5    2.0  5.3
 f2.wav   1             1    5.0  8.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_standardize_from_file(annot_table_file):
     res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, signal_labels=[1,'k'], backgr_labels=[-99, 'whale'])
@@ -114,7 +114,7 @@ f3.wav   0             0      3    4
 f4.wav   0             0      4    5
 f5.wav   0            -1      5    6'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_standardize_with_nested_list(annot_table_file):
     res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, signal_labels=[[1,'whale'],'k'], backgr_labels=[-99])
@@ -128,7 +128,7 @@ f3.wav   0             0      3    4
 f4.wav   0             1      4    5
 f5.wav   0            -1      5    6'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
     
 def test_label_occurrence(annot_table_std):
     df = annot_table_std
@@ -148,7 +148,7 @@ f1.wav   1           2   5.15  6.15
 f2.wav   0           5   3.15  4.15
 f2.wav   1           1   6.15  7.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
     # request length longer than annotations
     res = st.select(df, length=5, center=True)
     d = '''filename sel_id  label  start   end
@@ -159,7 +159,7 @@ f1.wav   1           2   3.15  8.15
 f2.wav   0           5   1.15  6.15
 f2.wav   1           1   4.15  9.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_select_removes_discarded_annotations(annot_table_std):
     df = annot_table_std
@@ -231,7 +231,7 @@ f3.wav   0           0.0  33.0
 f4.wav   0           0.0  34.0
 f5.wav   0           0.0  35.0'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res)
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_select_by_segmenting(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
@@ -247,7 +247,7 @@ f2.wav   0         0.0  5.1
 f2.wav   1         4.0  9.1
 f2.wav   2         8.0 13.1'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, sel[0])
+    pd.testing.assert_frame_equal(ans, sel[0][ans.columns.values])
     # check annotation table
     d = '''filename sel_id annot_id label  start  end
 f0.wav   0      0             3         0.0        3.3
@@ -263,7 +263,7 @@ f2.wav   1      0             5         0.0        1.3
 f2.wav   1      1             1         1.0        4.3
 f2.wav   2      1             1         0.0        0.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
-    pd.testing.assert_frame_equal(ans, sel[1])
+    pd.testing.assert_frame_equal(ans, sel[1][ans.columns.values])
 
 def test_query_labeled(annot_table_std):
     df, d = st.standardize(annot_table_std)
@@ -274,7 +274,7 @@ def test_query_labeled(annot_table_std):
 0           4   2.15  3.15
 1           2   5.15  6.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
-    pd.testing.assert_frame_equal(q, ans)
+    pd.testing.assert_frame_equal(q, ans[q.columns.values])
     # query for 2 files
     q = st.query_labeled(df, filename=['f1.wav','f2.wav'])
     d = '''filename sel_id label  start   end                            
@@ -283,7 +283,7 @@ f1.wav   1           2   5.15  6.15
 f2.wav   0           5   3.15  4.15
 f2.wav   1           1   6.15  7.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(q, ans)
+    pd.testing.assert_frame_equal(q, ans[q.columns.values])
     # query for labels
     q = st.query_labeled(df, label=[2,5])
     d = '''filename sel_id label  start   end                   
@@ -291,7 +291,7 @@ f0.wav   1           2   4.15  5.15
 f1.wav   1           2   5.15  6.15
 f2.wav   0           5   3.15  4.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(q, ans)
+    pd.testing.assert_frame_equal(q, ans[q.columns.values])
 
 def test_query_annotated(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
@@ -305,7 +305,7 @@ f0.wav   1         4.0  9.1
 f1.wav   0         0.0  5.1
 f1.wav   1         4.0  9.1'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(q1, ans)
+    pd.testing.assert_frame_equal(q1, ans[q1.columns.values])
     d = '''filename sel_id annot_id label  start  end  
 f0.wav   0      1             2    3.0  5.1
 f0.wav   1      1             2    0.0  2.3
@@ -314,4 +314,4 @@ f1.wav   0      1             2    4.0  5.1
 f1.wav   1      0             4    0.0  0.3
 f1.wav   1      1             2    0.0  3.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
-    pd.testing.assert_frame_equal(q2, ans)
+    pd.testing.assert_frame_equal(q2, ans[q2.columns.values])
