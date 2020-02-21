@@ -29,21 +29,12 @@
     This module provides functions to create and use HDF5 databases as storage for acoustic data. 
 """
 
-import librosa
-import tables
 import os
-import ast
-import math
+import tables
 import numpy as np
-import pandas as pd
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
-from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix, SpecProvider
-from ketos.data_handling.parsing import SpectrogramConfiguration
-from tqdm import tqdm
-from sys import getsizeof
-from psutil import virtual_memory
 
 
 def open_file(path, mode):
