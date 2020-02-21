@@ -520,8 +520,8 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
             >>> win_fun = 'hamming'
             >>> mag, freq_max, num_fft, _ = stft(x=audio, rate=1000, seg_args={'win_len':200, 'step_len':40}, window_func=win_fun)
             >>> #Estimate the original audio signal            
-            >>> from ketos.audio.utils.misc import spec2audio
-            >>> audio_est = spec2audio(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window_func=win_fun)
+            >>> from ketos.audio.utils.misc import spec2wave
+            >>> audio_est = spec2wave(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window_func=win_fun)
             >>> #plot the original and the estimated audio signal
             >>> import matplotlib.pyplot as plt
             >>> plt.clf()

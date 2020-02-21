@@ -613,3 +613,4 @@ class BaseAudio():
             
         fig.tight_layout()
         return fig, ax
+

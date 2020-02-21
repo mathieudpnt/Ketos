@@ -429,7 +429,7 @@ class AnnotationHandler():
 
         self._add(df, id)
         
-    def crop(self, start=0, end=None, freq_min=None, freq_max=None):
+    def crop(self, start=0, end=None, freq_min=None, freq_max=None, make_copy=False):
         """ Crop annotations along the time and/or frequency dimension.
 
             Args:

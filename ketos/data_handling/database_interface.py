@@ -29,21 +29,12 @@
     This module provides functions to create and use HDF5 databases as storage for acoustic data. 
 """
 
-import librosa
-import tables
 import os
-import ast
-import math
+import tables
 import numpy as np
-import pandas as pd
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
-from ketos.data_handling.data_handling import find_wave_files, AnnotationTableReader, rel_path_unix, SpecProvider
-from ketos.data_handling.parsing import SpectrogramConfiguration
-from tqdm import tqdm
-from sys import getsizeof
-from psutil import virtual_memory
 
 
 def open_file(path, mode):
@@ -129,13 +120,13 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
 
         Examples:
             >>> import tables
-            >>> from ketos.data_handling.database_interface import open_file, table_description_new, create_table_new
+            >>> from ketos.data_handling.database_interface import open_file, table_description, create_table
             >>> # Open a connection to the database
             >>> h5file = open_file("ketos/tests/assets/tmp/database1.h5", 'w')
             >>> # Create table descriptions for weakly labeled spectrograms with shape (32,64)
-            >>> descr_data, descr_annot = table_description_new((32,64))
+            >>> descr_data, descr_annot = table_description((32,64))
             >>> # Create 'table_data' within 'group1'
-            >>> my_table = create_table_new(h5file, "/group1/", "table_data", descr_data) 
+            >>> my_table = create_table(h5file, "/group1/", "table_data", descr_data) 
             >>> # Show the table description, with the field names (columns)
             >>> # and information about types and shapes
             >>> my_table
@@ -161,7 +152,6 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
             print("group '{0}' not found. Creating it now...".format(path))
     
         group_name = os.path.basename(path)
-        print(group_name)
         path_to_group = path.split(group_name)[0]
         if path_to_group.endswith('/'): 
             path_to_group = path_to_group[:-1]
@@ -476,26 +466,26 @@ def write(x, table, table_annot=None, id=None):
 
         Examples:
             >>> import tables
-            >>> from ketos.data_handling.database_interface import open_file, create_table_new, table_description_data, write_spec_new
-            >>> from ketos.audio_processing.spectrogram import MagSpectrogram
-            >>> from ketos.audio_processing.audio import Waveform
+            >>> from ketos.data_handling.database_interface import open_file, create_table, table_description_data, write
+            >>> from ketos.audio.spectrogram import MagSpectrogram
+            >>> from ketos.audio.waveform import Waveform
             >>>
             >>> # Create an Waveform object from a .wav file
             >>> audio = Waveform.from_wav('ketos/tests/assets/2min.wav')
             >>> # Use that signal to create a spectrogram
-            >>> spec = MagSpectrogram(audio, winlen=0.2, winstep=0.05)
+            >>> spec = MagSpectrogram.from_waveform(audio, window=0.2, step=0.05)
             >>> # Add a single annotation
-            >>> spec.annotate(1, [0.,2.])
+            >>> spec.annotate(label=1, start=0., end=2.)
             >>>
             >>> # Open a connection to a new HDF5 database file
             >>> h5file = open_file("ketos/tests/assets/tmp/database2.h5", 'w')
             >>> # Create table descriptions for storing the spectrogram data
-            >>> descr_data, descr_annot = table_description_new(spec, annot_type='strong')
+            >>> descr_data, descr_annot = table_description(spec, annot_type='strong')
             >>> # Create tables
-            >>> tbl_data = create_table_new(h5file, "/group1/", "table_data", descr_data) 
-            >>> tbl_annot = create_table_new(h5file, "/group1/", "table_annot", descr_annot) 
+            >>> tbl_data = create_table(h5file, "/group1/", "table_data", descr_data) 
+            >>> tbl_annot = create_table(h5file, "/group1/", "table_annot", descr_annot) 
             >>> # Write spectrogram and its annotation to the tables
-            >>> write_spec_new(spec, tbl_data, tbl_annot)
+            >>> write(spec, tbl_data, tbl_annot)
             >>> # flush memory to ensure data is put in the tables
             >>> tbl_data.flush()
             >>> tbl_annot.flush()
@@ -541,25 +531,24 @@ def filter_by_label(table, label):
             indices: list(int)
                 Indices of the spectrograms with the specified label(s).
                 If there are no spectrograms that match the label, returs an empty list.
-
-        Examples:
-            >>> from ketos.data_handling.database_interface import open_file,open_table
-            >>>
-            >>> # Open a database and an existing table
-            >>> h5file = open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
-            >>> table = open_table(h5file, "/train/species1")
-            >>>
-            >>> # Retrieve the indices for all spectrograms that contain the label 1
-            >>> # (all spectrograms in this table)
-            >>> filter_by_label(table, 1)
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-            >>>
-            >>> # Since none of the spectrograms in the table include the label 2, 
-            >>> # an empty list is returned
-            >>> filter_by_label(table, 2)
-            []
-            >>> h5file.close()
     """
+#        Examples:
+#            >>> from ketos.data_handling.database_interface import open_file,open_table
+#            >>>
+#            >>> # Open a database and an existing table
+#            >>> h5file = open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
+#            >>> table = open_table(h5file, "/train/species1")
+#            >>>
+#            >>> # Retrieve the indices for all spectrograms that contain the label 1
+#            >>> # (all spectrograms in this table)
+#            >>> filter_by_label(table, 1)
+#            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+#            >>>
+#            >>> # Since none of the spectrograms in the table include the label 2, 
+#            >>> # an empty list is returned
+#            >>> filter_by_label(table, 2)
+#            []
+#            >>> h5file.close()
     if isinstance(label, (list)):
         if not all (isinstance(l, int) for l in label):
             raise TypeError("label must be an int or a list of ints")    
@@ -598,20 +587,19 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
                 List of spectrogram objects, or a single stacked spectrogram object
 
         Examples:
-            >>> from ketos.data_handling.database_interface import open_file, open_table
-            >>>
+            >>> from ketos.data_handling.database_interface import open_file, open_table, load_specs
             >>> # Open a connection to the database.
-            >>> h5file = tables.open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
-            >>> # Open the species1 table in the train group
-            >>> table = open_table(h5file, "/train/species1")
-            >>>
-            >>> # Load the spectrograms stored on rows 0, 3 and 10 of the species1 table
-            >>> selected_specs = load_specs(table, [0,3,10])
+            >>> h5file = open_file("ketos/tests/assets/11x_same_spec.h5", 'r')
+            >>> # Open the tables in group_1
+            >>> tbl_data = open_table(h5file,"/group_1/table_data")
+            >>> tbl_annot = open_table(h5file,"/group_1/table_annot")    
+            >>> # Load the spectrograms stored on rows 0, 3 and 10, including their annotations
+            >>> selected_specs = load_specs(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
             >>> # The resulting list has the 3 spectrogram objects
             >>> len(selected_specs)
             3
             >>> type(selected_specs[0])
-            <class 'ketos.audio_processing.spectrogram.Spectrogram'>
+            <class 'ketos.audio.spectrogram.MagSpectrogram'>
             >>>
             >>> h5file.close()
     """
@@ -642,9 +630,6 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         specs = MagSpectrogram.stack(specs)
 
     return specs
-
-
-
 
 class AudioWriter():
     """ Saves waveform or spectrogram objects to a database file (*.h5).

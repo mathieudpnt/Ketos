@@ -194,6 +194,7 @@ def test_segment_with_annotations_stacked(base_audio_1d_stacked):
     assert df20['end'].values[0] == 2.0
 
 def test_stack(base_audio_1d):
+    """Test that we can stack two audio objects"""
     o, d = base_audio_1d
     stacked = aba.BaseAudio.stack([o, o])
     assert stacked.ndim == 1
@@ -204,6 +205,7 @@ def test_stack(base_audio_1d):
         assert stacked.get_label(i) == o.label
 
 def test_stack_with_annotations(base_audio_1d):
+    """ Test that we can stack two audio objects with annotations"""
     o, d = base_audio_1d
     o.annotate(label=1, start=0.2, end=1.3)
     o.annotate(label=2, start=1.8, end=2.2)

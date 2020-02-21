@@ -31,7 +31,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import ketos.data_handling.data_handling as dh
-import ketos.audio.utils.misc as aum
+import scipy.io.wavfile as wave
 import datetime
 import shutil
 import os
@@ -120,8 +120,8 @@ def test_find_wave_files():
     # create two wave files
     f1 = os.path.join(dir, "f1.wav")
     f2 = os.path.join(dir, "f2.wav")
-    aum.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    aum.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    wave.write(f2, rate=100, data=np.array([1.,0.]))
+    wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
     files = dh.find_wave_files(dir, fullpath=False)
     assert len(files) == 2
@@ -150,8 +150,8 @@ def test_find_wave_files_from_multiple_folders():
         os.remove(f)  #clean
     f1 = sub1 + "/f1.wav"
     f2 = sub2 + "/f2.wav"
-    aum.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    aum.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    wave.write(f2, rate=100, data=np.array([1.,0.]))
+    wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
     files = dh.find_wave_files(folder, fullpath=False, subdirs=True)
     assert len(files) == 2
@@ -214,7 +214,7 @@ def test_read_wave_file(sine_wave_file):
 def test_parse_datetime_with_urban_sharks_format():
     fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    aum.wave.write(full_path, rate=1000, data=np.array([0.]))
+    wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
@@ -230,7 +230,7 @@ def test_parse_datetime_with_urban_sharks_format():
 def test_parse_datetime_with_non_matching_format():
     fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    aum.wave.write(full_path, rate=1000, data=np.array([0.]))
+    wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
@@ -356,7 +356,7 @@ def test_seg_from_time_tag():
     dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp, "from_tags") )
 
     
-    rate, sig  = aum.wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
+    rate, sig  = wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
     duration = len(sig)/rate
     assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
@@ -445,73 +445,3 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-
-
-
-def test_init_spec_provider_with_folder(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
-    assert len(sp.files) == 5
-
-def test_init_spec_provider_with_wav_file(sine_wave_file):
-    sp = dh.SpecProvider(path=sine_wave_file)
-    assert len(sp.files) == 1
-
-def test_use_spec_provider_on_five_wav_files(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.5
-    s = next(sp)
-    assert s.duration() == 0.5
-    assert sp.fid == 2
-
-def test_use_spec_provider_on_five_wav_files_specify_length(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, step_size=0.01, window_size=0.1)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    assert sp.fid == 1
-
-def test_use_spec_provider_on_five_wav_files_specify_overlap(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, overlap=0.05, step_size=0.01, window_size=0.1)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    assert sp.time == pytest.approx(0.45, abs=1e-6)
-    assert sp.fid == 0
-
-def test_spec_provider_number_of_segments(sine_wave_file):
-    import librosa
-    dur = librosa.core.get_duration(filename=sine_wave_file)
-    # duration is an integer number of lengths
-    l = 0.2
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    assert len(sp.files) == 1
-    N = int(dur / l)
-    assert N == sp.num_segs
-    # duration is *not* an integer number of lengths
-    l = 0.21
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    N = int(np.ceil(dur / l))
-    assert N == sp.num_segs
-    # loop over all segments
-    for _ in range(N):
-        _ = next(sp)
-    # non-zero overlap
-    l = 0.21
-    o = 0.8*l
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=o, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    step = l - o
-    N = int(np.ceil(dur / step))
-    assert N == sp.num_segs
-    # loop over all segments
-    for _ in range(N):
-        _ = next(sp)
