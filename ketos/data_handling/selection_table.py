@@ -774,7 +774,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10) 
+            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10, trim=True) 
             >>> print(df_bgr.round(2))
                               start    end
             filename  sel_id              
