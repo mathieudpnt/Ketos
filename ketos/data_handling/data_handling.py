@@ -168,7 +168,7 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
             >>> find_files(path="ketos/tests/assets", substr=".h5")
-            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
+            ['ketos/tests/assets/11x_same_spec.h5', 'ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
     """
     # find all files
     allfiles = list()
@@ -624,6 +624,8 @@ def _filter_annotations_by_filename(annotations, filename):
             ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
             >>> # Filter the annotations associated with file "2min_01"
             >>> annot_01 = _filter_annotations_by_filename(annotations,'2min_01')
+            >>> # enforce desired column ordering
+            >>> annot_01 = annot_01[['filename','label','start','end']]
             >>> annot_01
                   filename  label  start    end
             0  2min_01.wav      1    5.0    6.0

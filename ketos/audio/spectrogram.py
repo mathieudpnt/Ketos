@@ -546,7 +546,7 @@ class Spectrogram(BaseAudio):
                 >>> # create audio signal
                 >>> s = Waveform.morlet(rate=1000, frequency=300, width=1)
                 >>> # create spectrogram
-                >>> spec = MagSpectrogram(s, window=0.2, step=0.05)
+                >>> spec = MagSpectrogram.from_waveform(s, window=0.2, step=0.05)
                 >>> # show image
                 >>> spec.plot()
                 <Figure size 500x400 with 2 Axes>
@@ -619,7 +619,7 @@ class Spectrogram(BaseAudio):
                 >>> aud = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
                 >>> # compute the spectrogram
                 >>> from ketos.audio.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram(aud, window=0.2, step=0.02)
+                >>> spec = MagSpectrogram.from_waveform(aud, window=0.2, step=0.02)
                 >>> # keep only frequencies below 800 Hz
                 >>> spec = spec.crop(freq_max=800)
                 >>> # show spectrogram as is
@@ -666,21 +666,6 @@ class Spectrogram(BaseAudio):
                 fig: matplotlib.figure.Figure
                 A figure object.
         """
-# TODO: include this example with updated version of load_specs method
-#            Example:
-#                >>> # extract saved spectrogram from database file
-#                >>> import tables
-#                >>> import ketos.data_handling.database_interface as di
-#                >>> db = tables.open_file("ketos/tests/assets/cod.h5", "r") 
-#                >>> table = di.open_table(db, "/sig")
-#                >>> spectrogram = di.load_specs(table)[0]
-#                >>> db.close()
-#                >>> 
-#                >>> # plot the spectrogram and label '1'
-#                >>> import matplotlib.pyplot as plt
-#                >>> fig = spectrogram.plot(label=1)
-#                >>> plt.show()
-
         fig, ax = super().plot(id, show_annot, figsize)
 
         x = self.get_data(id) # select image data        
