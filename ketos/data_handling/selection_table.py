@@ -807,6 +807,7 @@ def create_rndm_backgr_selections(annotations, files, length, num):
 
     # randomply sample
     times = np.random.random_sample(num) * len_tot
+    df = None
     for t in times:
         idx = np.argmax(t < cs) - 1
         row = c.iloc[idx]
@@ -815,18 +816,30 @@ def create_rndm_backgr_selections(annotations, files, length, num):
         start.append(t1)
         end.append(t1 + length)
 
+        print(row)
+        z = {**{'start':t1, 'end':t1+length}, **row.to_dict()}
+
+        print(z)
+
+        if df is None: df = pd.DataFrame(z, index=pd.Index([0]))
+        else:          df = df.append(z, ignore_index=True)
+
     # ensure that type is float
     start = np.array(start, dtype=float)
     end = np.array(end, dtype=float)
 
     # fill DataFrame
-    df = pd.DataFrame({'filename':filename, 'start':start, 'end':end})    
+    #df = pd.DataFrame({'filename':filename, 'start':start, 'end':end})    
 
     # sort by filename and offset
     df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
     # re-order columns
-    df = df[['filename','start','end']]
+    names = df.columns.values.tolist()
+    names.remove('filename')
+    names.remove('start')
+    names.remove('end')
+    df = df[['filename','start','end']+names]
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'sel_id')

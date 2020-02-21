@@ -230,6 +230,7 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     dur = file_duration_table 
     num = 5
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    print(df_bgr)
     assert len(df_bgr) == num
     df_c = st.complement(df, dur)
     # assert selections have uniform length
@@ -243,6 +244,16 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
         start_c = df.start.values
         end_c = df.end.values
         assert np.any(np.logical_and(start_bgr >= start_c, end_bgr <= end_c))
+
+def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table):
+    """ Check that the random background selection creation method keeps 
+        any miscellaneous columns"""
+    np.random.seed(1)
+    df, _ = st.standardize(annot_table_std)
+    df['extra'] = 'testing'
+    dur = file_duration_table 
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5)
+#    assert np.all(df_bgr['extra'].values == 'testing')
 
 def test_complement(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
