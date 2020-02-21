@@ -777,7 +777,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
             >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10, trim_table=True) 
             >>> print(df_bgr.round(2))
                               start    end  label
-            filename  sel_id              
+            filename  sel_id                     
             file1.wav 0        1.70   4.70      0
                       1       14.14  17.14      0
                       2       16.84  19.84      0
