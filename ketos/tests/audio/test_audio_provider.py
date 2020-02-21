@@ -32,19 +32,19 @@ from ketos.audio.audio_provider import AudioProvider
 
 def test_init_audio_provider_with_folder(five_time_stamped_wave_files):
     """ Test that we can initialize an instance of the AudioProvider class from a folder"""
-    provider = AudioProvider(path=five_time_stamped_wave_files, seg_dur=0.5)
+    provider = AudioProvider(path=five_time_stamped_wave_files, window=0.5)
     assert len(provider.files) == 5
 
 def test_init_audio_provider_with_wav_file(sine_wave_file):
     """ Test that we can initialize an instance of the AudioProvider class 
         from a single wav file"""
-    provider = AudioProvider(path=sine_wave_file, seg_dur=0.5)
+    provider = AudioProvider(path=sine_wave_file, window=0.5)
     assert len(provider.files) == 1
 
 def test_audio_provider_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioProvider class to compute MagSpectrograms""" 
-    kwargs = {'rep':'MagSpectrogram','window':0.1,'step':0.02}
-    provider = AudioProvider(path=five_time_stamped_wave_files, seg_dur=0.5, **kwargs)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    provider = AudioProvider(path=five_time_stamped_wave_files, window=0.5, repres=rep)
     assert len(provider.files) == 5
     s = next(provider)
     assert s.duration() == 0.5
@@ -55,8 +55,8 @@ def test_audio_provider_mag(five_time_stamped_wave_files):
 def test_audio_provider_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioProvider class to compute MagSpectrograms
         with durations shorter than file durations""" 
-    kwargs = {'rep':'MagSpectrogram','window':0.1,'step':0.02}
-    provider = AudioProvider(path=five_time_stamped_wave_files, seg_dur=0.2, **kwargs)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    provider = AudioProvider(path=five_time_stamped_wave_files, window=0.2, repres=rep)
     assert len(provider.files) == 5
     s = next(provider)
     assert s.duration() == 0.2
@@ -69,8 +69,8 @@ def test_audio_provider_dur(five_time_stamped_wave_files):
 def test_audio_provider_overlap(five_time_stamped_wave_files):
     """ Test that we can use the AudioProvider class to compute overlapping 
         MagSpectrograms""" 
-    kwargs = {'rep':'MagSpectrogram','window':0.1,'step':0.02}
-    provider = AudioProvider(path=five_time_stamped_wave_files, seg_dur=0.2, seg_step=0.06, **kwargs)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    provider = AudioProvider(path=five_time_stamped_wave_files, window=0.2, step=0.06, repres=rep)
     assert len(provider.files) == 5
     s = next(provider)
     assert s.duration() == 0.2
@@ -83,8 +83,8 @@ def test_audio_provider_overlap(five_time_stamped_wave_files):
 
 def test_audio_provider_uniform_length(five_time_stamped_wave_files):
     """ Check that the AudioProvider always returns segments of the same length""" 
-    kwargs = {'rep':'MagSpectrogram','window':0.1,'step':0.02}
-    provider = AudioProvider(path=five_time_stamped_wave_files, seg_dur=0.2, **kwargs)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    provider = AudioProvider(path=five_time_stamped_wave_files, window=0.2, repres=rep)
     assert len(provider.files) == 5
     for _ in range(10):
         s = next(provider)
@@ -92,18 +92,18 @@ def test_audio_provider_uniform_length(five_time_stamped_wave_files):
 
 def test_audio_provider_number_of_segments(sine_wave_file):
     """ Check that the AudioProvider computes expected number of segments""" 
-    kwargs = {'rep':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
     import librosa
     dur = librosa.core.get_duration(filename=sine_wave_file)
     # duration is an integer number of lengths
     l = 0.2
-    provider = AudioProvider(path=sine_wave_file, seg_dur=l, **kwargs)
+    provider = AudioProvider(path=sine_wave_file, window=l, repres=rep)
     assert len(provider.files) == 1
     N = int(dur / l)
     assert N == provider.num_segs
     # duration is *not* an integer number of lengths
     l = 0.21
-    provider = AudioProvider(path=sine_wave_file, seg_dur=l, **kwargs)
+    provider = AudioProvider(path=sine_wave_file, window=l, repres=rep)
     N = int(np.ceil(dur / l))
     assert N == provider.num_segs
     # loop over all segments
@@ -112,7 +112,7 @@ def test_audio_provider_number_of_segments(sine_wave_file):
     # non-zero overlap
     l = 0.21
     o = 0.8*l
-    provider = AudioProvider(path=sine_wave_file, seg_dur=l, seg_step=l-o, **kwargs)
+    provider = AudioProvider(path=sine_wave_file, window=l, step=l-o, repres=rep)
     step = l - o
     N = int(np.ceil((dur-l) / step) + 1)
     assert N == provider.num_segs

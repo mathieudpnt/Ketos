@@ -32,6 +32,7 @@
         AudioProvider class
 """
 import os
+import copy
 import numpy as np
 import librosa
 from ketos.audio.waveform import Waveform
@@ -46,57 +47,38 @@ class AudioProvider():
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
-            seg_dur: float
+            window: float
                 Segment length in seconds.
-            seg_step: float
-                Separation between consecutive segments in seconds. If None, the separation 
+            step: float
+                Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment length.
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
-            rep: str
-                Audio data representation. Options are Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram.
-            rate: float
-                Sampling rate in Hz. If specified, audio data will be resampled at this rate
-            window: float
-                Window size used for computing the spectrogram in seconds. Only relevant for 
-                STFT spectrograms (Mag, Power, Mel).
-            step: float
-                Step size used for computing the spectrogram in seconds.
-            bins_per_oct: int
-                Number of bins per octave. Only relevant for CQT spectrograms.
-            freq_min: float
-                Lower value of the frequency axis in Hz
-            freq_max: float
-                Upper value of the frequency axis in Hz
-            window_func: str
-                Window function (optional). Select between
-                    * bartlett
-                    * blackman
-                    * hamming (default)
-                    * hanning
             annot: pandas DataFrame
                 Annotation table
+            repres: dict
+                Audio data representation. Must contain the key 'type' as well as any arguments 
+                required to initialize the class using the from_wav method.  
+                
+                    * Waveform: 
+                        (rate), (resample_method)
+                    
+                    * MagSpectrogram, PowerSpectrogram, MelSpectrogram: 
+                        window, step, (window_func), (rate), (resample_method)
+                    
+                    * CQTSpectrogram:
+                        step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
     """
-    def __init__(self, path, seg_dur, seg_step=None, channel=0, rep='MagSpectrogram',
-        rate=None, window=None, step=None, bins_per_oct=None, freq_min=None, freq_max=None, 
-        window_func=None, annot=None):
+    def __init__(self, path, window, step=None, channel=0, annot=None, repres={'type': 'Waveform'}):
 
+        repres = copy.deepcopy(repres)
         self.channel = channel
-        self.rep = rep
-        self.seg_dur = seg_dur
-        if seg_step is None: self.seg_step = seg_dur
-        else: self.seg_step = seg_step
+        self.typ = repres.pop('type')
+        self.cfg = repres
+        self.window = window
+        if step is None: self.step = window
+        else: self.step = step
         self.annot = annot
-        self.freq_cut = {'freq_min':freq_min, 'freq_max':freq_max}
-
-        if rep is 'Waveform':
-            self.config = {'rate': rate}
-        elif rep is 'CQTSpectrogram':
-            if freq_min is None: freq_min = 1
-            self.config = {'rate': rate, 'step':step, 'freq_min':freq_min, 'freq_min':freq_max, 
-                'bins_per_oct':bins_per_oct, 'window_func':window_func}
-        elif rep in ['MagSpectrogram', 'PowerSpectrogram', 'MelSpectrogram']:
-            self.config = {'rate': rate, 'window': window, 'step':step, 'window_func':window_func}
 
         # get all wav files in the folder, including subfolders
         ext = os.path.splitext(path)[1].lower()
@@ -121,7 +103,7 @@ class AudioProvider():
                     Next segment
         """
         seg = self.get(time=self.time, file_id=self.file_id) #get next segment
-        self.time += self.seg_step #increment time        
+        self.time += self.step #increment time        
         self.seg_id += 1 #increment segment ID
         if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
         return seg
@@ -156,10 +138,8 @@ class AudioProvider():
                     Audio segment
         """
         path = self.files[file_id]
-        seg = eval(self.rep).from_wav(path=path, channel=self.channel, offset=time, 
-            duration=self.seg_dur, **self.config)
-        if isinstance(seg, Spectrogram): seg.crop(**self.freq_cut)
-        return seg
+        return eval(self.typ).from_wav(path=path, channel=self.channel, offset=time, 
+            duration=self.window, **self.cfg)
 
     def _next_file(self):
         """ Jump to next file. 
@@ -176,7 +156,7 @@ class AudioProvider():
 
         # number of segments
         file_duration = librosa.get_duration(filename=f)
-        self.num_segs = int(np.ceil((file_duration - self.seg_dur) / self.seg_step)) + 1
+        self.num_segs = int(np.ceil((file_duration - self.window) / self.step)) + 1
 
         # reset segment ID and time
         self.seg_id = 0
