@@ -440,3 +440,24 @@ def base_audio_1d_stacked():
     d[:,2] = 3
     o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
     return o, d
+
+@pytest.fixture
+def five_time_stamped_wave_files():
+    N = 5
+    path_to_tmp = os.path.join(path_to_assets,'tmp')
+    folder = path_to_tmp + '/five_time_stamped_wave_files/'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    files = list()
+    for i in range(N):
+        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
+        full_path = os.path.join(folder, fname)
+        a = Waveform(rate=1000, data=np.zeros(500))
+        a.to_wav(full_path)
+        files.append(full_path)
+
+    yield folder
+
+    for f in files:
+        os.remove(f)
