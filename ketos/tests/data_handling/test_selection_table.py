@@ -230,7 +230,6 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     dur = file_duration_table 
     num = 5
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
-    print(df_bgr)
     assert len(df_bgr) == num
     df_c = st.complement(df, dur)
     # assert selections have uniform length
