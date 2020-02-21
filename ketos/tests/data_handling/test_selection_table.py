@@ -234,6 +234,8 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     df_c = st.complement(df, dur)
     # assert selections have uniform length
     assert np.all(df_bgr.end.values - df_bgr.start.values == 2.0)
+    # assert all selection have label = 0
+    assert np.all(df_bgr.label.values == 0)
     # assert selections are within complement
     for bgr_idx, bgr_sel in df_bgr.iterrows():
         start_bgr = bgr_sel.start
