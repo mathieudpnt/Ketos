@@ -256,6 +256,14 @@ def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5, trim_table=True)
     assert 'extra' not in df_bgr.columns.values.tolist()
 
+def test_create_rndm_backgr_files_missing_duration(annot_table_std, file_duration_table):
+    """ Check that the random background selection creation method works even when 
+        some of the files are missing from the file duration list"""
+    np.random.seed(1)
+    df, _ = st.standardize(annot_table_std)
+    dur = file_duration_table.drop(0) 
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=11)
+
 def test_complement(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
     dur = file_duration_table
