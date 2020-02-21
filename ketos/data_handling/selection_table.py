@@ -490,7 +490,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
     # number of annotations
     N = len(df)
 
-    # annotation lengths
+    # compute length of every annotation
     df['length'] = df['end'] - df['start']
 
     # discard annotations longer than the requested length
@@ -513,7 +513,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
                 ovl = 1
             else:
                 ovl = min_overlap
- 
+
             df_shift = time_shift(annot=row, time_ref=t, length=length, min_overlap=ovl, step=step)
             df_shift['filename'] = idx[0]
 
@@ -530,7 +530,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
 
     # rename index
     df.index.rename('sel_id', level=1, inplace=True) 
-        
+
     # drop old/temporary columns, and rename others
     df = df.drop(['start', 'end', 'length'], axis=1)
     df = df.rename(columns={"start_new": "start"})
@@ -615,12 +615,11 @@ def time_shift(annot, time_ref, length, step, min_overlap):
     t_min = t1 - (1 - min_overlap) * length
     t_max = t2 - min_overlap * length
 
-    num_steps_back = int(np.floor((t - t_min) / step))
-    num_steps_forw = int(np.floor((t_max - t) / step))
+    num_steps_back = 0
+    num_steps_forw = 0
 
-    num_steps = num_steps_back + num_steps_forw
-    if num_steps == 0:
-        return pd.DataFrame(columns=row.index) #return empty DataFrame
+    if t_min < t: num_steps_back = int(np.floor((t - t_min) / step))
+    if t_max > t: num_steps_forw = int(np.floor((t_max - t) / step))
 
     row['start_new'] = time_ref
     rows_new = [row]

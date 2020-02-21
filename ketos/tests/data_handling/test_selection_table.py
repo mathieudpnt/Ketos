@@ -197,6 +197,33 @@ def test_select_step(annot_table_std):
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
+def test_time_shift(annot_table_std):
+    row = pd.Series({'label':3.00,'start':0.00,'end':3.30,'annot_id':0.00,'length':3.30,'start_new':-0.35})
+    res = st.time_shift(annot=row, time_ref=row['start_new'], length=4.0, min_overlap=0.8, step=0.5)
+    d = '''label  start  end  annot_id  length  start_new
+0    3.0    0.0  3.3       0.0     3.3      -0.35'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
+def test_select_with_varying_overlap(annot_table_std):
+    """ Test that the number of selections increases as the 
+        minimum required overlap is reduced"""
+    df, d = st.standardize(annot_table_std)
+    # request length shorter than annotations
+    num_sel = []
+    for min_overlap in np.linspace(1.0, 0.0, 11):
+        res = st.select(df, length=1.0, step=0.5, center=True, min_overlap=min_overlap)
+        num_sel.append(len(res))
+    
+    assert np.all(np.diff(num_sel) >= 0)
+    # request length longer than annotations
+    num_sel = []
+    for min_overlap in np.linspace(1.0, 0.0, 11):
+        res = st.select(df, length=4.0, step=0.5, center=True, min_overlap=min_overlap)
+        num_sel.append(len(res))
+
+    assert np.all(np.diff(num_sel) >= 0)
+
 def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     np.random.seed(1)
     df, _ = st.standardize(annot_table_std)
