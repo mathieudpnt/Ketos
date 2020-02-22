@@ -714,7 +714,7 @@ def complement(annotations, files):
 
     return df_out
 
-def create_rndm_backgr_selections(annotations, files, length, num, trim_table=False):
+def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -723,6 +723,9 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
         selections will overlap, although in practice this will only occur with very 
         small probability, unless the number of requested selections (num) is very 
         large and/or the (annotation-free part of) the data set is small in size.
+
+        To avoid any overlap, set the 'no_overlap' to True, but note that this can 
+        lead to longer execution times.
 
         Args:
             annotations: pandas DataFrame
@@ -734,6 +737,8 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
+            no_overlap: bool
+                If True, randomly selected segments will have no overlap.
             trim_table: bool
                 Keep only the columns prescribed by the Ketos annotation format.
 
@@ -773,23 +778,25 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
                       2           9.0  13.0      1
             >>>
             >>> #Enter file durations into a pandas DataFrame
-            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
+            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[18.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10, trim_table=True) 
+            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=12, trim_table=True) 
             >>> print(df_bgr.round(2))
                               start    end  label
             filename  sel_id                     
-            file1.wav 0        1.70   4.70      0
-                      1       14.14  17.14      0
-                      2       16.84  19.84      0
-                      3       19.60  22.60      0
-                      4       24.55  27.55      0
-                      5       26.86  29.86      0
-            file2.wav 0       14.18  17.18      0
-            file3.wav 0        2.37   5.37      0
-                      1        8.47  11.47      0
-                      2        8.58  11.58      0
+            file1.wav 0        1.06   4.06      0
+                      1        1.31   4.31      0
+                      2        2.26   5.26      0
+            file2.wav 0       13.56  16.56      0
+                      1       14.76  17.76      0
+                      2       15.50  18.50      0
+                      3       16.16  19.16      0
+            file3.wav 0        2.33   5.33      0
+                      1        7.29  10.29      0
+                      2        7.44  10.44      0
+                      3        9.20  12.20      0
+                      4       10.94  13.94      0
     """
     # compute lengths, and discard segments shorter than requested length
     c = files['filename']
@@ -817,6 +824,10 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
 
             q = query(annotations, filename=fname, start=start, end=end)
             if len(q) > 0: continue
+
+            if no_overlap and len(df) > 0:
+                q = query(df.set_index(df.filename), filename=fname, start=start, end=end)
+                if len(q) > 0: continue
 
             x = {'start':start, 'end':end}
             y = files[files['filename']==fname].iloc[0].to_dict()
@@ -1062,6 +1073,10 @@ def query(selections, annotations=None, filename=None, label=None, start=None, e
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             : pandas DataFrame or tuple(pandas DataFrame, pandas DataFrame)
@@ -1084,6 +1099,10 @@ def query_labeled(table, filename=None, label=None, start=None, end=None):
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             df: pandas DataFrame
@@ -1091,8 +1110,11 @@ def query_labeled(table, filename=None, label=None, start=None, end=None):
     """
     df = table
     if filename is not None:
-        if isinstance(filename, str) and filename not in df.index:   df = df.iloc[0:0]
-        else: df = df.loc[filename]
+        if isinstance(filename, str):
+            if filename not in df.index: return df.iloc[0:0]
+            else: filename = [filename]
+        
+        df = df.loc[filename]
 
     if label is not None:
         if not isinstance(label, list):
@@ -1121,34 +1143,20 @@ def query_annotated(selections, annotations, filename=None, label=None, start=No
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             df1,df2: tuple(pandas DataFrame, pandas DataFrame)
-            Selection table and annotation table
+                Selection table and annotation table
     """
     df1 = selections
     df2 = annotations
 
-    if filename is not None:
-        if isinstance(filename, str) and filename not in df1.index:   df1 = df1.iloc[0:0]
-        elif isinstance(filename, str) and filename not in df2.index: df2 = df2.iloc[0:0]
-        else:
-            df1 = df1.loc[filename]
-            df2 = df2.loc[filename]
-
-    if label is not None:
-        if not isinstance(label, list):
-            label = [label]
-
-        df2 = df2[df2.label.isin(label)]
-
-    if start is not None:
-        df1 = df1[df1.end > start]
-        df2 = df2[df2.end > start]
-
-    if end is not None:
-        df1 = df1[df1.start < end]
-        df2 = df2[df2.start < end]
+    df1 = query_labeled(df1, filename=filename, start=start, end=end)
+    df2 = query_labeled(df2, filename=filename, label=label, start=start, end=end)
 
     indices = list(set([x[:-1] for x in df2.index.tolist()]))
     df1 = df1.loc[indices].sort_index()

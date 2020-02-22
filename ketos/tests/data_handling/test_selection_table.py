@@ -266,6 +266,28 @@ def test_create_rndm_backgr_files_missing_duration(annot_table_std, file_duratio
     dur = file_duration_table.drop(0) 
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=11)
 
+def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration_table):
+    """ Check that random selections have no overlap"""
+    np.random.seed(1)
+    df, _ = st.standardize(annot_table_std)
+    dur = file_duration_table 
+    num = 30
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    num_overlap = 0
+    for idx,row in df_bgr.iterrows():
+        q = st.query(df_bgr, filename=idx[0], start=row['start'], end=row['end'])
+        num_overlap += len(q) - 1
+    
+    assert num_overlap > 0
+
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num, no_overlap=True)
+    num_overlap = 0
+    for idx,row in df_bgr.iterrows():
+        q = st.query(df_bgr, filename=idx[0], start=row['start'], end=row['end'])
+        num_overlap += len(q) - 1
+    
+    assert num_overlap == 0
+
 def test_complement(annot_table_std, file_duration_table):
     df, _ = st.standardize(annot_table_std)
     dur = file_duration_table
@@ -322,10 +344,10 @@ def test_query_labeled(annot_table_std):
     assert len(q) == 0
     # query for 1 file
     q = st.query_labeled(df, filename='f1.wav')
-    d = '''sel_id label  start   end                   
-0           4   2.15  3.15
-1           2   5.15  6.15'''
-    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    d = '''filename sel_id label  start   end                   
+f1.wav  0           4   2.15  3.15
+f1.wav  1           2   5.15  6.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(q, ans[q.columns.values])
     # query for 1 file, and 1 that does not exist
     q = st.query_labeled(df, filename=['f1.wav','fff.wav'])
