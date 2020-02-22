@@ -651,6 +651,8 @@ def complement(annotations, files):
         The annotation table must conform to the standard Ketos format and 
         contain call-level annotations, see :func:`data_handling.selection_table.standardize`.
 
+        Note: the current implementation is rather slow due to :func:`utils.complement_intervals`.
+
         Args:
             annotations: pandas DataFrame
                 Annotation table.
@@ -789,36 +791,39 @@ def create_rndm_backgr_selections(annotations, files, length, num, trim_table=Fa
                       1        8.47  11.47      0
                       2        8.58  11.58      0
     """
-    # create complement
-    c = complement(annotations=annotations, files=files)
-
-    # reset index
-    c = c.reset_index()
-
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['end'] - c['start'] - length
+    c = files['filename']
+    c = c.reset_index()
+    c['length'] = files['duration'] - length
     c = c[c['length'] >= 0]
 
     # cumulative length 
     cs = c['length'].cumsum().values.astype(float)
-    len_tot = cs[-1]
     cs = np.concatenate(([0],cs))
 
     # output
     filename, start, end = [], [], []
 
     # randomply sample
-    df = None
-    times = np.random.random_sample(num) * len_tot
-    for t in times:
-        idx = np.argmax(t < cs) - 1
-        row = c.iloc[idx]
-        t1 = row['start'] + t - cs[idx]
-        x = {'start':t1, 'end':t1+length}
-        y = files[files['filename']==row['filename']].iloc[0].to_dict()
-        z = {**x, **y}
-        if df is None: df = pd.DataFrame(z, index=pd.Index([0]))
-        else:          df = df.append(z, ignore_index=True)
+    df = pd.DataFrame()
+    while (len(df) < num):
+        times = np.random.random_sample(num) * cs[-1]
+        for t in times:
+            idx = np.argmax(t < cs) - 1
+            row = c.iloc[idx]
+            fname = row['filename']
+            start = t - cs[idx]
+            end   = start + length
+
+            q = query(annotations, filename=fname, start=start, end=end)
+            if len(q) > 0: continue
+
+            x = {'start':start, 'end':end}
+            y = files[files['filename']==fname].iloc[0].to_dict()
+            z = {**x, **y}
+            df = df.append(z, ignore_index=True)
+
+            if len(df) == num: break
 
     # sort by filename and offset
     df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
@@ -1044,7 +1049,7 @@ def segment_annotations(table, num, length, step=None):
     df = df.sort_index()
     return df
 
-def query(selections, annotations=None, filename=None, label=None):
+def query(selections, annotations=None, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1064,11 +1069,11 @@ def query(selections, annotations=None, filename=None, label=None):
             annotation table is provided.
     """
     if annotations is None:
-        return query_labeled_selections(selections, filename, label)
+        return query_labeled(selections, filename, label, start, end)
     else:
-        return query_annotated_selections(selections, annotations, filename, label)
+        return query_annotated(selections, annotations, filename, label, start, end)
 
-def query_labeled(table, filename=None, label=None):
+def query_labeled(table, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1085,18 +1090,25 @@ def query_labeled(table, filename=None, label=None):
             Selection table
     """
     df = table
-    if filename:
-        df = df.loc[filename]
+    if filename is not None:
+        if isinstance(filename, str) and filename not in df.index:   df = df.iloc[0:0]
+        else: df = df.loc[filename]
 
-    if label:
+    if label is not None:
         if not isinstance(label, list):
             label = [label]
 
         df = df[df.label.isin(label)]
 
+    if start is not None:
+        df = df[df.end > start]
+
+    if end is not None:
+        df = df[df.start < end]
+
     return df
 
-def query_annotated(selections, annotations, filename=None, label=None):
+def query_annotated(selections, annotations, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1117,16 +1129,28 @@ def query_annotated(selections, annotations, filename=None, label=None):
     df1 = selections
     df2 = annotations
 
-    if filename:
-        df1 = df1.loc[filename]
-        df2 = df2.loc[filename]
+    if filename is not None:
+        if isinstance(filename, str) and filename not in df1.index:   df1 = df1.iloc[0:0]
+        elif isinstance(filename, str) and filename not in df2.index: df2 = df2.iloc[0:0]
+        else:
+            df1 = df1.loc[filename]
+            df2 = df2.loc[filename]
 
-    if label:
+    if label is not None:
         if not isinstance(label, list):
             label = [label]
 
         df2 = df2[df2.label.isin(label)]
-        indices = list(set([x[:-1] for x in df2.index.tolist()]))
-        df1 = df1.loc[indices].sort_index()
+
+    if start is not None:
+        df1 = df1[df1.end > start]
+        df2 = df2[df2.end > start]
+
+    if end is not None:
+        df1 = df1[df1.start < end]
+        df2 = df2[df2.start < end]
+
+    indices = list(set([x[:-1] for x in df2.index.tolist()]))
+    df1 = df1.loc[indices].sort_index()
 
     return df1, df2

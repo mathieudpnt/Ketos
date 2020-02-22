@@ -317,12 +317,22 @@ f2.wav   2      1             1         0.0        0.3'''
 def test_query_labeled(annot_table_std):
     df, d = st.standardize(annot_table_std)
     df = st.select(df, length=1, center=True)
+    # query for file that does not exist
+    q = st.query_labeled(df, filename='fff.wav')
+    assert len(q) == 0
     # query for 1 file
     q = st.query_labeled(df, filename='f1.wav')
     d = '''sel_id label  start   end                   
 0           4   2.15  3.15
 1           2   5.15  6.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    pd.testing.assert_frame_equal(q, ans[q.columns.values])
+    # query for 1 file, and 1 that does not exist
+    q = st.query_labeled(df, filename=['f1.wav','fff.wav'])
+    d = '''filename sel_id label  start   end                   
+f1.wav   0           4   2.15  3.15
+f1.wav   1           2   5.15  6.15'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(q, ans[q.columns.values])
     # query for 2 files
     q = st.query_labeled(df, filename=['f1.wav','f2.wav'])
@@ -341,6 +351,9 @@ f1.wav   1           2   5.15  6.15
 f2.wav   0           5   3.15  4.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(q, ans[q.columns.values])
+    # query for label that does not exist
+    q = st.query_labeled(df, label=99)
+    assert len(q) == 0
 
 def test_query_annotated(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
