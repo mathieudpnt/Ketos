@@ -29,8 +29,9 @@
 import pytest
 import numpy as np
 import pandas as pd
+from io import StringIO
 from ketos.audio.audio_loader import AudioSequenceLoader, AudioSelectionLoader
-from ketos.data_handling.selection_table import use_multi_indexing
+from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 
 def test_init_audio_seq_loader_with_folder(five_time_stamped_wave_files):
@@ -137,3 +138,33 @@ def test_audio_select_loader_mag(five_time_stamped_wave_files):
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
+
+def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        while including annotation data""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    files = find_wave_files(path=five_time_stamped_wave_files, fullpath=False, subdirs=True)
+    # create a selection table
+    sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # create a annotation table
+    ann = pd.DataFrame({'filename':[files[0],files[0],files[1]],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
+    ann, _ = standardize(ann)
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
+    assert len(loader.files) == 5
+    s = next(loader)
+    assert s.duration() == pytest.approx(0.36, abs=1e-6)
+    d = '''label  start   end  freq_min  freq_max
+0      1    0.0  0.20       NaN       NaN
+1      3    0.0  0.06       NaN       NaN'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    res = s.get_annotations()[ans.columns.values]
+    pd.testing.assert_frame_equal(ans, res)
+    s = next(loader)
+    assert s.duration() == pytest.approx(0.30, abs=1e-6)
+    d = '''label  start  end  freq_min  freq_max
+0      2   0.08  0.3       NaN       NaN'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    res = s.get_annotations()[ans.columns.values]
+    pd.testing.assert_frame_equal(ans, res)

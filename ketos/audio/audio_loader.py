@@ -40,6 +40,7 @@ import librosa
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
+from ketos.data_handling.selection_table import query
 
 class AudioLoader():
     """ Base class for AudioSelectionLoader and AudioSequenceLoader.
@@ -112,11 +113,22 @@ class AudioLoader():
                     Full path to wav file.
         
             Returns: 
-                : BaseAudio
+                seg: BaseAudio
                     Audio segment
         """
-        return eval(self.typ).from_wav(path=path, channel=self.channel, offset=offset, 
+        # load audio
+        seg = eval(self.typ).from_wav(path=path, channel=self.channel, offset=offset, 
             duration=duration, **self.cfg)
+    
+        # add annotations
+        if self.annot is not None:
+            q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
+            if len(q) > 0:
+                q['start'] = np.maximum(0, q['start'].values - offset)
+                q['end']   = np.minimum(q['end'].values - offset, seg.duration())
+                seg.annotate(df=q)             
+
+        return seg
 
     def _next_segment():
         """ Returns offset, duration, and filename of the next segment.
