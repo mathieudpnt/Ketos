@@ -39,6 +39,31 @@
     The user may add any number of additional columns.
     Note that the table uses two levels of indices, the first index being the 
     filename and the second index an annotation identifier. 
+
+    
+    Here is a minimum example:
+
+                                 label
+            filename  annot_id                    
+            file1.wav 0          2
+                      1          1
+                      2          2
+            file2.wav 0          2
+                      1          2
+                      2          1
+
+
+    And here is a table with time information (call-level annotations) and a few extra columns ('min_freq', 'max_freq' and 'file_time_stamp')
+
+                                 start   end  label  min_freq  max_freq  file_time_stamp
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2    180.6     294.3    2019-02-24 13:15:00
+                      1           8.5  12.5      1    174.2     258.7    2019-02-24 13:15:00
+                      2          13.1  14.0      2    183.4     292.3    2019-02-24 13:15:00
+            file2.wav 0           2.2   3.1      2    148.8     286.6    2019-02-24 13:30:00
+                      1           5.8   6.8      2    156.6     278.3    2019-02-24 13:30:00
+                      2           9.0  13.0      1    178.2     304.5    2019-02-24 13:30:00
+    
 """
 
 import os
