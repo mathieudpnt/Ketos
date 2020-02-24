@@ -495,6 +495,8 @@ def str_is_int(s, signed=True):
 def complement_intervals(a, b):
     """ Compute the complement of multiple of intervals.
 
+        Note that the current implementation is rather slow.
+
         Args:
             a: list 
                 Set with respect to which the complement is computed, e.g. [0., 100.]

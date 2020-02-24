@@ -651,6 +651,8 @@ def complement(annotations, files):
         The annotation table must conform to the standard Ketos format and 
         contain call-level annotations, see :func:`data_handling.selection_table.standardize`.
 
+        Note: the current implementation is rather slow due to :func:`utils.complement_intervals`.
+
         Args:
             annotations: pandas DataFrame
                 Annotation table.
@@ -712,7 +714,7 @@ def complement(annotations, files):
 
     return df_out
 
-def create_rndm_backgr_selections(annotations, files, length, num):
+def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -721,6 +723,9 @@ def create_rndm_backgr_selections(annotations, files, length, num):
         selections will overlap, although in practice this will only occur with very 
         small probability, unless the number of requested selections (num) is very 
         large and/or the (annotation-free part of) the data set is small in size.
+
+        To avoid any overlap, set the 'no_overlap' to True, but note that this can 
+        lead to longer execution times.
 
         Args:
             annotations: pandas DataFrame
@@ -732,6 +737,10 @@ def create_rndm_backgr_selections(annotations, files, length, num):
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
+            no_overlap: bool
+                If True, randomly selected segments will have no overlap.
+            trim_table: bool
+                Keep only the columns prescribed by the Ketos annotation format.
 
         Returns:
             table_backgr: pandas DataFrame
@@ -769,64 +778,77 @@ def create_rndm_backgr_selections(annotations, files, length, num):
                       2           9.0  13.0      1
             >>>
             >>> #Enter file durations into a pandas DataFrame
-            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[30.,20.,15.]})
+            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[18.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=10) 
+            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=12, trim_table=True) 
             >>> print(df_bgr.round(2))
-                              start    end
-            filename  sel_id              
-            file1.wav 0        1.70   4.70
-                      1       14.14  17.14
-                      2       16.84  19.84
-                      3       19.60  22.60
-                      4       24.55  27.55
-                      5       26.86  29.86
-            file2.wav 0       14.18  17.18
-            file3.wav 0        2.37   5.37
-                      1        8.47  11.47
-                      2        8.58  11.58
+                              start    end  label
+            filename  sel_id                     
+            file1.wav 0        1.06   4.06      0
+                      1        1.31   4.31      0
+                      2        2.26   5.26      0
+            file2.wav 0       13.56  16.56      0
+                      1       14.76  17.76      0
+                      2       15.50  18.50      0
+                      3       16.16  19.16      0
+            file3.wav 0        2.33   5.33      0
+                      1        7.29  10.29      0
+                      2        7.44  10.44      0
+                      3        9.20  12.20      0
+                      4       10.94  13.94      0
     """
-    # create complement
-    c = complement(annotations=annotations, files=files)
-
-    # reset index
-    c = c.reset_index()
-
     # compute lengths, and discard segments shorter than requested length
-    c['length'] = c['end'] - c['start'] - length
+    c = files['filename']
+    c = c.reset_index()
+    c['length'] = files['duration'] - length
     c = c[c['length'] >= 0]
 
     # cumulative length 
     cs = c['length'].cumsum().values.astype(float)
-    len_tot = cs[-1]
     cs = np.concatenate(([0],cs))
 
     # output
     filename, start, end = [], [], []
 
     # randomply sample
-    times = np.random.random_sample(num) * len_tot
-    for t in times:
-        idx = np.argmax(t < cs) - 1
-        row = c.iloc[idx]
-        filename.append(row['filename'])
-        t1 = row['start'] + t - cs[idx]
-        start.append(t1)
-        end.append(t1 + length)
+    df = pd.DataFrame()
+    while (len(df) < num):
+        times = np.random.random_sample(num) * cs[-1]
+        for t in times:
+            idx = np.argmax(t < cs) - 1
+            row = c.iloc[idx]
+            fname = row['filename']
+            start = t - cs[idx]
+            end   = start + length
 
-    # ensure that type is float
-    start = np.array(start, dtype=float)
-    end = np.array(end, dtype=float)
+            q = query(annotations, filename=fname, start=start, end=end)
+            if len(q) > 0: continue
 
-    # fill DataFrame
-    df = pd.DataFrame({'filename':filename, 'start':start, 'end':end})    
+            if no_overlap and len(df) > 0:
+                q = query(df.set_index(df.filename), filename=fname, start=start, end=end)
+                if len(q) > 0: continue
+
+            x = {'start':start, 'end':end}
+            y = files[files['filename']==fname].iloc[0].to_dict()
+            z = {**x, **y}
+            df = df.append(z, ignore_index=True)
+
+            if len(df) == num: break
 
     # sort by filename and offset
     df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
     # re-order columns
-    df = df[['filename','start','end']]
+    col_names = ['filename','start','end']
+    if not trim_table:
+        names = df.columns.values.tolist()
+        for name in col_names: names.remove(name)
+        col_names += names
+
+    df = df[col_names]
+
+    df['label'] = 0 #add label
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'sel_id')
@@ -1038,7 +1060,7 @@ def segment_annotations(table, num, length, step=None):
     df = df.sort_index()
     return df
 
-def query(selections, annotations=None, filename=None, label=None):
+def query(selections, annotations=None, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1051,6 +1073,10 @@ def query(selections, annotations=None, filename=None, label=None):
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             : pandas DataFrame or tuple(pandas DataFrame, pandas DataFrame)
@@ -1058,11 +1084,11 @@ def query(selections, annotations=None, filename=None, label=None):
             annotation table is provided.
     """
     if annotations is None:
-        return query_labeled_selections(selections, filename, label)
+        return query_labeled(selections, filename, label, start, end)
     else:
-        return query_annotated_selections(selections, annotations, filename, label)
+        return query_annotated(selections, annotations, filename, label, start, end)
 
-def query_labeled(table, filename=None, label=None):
+def query_labeled(table, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1073,24 +1099,38 @@ def query_labeled(table, filename=None, label=None):
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             df: pandas DataFrame
             Selection table
     """
     df = table
-    if filename:
+    if filename is not None:
+        if isinstance(filename, str):
+            if filename not in df.index: return df.iloc[0:0]
+            else: filename = [filename]
+        
         df = df.loc[filename]
 
-    if label:
+    if label is not None:
         if not isinstance(label, list):
             label = [label]
 
         df = df[df.label.isin(label)]
 
+    if start is not None:
+        df = df[df.end > start]
+
+    if end is not None:
+        df = df[df.start < end]
+
     return df
 
-def query_annotated(selections, annotations, filename=None, label=None):
+def query_annotated(selections, annotations, filename=None, label=None, start=None, end=None):
     """ Query selection table for selections from certain audio files 
         and/or with certain labels.
 
@@ -1103,24 +1143,22 @@ def query_annotated(selections, annotations, filename=None, label=None):
                 Filename(s)
             label: int or list(int)
                 Label(s)
+            start: float
+                Earliest end time in seconds
+            end: float
+                Latest start time in seconds
 
         Returns:
             df1,df2: tuple(pandas DataFrame, pandas DataFrame)
-            Selection table and annotation table
+                Selection table and annotation table
     """
     df1 = selections
     df2 = annotations
 
-    if filename:
-        df1 = df1.loc[filename]
-        df2 = df2.loc[filename]
+    df1 = query_labeled(df1, filename=filename, start=start, end=end)
+    df2 = query_labeled(df2, filename=filename, label=label, start=start, end=end)
 
-    if label:
-        if not isinstance(label, list):
-            label = [label]
-
-        df2 = df2[df2.label.isin(label)]
-        indices = list(set([x[:-1] for x in df2.index.tolist()]))
-        df1 = df1.loc[indices].sort_index()
+    indices = list(set([x[:-1] for x in df2.index.tolist()]))
+    df1 = df1.loc[indices].sort_index()
 
     return df1, df2
