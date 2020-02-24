@@ -42,14 +42,133 @@ from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
 
-class AudioLoader():
-    """ Base class for AudioSelectionLoader and AudioSequenceLoader.
+class SelectionGenerator():
+    """ Template class for selection generators.
+    """
+    def __iter__(self):
+        return self
 
-        TODO: Add annotations to created Waveform/Spectrogram objects
+    def __next__(self):
+        """ Returns offset, duration, and file path for the next audio selection.
+        
+            Must be implemented in child class.
+
+            Returns:
+                : float
+                    Start time of the segment in seconds, measured from the 
+                    beginning of the file.
+                : float
+                    Duration of segment in seconds.
+                : str
+                    Full path to wav file.
+        """
+        pass
+
+class SelectionTableIterator(SelectionGenerator):
+    """ Iterates over entries in a selection table.
+
+        Args: 
+            data_dir: str
+                Path to folder containing *.wav files.
+            selection_table: pandas DataFrame
+                Selection table
+    """
+    def __init__(self, data_dir, selection_table):
+        self.sel = selection_table
+        self.dir = data_dir
+        self.row_id = 0
+
+    def __next__(self):
+        """ Returns offset, duration, and file path for the next audio selection.
+        
+            Returns:
+                offset: float
+                    Start time of the segment in seconds, measured from the 
+                    beginning of the file.
+                duration: float
+                    Duration of segment in seconds.
+                path: str
+                    Full path to wav file.
+        """
+        filename = self.sel.index.values[self.row_id][0]
+        path = os.path.join(self.dir, filename)
+        s = self.sel.iloc[self.row_id]
+        offset   = s['start']
+        duration = s['end'] - s['start']
+        self.row_id = (self.row_id + 1) % len(self.sel)
+        return offset, duration, path
+
+class FrameStepper(SelectionGenerator):
+    """ Generates selections with uniform duration 'frame', with successive selections 
+        displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
+        to 'frame'.)
+
+        Args: 
+            path: str
+                Path to folder containing *.wav files, or path to a single *.wav file
+            frame: float
+                Frame length in seconds.
+            step: float
+                Separation between consecutive frames in seconds. If None, the step size 
+                equals the frame length.
+    """
+    def __init__(self, path, frame, step=None):
+        self.frame = frame
+        if step is None: self.step = frame
+        else: self.step = step
+
+        # get all wav files in the folder, including subfolders
+        ext = os.path.splitext(path)[1].lower()
+        if ext == '.wav':
+            assert os.path.exists(path), '{0} could not find {1}'.format(self.__class__.__name__, path)
+            self.files = [path]
+        else:
+            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+            assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
+
+        self.file_id = -1
+        self._next_file()
+
+    def __next__(self):
+        """ Returns offset, duration, and file path for the next audio selection.
+        
+            Returns:
+                offset: float
+                    Start time of the segment in seconds, measured from the 
+                    beginning of the file.
+                duration: float
+                    Duration of segment in seconds.
+                path: str
+                    Full path to wav file.
+        """
+        offset = self.time
+        path   = self.files[self.file_id]
+        self.time += self.step #increment time       
+        self.seg_id += 1 #increment segment ID
+        if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
+        return offset, self.frame, path
+
+    def _next_file(self):
+        """ Jump to next file. 
+        """
+        self.file_id = (self.file_id + 1) % len(self.files) #increment file ID
+        file_duration = librosa.get_duration(filename=self.files[self.file_id]) #file duration
+        self.num_segs = int(np.ceil((file_duration - self.frame) / self.step)) + 1  #number of segments
+        self.seg_id = 0 #reset
+        self.time = 0 #reset
+
+class AudioLoader():
+    """ Class for loading segments of audio data from *.wav files. 
+
+        Several representations of the audio data are possible, including 
+        waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
+        and CQT spectrogram.
 
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
+            selection_gen: SelectionGenerator
+                Selection generator
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
@@ -67,25 +186,14 @@ class AudioLoader():
                     * CQTSpectrogram:
                         step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
     """
-    def __init__(self, path, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, path, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
         repres = copy.deepcopy(repres)
         self.channel = channel
         self.typ = repres.pop('type')
         self.cfg = repres
+        self.sel_gen = selection_gen
         self.annot = annotations
-
-        # get all wav files in the folder, including subfolders
-        ext = os.path.splitext(path)[1].lower()
-        if ext == '.wav':
-            assert os.path.exists(path), '{0} could not find {1}'.format(self.__class__.__name__, path)
-            self.files = [path]
-        else:
-            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
-            assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
-
-        # create map: filename -> full path
-        self.path_dict = {os.path.basename(f) : f for f in self.files}
 
     def __iter__(self):
         return self
@@ -97,8 +205,8 @@ class AudioLoader():
                 seg: Waveform or Spectrogram
                     Next segment
         """
-        offset, duration, fname = self._next_segment()
-        return self.load_segment(offset, duration, fname)
+        offset, duration, path = next(self.sel_gen)
+        return self.load_segment(offset, duration, path)
 
     def load_segment(self, offset, duration, path):
         """ Load audio segment for specified file and time.
@@ -130,42 +238,21 @@ class AudioLoader():
 
         return seg
 
-    def _next_segment():
-        """ Returns offset, duration, and filename of the next segment.
-        
-            Must be implemented in child classes.
-
-            Returns:
-                : float
-                    Start time of the segment in seconds, measured from the 
-                    beginning of the file.
-                : float
-                    Duration of segment in seconds.
-                : str
-                    Full path to wav file.
-        """
-        pass
-
-
-class AudioSequenceLoader(AudioLoader):
+class AudioFrameLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 
 
-        Several representations of the audio data are possible, including 
-        waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
-        and CQT spectrogram.
-
-        Segments of length 'window' will be loaded in chronological order, with 
-        every segment displaced by an amount 'step' relative to the previous 
-        segment. (If 'step' is not specified, it is set equal to 'window'.)
+        Loads segments of uniform duration 'frame', with successive segments
+        displaced by an amount 'step'. (If 'step' is not specified, it is 
+        set equal to 'frame'.)
 
         Args:
             path: str
                 Full path to audio file (*.wav) or folder containing audio files
-            window: float
-                Segment length in seconds.
+            frame: float
+                Segment duration in seconds.
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
-                equals the segment length.
+                equals the segment duration.
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
@@ -173,68 +260,20 @@ class AudioSequenceLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
-                
-                    * Waveform: 
-                        (rate), (resample_method)
-                    
-                    * MagSpectrogram, PowerSpectrogram, MelSpectrogram: 
-                        window, step, (window_func), (rate), (resample_method)
-                    
-                    * CQTSpectrogram:
-                        step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
     """
-    def __init__(self, path, window, step=None, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, path, frame, step=None, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
-        super().__init__(path=path, channel=channel, annotations=annotations, repres=repres)
-
-        self.window = window
-        if step is None: self.step = window
-        else: self.step = step
-
-        self.file_id = -1
-        self._next_file()
-
-    def _next_segment(self):
-        """ Returns start and end times and file name of the next segment.
-        
-            Returns:
-                offset: float
-                    Start time of the segment in seconds, measured from the 
-                    beginning of the file.
-                duration: float
-                    Duration of segment in seconds.
-                path: str
-                    Full path to wav file.
-        """
-        offset = self.time
-        path   = self.files[self.file_id]
-        self.time += self.step #increment time       
-        self.seg_id += 1 #increment segment ID
-        if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
-        return offset, self.window, path
-
-    def _next_file(self):
-        """ Jump to next file. 
-        """
-        self.file_id = (self.file_id + 1) % len(self.files) #increment file ID
-        file_duration = librosa.get_duration(filename=self.files[self.file_id]) #file duration
-        self.num_segs = int(np.ceil((file_duration - self.window) / self.step)) + 1  #number of segments
-        self.seg_id = 0 #reset
-        self.time = 0 #reset
-
+        super().__init__(path=path, selection_gen=FrameStepper(path=path, frame=frame, step=step), 
+            channel=channel, annotations=annotations, repres=repres)
 
 class AudioSelectionLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 
-
-        Several representations of the audio data are possible, including 
-        waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
-        and CQT spectrogram.
 
         The segments to be loaded are specified via a selection table.
 
         Args:
             path: str
-                Full path to audio file (*.wav) or folder containing audio files
+                Path to folder containing *.wav files
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             selections: pandas DataFrame
@@ -244,39 +283,8 @@ class AudioSelectionLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
-                
-                    * Waveform: 
-                        (rate), (resample_method)
-                    
-                    * MagSpectrogram, PowerSpectrogram, MelSpectrogram: 
-                        window, step, (window_func), (rate), (resample_method)
-                    
-                    * CQTSpectrogram:
-                        step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
-        super().__init__(path=path, channel=channel, annotations=annotations, repres=repres)
-
-        self.selec  = selections
-        self.row_id = 0
-
-    def _next_segment(self):
-        """ Returns start and end times and file name of the next segment.
-        
-            Returns:
-                offset: float
-                    Start time of the segment in seconds, measured from the 
-                    beginning of the file.
-                duration: float
-                    Duration of segment in seconds.
-                path: str
-                    Full path to wav file.
-        """
-        fname    = self.selec.index.values[self.row_id][0]
-        path     = self.path_dict[fname]
-        s = self.selec.iloc[self.row_id]
-        offset   = s['start']
-        duration = s['end'] - s['start']
-        self.row_id = (self.row_id + 1) % len(self.selec)
-        return offset, duration, path
+        super().__init__(path=path, selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections), 
+            channel=channel, annotations=annotations, repres=repres)

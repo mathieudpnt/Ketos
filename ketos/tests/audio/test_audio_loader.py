@@ -30,96 +30,96 @@ import pytest
 import numpy as np
 import pandas as pd
 from io import StringIO
-from ketos.audio.audio_loader import AudioSequenceLoader, AudioSelectionLoader
+from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 
 def test_init_audio_seq_loader_with_folder(five_time_stamped_wave_files):
-    """ Test that we can initialize an instance of the AudioSequenceLoader class from a folder"""
-    loader = AudioSequenceLoader(path=five_time_stamped_wave_files, window=0.5)
-    assert len(loader.files) == 5
+    """ Test that we can initialize an instance of the AudioFrameLoader class from a folder"""
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5)
+    assert len(loader.sel_gen.files) == 5
 
 def test_init_audio_seq_loader_with_wav_file(sine_wave_file):
-    """ Test that we can initialize an instance of the AudioSequenceLoader class 
+    """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file"""
-    loader = AudioSequenceLoader(path=sine_wave_file, window=0.5)
-    assert len(loader.files) == 1
+    loader = AudioFrameLoader(path=sine_wave_file, frame=0.5)
+    assert len(loader.sel_gen.files) == 1
 
 def test_audio_seq_loader_mag(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSequenceLoader class to compute MagSpectrograms""" 
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioSequenceLoader(path=five_time_stamped_wave_files, window=0.5, repres=rep)
-    assert len(loader.files) == 5
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
+    assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.5
     s = next(loader)
     assert s.duration() == 0.5
-    assert loader.file_id == 2
+    assert loader.sel_gen.file_id == 2
 
 def test_audio_seq_loader_dur(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSequenceLoader class to compute MagSpectrograms
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
         with durations shorter than file durations""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioSequenceLoader(path=five_time_stamped_wave_files, window=0.2, repres=rep)
-    assert len(loader.files) == 5
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
+    assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
     s = next(loader)
     assert s.duration() == 0.2
     s = next(loader)
     assert s.duration() == 0.2
-    assert loader.file_id == 1
+    assert loader.sel_gen.file_id == 1
 
 def test_audio_seq_loader_overlap(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSequenceLoader class to compute overlapping 
+    """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioSequenceLoader(path=five_time_stamped_wave_files, window=0.2, step=0.06, repres=rep)
-    assert len(loader.files) == 5
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, step=0.06, repres=rep)
+    assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
     s = next(loader)
     assert s.duration() == 0.2
     s = next(loader)
     assert s.duration() == 0.2
-    assert loader.time == pytest.approx(3*0.06, abs=1e-6)
-    assert loader.file_id == 0
+    assert loader.sel_gen.time == pytest.approx(3*0.06, abs=1e-6)
+    assert loader.sel_gen.file_id == 0
 
 def test_audio_seq_loader_uniform_length(five_time_stamped_wave_files):
-    """ Check that the AudioSequenceLoader always returns segments of the same length""" 
+    """ Check that the AudioFrameLoader always returns segments of the same length""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioSequenceLoader(path=five_time_stamped_wave_files, window=0.2, repres=rep)
-    assert len(loader.files) == 5
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
+    assert len(loader.sel_gen.files) == 5
     for _ in range(10):
         s = next(loader)
         assert s.duration() == 0.2
 
 def test_audio_seq_loader_number_of_segments(sine_wave_file):
-    """ Check that the AudioSequenceLoader computes expected number of segments""" 
+    """ Check that the AudioFrameLoader computes expected number of segments""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
     import librosa
     dur = librosa.core.get_duration(filename=sine_wave_file)
     # duration is an integer number of lengths
     l = 0.2
-    loader = AudioSequenceLoader(path=sine_wave_file, window=l, repres=rep)
-    assert len(loader.files) == 1
+    loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
+    assert len(loader.sel_gen.files) == 1
     N = int(dur / l)
-    assert N == loader.num_segs
+    assert N == loader.sel_gen.num_segs
     # duration is *not* an integer number of lengths
     l = 0.21
-    loader = AudioSequenceLoader(path=sine_wave_file, window=l, repres=rep)
+    loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
     N = int(np.ceil(dur / l))
-    assert N == loader.num_segs
+    assert N == loader.sel_gen.num_segs
     # loop over all segments
     for _ in range(N):
         _ = next(loader)
     # non-zero overlap
     l = 0.21
     o = 0.8*l
-    loader = AudioSequenceLoader(path=sine_wave_file, window=l, step=l-o, repres=rep)
+    loader = AudioFrameLoader(path=sine_wave_file, frame=l, step=l-o, repres=rep)
     step = l - o
     N = int(np.ceil((dur-l) / step) + 1)
-    assert N == loader.num_segs
+    assert N == loader.sel_gen.num_segs
     # loop over all segments
     for _ in range(N):
         _ = next(loader)
@@ -133,7 +133,6 @@ def test_audio_select_loader_mag(five_time_stamped_wave_files):
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
-    assert len(loader.files) == 5
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     s = next(loader)
@@ -152,7 +151,6 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     ann, _ = standardize(ann)
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
-    assert len(loader.files) == 5
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     d = '''label  start   end  freq_min  freq_max
