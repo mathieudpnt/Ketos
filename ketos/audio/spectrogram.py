@@ -1335,16 +1335,20 @@ class CQTSpectrogram(Spectrogram):
                         * hanning
 
             Returns:
-                : CQTSpectrogram
+                spec: CQTSpectrogram
                     CQT spectrogram
         """
         # compute CQT
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
-        return cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
+        spec = cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
             window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
+
+        spec.crop(freq_min=freq_min, freq_max=freq_max)
+
+        return spec
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
