@@ -101,7 +101,7 @@ class SelectionTableIterator(SelectionGenerator):
         s = self.sel.iloc[self.row_id]
         offset   = s['start']
         duration = s['end'] - s['start']
-        if 'label' in self.sel.index.values: label = s['label']
+        if 'label' in self.sel.columns.values: label = s['label']
         else: label = None
         self.row_id = (self.row_id + 1) % len(self.sel)
         return offset, duration, path, label
@@ -242,7 +242,7 @@ class AudioLoader():
         # add annotations
         if label is not None:
             seg.label = label
-            
+
         if self.annot is not None:
             q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
             if len(q) > 0:

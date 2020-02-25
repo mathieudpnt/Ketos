@@ -138,6 +138,22 @@ def test_audio_select_loader_mag(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
 
+def test_audio_select_loader_with_labels(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with labels""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, fullpath=False, subdirs=True)
+    sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42],'label':[3,5]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    s = next(loader)
+    assert s.duration() == pytest.approx(0.36, abs=1e-6)
+    assert s.label == 3
+    s = next(loader)
+    assert s.duration() == pytest.approx(0.30, abs=1e-6)
+    assert s.label == 5
+
 def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
         while including annotation data""" 
