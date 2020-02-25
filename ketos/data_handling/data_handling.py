@@ -41,7 +41,6 @@ from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
-from ketos.data_handling.parsing import SpectrogramConfiguration
 import soundfile
 
 
