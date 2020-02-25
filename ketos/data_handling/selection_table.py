@@ -42,9 +42,11 @@
 """
 
 import os
+import librosa
 import numpy as np
 import pandas as pd
-from ketos.utils import str_is_int, complement_intervals
+from ketos.utils import str_is_int
+from ketos.data_handling.data_handling import find_wave_files
 
 
 def unfold(table, sep=','):
@@ -644,75 +646,24 @@ def time_shift(annot, time_ref, length, step, min_overlap):
 
     return df
 
-def complement(annotations, files):
-    """ Create a table listing all segments that have not been annotated (label 0,1,2,3,...) 
-        or discarded (label -1).
-
-        The annotation table must conform to the standard Ketos format and 
-        contain call-level annotations, see :func:`data_handling.selection_table.standardize`.
-
-        Note: the current implementation is rather slow due to :func:`utils.complement_intervals`.
+def file_duration_table(path, subdirs=False):
+    """ Create file duration table.
 
         Args:
-            annotations: pandas DataFrame
-                Annotation table.
-            files: pandas DataFrame
-                Table with file durations in seconds. 
-                Should contain columns named 'filename' and 'duration'.
+            path: str
+                Path to folder with audio files (*.wav)
+            subdirs: bool
+                If True, search include also any audio files in subdirectories.
+                Default is False.
 
-        Results:
-            table_compl: pandas DataFrame
-                Output table.
-
-        Example:
-            >>> import pandas as pd
-            >>> from ketos.data_handling.selection_table import complement, standardize
-            >>> #Create annotation table and standardize
-            >>> df = pd.DataFrame({'filename':['file1.wav', 'file1.wav'], 'label':[1, 2], 'start':[2.0, 7.5], 'end':[3.1, 9.0]})
-            >>> df, label_dict = standardize(df)
-            >>> #Create file duration table
-            >>> dur = pd.DataFrame({'filename':['file1.wav', 'file2.wav', 'file3.wav'], 'duration':[10.0, 20.0, 15.0]})
-            >>> #Create complement table
-            >>> df_c = complement(df, dur)
-            >>> print(df_c.round(2))
-                                start   end
-            filename  annot_id             
-            file1.wav 0           0.0   2.0
-                      1           3.1   7.5
-                      2           9.0  10.0
-            file2.wav 0           0.0  20.0
-            file3.wav 0           0.0  15.0
-    """   
-    df = annotations
-
-    filename, start, end = [], [], []
-
-    for _, ri in files.iterrows():
-        fname = ri['filename']
-        dur = ri['duration']
-        if fname in df.index:
-            dfi = df.loc[fname]
-            intervals = dfi[['start','end']].values.tolist()
-            c = complement_intervals([0, dur], intervals)
-        else:
-            c = [[0, dur]]
-
-        for x in c:
-            filename.append(fname)
-            start.append(x[0])
-            end.append(x[1])
-
-    # ensure that type is float
-    start = np.array(start, dtype=float)
-    end = np.array(end, dtype=float)
-
-    # fill output DataFrame
-    df_out = pd.DataFrame({'filename':filename, 'start':start, 'end':end})
-
-    # use multi-indexing  
-    df_out = use_multi_indexing(df_out, 'annot_id')
-
-    return df_out
+        Returns:
+            df: pandas DataFrame
+                File duration table. Columns: filename, duration
+    """
+    paths = find_wave_files(path=path, fullpath=True, subdirs=subdirs)
+    durations = [librosa.get_duration(filename=p) for p in paths]
+    filenames = [os.path.basename(p) for p in paths]
+    return pd.DataFrame({'filename':filenames, 'duration':durations})
 
 def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 

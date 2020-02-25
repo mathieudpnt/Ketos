@@ -231,20 +231,17 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
     num = 5
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == num
-    df_c = st.complement(df, dur)
     # assert selections have uniform length
     assert np.all(df_bgr.end.values - df_bgr.start.values == 2.0)
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 0)
-    # assert selections are within complement
+    # assert selections do not overlap with any annotations
     for bgr_idx, bgr_sel in df_bgr.iterrows():
         start_bgr = bgr_sel.start
         end_bgr = bgr_sel.end
         fname = bgr_idx[0]
-        df = df_c.loc[fname,:]
-        start_c = df.start.values
-        end_c = df.end.values
-        assert np.any(np.logical_and(start_bgr >= start_c, end_bgr <= end_c))
+        q = query(df, start=start_bgr, end=end_bgr, filename=fname)
+        assert len(q) == 0
 
 def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table):
     """ Check that the random background selection creation method keeps 
@@ -287,22 +284,6 @@ def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration
         num_overlap += len(q) - 1
     
     assert num_overlap == 0
-
-def test_complement(annot_table_std, file_duration_table):
-    df, _ = st.standardize(annot_table_std)
-    dur = file_duration_table
-    res = st.complement(df, dur)
-    d = '''filename annot_id  start   end
-f0.wav   0           6.3  30.0
-f1.wav   0           0.0   1.0
-f1.wav   1           7.3  31.0
-f2.wav   0           0.0   2.0
-f2.wav   1           8.3  32.0
-f3.wav   0           0.0  33.0
-f4.wav   0           0.0  34.0
-f5.wav   0           0.0  35.0'''
-    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
-    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 def test_select_by_segmenting(annot_table_std, file_duration_table):
     a, _ = st.standardize(annot_table_std)
@@ -399,3 +380,15 @@ f1.wav   1      0             4    0.0  0.3
 f1.wav   1      1             2    0.0  3.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
     pd.testing.assert_frame_equal(q2, ans[q2.columns.values])
+
+def test_file_duration_table(five_time_stamped_wave_files):
+    """ Test that we can generate a file duration table""" 
+    df = st.file_duration_table(five_time_stamped_wave_files)
+    d = '''filename,duration
+empty_HMS_12_ 5_ 0__DMY_23_ 2_84.wav,0.5
+empty_HMS_12_ 5_ 1__DMY_23_ 2_84.wav,0.5
+empty_HMS_12_ 5_ 2__DMY_23_ 2_84.wav,0.5
+empty_HMS_12_ 5_ 3__DMY_23_ 2_84.wav,0.5
+empty_HMS_12_ 5_ 4__DMY_23_ 2_84.wav,0.5'''
+    ans = pd.read_csv(StringIO(d))
+    pd.testing.assert_frame_equal(df, ans[df.columns.values])
