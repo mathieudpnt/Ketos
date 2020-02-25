@@ -240,7 +240,7 @@ def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
         start_bgr = bgr_sel.start
         end_bgr = bgr_sel.end
         fname = bgr_idx[0]
-        q = query(df, start=start_bgr, end=end_bgr, filename=fname)
+        q = st.query(df, start=start_bgr, end=end_bgr, filename=fname)
         assert len(q) == 0
 
 def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table):
