@@ -30,21 +30,12 @@ import pytest
 import json
 import ketos.data_handling.parsing as jp
 
-@pytest.fixture
-def spectr_settings():
-    j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
-        "window": "0.1 s", "step": "0.025 s", "bins_per_oct": "32",\
-        "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
-        "duration": "1.0s", "resample_method": "scipy"}}'
-    return j
-
-def test_parse_spectr_settings(spectr_settings):
+def test_parse_audio_representation(spectr_settings):
     data = json.loads(spectr_settings)
     d = jp.parse_audio_representation(data['spectrogram'])
     assert d['rate'] == 20000
     assert d['window'] == 0.1
     assert d['step'] == 0.025
-    assert d['bins_per_oct'] == 32
     assert d['window_func'] == 'hamming'
     assert d['freq_min'] == 30
     assert d['freq_max'] == 3000

@@ -27,25 +27,27 @@
 """ Unit tests for the 'audio.audio_loader' module within the ketos library
 """
 import pytest
+import json
 import numpy as np
 import pandas as pd
 from io import StringIO
 from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
+from ketos.data_handling.parsing import parse_audio_representation
 
-def test_init_audio_seq_loader_with_folder(five_time_stamped_wave_files):
+def test_init_audio_frame_loader_with_folder(five_time_stamped_wave_files):
     """ Test that we can initialize an instance of the AudioFrameLoader class from a folder"""
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5)
     assert len(loader.sel_gen.files) == 5
 
-def test_init_audio_seq_loader_with_wav_file(sine_wave_file):
+def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file"""
     loader = AudioFrameLoader(path=sine_wave_file, frame=0.5)
     assert len(loader.sel_gen.files) == 1
 
-def test_audio_seq_loader_mag(five_time_stamped_wave_files):
+def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
@@ -56,7 +58,7 @@ def test_audio_seq_loader_mag(five_time_stamped_wave_files):
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
 
-def test_audio_seq_loader_dur(five_time_stamped_wave_files):
+def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
         with durations shorter than file durations""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
@@ -70,7 +72,7 @@ def test_audio_seq_loader_dur(five_time_stamped_wave_files):
     assert s.duration() == 0.2
     assert loader.sel_gen.file_id == 1
 
-def test_audio_seq_loader_overlap(five_time_stamped_wave_files):
+def test_audio_frame_loader_overlap(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
@@ -85,7 +87,7 @@ def test_audio_seq_loader_overlap(five_time_stamped_wave_files):
     assert loader.sel_gen.time == pytest.approx(3*0.06, abs=1e-6)
     assert loader.sel_gen.file_id == 0
 
-def test_audio_seq_loader_uniform_length(five_time_stamped_wave_files):
+def test_audio_frame_loader_uniform_length(five_time_stamped_wave_files):
     """ Check that the AudioFrameLoader always returns segments of the same length""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
@@ -94,7 +96,7 @@ def test_audio_seq_loader_uniform_length(five_time_stamped_wave_files):
         s = next(loader)
         assert s.duration() == 0.2
 
-def test_audio_seq_loader_number_of_segments(sine_wave_file):
+def test_audio_frame_loader_number_of_segments(sine_wave_file):
     """ Check that the AudioFrameLoader computes expected number of segments""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
     import librosa
@@ -182,3 +184,15 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
+
+def test_audio_frame_loader_mag_json(five_time_stamped_wave_files, spectr_settings):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms from json settings""" 
+    data = json.loads(spectr_settings)
+    rep = parse_audio_representation(data['spectrogram'])
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
+    assert len(loader.sel_gen.files) == 5
+    s = next(loader)
+    assert s.duration() == 0.5
+    s = next(loader)
+    assert s.duration() == 0.5
+    assert loader.sel_gen.file_id == 2

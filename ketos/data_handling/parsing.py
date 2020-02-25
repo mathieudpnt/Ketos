@@ -82,20 +82,23 @@ def parse_audio_representation(s):
             d: dict
                 Dictionary with the settings
     """
-    rep_type        = parse_value(s, 'type', typ='str')
-    rate            = parse_value(s, 'rate', unit='Hz')
-    window          = parse_value(s, 'window', unit='s')
-    step            = parse_value(s, 'step', unit='s')
-    bins_per_oct    = parse_value(s, 'bins_per_oct', typ='int')
-    freq_min        = parse_value(s, 'freq_min', unit='Hz')
-    freq_max        = parse_value(s, 'freq_max', unit='Hz')
-    window_func     = parse_value(s, 'window_func', typ='str')
-    duration        = parse_value(s, 'duration', unit='s')
-    resample_method = parse_value(s, 'resample_method', typ='str')
+    params = [['type',            str,   None],  # name, type, unit
+              ['rate',            float, 'Hz'],
+              ['window',          float, 's'],
+              ['step',            float, 's'],
+              ['bins_per_oct',    int,   None],
+              ['freq_min',        float, 'Hz'],
+              ['freq_max',        float, 'Hz'],
+              ['window_func',     str,   None],
+              ['resample_method', str,   None],
+              ['duration',        float, 's']]
 
-    return {'type':rep_type, 'rate':rate, 'window': window, 'step':step, 
-        'bins_per_oct':bins_per_oct, 'freq_min':freq_min, 'freq_max':freq_max, 
-        'window_func':window_func, 'resample_method':resample_method, 'duration':duration}
+    d = {}
+    for p in params:
+        val = parse_value(s, p[0], typ=p[1], unit=p[2])
+        if val is not None: d[p[0]] = val
+
+    return d
 
 def parse_value(x, name, unit=None, typ='float'):
     Q = ureg.Quantity
