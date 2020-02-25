@@ -61,7 +61,7 @@ def load_audio_representation(path, name='config'):
             >>> # load settings back from json file
             >>> settings = load_audio_representation(path=path, name='spectrogram')
             >>> print(settings)
-            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'bins_per_oct': None, 'freq_min': 30, 'freq_max': 3000, 'window_func': 'hamming', 'resample_method': None}
+            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'freq_min': 30, 'freq_max': 3000, 'window_func': 'hamming'}
             >>> # clean up
             >>> os.remove(path)
     """
