@@ -49,18 +49,21 @@ class SelectionGenerator():
         return self
 
     def __next__(self):
-        """ Returns offset, duration, and file path for the next audio selection.
+        """ Returns offset, duration, file path, and label (if available) 
+            of the next audio selection.
         
             Must be implemented in child class.
 
             Returns:
                 : float
-                    Start time of the segment in seconds, measured from the 
+                    Start time of the selection in seconds, measured from the 
                     beginning of the file.
                 : float
-                    Duration of segment in seconds.
+                    Duration of the selection in seconds.
                 : str
                     Full path to wav file.
+                : int
+                    Label (if available)
         """
         pass
 
@@ -79,24 +82,29 @@ class SelectionTableIterator(SelectionGenerator):
         self.row_id = 0
 
     def __next__(self):
-        """ Returns offset, duration, and file path for the next audio selection.
+        """ Returns offset, duration, file path, and label (if available) 
+            of the next audio selection.
         
             Returns:
                 offset: float
-                    Start time of the segment in seconds, measured from the 
+                    Start time of the selection in seconds, measured from the 
                     beginning of the file.
                 duration: float
-                    Duration of segment in seconds.
+                    Duration of the selection in seconds.
                 path: str
                     Full path to wav file.
+                label: int
+                    Label
         """
         filename = self.sel.index.values[self.row_id][0]
         path = os.path.join(self.dir, filename)
         s = self.sel.iloc[self.row_id]
         offset   = s['start']
         duration = s['end'] - s['start']
+        if 'label' in self.sel.index.values: label = s['label']
+        else: label = None
         self.row_id = (self.row_id + 1) % len(self.sel)
-        return offset, duration, path
+        return offset, duration, path, label
 
 class FrameStepper(SelectionGenerator):
     """ Generates selections with uniform duration 'frame', with successive selections 
@@ -130,7 +138,7 @@ class FrameStepper(SelectionGenerator):
         self._next_file()
 
     def __next__(self):
-        """ Returns offset, duration, and file path for the next audio selection.
+        """ Returns offset, duration, and file path of the next audio selection.
         
             Returns:
                 offset: float
@@ -140,13 +148,14 @@ class FrameStepper(SelectionGenerator):
                     Duration of segment in seconds.
                 path: str
                     Full path to wav file.
+                : None
         """
         offset = self.time
         path   = self.files[self.file_id]
         self.time += self.step #increment time       
         self.seg_id += 1 #increment segment ID
         if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
-        return offset, self.frame, path
+        return offset, self.frame, path, None
 
     def _next_file(self):
         """ Jump to next file. 
@@ -205,10 +214,10 @@ class AudioLoader():
                 seg: Waveform or Spectrogram
                     Next segment
         """
-        offset, duration, path = next(self.sel_gen)
-        return self.load_segment(offset, duration, path)
+        offset, duration, path, label = next(self.sel_gen)
+        return self.load_segment(offset, duration, path, label)
 
-    def load_segment(self, offset, duration, path):
+    def load_segment(self, offset, duration, path, label):
         """ Load audio segment for specified file and time.
 
             Args:
@@ -219,6 +228,8 @@ class AudioLoader():
                     Duration of segment in seconds.
                 path: str
                     Full path to wav file.
+                label: int
+                    Integer label
         
             Returns: 
                 seg: BaseAudio
@@ -229,6 +240,9 @@ class AudioLoader():
             duration=duration, **self.cfg)
     
         # add annotations
+        if label is not None:
+            seg.label = label
+            
         if self.annot is not None:
             q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
             if len(q) > 0:
