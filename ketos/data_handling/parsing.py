@@ -36,7 +36,7 @@ from pint import UnitRegistry
 ureg = UnitRegistry()
     
 
-def load_audio_representation(path, name='config'):
+def load_audio_representation(path, name=None):
     """ Load audio representation settings from JSON file.
 
         Args:
@@ -67,7 +67,8 @@ def load_audio_representation(path, name='config'):
     """
     f = open(path, 'r')
     data = json.load(f)
-    d = parse_audio_representation(data[name])
+    if name is not None: data = data[name]
+    d = parse_audio_representation(data)
     f.close()
     return d
 

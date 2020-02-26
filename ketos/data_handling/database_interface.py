@@ -641,10 +641,12 @@ class AudioWriter():
             output_file: str
                 Full path to output database file (*.h5)
             max_size: int
-                Maximum size of output database file in bytes
+                Maximum size of output database file in bytes.
                 If file exceeds this size, it will be split up into several 
                 files with _000, _001, etc, appended to the filename.
-                The default values is max_size=1E9 (1 Gbyte)
+                The default values is max_size=1E9 (1 Gbyte). 
+                If None, no restriction is imposed on the file size (i.e. the file 
+                is never split).
             verbose: bool
                 Print relevant information during execution such as no. of files written to disk
             ignore_wrong_shape: bool
@@ -665,7 +667,7 @@ class AudioWriter():
                 Path to table within database filesystem
             name: str
                 Name of table 
-            max_file_size: int
+            max_size: int
                 Maximum size of output database file in bytes
                 If file exceeds this size, it will be split up into several 
                 files with _000, _001, etc, appended to the filename.
@@ -694,7 +696,7 @@ class AudioWriter():
         self.ext = output_file[output_file.rfind('.'):]
         self.file = None
         self.file_counter = 0
-        self.max_file_size = max_size
+        self.max_size = max_size
         self.path = '/'
         self.name = 'audio'
         self.verbose = verbose
@@ -748,7 +750,7 @@ class AudioWriter():
 
             # close file if size reaches limit
             siz = self.file.get_filesize()
-            if siz > self.max_file_size:
+            if self.max_size is not None and siz > self.max_size:
                 self.close(final=False)
 
         else:
@@ -759,7 +761,7 @@ class AudioWriter():
 
             Args:
                 final: bool
-                    If True, this instance of SpecWriter will not be able to save more spectrograms to file
+                    If True, this instance of AudioWriter will not be able to save more spectrograms to file
         """        
         if self.file is not None:
 
@@ -832,6 +834,8 @@ class AudioWriter():
             self.file_counter += 1
 
     def _detect_annot_type(self, x):
+        """ Detect the annotation type (weak or strong)
+        """                
         if x.get_annotations() is None: 
             annot_type = 'weak'
             freq_range = False

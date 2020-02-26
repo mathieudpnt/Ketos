@@ -376,6 +376,7 @@ def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_au
     assert '/audio' in fil
     specs = di.load_specs(fil.root.audio)
     assert len(specs) == 2
+    fil.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = di.open_file(fname, 'r')
