@@ -651,6 +651,10 @@ class AudioWriter():
                 Print relevant information during execution such as no. of files written to disk
             ignore_wrong_shape: bool
                 Ignore objects that do not have the same shape as previously saved objects. Default is False.
+            track_source: bool
+                If True, the name of the wav file from which the waveform or 
+                spectrogram was generated and the offset within that file, is 
+                saved to the table. Default is True.
 
         Attributes:
             base: str
@@ -687,10 +691,15 @@ class AudioWriter():
                 Number of ignored objects
             data_shape: tuple
                 Data shape
+            track_source: bool
+                If True, the name of the wav file from which the waveform or 
+                spectrogram was generated and the offset within that file, is 
+                saved to the table. Default is True.
 
             Example:
     """
-    def __init__(self, output_file, max_size=1E9, verbose=True, mode='w', ignore_wrong_shape=False):
+    def __init__(self, output_file, max_size=1E9, verbose=True, mode='w', ignore_wrong_shape=False,
+        track_source=True):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -705,6 +714,7 @@ class AudioWriter():
         self.item_counter = 0
         self.num_ignored = 0
         self.data_shape = None
+        self.track_source = track_source
 
     def cd(self, fullpath='/'):
         """ Change the current directory within the database file system
@@ -814,7 +824,7 @@ class AudioWriter():
             annot_type, freq_range = self._detect_annot_type(x)
 
             descr, descr_annot = table_description(data_shape=x.data.shape, 
-                annot_type=annot_type, track_source=True, filename_len=100, freq_range=freq_range)
+                annot_type=annot_type, track_source=self.track_source, filename_len=100, freq_range=freq_range)
 
             tbl = create_table(h5file=self.file, path=path, name=name, description=descr)
             tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr_annot)
