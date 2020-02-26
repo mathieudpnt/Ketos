@@ -35,6 +35,7 @@ import numpy as np
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
+from ketos.audio.audio_loader import audio_repres_dict
 
 
 def open_file(path, mode):
@@ -623,7 +624,7 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         if 'offset' in table.colnames:   kwargs['offset'] = it['offset']
 
         # initialize object
-        spec = eval(table.attrs.type)(data=it['data'], **kwargs)
+        spec = audio_repres_dict[table.attrs.type](data=it['data'], **kwargs)
         specs.append(spec)
 
     if stack:

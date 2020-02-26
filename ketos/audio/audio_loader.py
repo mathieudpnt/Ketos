@@ -42,6 +42,21 @@ from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
 
+
+""" Audio representation dictionary 
+"""
+audio_repres_dict = {'Waveform':Waveform,
+                     'MagSpectrogram':MagSpectrogram, 
+                     'Mag':MagSpectrogram,
+                     'PowerSpectrogram':PowerSpectrogram,
+                     'Power':PowerSpectrogram,
+                     'Pow':PowerSpectrogram,
+                     'MelSpectrogram':MelSpectrogram,
+                     'Mel':MelSpectrogram,
+                     'CQTSpectrogram':CQTSpectrogram,
+                     'CQT':CQTSpectrogram}
+
+
 class SelectionGenerator():
     """ Template class for selection generators.
     """
@@ -281,7 +296,7 @@ class AudioLoader():
                     Audio segment
         """
         # load audio
-        seg = eval(self.typ).from_wav(path=path, channel=self.channel, offset=offset, 
+        seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
             duration=duration, **self.cfg)
     
         # add annotations
