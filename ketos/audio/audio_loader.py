@@ -225,6 +225,10 @@ class AudioLoader():
                     
                     * CQTSpectrogram:
                         step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
+
+        Examples:
+            See child classes :class:`audio.audio_loader.AudioFrameLoader' and 
+            :class:`audio.audio_loader.AudioSelectionLoader'.            
     """
     def __init__(self, path, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
@@ -315,6 +319,31 @@ class AudioFrameLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+
+        Examples:
+            >>> import librosa
+            >>> from ketos.audio.audio_loader import AudioFrameLoader
+            >>> # specify path to wav file
+            >>> path = 'ketos/tests/assets/2min.wav'
+            >>> # check the duration of the audio file
+            >>> print(librosa.get_duration(filename=path))
+            120.832
+            >>> # specify the audio representation
+            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
+            >>> # create an object for loading 30-s long spectrogram segments, using a step size of 15 s (50% overlap) 
+            >>> loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
+            >>> # print number of segments
+            >>> print(loader.num())
+            8
+            >>> # load and plot the first segment
+            >>> spec = next(loader)
+            >>>
+            >>> import matplotlib.pyplot as plt
+            >>> fig = spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec_2min_0.png")
+            >>> plt.close(fig)
+            
+            .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, path, frame, step=None, channel=0, annotations=None, repres={'type': 'Waveform'}):
 

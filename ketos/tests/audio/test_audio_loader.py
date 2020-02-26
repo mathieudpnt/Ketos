@@ -28,6 +28,7 @@
 """
 import pytest
 import json
+import os
 import numpy as np
 import pandas as pd
 from io import StringIO
@@ -35,6 +36,9 @@ from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.parsing import parse_audio_representation
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 
 def test_init_audio_frame_loader_with_folder(five_time_stamped_wave_files):
     """ Test that we can initialize an instance of the AudioFrameLoader class from a folder"""
@@ -218,3 +222,9 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
         s = next(loader)
         assert s.offset == start[i%2]
         assert s.filename == filename[i%2]
+
+def test_audio_frame_loader_on_2min_wav():
+    rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
+    path = os.path.join(path_to_assets, '2min.wav')
+    loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
+    assert loader.num() == 8
