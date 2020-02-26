@@ -750,6 +750,8 @@ class MagSpectrogram(Spectrogram):
                 spec: MagSpectrogram
                     Magnitude spectrogram
         """
+        window_func = window_func.lower() #make lowercase
+
         # compute STFT
         img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
             step=step, seg_args=seg_args, window_func=window_func)
@@ -963,6 +965,8 @@ class PowerSpectrogram(Spectrogram):
                 : MagSpectrogram
                     Magnitude spectrogram
         """
+        window_func = window_func.lower() #make lowercase
+
         # compute STFT
         img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
@@ -1141,6 +1145,8 @@ class MelSpectrogram(Spectrogram):
                 : MelSpectrogram
                     Mel spectrogram
         """
+        window_func = window_func.lower() #make lowercase
+
         # compute STFT
         img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
@@ -1338,9 +1344,12 @@ class CQTSpectrogram(Spectrogram):
                 spec: CQTSpectrogram
                     CQT spectrogram
         """
+        window_func = window_func.lower() #make lowercase
+
         # compute CQT
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
-            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
+            bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max,
+            window_func=window_func)
 
         spec = cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
             window_func=window_func, filename=audio.filename, 
