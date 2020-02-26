@@ -28,104 +28,77 @@
 
     This module provides utilities to parse various string 
     structures.
-
-    Contents:
-        WinFun class: 
 """
-
+import os
 import json
-from collections import namedtuple
-from pint import UnitRegistry # SI units
-from enum import Enum
-
-
-class WinFun(Enum):
-    HAMMING = 1
-
+from pint import UnitRegistry
 
 ureg = UnitRegistry()
-
-
-Interval = namedtuple('Interval', 'low high')
-Interval.__doc__ = '''\
-Numerical intervals
-
-low - Lower limit (float)
-high - Upper limit (float)''' 
-
-
-SpectrogramConfiguration = namedtuple('SpectrogramConfiguration', 'rate window_size step_size bins_per_octave window_function low_frequency_cut high_frequency_cut length overlap type')
-SpectrogramConfiguration.__doc__ = '''\
-Configuration parameters for generation of spectrograms
-
-rate - Sampling rate in Hz (int)
-window_size - Window size used for framing in seconds (float)
-step_size - Step size used for framing in seconds (float)
-bins_per_octave - Number of bins per octave (only applicable for CQT spectrograms)
-window_function - Window function used for framing (e.g. Hamming window)
-low_frequency_cut - Low-frequency cut-off in Hz (float)
-high_frequency_cut - High-frequency cut-off in Hz (float)
-length - Spectrogram length in seconds (float)
-overlap - Overlap with previous spectrogram in seconds (float)
-type - Spectrogram type (Mag, CQT)''' 
-
-
-def load_spectrogram_configuration(path):
-    f = open(path, "r")
-    data = json.load(f)
-    cfg = parse_spectrogram_configuration(data['spectrogram'])
-    f.close()
-    return cfg
-
-
-def parse_spectrogram_configuration(data):
-    """ Parse configuration settings for generating spectrograms.
-
-        Any setting not specified in the json string will be set 
-        to None.
-
-    Args:
-        data : str
-            Json-format string with the configuration settings 
     
-    Returns:
-        c : SpectrogramConfiguration
-            Spectrogram configuration settings
 
-    Example:
-    
-        >>> import json
-        >>> import ketos.data_handling.parsing as par
-        >>> 
-        >>> input = '{"spectrogram": {"rate": "20 kHz", "window_size": "0.1 s", "step_size": "0.025 s", "window_function": "HAMMING", "low_frequency_cut": "30Hz", "high_frequency_cut": "3000Hz"}}'
-        >>> data = json.loads(input)
-        >>> settings = par.parse_spectrogram_configuration(data['spectrogram'])
-        >>> print(settings.rate)  # print sampling rate in Hz
-        20000.0
+def load_audio_representation(path, name='config'):
+    """ Load audio representation settings from JSON file.
+
+        Args:
+            path: str
+                Path to json file
+            name: str
+                Heading of the relevant section of the json file
+
+        Returns:
+            d: dict
+                Dictionary with the settings
+
+        Example:
+            >>> import json
+            >>> from ketos.data_handling.parsing import load_audio_representation
+            >>> # create json file with spectrogram settings
+            >>> json_str = '{"spectrogram": {"type": "MagSpectrogram", "rate": "20 kHz", "window": "0.1 s", "step": "0.025 s", "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz"}}'
+            >>> path = 'ketos/tests/assets/tmp/config.py'
+            >>> file = open(path, 'w')
+            >>> _ = file.write(json_str)
+            >>> file.close()
+            >>> # load settings back from json file
+            >>> settings = load_audio_representation(path=path, name='spectrogram')
+            >>> print(settings)
+            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'freq_min': 30, 'freq_max': 3000, 'window_func': 'hamming'}
+            >>> # clean up
+            >>> os.remove(path)
     """
-    rate = parse_value(data, 'rate', 'Hz')
-    wsiz = parse_value(data, 'window_size', 's')
-    step = parse_value(data, 'step_size', 's')
-    bpo = parse_value(data, 'bins_per_octave', typ='int')
-    flow = parse_value(data, 'low_frequency_cut', 'Hz')
-    fhigh = parse_value(data, 'high_frequency_cut', 'Hz')
-    length = parse_value(data, 'length', 's')
-    overlap = parse_value(data, 'overlap', 's')
-    stype = parse_value(data, 'type', typ='str')
+    f = open(path, 'r')
+    data = json.load(f)
+    d = parse_audio_representation(data[name])
+    f.close()
+    return d
 
-    wfun = None
-    if data.get('window_function') is not None:
-        for name, member in WinFun.__members__.items():
-            if data['window_function'] == name:
-                wfun = member
-        if wfun is None:
-            s = ", ".join(name for name, _ in WinFun.__members__.items())
-            raise ValueError("Unknown window function. Select between: "+s)
+def parse_audio_representation(s):
+    """ Parse audio representation settings for generating waveforms or spectrograms.
+    
+        Args:
+            s: str
+                Json-format string with the settings 
 
-    c = SpectrogramConfiguration(rate, wsiz, step, bpo, wfun, flow, fhigh, length, overlap, stype)    
+        Returns:
+            d: dict
+                Dictionary with the settings
+    """
+    params = [['type',            str,   None],  # name, type, unit
+              ['rate',            float, 'Hz'],
+              ['window',          float, 's'],
+              ['step',            float, 's'],
+              ['bins_per_oct',    int,   None],
+              ['freq_min',        float, 'Hz'],
+              ['freq_max',        float, 'Hz'],
+              ['window_func',     str,   None],
+              ['resample_method', str,   None],
+              ['duration',        float, 's']]
 
-    return c
+    d = {}
+    for p in params:
+        val = parse_value(s, p[0], typ=p[1], unit=p[2])
+        if val is not None: d[p[0]] = val
 
+    return d
 
 def parse_value(x, name, unit=None, typ='float'):
     Q = ureg.Quantity
@@ -144,58 +117,6 @@ def parse_value(x, name, unit=None, typ='float'):
             v = str(v)
 
     return v
-
-
-def parse_frequency_bands(data):
-    """ Parse list of frequency bands
-
-    Args:
-        data : str
-            Json-format string frequency bands 
-    
-    Returns:
-        name : list(str)
-            Band names
-        freq_intv: list(Interval)
-            Band frequency ranges in Hz 
-
-    Example:
-    
-        >>> import json
-        >>> import ketos.data_handling.parsing as par
-        >>> 
-        >>> input = '{"frequency_bands": [{"name": "A", "range": ["11.0Hz", "22.1Hz"]},{"name": "B", "range": ["9kHz", "10kHz"]}]}'
-        >>> data = json.loads(input)
-        >>> names, bands = par.parse_frequency_bands(data['frequency_bands'])
-        >>> print(names)  # print names of frequency bands
-        ['A', 'B']
-        >>> for b in bands: 
-        ...     print(b.low, b.high) # print frequency range
-        11.0 22.1
-        9000.0 10000.0
-    """
-    Q = ureg.Quantity
-    
-    name, freq_intv = list(), list()
-
-    for band in data:
-
-        assert band.get('name') is not None, 'name field is required for frequency band'
-        assert band.get('range') is not None, 'range field is required for frequency band'
-
-        name.append(band['name'])
-
-        low = Q(band['range'][0])
-        low = low.m_as('Hz')
-
-        high = Q(band['range'][1])
-        high = high.m_as('Hz')
-
-        intv = Interval(low, high)
-        freq_intv.append(intv)
-
-    return name, freq_intv
-
 
 def str2bool(v):
     """ Convert most common answers to yes/no questions to boolean

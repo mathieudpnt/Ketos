@@ -720,7 +720,8 @@ class MagSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
-    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
+        freq_min=None, freq_max=None):
         """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -740,9 +741,13 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+                freq_min: float
+                    Lower frequency in Hz.
+                freq_max: str or float
+                    Upper frequency in Hz.
 
             Returns:
-                : MagSpectrogram
+                spec: MagSpectrogram
                     Magnitude spectrogram
         """
         # compute STFT
@@ -752,13 +757,17 @@ class MagSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_max / img.shape[1]
 
-        return cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
+        spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
+
+        spec.crop(freq_min=freq_min, freq_max=freq_max)
+
+        return spec
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', offset=0, duration=None,\
-            resample_method='scipy'):
+            resample_method='scipy', freq_min=None, freq_max=None):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -797,6 +806,10 @@ class MagSpectrogram(Spectrogram):
                         * polyphase
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
+                freq_min: float
+                    Lower frequency in Hz.
+                freq_max: str or float
+                    Upper frequency in Hz.
 
             Returns:
                 : MagSpectrogram
@@ -819,7 +832,8 @@ class MagSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # compute spectrogram
-        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
+        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
+            freq_min=freq_min, freq_max=freq_max)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
@@ -919,7 +933,8 @@ class PowerSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
-    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming'):
+    def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
+        freq_min=None, freq_max=None):
         """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -939,6 +954,10 @@ class PowerSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+                freq_min: float
+                    Lower frequency in Hz.
+                freq_max: str or float
+                    Upper frequency in Hz.
 
             Returns:
                 : MagSpectrogram
@@ -953,13 +972,17 @@ class PowerSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_max / img.shape[1]
 
-        return cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
+        spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
+
+        spec.crop(freq_min=freq_min, freq_max=freq_max)
+
+        return spec
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', offset=0, duration=None,\
-            resample_method='scipy'):
+            resample_method='scipy', freq_min=None, freq_max=None):
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -998,6 +1021,10 @@ class PowerSpectrogram(Spectrogram):
                         * polyphase
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
+                freq_min: float
+                    Lower frequency in Hz.
+                freq_max: str or float
+                    Upper frequency in Hz.
 
             Returns:
                 spec: MagSpectrogram
@@ -1020,7 +1047,8 @@ class PowerSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method)
 
         # compute spectrogram
-        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func)
+        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
+            freq_min=freq_min, freq_max=freq_max)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
@@ -1307,16 +1335,20 @@ class CQTSpectrogram(Spectrogram):
                         * hanning
 
             Returns:
-                : CQTSpectrogram
+                spec: CQTSpectrogram
                     CQT spectrogram
         """
         # compute CQT
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max)
 
-        return cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
+        spec = cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
             window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
+
+        spec.crop(freq_min=freq_min, freq_max=freq_max)
+
+        return spec
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,

@@ -200,6 +200,7 @@ class AudioLoader():
         repres = copy.deepcopy(repres)
         self.channel = channel
         self.typ = repres.pop('type')
+        if 'duration' in repres.keys(): repres.pop('duration')
         self.cfg = repres
         self.sel_gen = selection_gen
         self.annot = annotations
@@ -277,6 +278,9 @@ class AudioFrameLoader(AudioLoader):
     """
     def __init__(self, path, frame, step=None, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
+        if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
+            print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
+
         super().__init__(path=path, selection_gen=FrameStepper(path=path, frame=frame, step=step), 
             channel=channel, annotations=annotations, repres=repres)
 
@@ -299,6 +303,9 @@ class AudioSelectionLoader(AudioLoader):
                 required to initialize the class using the from_wav method.  
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
+
+        if 'duration' in repres.keys() and repres['duration'] is not None:
+            print("Warning: Specified duration ({1:.3f} s) will be ignored.")
 
         super().__init__(path=path, selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections), 
             channel=channel, annotations=annotations, repres=repres)

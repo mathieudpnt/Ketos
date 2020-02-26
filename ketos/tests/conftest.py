@@ -461,3 +461,11 @@ def five_time_stamped_wave_files():
 
     for f in files:
         os.remove(f)
+
+@pytest.fixture
+def spectr_settings():
+    j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
+        "window": "0.1 s", "step": "0.025 s",\
+        "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
+        "duration": "1.0s", "resample_method": "scipy"}}'
+    return j
