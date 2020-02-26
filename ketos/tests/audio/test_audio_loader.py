@@ -199,3 +199,22 @@ def test_audio_frame_loader_mag_json(five_time_stamped_wave_files, spectr_settin
     s = next(loader)
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
+
+def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        and that the spectrograms retain the correct source data (filename, offset) """ 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, fullpath=False, subdirs=True)
+    filename = [files[0],files[1]]
+    start = [0.10,0.12]
+    end = [0.46,0.42]
+    sel = pd.DataFrame({'filename':filename,'start':start,'end':end})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 2
+    for i in range(6):
+        s = next(loader)
+        assert s.offset == start[i%2]
+        assert s.filename == filename[i%2]
