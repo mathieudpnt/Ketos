@@ -275,12 +275,12 @@ class AnnotationHandler():
         """
         ans = self._df
 
+        if self.num_sets() == 1 and squeeze:
+            ans = ans.loc[self.set_ids()[0]]
+
         if id is not None:
             if not key_error and id not in ans.index: return None
-            ans = ans.loc[id]
-
-        if self.num_sets() == 1 and squeeze and id is None:
-            ans = ans.loc[self.set_ids()[0]]
+            if len(ans) > 1: ans = ans.loc[id]
 
         # select label(s)
         if label is not None:

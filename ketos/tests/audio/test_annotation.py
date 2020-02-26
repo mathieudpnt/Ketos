@@ -200,3 +200,8 @@ def test_segment_stacked_annotations_with_custom_ids():
     h = h.segment(num_segs=10, window=1.0, step=0.5)
     assert h._df.index.nlevels == 3
 
+def test_get_single_annotation():
+    h = AnnotationHandler()
+    h.add(1, 0.2, 1.1, 50, 200)
+    ann = h.get(id=0)
+    print(ann)

@@ -250,10 +250,3 @@ def test_stack_mag_specs():
         assert len(stacked.get_annotations(i)) == 2
         assert stacked.window_func == 'hamming'
 
-def test_test():
-    img = np.ones((20,10))
-    s = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4, window_func='hamming')
-    s.annotate(label=1, start=0.2, end=1.3)
-    ann = s.get_annotations(id=0)
-    for idx,a in ann.iterrows():
-        print(a)

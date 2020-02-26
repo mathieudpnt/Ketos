@@ -692,6 +692,12 @@ class Spectrogram(BaseAudio):
 
     def _draw_annot_boxes(self, ax, id=0):
         """Draws annotations boxes on top of the spectrogram
+
+            Args:
+                ax: matplotlib.axes.Axes
+                    Axes object
+                id: int
+                    Object ID
         """
         annots = self.get_annotations(id=id)
         if annots is None: return

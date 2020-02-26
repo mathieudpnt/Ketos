@@ -567,8 +567,6 @@ class BaseAudio():
                 id: int
                     ID of data array to be plotted. Only relevant if the object 
                     contains multiple, stacked data arrays.
-                show_annot: bool
-                    Display annotations
                 figsize: tuple
                     Figure size
             

@@ -126,6 +126,7 @@ class Waveform(BaseAudio):
                 >>> # show signal
                 >>> fig = a.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
@@ -176,6 +177,7 @@ class Waveform(BaseAudio):
                 >>> # show signal
                 >>> fig = a.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
         """        
@@ -231,6 +233,7 @@ class Waveform(BaseAudio):
                 >>> # show signal
                 >>> fig = wavelet2.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
         """        
@@ -278,6 +281,7 @@ class Waveform(BaseAudio):
                 >>> # show signal
                 >>> fig = cos.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
         """        
@@ -348,6 +352,8 @@ class Waveform(BaseAudio):
                 >>> fig0.savefig("ketos/tests/assets/tmp/morlet_segmented_0.png")
                 >>> fig1 = segs.plot(1)
                 >>> fig1.savefig("ketos/tests/assets/tmp/morlet_segmented_1.png")
+                >>> plt.close(fig0)
+                >>> plt.close(fig1)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_0.png
 
@@ -406,10 +412,11 @@ class Waveform(BaseAudio):
                 >>> a = Waveform.morlet(rate=100, frequency=5, width=1)
                 >>> # plot the wave form
                 >>> fig = a.plot()
+                >>> plt.close(fig)
 
                 .. image:: ../../_static/morlet.png
         """
-        fig, ax = super().plot(id, show_annot)
+        fig, ax = super().plot(id=id)
 
         y = self.get_data(id)
 
@@ -417,8 +424,30 @@ class Waveform(BaseAudio):
         ax.plot(x, y)
         ax.set_ylabel('Amplitude')
 
-        fig.tight_layout()
+        # superimpose annotation boxes
+        if show_annot: self._draw_annot_boxes(ax,id)
+
+        #fig.tight_layout()
         return fig
+
+    def _draw_annot_boxes(self, ax, id=0):
+        """Draws annotations boxes on top of the spectrogram
+
+            Args:
+                ax: matplotlib.axes.Axes
+                    Axes object
+                id: int
+                    Object ID
+        """
+        annots = self.get_annotations(id=id)
+        if annots is None: return
+        y1, y2 = ax.get_ylim()
+        for idx,annot in annots.iterrows():
+            x1 = annot['start']
+            x2 = annot['end']
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            ax.add_patch(box)
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
 
     def append(self, signal, n_smooth=0):
         """ Append another audio signal to the present instance.
@@ -451,6 +480,7 @@ class Waveform(BaseAudio):
                 >>> # show the wave form
                 >>> fig = mor.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
         """   
@@ -504,6 +534,7 @@ class Waveform(BaseAudio):
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_wo_noise.png")
                 >>> fig = morlet.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
 
@@ -542,6 +573,7 @@ class Waveform(BaseAudio):
                 >>> # show the wave form
                 >>> fig = cos.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
         """
