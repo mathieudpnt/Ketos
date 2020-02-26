@@ -67,6 +67,17 @@ class SelectionGenerator():
         """
         pass
 
+    def num(self):
+        """ Returns total number of selections.
+        
+            Must be implemented in child class.
+
+            Returns:
+                : int
+                    Total number of selections.
+        """
+        pass
+
 class SelectionTableIterator(SelectionGenerator):
     """ Iterates over entries in a selection table.
 
@@ -106,6 +117,15 @@ class SelectionTableIterator(SelectionGenerator):
         self.row_id = (self.row_id + 1) % len(self.sel)
         return offset, duration, path, label
 
+    def num(self):
+        """ Returns total number of selections.
+        
+            Returns:
+                : int
+                    Total number of selections.
+        """
+        return len(self.sel)
+
 class FrameStepper(SelectionGenerator):
     """ Generates selections with uniform duration 'frame', with successive selections 
         displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
@@ -134,6 +154,10 @@ class FrameStepper(SelectionGenerator):
             self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
             assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
 
+        # obtain file durations and compute number of frames for each file
+        self.num_segs = [int(np.ceil((librosa.get_duration(filename=f) - self.frame) / self.step)) + 1 for f in self.files]
+        self.num_segs_tot = np.sum(np.array(self.num_segs))
+
         self.file_id = -1
         self._next_file()
 
@@ -154,15 +178,22 @@ class FrameStepper(SelectionGenerator):
         path   = self.files[self.file_id]
         self.time += self.step #increment time       
         self.seg_id += 1 #increment segment ID
-        if self.seg_id == self.num_segs: self._next_file() #if this was the last segment, jump to the next file
+        if self.seg_id == self.num_segs[self.file_id]: self._next_file() #if this was the last segment, jump to the next file
         return offset, self.frame, path, None
+
+    def num(self):
+        """ Returns total number of selections.
+        
+            Returns:
+                : int
+                    Total number of selections.
+        """
+        return self.num_segs_tot
 
     def _next_file(self):
         """ Jump to next file. 
         """
         self.file_id = (self.file_id + 1) % len(self.files) #increment file ID
-        file_duration = librosa.get_duration(filename=self.files[self.file_id]) #file duration
-        self.num_segs = int(np.ceil((file_duration - self.frame) / self.step)) + 1  #number of segments
         self.seg_id = 0 #reset
         self.time = 0 #reset
 
@@ -216,9 +247,18 @@ class AudioLoader():
                     Next segment
         """
         offset, duration, path, label = next(self.sel_gen)
-        return self.load_segment(offset, duration, path, label)
+        return self.load(offset, duration, path, label)
 
-    def load_segment(self, offset, duration, path, label):
+    def num(self):
+        """ Returns total number of segments.
+        
+            Returns:
+                : int
+                    Total number of segments.
+        """
+        return self.sel_gen.num()
+
+    def load(self, offset, duration, path, label):
         """ Load audio segment for specified file and time.
 
             Args:

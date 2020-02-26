@@ -46,12 +46,14 @@ def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
         from a single wav file"""
     loader = AudioFrameLoader(path=sine_wave_file, frame=0.5)
     assert len(loader.sel_gen.files) == 1
+    assert loader.num() == 6
 
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
     assert len(loader.sel_gen.files) == 5
+    assert loader.num() == 5
     s = next(loader)
     assert s.duration() == 0.5
     s = next(loader)
@@ -106,12 +108,12 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
     assert len(loader.sel_gen.files) == 1
     N = int(dur / l)
-    assert N == loader.sel_gen.num_segs
+    assert N == loader.sel_gen.num_segs[0]
     # duration is *not* an integer number of lengths
     l = 0.21
     loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
     N = int(np.ceil(dur / l))
-    assert N == loader.sel_gen.num_segs
+    assert N == loader.sel_gen.num_segs[0]
     # loop over all segments
     for _ in range(N):
         _ = next(loader)
@@ -121,7 +123,7 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     loader = AudioFrameLoader(path=sine_wave_file, frame=l, step=l-o, repres=rep)
     step = l - o
     N = int(np.ceil((dur-l) / step) + 1)
-    assert N == loader.sel_gen.num_segs
+    assert N == loader.sel_gen.num_segs[0]
     # loop over all segments
     for _ in range(N):
         _ = next(loader)
@@ -135,6 +137,7 @@ def test_audio_select_loader_mag(five_time_stamped_wave_files):
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 2
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     s = next(loader)
