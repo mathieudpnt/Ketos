@@ -555,7 +555,7 @@ class BaseAudio():
 
         return d
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4)):
+    def plot(self, id=0, figsize=(5,4)):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -605,12 +605,6 @@ class BaseAudio():
             axt = ax.twiny()
             axt.set_xlim(offset, offset + self.duration())
 
-        # superimpose annotation boxes
-        if show_annot is not None:
-            ans = self.get_annotations(id)
-            if ans:
-                print('Drawing of annotations not yet implemented')
-            
-        fig.tight_layout()
+        #fig.tight_layout()
         return fig, ax
 

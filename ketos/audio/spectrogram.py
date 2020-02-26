@@ -58,6 +58,7 @@ from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from ketos.audio.waveform import Waveform
 import ketos.audio.utils.misc as aum
 from ketos.audio.utils.axis import LinearAxis, Log2Axis
@@ -548,20 +549,14 @@ class Spectrogram(BaseAudio):
                 >>> # create spectrogram
                 >>> spec = MagSpectrogram.from_waveform(s, window=0.2, step=0.05)
                 >>> # show image
-                >>> spec.plot()
-                <Figure size 500x400 with 2 Axes>
-                
-                >>> plt.show()
-                >>> plt.close()
+                >>> fig = spec.plot()
+                >>> plt.close(fig)
                 >>> # apply very small amount (0.01 sec) of horizontal blur
                 >>> # and significant amount of vertical blur (30 Hz)  
                 >>> spec.blur(sigma_time=0.01, sigma_freq=30)
                 >>> # show blurred image
-                >>> spec.plot()
-                <Figure size 500x400 with 2 Axes>
-
-                >>> plt.show()
-                >>> plt.close()
+                >>> fig = spec.plot()
+                >>> plt.close(fig)
                 
                 .. image:: ../../_static/morlet_spectrogram.png
 
@@ -665,17 +660,51 @@ class Spectrogram(BaseAudio):
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
+
+            Example:
+                >>> from ketos.audio.spectrogram import MagSpectrogram
+                >>> # load spectrogram
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.02)
+                >>> # add an annotation
+                >>> spec.annotate(start=1.2, end=1.6, freq_min=70, freq_max=600, label=1)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec = spec.crop(freq_max=800)
+                >>> # show spectrogram with annotation box
+                >>> fig = spec.plot(show_annot=True)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_w_annot_box.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
         """
-        fig, ax = super().plot(id, show_annot, figsize)
+        fig, ax = super().plot(id, figsize)
 
         x = self.get_data(id) # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
         img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)# draw image
         ax.set_ylabel(self.freq_ax.label) # axis label        
         fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
+
+        # superimpose annotation boxes
+        if show_annot: self._draw_annot_boxes(ax,id)
             
-        fig.tight_layout()
+        #fig.tight_layout()
         return fig
+
+    def _draw_annot_boxes(self, ax, id=0):
+        """Draws annotations boxes on top of the spectrogram
+        """
+        annots = self.get_annotations(id=id)
+        if annots is None: return
+        y1 = self.freq_min()
+        y2 = self.freq_max()
+        for idx,annot in annots.iterrows():
+            x1 = annot['start']
+            x2 = annot['end']
+            if not np.isnan(annot['freq_min']): y1 = annot['freq_min']
+            if not np.isnan(annot['freq_max']): y2 = annot['freq_max']
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            ax.add_patch(box)
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
 
 class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram.
@@ -826,6 +855,7 @@ class MagSpectrogram(Spectrogram):
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
@@ -1043,6 +1073,7 @@ class PowerSpectrogram(Spectrogram):
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
@@ -1223,6 +1254,7 @@ class MelSpectrogram(Spectrogram):
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
@@ -1418,6 +1450,7 @@ class CQTSpectrogram(Spectrogram):
                 >>> # show
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
+                >>> plt.close(fig)
 
                 .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
         """
