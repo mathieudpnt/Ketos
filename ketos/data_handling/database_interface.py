@@ -32,10 +32,11 @@
 import os
 import tables
 import numpy as np
+from tqdm import tqdm
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
-from ketos.audio.audio_loader import audio_repres_dict
+import ketos.audio.audio_loader as al
 
 
 def open_file(path, mode):
@@ -624,13 +625,82 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         if 'offset' in table.colnames:   kwargs['offset'] = it['offset']
 
         # initialize object
-        spec = audio_repres_dict[table.attrs.type](data=it['data'], **kwargs)
+        spec = al.audio_repres_dict[table.attrs.type](data=it['data'], **kwargs)
         specs.append(spec)
 
     if stack:
         specs = MagSpectrogram.stack(specs)
 
     return specs
+
+def create_database(output_file, data_dir, selections, channel=0, 
+    audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
+    max_size=None, verbose=True, progress_bar=True, ignore_wrong_shape=False, 
+    track_source=True):
+    """ Create a database from a selection table.
+
+        Note that all selections must have the same duration. This is necessary to ensure 
+        that all the objects stored in the database have the same dimension.
+
+        If each entry in the selection table can have multiple annotations, these can be 
+        specified with the 'annotations' argument. On the other hand, if each entry in 
+        the selection table is chacterized by a single, integer label, these should be 
+        included as a column named 'label' in the selection table.
+
+        If 'dataset_name' is not specified, the name of the folder containing the audio 
+        files ('data_dir') will be used.
+    
+        Args:
+            output_file:str
+                The name of the HDF5 file in which the data will be stored.
+                Can include the path (e.g.:'/home/user/data/database_abc.h5').
+                If the file does not exist, it will be created.
+                If the file already exists, new data will be appended to it.
+            data_dir:str
+                Path to folder containing *.wav files.
+            selections: pandas DataFrame
+                Selection table
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
+            audio_repres: dict
+                A dictionary containing the parameters used to generate the spectrogram or waveform
+                segments. See :class:~ketos.audio.auio_loader.AudioLoader for details on the 
+                required and optional fields for each type of signal.
+            annotations: pandas DataFrame
+                Annotation table. Optional.
+            dataset_name:str
+                Name of the node (HDF5 group) within the database (e.g.: 'train')
+                Under this node, two datasets will be created: 'data' and 'data_annot',
+                containing the data (spectrograms or waveforms) and the annotations for each
+                entry in the selections_table.                
+            max_size: int
+                Maximum size of output database file in bytes.
+                If file exceeds this size, it will be split up into several 
+                files with _000, _001, etc, appended to the filename.
+                The default values is max_size=1E9 (1 Gbyte). 
+                If None, no restriction is imposed on the file size (i.e. the file 
+                is never split).
+            verbose: bool
+                Print relevant information during execution such as no. of files written to disk
+            progress_bar: bool
+                Show progress bar.  
+            ignore_wrong_shape: bool
+                Ignore objects that do not have the same shape as previously saved objects. Default is False.
+            track_source: bool
+                If True, the name of the wav file from which the waveform or 
+                spectrogram was generated and the offset within that file, is 
+                saved to the table. Default is True.
+    """
+    loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, repres=audio_repres)
+    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a')
+    
+    if dataset_name is None: dataset_name = os.path.basename(data_dir)
+    path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
+    for _ in tqdm(range(loader.num()), disable = not progress_bar):
+            x = next(loader)
+            writer.write(x=x, path=path_to_dataset, name='data')
+
+    writer.close()
 
 class AudioWriter():
     """ Saves waveform or spectrogram objects to a database file (*.h5).
@@ -699,7 +769,7 @@ class AudioWriter():
 
             Example:
     """
-    def __init__(self, output_file, max_size=1E9, verbose=True, mode='w', ignore_wrong_shape=False,
+    def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', ignore_wrong_shape=False,
         track_source=True):
         
         self.base = output_file[:output_file.rfind('.')]
@@ -789,6 +859,7 @@ class AudioWriter():
             if self.verbose:
                 plural = ['', 's']
                 print('{0} item{1} saved to {2}'.format(self.item_counter, plural[self.item_counter > 1], fname))
+                if self.num_ignored > 0: print('ignored {0} objects due to shape mismatch'.format(self.num_ignored))
 
             self.item_counter = 0
 

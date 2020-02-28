@@ -29,8 +29,10 @@
 import pytest
 import tables
 import os
+import pandas as pd
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
+from ketos.data_handling.selection_table import use_multi_indexing 
 from ketos.audio.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.audio.waveform import Waveform
 
@@ -307,10 +309,6 @@ def test_load_specs_with_index_list():
     assert all(is_spec)
     h5file.close()
 
-
-
-# ---- above tests are passing ------ #
-
 def test_init_audio_writer():
     out = os.path.join(path_to_assets, 'tmp/db4.h5')
     di.AudioWriter(output_file=out)
@@ -438,3 +436,19 @@ def test_two_audio_writers_simultaneously(sine_audio):
     specs = di.load_specs(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
+
+def test_create_database_with_single_wav_file(sine_wave_file):
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
+    # check database contents
+    fil = di.open_file(out, 'r')
+    assert '/assets/data' in fil
+    assert '/assets/data_annot' in fil
+    specs = di.load_specs(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
+    assert len(specs) == 2
+    fil.close()
+    os.remove(out)
