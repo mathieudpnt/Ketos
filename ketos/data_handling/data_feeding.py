@@ -36,7 +36,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
-from ketos.data_handling.database_interface import parse_labels
 from ketos.data_handling.data_handling import check_data_sanity, to1hot
 
 
@@ -880,3 +879,10 @@ class ActiveLearningBatchGenerator():
         Y = to1hot(Y, self.num_labels)
         return X,Y
 
+
+
+def parse_labels(label):
+    labels_str = label.decode()
+    parsed_labels = np.fromstring(string=labels_str[1:-1], dtype=int, sep=',')
+    parsed_labels = list(parsed_labels)
+    return parsed_labels
