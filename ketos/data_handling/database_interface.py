@@ -393,6 +393,7 @@ def write_annot(table, id, label=None, annots=None):
         row["data_id"] = id
         if label is not None: row["label"] = label
         row.append()
+        table.flush()
 
 def write_audio(table, data, filename=None, offset=0, id=None):
     """ Write waveform or spectrogram to a HDF5 table.
@@ -432,6 +433,7 @@ def write_audio(table, data, filename=None, offset=0, id=None):
         row['offset'] = offset
 
     row.append()
+    table.flush()
 
     return id
 
