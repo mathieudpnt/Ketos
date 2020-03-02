@@ -511,11 +511,11 @@ def write(x, table, table_annot=None, id=None):
     if table.nrows == 0:
         write_attrs(table, x)
 
-    id = write_audio(table=table, data=x.get_data(), 
+    data_id = write_audio(table=table, data=x.get_data(), 
         filename=x.get_filename(), offset=x.get_offset(), id=id)
 
     if table_annot is not None:
-        write_annot(table=table_annot, id=id, label=x.get_label(), annots=x.get_annotations())
+        write_annot(table=table_annot, id=data_id, label=x.get_label(), annots=x.get_annotations())
 
 def filter_by_label(table, label):
     """ Find all spectrograms in the table with the specified label.
@@ -631,6 +631,7 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         specs = MagSpectrogram.stack(specs)
 
     return specs
+    
 
 class AudioWriter():
     """ Saves waveform or spectrogram objects to a database file (*.h5).
