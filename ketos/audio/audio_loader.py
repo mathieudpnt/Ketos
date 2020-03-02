@@ -375,7 +375,7 @@ class AudioSelectionLoader(AudioLoader):
 
         Args:
             path: str
-                Path to folder containing *.wav files
+                Path to folder containing *.wav files.
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             selections: pandas DataFrame
