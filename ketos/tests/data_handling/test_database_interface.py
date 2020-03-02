@@ -29,6 +29,7 @@
 import pytest
 import tables
 import os
+import numpy as np
 import pandas as pd
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
@@ -459,4 +460,26 @@ def test_create_database_with_single_wav_file(sine_wave_file):
     specs = di.load_specs(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
     assert len(specs) == 2
     fil.close()
+    os.remove(out)
+
+def test_create_database_ids(sine_wave_file):
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav', 'sine_wave.wav','sine_wave.wav'], 'start':[0.1, 0.2, 0.1, 0.2], 'end':[2.0, 2.1, 2.0, 2.1], 'label':[1, 2, 1, 2]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, dataset_name='test', selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
+  
+    # check database contents
+    db = di.open_file(out, 'r')
+
+    data_table = db.get_node("/test/data")
+    data_annot_table = db.get_node("/test/data_annot")
+
+    np.testing.assert_array_equal(data_table[:]['id'],[0,1,2,3])
+
+    np.testing.assert_array_equal(data_annot_table[:]['data_id'],[0,1,2,3])
+
+
+    db.close()
     os.remove(out)
