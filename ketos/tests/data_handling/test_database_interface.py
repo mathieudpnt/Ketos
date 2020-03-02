@@ -141,7 +141,8 @@ def test_write_mag_spec(sine_audio):
     # Create tables
     tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
     tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
-    # write spectrogram to table
+    # write spectrogram to table twice
+    di.write(x=spec, table=tbl_data, table_annot=tbl_annot) 
     di.write(x=spec, table=tbl_data, table_annot=tbl_annot) 
     # write spectrogram to table with id
     di.write(x=spec, table=tbl_data, table_annot=tbl_annot, id=7)
@@ -159,6 +160,10 @@ def test_write_mag_spec(sine_audio):
     assert x['start'] == 1.5
     assert x['end'] == 2.5
     x = tbl_annot[2]
+    assert x['data_id'] == 1
+    x = tbl_annot[3]
+    assert x['data_id'] == 1
+    x = tbl_annot[4]
     assert x['data_id'] == 7
     assert x['label'] == 1
     assert x['start'] == 1.
@@ -166,6 +171,9 @@ def test_write_mag_spec(sine_audio):
     x = tbl_data[0]
     assert x['filename'].decode() == 'file.wav'
     assert x['offset'] == 0.1
+    assert tbl_data[0]['id'] == 0
+    assert tbl_data[1]['id'] == 1
+    assert tbl_data[2]['id'] == 7
     # check that attributes have been properly saved
     assert tbl_data.attrs.time_res == 0.1
     assert tbl_data.attrs.freq_min == 0
