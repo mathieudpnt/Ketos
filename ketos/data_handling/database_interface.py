@@ -393,6 +393,7 @@ def write_annot(table, id, label=None, annots=None):
         row["data_id"] = id
         if label is not None: row["label"] = label
         row.append()
+        table.flush()
 
 def write_audio(table, data, filename=None, offset=0, id=None):
     """ Write waveform or spectrogram to a HDF5 table.
@@ -432,6 +433,7 @@ def write_audio(table, data, filename=None, offset=0, id=None):
         row['offset'] = offset
 
     row.append()
+    table.flush()
 
     return id
 
@@ -512,11 +514,11 @@ def write(x, table, table_annot=None, id=None):
     if table.nrows == 0:
         write_attrs(table, x)
 
-    id = write_audio(table=table, data=x.get_data(), 
+    data_id = write_audio(table=table, data=x.get_data(), 
         filename=x.get_filename(), offset=x.get_offset(), id=id)
 
     if table_annot is not None:
-        write_annot(table=table_annot, id=id, label=x.get_label(), annots=x.get_annotations())
+        write_annot(table=table_annot, id=data_id, label=x.get_label(), annots=x.get_annotations())
 
 def filter_by_label(table, label):
     """ Find all spectrograms in the table with the specified label.
@@ -632,6 +634,7 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         specs = MagSpectrogram.stack(specs)
 
     return specs
+    
 
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
