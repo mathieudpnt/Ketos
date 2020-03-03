@@ -67,7 +67,7 @@ class BatchGenerator():
             indices: list of ints
                 Indices of those instances that will retrieved from the HDF5 table by the 
                 BatchGenerator. By default all instances are retrieved.
-            instance_function: function
+            output_transform_func: function
                 A function to be applied to the batch, transforming the instances. Must accept 
                 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             x_field: str
@@ -134,7 +134,7 @@ class BatchGenerator():
             >>> def apply_to_batch(X,Y):
             ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
             ...    return (X,Y)
-            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, instance_function=apply_to_batch) 
+            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, output_transform_func=apply_to_batch) 
             >>> X,Y = next(train_generator)                
             >>> #Now each X instance is one single number, instead of a (2413,201) matrix
             >>> #A batch of size 3 is an array of the 3 means
@@ -148,7 +148,7 @@ class BatchGenerator():
             (3,)
             >>> h5.close()
     """
-    def __init__(self, batch_size, data_table=None, annot_table=None, x=None, y=None, data_ids=None, instance_function=None, x_field='data', y_field='label',\
+    def __init__(self, batch_size, data_table=None, annot_table=None, x=None, y=None, data_ids=None, output_transform_func=None, x_field='data', y_field='label',\
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None):
 
         self.from_memory = x is not None and y is not None
@@ -162,7 +162,6 @@ class BatchGenerator():
                 self.data_ids = np.arange(len(self.x), dtype=int) 
             else:
                 self.data_ids = data_ids
-            
             self.n_instances = len(self.data_ids)
         else:
             assert (data_table is not None) and (annot_table is not None), 'data_table + annot_table or x + y must be specified'
@@ -189,7 +188,7 @@ class BatchGenerator():
 
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.instance_function = instance_function
+        self.output_transform_func = output_transform_func
         self.batch_count = 0
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
@@ -214,15 +213,19 @@ class BatchGenerator():
                 indices: list of ints
                     The list of instance indices
         """
-        data_ids = self.data_ids
+        #indices = self.entry_indices
+        #data_ids = self.data_ids
         
-        if self.shuffle:
-            np.random.shuffle(data_ids)
+       
 
         if self.from_memory:
-            row_index = data_ids
+            row_index = self.data_ids
+            if self.shuffle:
+                np.random.shuffle(self.data_ids)
         else:
-            row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in data_ids])
+            row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in self.data_ids])
+            if self.shuffle:
+                np.random.shuffle(row_index)
         
         return row_index
 
@@ -269,10 +272,10 @@ class BatchGenerator():
         else:
             batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_row_index),1]
             annot_row_index = np.array([row_idx for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in batch_ids])
-        print("batch_row_indices", batch_row_index)
-        print("batch_count", self.batch_count)
-        print("batch_ids:", batch_ids)
-        print("entry_indices", self.entry_indices)
+        # print("batch_row_indices", batch_row_index)
+        # print("batch_count", self.batch_count)
+        # print("batch_ids:", batch_ids)
+        # print("entry_indices", self.entry_indices)
         
 
         if self.from_memory:
@@ -290,8 +293,8 @@ class BatchGenerator():
                 self.entry_indices = self.__update_indices__()
                 self.batch_indices = self.__get_batch_indices__()
 
-        if self.instance_function is not None:
-            X,Y = self.instance_function(X,Y)
+        if self.output_transform_func is not None:
+            X,Y = self.output_transform_func(X,Y)
 
         if self.return_batch_ids:
             return (batch_ids,X,Y)
