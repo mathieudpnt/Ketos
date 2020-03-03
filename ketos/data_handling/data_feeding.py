@@ -158,12 +158,12 @@ class BatchGenerator():
             self.x = x
             self.y = y
 
-            if indices is None:
-                self.indices = np.arange(len(self.x), dtype=int) 
+            if data_ids is None:
+                self.data_ids = np.arange(len(self.x), dtype=int) 
             else:
-                self.indices = indices
+                self.data_ids = data_ids
             
-            self.n_instances = len(self.indices)
+            self.n_instances = len(self.data_ids)
         else:
             assert (data_table is not None) and (annot_table is not None), 'data_table + annot_table or x + y must be specified'
             self.data = data_table
@@ -219,7 +219,10 @@ class BatchGenerator():
         if self.shuffle:
             np.random.shuffle(data_ids)
 
-        row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in data_ids])
+        if self.from_memory:
+            row_index = data_ids
+        else:
+            row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in data_ids])
         
         return row_index
 
@@ -233,7 +236,11 @@ class BatchGenerator():
                     A list of tuple, each containing two integer values: the start and end of the batch. These positions refer to the list stored in self.entry_indices.                
         
         """
-        ids = self.entry_indices[:,0]
+        if self.from_memory:
+            ids = self.entry_indices
+        else:
+            ids = self.entry_indices[:,0]
+
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
         #extra_instances = self.n_instances % n_complete_batches
         extra_instances = self.n_instances % self.batch_size
@@ -256,12 +263,17 @@ class BatchGenerator():
         """
 
         batch_row_index = self.batch_indices[self.batch_count]
-        batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_row_index),1]
+        if self.from_memory:
+            batch_ids = batch_row_index
+            
+        else:
+            batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_row_index),1]
+            annot_row_index = np.array([row_idx for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in batch_ids])
         print("batch_row_indices", batch_row_index)
         print("batch_count", self.batch_count)
         print("batch_ids:", batch_ids)
         print("entry_indices", self.entry_indices)
-        annot_row_index = np.array([row_idx for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in batch_ids])
+        
 
         if self.from_memory:
             X = np.take(self.x, batch_ids, axis=0)
