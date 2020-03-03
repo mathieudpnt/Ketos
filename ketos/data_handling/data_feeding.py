@@ -183,8 +183,9 @@ class BatchGenerator():
                 #self.annot_row_index_id = np.array([(row_idx, row['data_id']) for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in  self.data_ids])
 
             if filter is not None:
-                self.id_row_index = self.data.get_where_list(self.filter)
+                #self.id_row_index = self.data.get_where_list(self.filter)
                 self.data_ids = self.data[self.id_row_index]['id']
+                self.n_instances = len(self.data_ids)
 
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -255,7 +256,11 @@ class BatchGenerator():
         """
 
         batch_row_index = self.batch_indices[self.batch_count]
-        batch_ids = self.entry_indices[batch_row_index,1]
+        batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_row_index),1]
+        print("batch_row_indices", batch_row_index)
+        print("batch_count", self.batch_count)
+        print("batch_ids:", batch_ids)
+        print("entry_indices", self.entry_indices)
         annot_row_index = np.array([row_idx for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in batch_ids])
 
         if self.from_memory:
