@@ -661,9 +661,8 @@ def file_duration_table(path, search_subdirs=False):
                 File duration table. Columns: filename, duration
     """
     paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
-    durations = [librosa.get_duration(filename=p) for p in paths]
-    filenames = [os.path.basename(p) for p in paths]
-    return pd.DataFrame({'filename':filenames, 'duration':durations})
+    durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
+    return pd.DataFrame({'filename':paths, 'duration':durations})
 
 def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 
