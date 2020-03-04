@@ -660,7 +660,7 @@ def file_duration_table(path, subdirs=False):
             df: pandas DataFrame
                 File duration table. Columns: filename, duration
     """
-    paths = find_wave_files(path=path, fullpath=True, subdirs=subdirs)
+    paths = find_wave_files(path=path, return_path=True, subdirs=subdirs)
     durations = [librosa.get_duration(filename=p) for p in paths]
     filenames = [os.path.basename(p) for p in paths]
     return pd.DataFrame({'filename':filenames, 'duration':durations})
