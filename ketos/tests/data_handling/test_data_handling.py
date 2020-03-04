@@ -41,9 +41,7 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
-
 today = datetime.datetime.today()
-
 
 
 @pytest.mark.parametrize("input,depth,expected",[
@@ -123,14 +121,14 @@ def test_find_wave_files():
     wave.write(f2, rate=100, data=np.array([1.,0.]))
     wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.find_wave_files(dir, fullpath=False)
+    files = dh.find_wave_files(dir, return_path=False)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.find_wave_files(dir, fullpath=True)
+    files = dh.find_wave_files(dir, return_path=True)
     assert len(files) == 2
-    assert files[0] == f1
-    assert files[1] == f2
+    assert files[0] == "f1.wav"
+    assert files[1] == "f2.wav"
     #delete directory and files within
     shutil.rmtree(dir)
 
@@ -153,20 +151,19 @@ def test_find_wave_files_from_multiple_folders():
     wave.write(f2, rate=100, data=np.array([1.,0.]))
     wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.find_wave_files(folder, fullpath=False, subdirs=True)
+    files = dh.find_wave_files(folder, return_path=False, search_subdirs=True)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.find_wave_files(folder, fullpath=True, subdirs=True)
+    files = dh.find_wave_files(folder, return_path=True, search_subdirs=True)
     assert len(files) == 2
-    assert files[0] == f1
-    assert files[1] == f2
+    assert files[0] == "sub1/f1.wav"
+    assert files[1] == "sub2/f2.wav"
 
     
 ################################
 # from1hot() tests
 ################################
-
 
 @pytest.mark.parametrize("input,expected",[
     (np.array([0,1]),1),

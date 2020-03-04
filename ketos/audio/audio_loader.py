@@ -172,7 +172,7 @@ class FrameStepper(SelectionGenerator):
 
         else:
             self.dir = path
-            self.files = find_wave_files(path=path, fullpath=False, subdirs=True)
+            self.files = find_wave_files(path=path, return_path=True, search_subdirs=True)
             assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
 
         # obtain file durations and compute number of frames for each file
