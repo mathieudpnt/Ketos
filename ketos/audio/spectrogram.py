@@ -792,16 +792,16 @@ class MagSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
             step=step, seg_args=seg_args, window_func=window_func)
 
         time_res = seg_args['step_len'] / audio.rate
-        freq_res = freq_max / img.shape[1]
+        freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
@@ -1011,18 +1011,18 @@ class PowerSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
         img = aum.to_decibel(img) # convert to dB
 
         time_res = seg_args['step_len'] / audio.rate
-        freq_res = freq_max / img.shape[1]
+        freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
@@ -1195,7 +1195,7 @@ class MelSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
@@ -1205,7 +1205,7 @@ class MelSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate   
 
         return cls(data=img, filter_banks=filter_banks, time_res=time_res, 
-            freq_min=0, freq_max=freq_max, window_func=window_func, 
+            freq_min=0, freq_max=freq_nyquist, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
@@ -1406,7 +1406,7 @@ class CQTSpectrogram(Spectrogram):
             window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 

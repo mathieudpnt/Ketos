@@ -224,10 +224,12 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
         assert s.filename == filename[i%2]
 
 def test_audio_frame_loader_on_2min_wav():
-    rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
+    rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':600.}
     path = os.path.join(path_to_assets, '2min.wav')
     loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
     assert loader.num() == 8
+    s = next(loader)
+    assert s.freq_max() == pytest.approx(600, abs=s.freq_res())
 
 def test_audio_frame_loader_subdirs():
     """Test that loader can load audio files from subdirectories"""
