@@ -52,6 +52,11 @@ def test_pad_reflect_1d():
     assert np.all(res[5:-2] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
+    # pad more than array size
+    res = aum.pad_reflect(x, pad_left=12)
+    assert np.all(res[12:] == x)
+    assert np.all(np.flip(res[4:12], axis=0) == 2*x[0] - x[1:9])
+    assert np.all(res[:4] == 0)
 
 def test_pad_reflect_2d():
     x = np.random.rand(9,14)
