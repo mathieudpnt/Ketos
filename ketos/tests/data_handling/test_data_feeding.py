@@ -129,7 +129,6 @@ def test_use_only_subset_of_data():
     train_annot = open_table(h5, "/train/data_annot")
     
     train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=4, data_ids=[1,3,5,7,9,11,13,14], return_batch_ids=True) #create a batch generator 
-    print(train_generator.batch_indices)
     #First batch
     ids, X, _ = next(train_generator)
     np.testing.assert_array_equal(ids,[1,3,5,7])
@@ -242,7 +241,7 @@ def test_refresh_on_epoch_end():
                      'epoch_3': ([3, 4, 12, 17, 10, 1], [19, 5, 11, 8, 0, 18], [6, 13, 7, 15, 16, 14, 2, 9])}
                      
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
-        print(train_generator.batch_indices)
+        print(train_generator.batch_indices_data)
         #batch 0
         ids, X, _ = next(train_generator)
         print(epoch)
@@ -253,6 +252,61 @@ def test_refresh_on_epoch_end():
         #batch 2
         ids, X, _ = next(train_generator)
         np.testing.assert_array_equal(ids,expected_ids[epoch][2])
+       
+    
+    h5.close()
+
+def test_refresh_on_epoch_end_annot():
+    """ Test if the correct annotation labels are when the batches are refreshed
+    """
+    h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    train_data = open_table(h5, "/train/data")
+    train_annot = open_table(h5, "/train/data_annot")
+
+    np.random.seed(100)
+
+    def transform_output(x,y):
+        X = x
+        print(y)
+        Y = np.array([(value[0], value[1]) for value in y])
+       
+
+        return X,Y
+
+
+    ids_in_db = train_data[:]['id']
+    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=6,
+                                     y_field=['data_id','label'], return_batch_ids=True, shuffle=True,
+                                     refresh_on_epoch_end=True, output_transform_func=transform_output) #create a batch generator 
+
+    expected_ids = {'epoch_1':  ([17, 19, 11, 18, 13, 6], [16, 1, 9, 14, 12, 5], [2, 4, 10, 0, 15, 7, 3, 8]),
+                     'epoch_2': ([18, 19, 17, 0, 8, 6], [14, 7, 11, 10, 15, 3], [5, 13, 1, 4, 12, 2, 9, 16]),    
+                     'epoch_3': ([3, 4, 12, 17, 10, 1], [19, 5, 11, 8, 0, 18], [6, 13, 7, 15, 16, 14, 2, 9])}
+
+    expected_labels = {'epoch_1':  ([0, 0, 0, 0, 0, 1], [0, 1, 1, 0, 0, 1], [1, 1, 0, 1, 0, 1, 1, 1]),
+                     'epoch_2': ([0, 0, 0, 1, 1, 1], [0, 1, 0, 0, 0, 1], [1, 0, 1, 1, 0, 1, 1, 0]),    
+                     'epoch_3': ([1, 1, 0, 0, 0, 1], [0, 1, 0, 1, 1, 0], [1, 0, 1, 0, 0, 0, 1, 1])}
+                     
+    for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
+        #batch 0
+        ids, X, Y = next(train_generator)
+     
+        #print(Y)
+
+        
+        np.testing.assert_array_equal(Y[:,0],expected_ids[epoch][0])
+        np.testing.assert_array_equal(Y[:,1],expected_labels[epoch][0])
+        #batch 1
+        ids, X, Y = next(train_generator)
+     
+        np.testing.assert_array_equal(Y[:,0],expected_ids[epoch][1])
+        np.testing.assert_array_equal(Y[:,1],expected_labels[epoch][1])
+        #batch 2
+        ids, X, Y = next(train_generator)
+     
+        np.testing.assert_array_equal(Y[:,0],expected_ids[epoch][2])
+        np.testing.assert_array_equal(Y[:,1],expected_labels[epoch][2])
+        
        
     
     h5.close()
