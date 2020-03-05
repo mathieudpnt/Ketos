@@ -171,18 +171,13 @@ class BatchGenerator():
             self.y_field = y_field
             if data_ids is None:
                 self.n_instances = self.data.nrows
-                #self.indices = np.arange(self.n_instances)
                 self.data_ids = self.data[:]['id']
-                #self.data_row_index = np.arange(self.n_instances)
-                #self.annot_row_index = np.array([(row_idx, row['data_id']) for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in  self.data_ids])
             else:
                 self.n_instances = len(data_ids)
                 self.data_ids = data_ids
-                #self.id_row_index = np.array([row_idx for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in  self.data_ids])
-                #self.annot_row_index_id = np.array([(row_idx, row['data_id']) for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in  self.data_ids])
 
             if filter is not None:
-                #self.id_row_index = self.data.get_where_list(self.filter)
+                self.id_row_index = self.data.get_where_list(self.filter)
                 self.data_ids = self.data[self.id_row_index]['id']
                 self.n_instances = len(self.data_ids)
 
@@ -193,13 +188,12 @@ class BatchGenerator():
         self.refresh_on_epoch_end = refresh_on_epoch_end
         self.return_batch_ids = return_batch_ids
 
-        #self.n_batches = int(np.ceil(self.n_instances / self.batch_size))
+
         self.n_batches = int(self.n_instances // self.batch_size)
 
-        #indices are row_indexes, not the 'id' column in the data_table.
         self.entry_indices = self.__update_indices__()
 
-        self.batch_indices = self.__get_batch_indices__()
+        self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__()
 
     
     def __update_indices__(self):
@@ -213,21 +207,23 @@ class BatchGenerator():
                 indices: list of ints
                     The list of instance indices
         """
-        #indices = self.entry_indices
-        #data_ids = self.data_ids
-        
-       
 
         if self.from_memory:
             row_index = self.data_ids
+            
             if self.shuffle:
                 np.random.shuffle(self.data_ids)
+            return row_index
         else:
+            
             row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in self.data_ids])
-            if self.shuffle:
-                np.random.shuffle(row_index)
+            annot_row_index = np.array([(row['data_id'], row_index[row_index[:,1] == row['data_id'],0][0], annot_idx) for annot_idx,row in enumerate(self.annot.iterrows()) if row['data_id'] in row_index[:,1]])
         
-        return row_index
+            if self.shuffle:
+                np.random.shuffle(annot_row_index)
+              
+        #[data_id, data_idx, annot_idx]
+        return annot_row_index
 
     def __get_batch_indices__(self):
         """Selects the indices for each batch
@@ -242,7 +238,8 @@ class BatchGenerator():
         if self.from_memory:
             ids = self.entry_indices
         else:
-            ids = self.entry_indices[:,0]
+            ids = self.entry_indices#data_index
+
 
         n_complete_batches = int( self.n_instances // self.batch_size) # number of batches that can accomodate self.batch_size intances
         #extra_instances = self.n_instances % n_complete_batches
@@ -250,11 +247,17 @@ class BatchGenerator():
     
         list_of_indices = [list(ids[(i*self.batch_size):(i*self.batch_size)+self.batch_size]) for i in range(n_complete_batches)]
         if extra_instances > 0:
-            #last_batch_size = self.batch_size + extra_instances
             extra_instance_ids = list(ids[-extra_instances:])
             list_of_indices[-1]=list_of_indices[-1] + extra_instance_ids
+        if self.from_memory:
+            batch_indices = list_of_indices
+            annot_indices = list_of_indices
+        else:
+            batch_indices = [[ids[1] for ids in batch] for batch in list_of_indices ]    
+            annot_indices = [[ids[2] for ids in batch] for batch in list_of_indices ]    
         
-        return list_of_indices
+
+        return batch_indices, annot_indices
 
     def __iter__(self):
         return self
@@ -265,33 +268,29 @@ class BatchGenerator():
             A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
         """
 
-        batch_row_index = self.batch_indices[self.batch_count]
+        batch_data_row_index = self.batch_indices_data[self.batch_count]
+        batch_annot_row_index = self.batch_indices_annot[self.batch_count]
+        
         if self.from_memory:
-            batch_ids = batch_row_index
+            batch_ids = batch_data_row_index
             
         else:
-            batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_row_index),1]
-            annot_row_index = np.array([row_idx for row_idx, row in enumerate(self.annot.iterrows()) if row['data_id'] in batch_ids])
-        # print("batch_row_indices", batch_row_index)
-        # print("batch_count", self.batch_count)
-        # print("batch_ids:", batch_ids)
-        # print("entry_indices", self.entry_indices)
-        
+            batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_data_row_index),1]
 
         if self.from_memory:
             X = np.take(self.x, batch_ids, axis=0)
             Y = np.take(self.y, batch_ids, axis=0)
         else:
-            X = self.data[batch_row_index][self.x_field]
+            X = self.data[batch_data_row_index][self.x_field]
             
-            Y = self.annot[annot_row_index][self.y_field]
+            Y = self.annot[batch_annot_row_index][self.y_field]
 
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.batch_count = 0
             if self.refresh_on_epoch_end:
                 self.entry_indices = self.__update_indices__()
-                self.batch_indices = self.__get_batch_indices__()
+                self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__()
 
         if self.output_transform_func is not None:
             X,Y = self.output_transform_func(X,Y)
