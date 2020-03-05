@@ -213,7 +213,6 @@ class NNInterface():
                      'Poisson':tf.keras.metrics.Poisson,
                      'Precision':tf.keras.metrics.Precision,
                      'Recall':tf.keras.metrics.Recall,
-                     'PrecisionAtRecall':tf.keras.metrics.PrecisionAtRecall,
                      'RootMeanSquaredError':tf.keras.metrics.RootMeanSquaredError,
                      'SensitivityAtSpecificity':tf.keras.metrics.SensitivityAtSpecificity,
                      'SparseCategoricalAccuracy':tf.keras.metrics.SparseCategoricalAccuracy,
@@ -721,7 +720,8 @@ class NNInterface():
         instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
-
+    
+    @classmethod
     def build_from_recipe_file(cls, recipe_file):
         """ Build a model from a recipe file
 
@@ -960,7 +960,7 @@ class NNInterface():
 
 
                 if verbose == True:
-                    message  = ["Epoch: " + str(epoch) + "batch: " + str(train_batch_id) + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                    message  = ["Epoch: " + str(epoch) + " batch: " + str(train_batch_id) + " | "] + [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
                     print(''.join(message))
 
 
@@ -1015,11 +1015,14 @@ class NNInterface():
                 if verbose == True and self.secondary_metrics is not None:
                     metrics_values_msg = ""
                     for m in self.secondary_metrics:
-                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3))
+                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3)) + " "
                     
                     print("====================================================================================")
                     print("Val: ")
-                    print(metrics_values_msg)
+                    print(metrics_values_msg )
+                    print("====================================================================================\n")
+
+                    
 
 
                 if log_csv == True:
