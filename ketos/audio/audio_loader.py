@@ -103,9 +103,13 @@ class SelectionTableIterator(SelectionGenerator):
                 Path to top folder containing audio files.
             selection_table: pandas DataFrame
                 Selection table
+            duration: float
+                Use this argument to enforce uniform duration of all selections.
+                Any selection longer than the specified duration will be shortened
     """
-    def __init__(self, data_dir, selection_table):
+    def __init__(self, data_dir, selection_table, duration=None):
         self.sel = selection_table
+        self.duration = duration
         self.dir = data_dir
         self.row_id = 0
 
@@ -127,11 +131,19 @@ class SelectionTableIterator(SelectionGenerator):
                     Label
         """
         filename = self.sel.index.values[self.row_id][0]
+        # current row
         s = self.sel.iloc[self.row_id]
-        offset   = s['start']
-        duration = s['end'] - s['start']
+        # start time
+        if 'start' in s.keys(): offset = s['start']
+        else: offset = 0
+        # duration
+        if self.duration is not None: duration = self.duration
+        elif 'end' in s.keys(): duration = s['end'] - offset
+        else: duration = None
+        # label
         if 'label' in self.sel.columns.values: label = s['label']
         else: label = None
+        # update row no.
         self.row_id = (self.row_id + 1) % len(self.sel)
         return offset, duration, self.dir, filename, label
 
@@ -398,8 +410,8 @@ class AudioSelectionLoader(AudioLoader):
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
-        if 'duration' in repres.keys() and repres['duration'] is not None:
-            print("Warning: Specified duration ({1:.3f} s) will be ignored.")
+        if 'duration' in repres.keys(): duration = repres['duration']
+        else: duration = None
 
-        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections), 
+        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration), 
             channel=channel, annotations=annotations, repres=repres)

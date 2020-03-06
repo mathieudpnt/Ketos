@@ -218,7 +218,7 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
     assert loader.num() == 2
-    for i in range(6):
+    for i in range(6): #loop over each item 3 times
         s = next(loader)
         assert s.offset == start[i%2]
         assert s.filename == filename[i%2]
@@ -239,4 +239,34 @@ def test_audio_frame_loader_subdirs():
     assert len(loader.sel_gen.files) == 3
     for _ in range(loader.num()):
         _ = next(loader)
+
+def test_audio_select_loader_uniform_duration(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        with uniform duration by specifying duration in audio representation dictionary """ 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.3}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    sel = pd.DataFrame({'filename':files})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 5
+    for i in range(5):
+        s = next(loader)
+        assert s.duration() == rep['duration']
+
+def test_audio_select_loader_entire_files(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        of entire wav files """ 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    sel = pd.DataFrame({'filename':files})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 5
+    for i in range(5):
+        s = next(loader)
+        assert s.duration() == 0.5
 
