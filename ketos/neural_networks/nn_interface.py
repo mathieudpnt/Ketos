@@ -922,7 +922,7 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False,  ):
+    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False,  ):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
             if self.secondary_metrics is not None:
@@ -959,7 +959,7 @@ class NNInterface():
                         
 
 
-                if verbose == True:
+                if verbose >=2:
                     message  = ["Epoch: " + str(epoch) + " batch: " + str(train_batch_id) + " | "] + [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
                     print(''.join(message))
 
@@ -968,7 +968,7 @@ class NNInterface():
                 for m in self.secondary_metrics:
                     batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
-            if verbose == True and self.secondary_metrics is not None:
+            if verbose >=1 and self.secondary_metrics is not None:
                 metrics_values_msg = ""
                 for m in self.secondary_metrics:
                     metrics_values_msg += 'train_' + m.name + ": " + str(round(float(batch_metrics['train_' + m.name]),3)) + " "
@@ -1012,7 +1012,7 @@ class NNInterface():
                     for m in self.secondary_metrics:
                         batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.train_generator.n_batches)
                 
-                if verbose == True and self.secondary_metrics is not None:
+                if verbose >=1 and self.secondary_metrics is not None:
                     metrics_values_msg = ""
                     for m in self.secondary_metrics:
                         metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3)) + " "
