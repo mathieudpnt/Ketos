@@ -32,7 +32,7 @@ setup(name='ketos',
           'pint',
           'psutil',
           ],
-      setup_requires=['pytest-runner', ],
+      setup_requires=['pytest-runner','wheel'],
       tests_require=['pytest', ],
       include_package_data=True,
       zip_safe=False)

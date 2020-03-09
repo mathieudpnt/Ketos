@@ -646,13 +646,13 @@ def time_shift(annot, time_ref, length, step, min_overlap):
 
     return df
 
-def file_duration_table(path, subdirs=False):
+def file_duration_table(path, search_subdirs=False):
     """ Create file duration table.
 
         Args:
             path: str
                 Path to folder with audio files (*.wav)
-            subdirs: bool
+            search_subdirs: bool
                 If True, search include also any audio files in subdirectories.
                 Default is False.
 
@@ -660,10 +660,9 @@ def file_duration_table(path, subdirs=False):
             df: pandas DataFrame
                 File duration table. Columns: filename, duration
     """
-    paths = find_wave_files(path=path, fullpath=True, subdirs=subdirs)
-    durations = [librosa.get_duration(filename=p) for p in paths]
-    filenames = [os.path.basename(p) for p in paths]
-    return pd.DataFrame({'filename':filenames, 'duration':durations})
+    paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
+    durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
+    return pd.DataFrame({'filename':paths, 'duration':durations})
 
 def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 

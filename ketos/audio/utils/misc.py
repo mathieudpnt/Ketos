@@ -66,14 +66,21 @@ def pad_reflect(x, pad_left=0, pad_right=0):
         x_padded = x
 
     else:
+        pad_left_residual  = 0
+        pad_right_residual = 0
         x_padded = x.copy()
         if pad_left > 0:
             x_pad = 2*x[0] - np.flip(x[1:pad_left+1], axis=0)
+            pad_left_residual = max(0, pad_left - x_pad.shape[0])
             x_padded = np.concatenate((x_pad, x_padded))
 
         if pad_right > 0:
             x_pad = 2*x[-1] - np.flip(x[-pad_right-1:-1], axis=0)
+            pad_right_residual = max(0, pad_right - x_pad.shape[0])
             x_padded = np.concatenate((x_padded, x_pad))
+
+        if pad_left_residual + pad_right_residual > 0:
+            x_padded = pad_zero(x_padded, pad_left_residual, pad_right_residual)
 
     return x_padded
 

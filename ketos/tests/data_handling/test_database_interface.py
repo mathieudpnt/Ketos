@@ -371,7 +371,7 @@ def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
 
 def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db8.h5')
-    writer = di.AudioWriter(output_file=out, max_size=1E6) # max size: 1 Mbyte
+    writer = di.AudioWriter(output_file=out, max_size=2E6) # max size: 1 Mbyte
     spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     writer.write(spec)
     writer.write(spec)

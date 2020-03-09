@@ -62,6 +62,17 @@ def test_from_wav(sine_wave_file, sine_wave):
     assert a.filename == "sine_wave.wav"
     assert np.all(np.isclose(a.data, sig, atol=0.001))
 
+def test_from_wav_id(sine_wave_file, sine_wave):
+    """ Test if an audio signal can be created from a wav file,
+        with user specified ID"""
+    id = 'folder/audio.wav'
+    a = Waveform.from_wav(sine_wave_file, id=id)
+    sig = sine_wave[1]
+    assert a.duration() == 3.
+    assert a.rate == 44100
+    assert a.filename == id
+    assert np.all(np.isclose(a.data, sig, atol=0.001))
+
 def test_append_audio_signal(sine_audio):
     """Test if we can append an audio signal to itself"""
     audio_orig = sine_audio.deepcopy()

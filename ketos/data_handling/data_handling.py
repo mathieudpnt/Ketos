@@ -139,7 +139,7 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
 
     return None
 
-def find_files(path, substr, fullpath=True, subdirs=False):
+def find_files(path, substr, return_path=True, search_subdirs=False, search_path=False):
     """ Find all files in the specified directory containing the specified substring in their file name
 
         Args:
@@ -147,10 +147,13 @@ def find_files(path, substr, fullpath=True, subdirs=False):
                 Directory path
             substr: str
                 Substring contained in file name
-            fullpath: bool
-                If True, return relative path to each file. If false, only return the file names 
-            subdirs: bool
+            return_path: bool
+                If True, path to each file, relative to the top directory. 
+                If false, only return the filenames 
+            search_subdirs: bool
                 If True, search all subdirectories
+            search_path: bool
+                Search for substring occurrence in relative path rather than just the filename
 
         Returns:
             files: list (str)
@@ -161,67 +164,68 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             >>>
             >>> # Find files that contain 'super' in the name;
             >>> # Do not return the relative path
-            >>> find_files(path="ketos/tests/assets", substr="super", fullpath=False)
+            >>> find_files(path="ketos/tests/assets", substr="super", return_path=False)
             ['super_short_1.wav', 'super_short_2.wav']
             >>>
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
-            >>> find_files(path="ketos/tests/assets", substr=".h5")
-            ['ketos/tests/assets/11x_same_spec.h5', 'ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
+            >>> find_files(path="ketos/tests/", substr="super", search_subdirs=True)
+            ['assets/super_short_1.wav', 'assets/super_short_2.wav']
     """
     # find all files
-    allfiles = list()
-    if not subdirs:
-        f = os.listdir(path)
-        for fil in f:
-            if fullpath:
-                x = path
-                allfiles.append(os.path.join(x, fil))
+    all_files = []
+    if search_subdirs:
+        for dirpath, _, files in os.walk(path):
+            if return_path:
+                all_files += [os.path.relpath(os.path.join(dirpath, f), path) for f in files]
             else:
-                allfiles.append(fil)
+                all_files += files
     else:
-        for r, _, f in os.walk(path):
-            for fil in f:
-                if fullpath:
-                    allfiles.append(os.path.join(r, fil))
-                else:
-                    allfiles.append(fil)
+        all_files = os.listdir(path)
 
     # select those that contain specified substring
-    files = list()
-    for f in allfiles:
-        if substr in f:
-            files.append(f)
+    if isinstance(substr, str): substr = [substr]
+    files = []
+    for f in all_files:
+        for ss in substr:
+            if search_path: s = f
+            else: s = os.path.basename(f)
+            if ss in s:
+                files.append(f)
+                break
 
     # sort alphabetically
     files.sort()
-
     return files
 
 
-def find_wave_files(path, fullpath=True, subdirs=False):
+def find_wave_files(path, return_path=True, search_subdirs=False, search_path=False):
     """ Find all wave files in the specified directory
 
         Args:
             path: str
                 Directory path
-            fullpath: bool
-                Return relative path to each file or just the file name 
+            return_path: bool
+                If True, path to each file, relative to the top directory. 
+                If false, only return the filenames 
+            search_subdirs: bool
+                If True, search all subdirectories
+            search_path: bool
+                Search for substring occurrence in relative path rather than just the filename
 
         Returns:
-            wavefiles: list (str)
+            : list (str)
                 Alphabetically sorted list of file names
 
         Examples:
             >>> from ketos.data_handling.data_handling import find_wave_files
             >>>
-            >>> find_wave_files(path="ketos/tests/assets", fullpath=False)
+            >>> find_wave_files(path="ketos/tests/assets", return_path=False)
             ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
 
     """
-    wavefiles = find_files(path, '.wav', fullpath, subdirs)
-    wavefiles += find_files(path, '.WAV', fullpath, subdirs)
-    return wavefiles
+    return find_files(path, substr=['.wav', '.WAV'], 
+        return_path=return_path, search_subdirs=search_subdirs, search_path=search_path)
 
 def read_wave(file, channel=0, start=0, stop=None):
     """ Read a wave file in either mono or stereo mode.
