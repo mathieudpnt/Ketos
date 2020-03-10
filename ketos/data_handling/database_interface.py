@@ -320,6 +320,8 @@ def table_description(data_shape, annot_type='weak', track_source=True, filename
     elif isinstance(data_shape, Spectrogram):
         data_shape = data_shape.data.shape
 
+    label_in_data_table = label_in_data_table and (annot_type == 'weak') #only write label to data table if weak annot
+
     tbl_descr_data = table_description_data(data_shape=data_shape,  track_source=track_source, 
         filename_len=filename_len, label_in_data_table=label_in_data_table)
 
