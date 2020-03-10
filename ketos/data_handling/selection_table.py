@@ -88,7 +88,8 @@ def rename_columns(table, mapper):
     return table.rename(columns=mapper)
 
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
-    backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False):
+    backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
+    return_label_dict=False):
     """ Standardize the annotation table format.
 
         The input table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -129,12 +130,14 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
                 Character used to separate multiple labels. Only relevant if unfold_labels is set to True. Default is ",".
             trim_table: bool
                 Keep only the columns prescribed by the Ketos annotation format.
+            return_label_dict: bool
+                Return label dictionary. Default is False.
 
         Returns:
             table_std: pandas DataFrame
                 Standardized annotation table
             label_dict: dict
-                Dictionary mapping new labels to old labels
+                Dictionary mapping new labels to old labels. Only returned if return_label_dict is True.
     """
     assert table is not None or filename is not None, 'Either table or filename must be specified'
 
@@ -148,6 +151,10 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     # rename columns
     if mapper is not None:
         df = df.rename(columns=mapper)
+
+    # if user has provided duration instead of end time, compute end time
+    if 'start' in df.columns.values and 'duration' in df.columns.values and 'end' not in df.columns.values:
+        df['end'] = df['start'] + df['duration']
 
     # keep only relevant columns
     if trim_table:
@@ -193,7 +200,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     df = use_multi_indexing(df, 'annot_id')
 
     table_std = df
-    return table_std, label_dict
+
+    if return_label_dict: return table_std, label_dict
+    else: return table_std
 
 def use_multi_indexing(df, level_1_name):
     """ Change from single-level indexing to double-level indexing. 
@@ -432,7 +441,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>>
             >>> #Standardize annotation table format
-            >>> df, label_dict = standardize(df)
+            >>> df, label_dict = standardize(df, return_label_dict=True)
             >>> print(df)
                                 start   end  label
             filename  annot_id                    
@@ -716,7 +725,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             5  file2.wav    9.0  13.0      0
             >>>
             >>> #Standardize annotation table format
-            >>> df, label_dict = standardize(df)
+            >>> df, label_dict = standardize(df, return_label_dict=True)
             >>> print(df)
                                 start   end  label
             filename  annot_id                    
@@ -848,7 +857,7 @@ def select_by_segmenting(annotations, files, length, step=None,\
             >>> annot = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>>
             >>> #Standardize annotation table format
-            >>> annot, label_dict = standardize(annot)
+            >>> annot, label_dict = standardize(annot, return_label_dict=True)
             >>> print(annot)
                                 start   end  label
             filename  annot_id                    
