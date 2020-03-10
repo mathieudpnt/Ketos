@@ -1010,7 +1010,7 @@ class NNInterface():
                 if self.secondary_metrics is not None:
                     
                     for m in self.secondary_metrics:
-                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.train_generator.n_batches)
+                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.val_generator.n_batches)
                 
                 if verbose >=1 and self.secondary_metrics is not None:
                     metrics_values_msg = ""
