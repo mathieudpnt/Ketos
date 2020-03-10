@@ -32,6 +32,7 @@
 import os
 import tables
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
@@ -578,36 +579,36 @@ def filter_by_label(table, label):
     
     return indices
 
-def load_specs(table, indices=None, table_annot=None, stack=False):
-    """ Retrieve all the spectrograms in a table or a subset specified by the index_list
+def load_audio(table, indices=None, table_annot=None, stack=False):
+    """ Retrieve all the audio objects in a table or a subset specified by the index_list
 
-        Warnings: Loading all spectrograms in a table might cause memory problems.
+        Warnings: Loading all objects in a table might cause memory problems.
 
         Args:
             table: tables.Table
-                The table containing the spectrogtrams
+                The table containing the audio objects
             indices: list of ints or None
-                A list with the indices of the spectrograms that will be retrieved.
-                If set to None, loads all spectrograms in the table.
+                A list with the indices of the audio objects that will be retrieved.
+                If set to None, loads all objects in the table.
             table_annot: tables.Table
                 The table containing the annotations. If no such table is provided, 
-                the spectrograms are still loaded, but without annotations.
+                the audio objects are still loaded, but without annotations.
             stack: bool
-                Stack the spectrograms into a single spectrogram object
+                Stack the audio objects into a single object
 
         Returns:
-            specs: list or Spectrogram
-                List of spectrogram objects, or a single stacked spectrogram object
+            audio_objs: list or instance of Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram
+                Audio objects
 
         Examples:
-            >>> from ketos.data_handling.database_interface import open_file, open_table, load_specs
+            >>> from ketos.data_handling.database_interface import open_file, open_table, load_audio
             >>> # Open a connection to the database.
             >>> h5file = open_file("ketos/tests/assets/11x_same_spec.h5", 'r')
             >>> # Open the tables in group_1
             >>> tbl_data = open_table(h5file,"/group_1/table_data")
             >>> tbl_annot = open_table(h5file,"/group_1/table_annot")    
             >>> # Load the spectrograms stored on rows 0, 3 and 10, including their annotations
-            >>> selected_specs = load_specs(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+            >>> selected_specs = load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
             >>> # The resulting list has the 3 spectrogram objects
             >>> len(selected_specs)
             3
@@ -621,7 +622,7 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         indices = list(range(table.nrows))
 
     # loop over items in table
-    specs = []
+    audio_objs = []
     for idx in indices:
         #current item
         it = table[idx] 
@@ -632,18 +633,30 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
             kwargs[name] = table._v_attrs[name]
 
         # add filename, offset, and label, if available
-        col_names = ['filename','offset','label']
-        for col_name in col_names:
-            if col_name  in table.colnames: kwargs[col_name] = it[col_name] 
+        for col_name in ['filename','offset','label']:
+            if col_name in table.colnames: 
+                val = it[col_name]
+                if col_name == 'filename': val = val.decode()
+                kwargs[col_name] = val
 
-        # initialize object
-        spec = al.audio_repres_dict[table.attrs.type](data=it['data'], **kwargs)
-        specs.append(spec)
+        # annotations, if any
+        if table_annot is None: 
+            annot = None
+        else: 
+            annot_data = table_annot.read_where("""data_id == {0}""".format(it['id']))
+            if len(annot_data) > 0:
+                annot = pd.DataFrame()
+                for col_name in ['label','start','end','freq_min','freq_max']:
+                    if col_name in table_annot.colnames: annot[col_name] = annot_data[col_name] 
+
+        # initialize audio object
+        audio_class = al.audio_repres_dict[table.attrs.type]
+        audio_objs.append(audio_class(data=it['data'], annot=annot, **kwargs))
 
     if stack:
-        specs = MagSpectrogram.stack(specs)
+        audio_objs = audio_class.stack(audio_objs)
 
-    return specs
+    return audio_objs
     
 
 def create_database(output_file, data_dir, selections, channel=0, 

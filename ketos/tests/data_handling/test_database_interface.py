@@ -31,6 +31,7 @@ import tables
 import os
 import numpy as np
 import pandas as pd
+from io import StringIO
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
 from ketos.data_handling.selection_table import use_multi_indexing 
@@ -294,28 +295,47 @@ def test_filter_by_label_raises_exception(sine_audio):
    
     h5file.close()
 
-def test_load_specs_no_index_list():
+def test_load_audio_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
     fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot)
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot)
     assert len(selected_specs) == tbl_data.nrows
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)    
     h5file.close()
 
-def test_load_specs_with_index_list():
-    """Test if load_specs loads the spectrograms specified by index_list""" 
+def test_load_audio_with_index_list():
+    """Test if load_audio loads the spectrograms specified by index_list""" 
     fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     assert len(selected_specs) == 3
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
+    h5file.close()
+
+def test_load_audio_also_loads_annotations():
+    """Test if the spectrograms returned by load_audio have annotations""" 
+    fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
+    h5file = di.open_file(fpath, 'r')
+    tbl_data = di.open_table(h5file,"/group_1/table_data")
+    tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
+    specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    # check annotations for 1st spec
+    d = '''label  start  end  freq_min  freq_max
+0      1    1.0  1.4      50.0     300.0
+1      2    2.0  2.4      60.0     200.0'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    res = specs[0].get_annotations()[ans.columns.values].astype({'freq_min': 'float64', 'freq_max': 'float64'})
+    pd.testing.assert_frame_equal(ans, res)
+
+    print(specs[0].get_annotations())
+    assert specs[0].filename == 'sine_wave'
     h5file.close()
 
 def test_init_audio_writer():
@@ -331,7 +351,7 @@ def test_audio_writer_can_write_one_spec(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 1
     fil.close()
 
@@ -345,7 +365,7 @@ def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db6.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 2
     fil.close()
 
@@ -363,9 +383,9 @@ def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/first/test' in fil
     assert '/second/temp' in fil
-    specs = di.load_specs(fil.root.first.test)
+    specs = di.load_audio(fil.root.first.test)
     assert len(specs) == 2
-    specs = di.load_specs(fil.root.second.temp)
+    specs = di.load_audio(fil.root.second.temp)
     assert len(specs) == 3
     fil.close()
 
@@ -381,14 +401,14 @@ def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_au
     fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 2
     fil.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 1
     fil.close()
 
@@ -408,9 +428,9 @@ def test_audio_writer_change_directory(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
-    specs = di.load_specs(fil.root.home.fish)
+    specs = di.load_audio(fil.root.home.fish)
     assert len(specs) == 3
-    specs = di.load_specs(fil.root.home.whale)
+    specs = di.load_audio(fil.root.home.whale)
     assert len(specs) == 2
     fil.close()
 
@@ -436,13 +456,13 @@ def test_two_audio_writers_simultaneously(sine_audio):
     # check file 1
     fil1 = di.open_file(out1, 'r')
     assert '/home/fish' in fil1
-    specs = di.load_specs(fil1.root.home.fish)
+    specs = di.load_audio(fil1.root.home.fish)
     assert len(specs) == 3
     fil1.close()
     # check file 2
     fil2 = di.open_file(out2, 'r')
     assert '/home/whale' in fil2
-    specs = di.load_specs(fil2.root.home.whale)
+    specs = di.load_audio(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
 
@@ -457,7 +477,7 @@ def test_create_database_with_single_wav_file(sine_wave_file):
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
     assert '/assets/data_annot' in fil
-    specs = di.load_specs(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
+    specs = di.load_audio(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
     assert len(specs) == 2
     fil.close()
     os.remove(out)
