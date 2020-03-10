@@ -1397,11 +1397,6 @@ class CQTSpectrogram(Spectrogram):
         """
         window_func = window_func.lower() #make lowercase
 
-#        print(audio.data.shape)
-#        print(audio.data)
-#        x=np.asfortranarray(audio.data)
-#        print(x)
-
         # compute CQT
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
             bins_per_oct=bins_per_oct, freq_min=freq_min, freq_max=freq_max,
