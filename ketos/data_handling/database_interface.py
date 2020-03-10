@@ -169,7 +169,7 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
 
     return table
 
-def table_description_data(data_shape, track_source=True, filename_len=100):
+def table_description_data(data_shape, track_source=True, filename_len=100, label_in_data_table=False):
     """ Description of table structure for storing audio signals or spectrograms.
 
         Args:
@@ -194,6 +194,8 @@ def table_description_data(data_shape, track_source=True, filename_len=100):
         if track_source:
             filename = tables.StringCol(filename_len)
             offset = tables.Float64Col()
+        if label_in_data_table:
+            label = tables.UInt32Col()
 
     return TableDescription
 
@@ -233,7 +235,7 @@ def table_description_strong_annot(freq_range=False):
 
     return TableDescription
 
-def table_description(data_shape, annot_type='weak', track_source=True, filename_len=100, freq_range=False):
+def table_description(data_shape, annot_type='weak', track_source=True, filename_len=100, freq_range=False, label_in_data_table=False):
     """ Create HDF5 table structure description.
 
         The annotation type must be specified as either 'weak' or 'strong'.
@@ -318,7 +320,8 @@ def table_description(data_shape, annot_type='weak', track_source=True, filename
     elif isinstance(data_shape, Spectrogram):
         data_shape = data_shape.data.shape
 
-    tbl_descr_data = table_description_data(data_shape=data_shape,  track_source=track_source, filename_len=filename_len)
+    tbl_descr_data = table_description_data(data_shape=data_shape,  track_source=track_source, 
+        filename_len=filename_len, label_in_data_table=label_in_data_table)
 
     if annot_type == 'weak':
         tbl_descr_annot = table_description_weak_annot()
@@ -395,7 +398,7 @@ def write_annot(table, id, label=None, annots=None):
         row.append()
         table.flush()
 
-def write_audio(table, data, filename=None, offset=0, id=None):
+def write_audio(table, data, filename=None, offset=0, id=None, label=None):
     """ Write waveform or spectrogram to a HDF5 table.
 
         Args:
@@ -419,6 +422,7 @@ def write_audio(table, data, filename=None, offset=0, id=None):
                 Unique identifier given to spectrogram.
     """
     write_source = ("filename" in table.colnames)
+    write_label  = ("label" in table.colnames)
 
     row = table.row
     
@@ -431,6 +435,9 @@ def write_audio(table, data, filename=None, offset=0, id=None):
     if write_source:
         row['filename'] = filename
         row['offset'] = offset
+
+    if write_label:
+        row['label'] = label
 
     row.append()
     table.flush()
@@ -515,7 +522,7 @@ def write(x, table, table_annot=None, id=None):
         write_attrs(table, x)
 
     data_id = write_audio(table=table, data=x.get_data(), 
-        filename=x.get_filename(), offset=x.get_offset(), id=id)
+        filename=x.get_filename(), offset=x.get_offset(), id=id, label=x.get_label())
 
     if table_annot is not None:
         write_annot(table=table_annot, id=data_id, label=x.get_label(), annots=x.get_annotations())
@@ -622,9 +629,10 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
         for name in table._v_attrs._f_list():
             kwargs[name] = table._v_attrs[name]
 
-        # add filename and offset, if available
-        if 'filename' in table.colnames: kwargs['filename'] = it['filename']
-        if 'offset' in table.colnames:   kwargs['offset'] = it['offset']
+        # add filename, offset, and label, if available
+        col_names = ['filename','offset','label']
+        for col_name in col_names:
+            if col_name  in table.colnames: kwargs[col_name] = it[col_name] 
 
         # initialize object
         spec = al.audio_repres_dict[table.attrs.type](data=it['data'], **kwargs)
@@ -639,7 +647,7 @@ def load_specs(table, indices=None, table_annot=None, stack=False):
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, ignore_wrong_shape=False, 
-    track_source=True):
+    track_source=True, label_in_data_table=False):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -695,7 +703,7 @@ def create_database(output_file, data_dir, selections, channel=0,
                 saved to the table. Default is True.
     """
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, repres=audio_repres)
-    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a')
+    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a', label_in_data_table=label_in_data_table)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -773,7 +781,7 @@ class AudioWriter():
             Example:
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', ignore_wrong_shape=False,
-        track_source=True):
+        track_source=True, label_in_data_table=False):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -789,6 +797,7 @@ class AudioWriter():
         self.num_ignored = 0
         self.data_shape = None
         self.track_source = track_source
+        self.label_in_data_table = label_in_data_table
 
     def cd(self, fullpath='/'):
         """ Change the current directory within the database file system
@@ -899,7 +908,8 @@ class AudioWriter():
             annot_type, freq_range = self._detect_annot_type(x)
 
             descr, descr_annot = table_description(data_shape=x.data.shape, 
-                annot_type=annot_type, track_source=self.track_source, filename_len=100, freq_range=freq_range)
+                annot_type=annot_type, track_source=self.track_source, filename_len=100, 
+                freq_range=freq_range, label_in_data_table=self.label_in_data_table)
 
             tbl = create_table(h5file=self.file, path=path, name=name, description=descr)
             tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr_annot)
