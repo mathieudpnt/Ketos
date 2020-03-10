@@ -531,7 +531,7 @@ def write(x, table, table_annot=None, id=None):
         write_annot(table=table_annot, id=data_id, label=x.get_label(), annots=x.get_annotations())
 
 def filter_by_label(table, label):
-    """ Find all spectrograms in the table with the specified label.
+    """ Find all audio objects in the table with the specified label.
 
         Args:
             table: tables.Table
@@ -543,26 +543,27 @@ def filter_by_label(table, label):
 
         Returns:
             indices: list(int)
-                Indices of the spectrograms with the specified label(s).
-                If there are no spectrograms that match the label, returs an empty list.
+                Indices of the audio objects with the specified label(s).
+                If there are no objects that match the label, returs an empty list.
+
+        Examples:
+            >>> from ketos.data_handling.database_interface import open_file, open_table
+            >>>
+            >>> # Open a database and an existing table
+            >>> h5file = open_file("ketos/tests/assets/11x_same_spec.h5", 'r')
+            >>> table = open_table(h5file, "/group_1/table_annot")
+            >>>
+            >>> # Retrieve the indices for all spectrograms that contain the label 1
+            >>> # (all spectrograms in this table)
+            >>> filter_by_label(table, 1)
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            >>>
+            >>> # Since none of the spectrograms in the table include the label 3, 
+            >>> # an empty list is returned
+            >>> filter_by_label(table, 3)
+            []
+            >>> h5file.close()
     """
-#        Examples:
-#            >>> from ketos.data_handling.database_interface import open_file,open_table
-#            >>>
-#            >>> # Open a database and an existing table
-#            >>> h5file = open_file("ketos/tests/assets/15x_same_spec.h5", 'r')
-#            >>> table = open_table(h5file, "/train/species1")
-#            >>>
-#            >>> # Retrieve the indices for all spectrograms that contain the label 1
-#            >>> # (all spectrograms in this table)
-#            >>> filter_by_label(table, 1)
-#            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-#            >>>
-#            >>> # Since none of the spectrograms in the table include the label 2, 
-#            >>> # an empty list is returned
-#            >>> filter_by_label(table, 2)
-#            []
-#            >>> h5file.close()
     if isinstance(label, (list)):
         if not all (isinstance(l, int) for l in label):
             raise TypeError("label must be an int or a list of ints")    
@@ -571,11 +572,14 @@ def filter_by_label(table, label):
     else:
         raise TypeError("label must be an int or a list of ints")    
     
-    indices = []
+    if 'data_id' in table.colnames: col_name = 'data_id'
+    else:  col_name = 'id'
 
+    indices = []
     for row in table.iterrows():
-        if row['label'] in label:
-            indices.append(row['data_id'])
+        if row['label'] in label: indices.append(row[col_name])
+
+    indices = np.unique(indices).tolist()
     
     return indices
 
