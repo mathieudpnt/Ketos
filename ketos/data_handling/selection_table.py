@@ -412,12 +412,12 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             length: float
                 Selection length in seconds.
             step: float
-                Produce multiple instances of the same annotation by shifting the annotation 
+                Produce multiple selections for each annotation by shifting the selection 
                 window in steps of length step (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
-                Minimum required overlap between the generated annotation and the original 
-                annotation, expressed as a fraction of length. Only used if step > 0. 
+                Minimum required overlap between the selection interval and the  
+                annotation, expressed as a fraction of the selection length. Only used if step > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
@@ -462,32 +462,32 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             >>> print(df_sel.round(2))
                               label  start    end  annot_id
             filename  sel_id                               
-            file1.wav 0         2.0   5.05   8.05         0
-                      1         1.0   6.00   9.00         1
-                      2         2.0   6.05   9.05         0
-                      3         1.0   7.00  10.00         1
-                      4         2.0   7.05  10.05         0
-                      5         1.0   8.00  11.00         1
-                      6         1.0   9.00  12.00         1
-                      7         1.0  10.00  13.00         1
-                      8         1.0  11.00  14.00         1
-                      9         2.0  11.05  14.05         2
-                      10        1.0  12.00  15.00         1
-                      11        2.0  12.05  15.05         2
-                      12        2.0  13.05  16.05         2
-            file2.wav 0         2.0   0.15   3.15         0
-                      1         2.0   1.15   4.15         0
-                      2         2.0   2.15   5.15         0
-                      3         2.0   3.80   6.80         1
-                      4         2.0   4.80   7.80         1
-                      5         2.0   5.80   8.80         1
-                      6         1.0   6.50   9.50         2
-                      7         1.0   7.50  10.50         2
-                      8         1.0   8.50  11.50         2
-                      9         1.0   9.50  12.50         2
-                      10        1.0  10.50  13.50         2
-                      11        1.0  11.50  14.50         2
-                      12        1.0  12.50  15.50         2
+            file1.wav 0           2   5.05   8.05         0
+                      1           1   6.00   9.00         1
+                      2           2   6.05   9.05         0
+                      3           1   7.00  10.00         1
+                      4           2   7.05  10.05         0
+                      5           1   8.00  11.00         1
+                      6           1   9.00  12.00         1
+                      7           1  10.00  13.00         1
+                      8           1  11.00  14.00         1
+                      9           2  11.05  14.05         2
+                      10          1  12.00  15.00         1
+                      11          2  12.05  15.05         2
+                      12          2  13.05  16.05         2
+            file2.wav 0           2   0.15   3.15         0
+                      1           2   1.15   4.15         0
+                      2           2   2.15   5.15         0
+                      3           2   3.80   6.80         1
+                      4           2   4.80   7.80         1
+                      5           2   5.80   8.80         1
+                      6           1   6.50   9.50         2
+                      7           1   7.50  10.50         2
+                      8           1   8.50  11.50         2
+                      9           1   9.50  12.50         2
+                      10          1  10.50  13.50         2
+                      11          1  11.50  14.50         2
+                      12          1  12.50  15.50         2
     """
     df = annotations.copy()
     df['annot_id'] = df.index.get_level_values(1)
@@ -557,6 +557,9 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
         cols_new = cols[:p] + cols[p+1:] + ['annot_id']
         df = df[cols_new]
         df = df.astype({'annot_id': int}) #ensure annot_id is int
+
+    # ensure label is integer
+    df = df.astype({'label':int})
 
     table_sel = df
     return table_sel
