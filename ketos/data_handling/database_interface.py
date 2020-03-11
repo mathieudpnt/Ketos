@@ -26,7 +26,13 @@
 
 """ 'data_handling.database_interface' module within the ketos library
 
-    This module provides functions to create and use HDF5 databases as storage for acoustic data. 
+    This module provides functions to create and use HDF5 databases as storage for acoustic data 
+    including metadata and annotations.
+
+    An audio segment or spectrogram is said to be 'weakly annotated', if it is  assigned a single 
+    (integer) label, and is said to be 'strongly annotated', if it is assigned one or several 
+    labels, each accompanied by a start and end time, and potentially also a minimum and maximum 
+    frequecy. 
 """
 
 import os
@@ -170,16 +176,17 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
 
     return table
 
-def table_description_data(data_shape, include_label, include_source=True, filename_len=100):
+def table_description(data_shape, include_label=True, include_source=True, filename_len=100):
     """ Description of table structure for storing audio signals or spectrograms.
 
         Args:
-            data_shape: tuple (ints)
-                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
-                to be stored in the table. Optionally, a third integer can be added if the 
-                spectrogram has multiple channels (n_rows, n_cols, n_channels). 
-            label: bool
-                Include integer label column.
+            data_shape: tuple (ints) or numpy array or :class:`audio.base_audio.BaseAudio' 
+                The shape of the waveform or spectrogram to be stored in the table. 
+                If a numpy array is provided, the shape is deduced from this array.
+                If an instance of BaseAudio is provided, the shape is deduced from 
+                the data attribute.
+            include_label: bool
+                Include integer label column. Default is True.
             include_source: bool
                 If True, the name of the wav file from which the audio signal or 
                 spectrogram was generated and the placement within that file, is 
@@ -190,7 +197,41 @@ def table_description_data(data_shape, include_label, include_source=True, filen
         Returns:
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure.
+
+        Examples:
+            >>> import numpy as np
+            >>> from ketos.data_handling.database_interface import table_description
+            >>> 
+            >>> #Create a 64 x 20 image
+            >>> spec = np.random.random_sample((64,20))
+            >>>
+            >>> #Create a table description for weakly labeled spectrograms of this shape
+            >>> descr = table_description(spec)
+            >>>
+            >>> #Inspect the table structure
+            >>> cols = descr.columns
+            >>> for key in sorted(cols.keys()):
+            ...     print("%s: %s" % (key, cols[key]))
+            data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+            filename: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+            id: UInt32Col(shape=(), dflt=0, pos=None)
+            offset: Float64Col(shape=(), dflt=0.0, pos=None)
+            >>>
+            >>> #Create a table description for strong annotations
+            >>> descr_annot =  table_description_annot()
+            >>>
+            >>> #Inspect the annotation table structure
+            >>> cols = descr_annot.columns
+            >>> for key in sorted(cols.keys()):
+            ...     print("%s: %s" % (key, cols[key]))
+            data_id: UInt32Col(shape=(), dflt=0, pos=None)
+            end: Float64Col(shape=(), dflt=0.0, pos=None)
+            label: UInt8Col(shape=(), dflt=0, pos=None)
+            start: Float64Col(shape=(), dflt=0.0, pos=None)
     """
+    if isinstance(data_shape, np.ndarray): data_shape = data_shape.shape
+    elif isinstance(data_shape, Spectrogram): data_shape = data_shape.data.shape
+
     class TableDescription(tables.IsDescription):
         id = tables.UInt32Col()
         data = tables.Float32Col(data_shape)
@@ -224,98 +265,6 @@ def table_description_annot(freq_range=False):
             freq_max = tables.Float32Col()
 
     return TableDescription
-
-def table_description(data_shape, annot_type='weak', include_source=True, filename_len=100, freq_range=False):
-    """ Create HDF5 table structure description.
-
-        The annotation type must be specified as either 'weak' or 'strong'.
-
-        An audio segment or spectrogram is said to be 'weakly annotated', if it is  assigned a single 
-        (integer) label, and is said to be 'strongly annotated', if it is assigned one or several 
-        labels, each accompanied by a start and end time, and potentially also a minimum and maximum 
-        frequecy.
-
-        When the annotation type is set to 'weak', the method returns a single table description.
-
-        When the annotation type is set to 'strong', the method returns two table descriptions, one for 
-        the data table and one for the annotation table.
-
-        Args:
-            data_shape: tuple (ints) or numpy array or :class:`spectrogram.Spectrogram'
-                The shape of the audio signal (n_samples) or spectrogram (n_rows,n_cols) 
-                to be stored in the table. Optionally, a third integer can be added if the 
-                spectrogram has multiple channels (n_rows, n_cols, n_channels). 
-                If a numpy array is provided, the shape is deduced from this array.
-                If an instance of the Spectrogram class is provided, the shape is deduced from 
-                the image attribute.
-            annot_type: str
-                The annotation type. Permitted values are 'weak', 'strong', or None. 
-                The default value is 'weak'.
-            include_source: bool
-                If True, the name of the wav file from which the audio signal or 
-                spectrogram was generated and the placement within that file, is 
-                saved to the table. Default is True.
-            filename_len: int
-                Maximum allowed length of filename. Only used if include_source is True.
-            freq_range: bool
-                Set to True, if your annotations include frequency range. Otherwise, 
-                set to False (default). Only used for strong annotations.
-
-        Returns:
-            tbl_descr_data: class (tables.IsDescription)
-                The class describing the table structure for the data.
-            tbl_descr_annot: class (tables.IsDescription)
-                The class describing the table structure for the annotations. Only returned 
-                if annot_type is set to 'strong'.
-
-        Examples:
-            >>> import numpy as np
-            >>> from ketos.data_handling.database_interface import table_description
-            >>> 
-            >>> #Create a 64 x 20 image
-            >>> spec = np.random.random_sample((64,20))
-            >>>
-            >>> #Create a table description for weakly labeled spectrograms of this shape
-            >>> descr = table_description(spec)
-            >>>
-            >>> #Inspect the table structure
-            >>> cols = descr.columns
-            >>> for key in sorted(cols.keys()):
-            ...     print("%s: %s" % (key, cols[key]))
-            data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
-            filename: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
-            id: UInt32Col(shape=(), dflt=0, pos=None)
-            offset: Float64Col(shape=(), dflt=0.0, pos=None)
-            >>>
-            >>> #Create a table description for strongly labeled spectrograms
-            >>> descr_data, descr_annot =  table_description(spec, annot_type='strong')
-            >>>
-            >>> #Inspect the annotation table structure
-            >>> cols = descr_annot.columns
-            >>> for key in sorted(cols.keys()):
-            ...     print("%s: %s" % (key, cols[key]))
-            data_id: UInt32Col(shape=(), dflt=0, pos=None)
-            end: Float64Col(shape=(), dflt=0.0, pos=None)
-            label: UInt8Col(shape=(), dflt=0, pos=None)
-            start: Float64Col(shape=(), dflt=0.0, pos=None)
-    """
-    assert annot_type in [None, 'weak','strong'], 'Invalid annotation type. Permitted types are weak, strong, and None.'
-
-    if isinstance(data_shape, np.ndarray):
-        data_shape = data_shape.shape
-    elif isinstance(data_shape, Spectrogram):
-        data_shape = data_shape.data.shape
-
-    include_label = (annot_type == 'weak') #only write label to data table if weak annot
-
-    tbl_descr_data = table_description_data(data_shape=data_shape, include_label=include_label, 
-        include_source=include_source, filename_len=filename_len)
-
-    if annot_type == 'strong':
-        tbl_descr_annot = table_description_annot(freq_range=freq_range)
-        return tbl_descr_data, tbl_descr_annot    
-    else:
-        return tbl_descr_data
 
 def write_attrs(table, x):
     """ Writes the spectrogram attributes into the HDF5 table.
@@ -728,6 +677,8 @@ class AudioWriter():
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
+            max_filename_len: int
+                Maximum allowed length of filename. Only used if include_source is True.
 
         Attributes:
             base: str
@@ -768,9 +719,11 @@ class AudioWriter():
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
+            filename_len: int
+                Maximum allowed length of filename. Only used if include_source is True.
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', ignore_wrong_shape=False,
-        include_source=True):
+        include_source=True, max_filename_len=100):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -786,6 +739,7 @@ class AudioWriter():
         self.num_ignored = 0
         self.data_shape = None
         self.include_source = include_source
+        self.filename_len = max_filename_len
 
     def cd(self, fullpath='/'):
         """ Change the current directory within the database file system
@@ -896,18 +850,19 @@ class AudioWriter():
                 tbl_dict['table_annot'] = self.file.get_node(path, name+'_annot')
 
         else:
+            include_label = (annot_type == 'weak')
             descr = table_description(data_shape=x.data.shape, 
-                annot_type=annot_type, include_source=self.include_source, 
-                filename_len=100, freq_range=freq_range)
+                                      include_label=include_label, 
+                                      include_source=self.include_source, 
+                                      filename_len=self.filename_len)
+
+            tbl = create_table(h5file=self.file, path=path, name=name, description=descr)
+            tbl_dict = {'table': tbl}
 
             if annot_type is 'strong': 
-                tbl = create_table(h5file=self.file, path=path, name=name, description=descr[0])
-                tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr[1])
-                tbl_dict = {'table':tbl, 'table_annot':tbl_annot}
-            
-            else:
-                tbl = create_table(h5file=self.file, path=path, name=name, description=descr)
-                tbl_dict = {'table':tbl}
+                descr_annot = table_description_annot(freq_range=freq_range)
+                tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr_annot)
+                tbl_dict['table_annot'] = tbl_annot
 
         return tbl_dict
 
