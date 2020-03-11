@@ -110,11 +110,11 @@ def parse_value(x, name, unit=None, typ='float'):
         else:
             v = Q(x[name]).m_as(unit)
 
-        if typ is 'int':
+        if typ in ['int', int]:
             v = int(v)
-        elif unit is 'float':
+        elif unit in ['float', float]:
             v = float(v)
-        elif typ is 'str':
+        elif typ in ['str', str]:
             v = str(v)
 
     return v

@@ -532,9 +532,6 @@ class Log2Axis(Axis):
         """
         i = np.arange(0, self.bins, self.bins_per_oct)
 
-        if i[-1] != self.bins:
-            i = np.concatenate((i, [self.bins]))
-
         ticks = self.min() + i * (self.max() - self.min()) / self.bins
 
         labels = 2**(i / self.bins_per_oct) * self.min()

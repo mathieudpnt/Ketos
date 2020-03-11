@@ -34,6 +34,7 @@
 import os
 import copy
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import ketos.audio.utils.misc as aum
 from ketos.audio.annotation import AnnotationHandler, stack_annotations
@@ -215,7 +216,7 @@ class BaseAudio():
                 measured from the start of the file. Defaults to 0 if not specified.
             label: int
                 Data label.
-            annot: AnnotationHandler
+            annot: AnnotationHandler or pandas DataFrame
                 AnnotationHandler object.
     """
     def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
@@ -223,6 +224,8 @@ class BaseAudio():
         self.data = data
         length = data.shape[0] * time_res
         self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
+
+        if isinstance(annot, pd.DataFrame): annot = AnnotationHandler(annot)
 
         if np.ndim(data) > ndim: #stacked arrays
             filename = stack_attr(filename, shape=data.shape[ndim:], dtype=str)
