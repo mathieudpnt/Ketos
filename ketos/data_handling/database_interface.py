@@ -225,7 +225,7 @@ def table_description(data_shape, include_label=True, include_source=True, filen
             >>> cols = descr_annot.columns
             >>> for key in sorted(cols.keys()):
             ...     print("%s: %s" % (key, cols[key]))
-            data_id: UInt32Col(shape=(), dflt=0, pos=None)
+            data_index: UInt32Col(shape=(), dflt=0, pos=None)
             end: Float64Col(shape=(), dflt=0.0, pos=None)
             label: UInt8Col(shape=(), dflt=0, pos=None)
             start: Float64Col(shape=(), dflt=0.0, pos=None)
@@ -257,7 +257,7 @@ def table_description_annot(freq_range=False):
                 The class describing the table structure.
     """
     class TableDescription(tables.IsDescription):
-        data_id = tables.UInt32Col()
+        data_index = tables.UInt32Col()
         label = tables.UInt8Col()
         start = tables.Float64Col()
         end = tables.Float64Col()
@@ -294,14 +294,14 @@ def write_attrs(table, x):
         table.attrs.tmp = value
         table.attrs._f_rename('tmp',key)
 
-def write_annot(table, id, annots):
+def write_annot(table, data_index, annots):
     """ Write annotations to a HDF5 table.
 
         Args:
             table: tables.Table
                 Table in which the annotations will be stored.
                 (described by table_description()).
-            id: int
+            data_index: int
                 Audio object unique identifier.
             annots: pandas DataFrame
                 Annotations
@@ -312,7 +312,7 @@ def write_annot(table, id, annots):
     write_freq = ("freq_min" in table.colnames)
     for idx,annot in annots.iterrows():
         row = table.row
-        row["data_id"] = id
+        row["data_index"] = data_index
         row["label"] = annot['label']
         row["start"] = annot['start']
         row["end"]   = annot['end']
@@ -342,16 +342,16 @@ def write_audio(table, data, filename=None, offset=0, label=None, id=None):
                 Spectrogram unique identifier. Optional
 
         Returns:
-            id: int
-                Unique identifier given to spectrogram.
+            index: int
+                Index of row that the audio object was saved to.
     """
     write_source = ("filename" in table.colnames)
     write_label  = ("label" in table.colnames)
 
     row = table.row
-    
-    if id is None:
-        id = table.nrows
+    index = table.nrows
+
+    if id is None: id = index
 
     row['id'] = id   
     row['data'] = data
@@ -366,16 +366,13 @@ def write_audio(table, data, filename=None, offset=0, label=None, id=None):
     row.append()
     table.flush()
 
-    return id
+    return index
 
 def write(x, table, table_annot=None, id=None):
     """ Write waveform or spectrogram and annotations to HDF5 tables.
 
         Note: If the id argument is not specified, the row number will 
         will be used as a unique identifier for the spectrogram.
-
-        Note: If table_annot is not specified, the annotation data 
-        will not be written to file.        
 
         Args:
             x: instance of :class:`audio.waveform.Waveform',
@@ -445,11 +442,11 @@ def write(x, table, table_annot=None, id=None):
     """
     if table.nrows == 0: write_attrs(table, x)
 
-    data_id = write_audio(table=table, data=x.get_data(), filename=x.get_filename(), 
+    data_index = write_audio(table=table, data=x.get_data(), filename=x.get_filename(), 
         offset=x.get_offset(), label=x.get_label(), id=id)
 
     if table_annot is not None:
-        write_annot(table=table_annot, id=data_id, annots=x.get_annotations())
+        write_annot(table=table_annot, data_index=data_index, annots=x.get_annotations())
 
 def filter_by_label(table, label):
     """ Find all audio objects in the table with the specified label.
@@ -493,14 +490,15 @@ def filter_by_label(table, label):
     else:
         raise TypeError("label must be an int or a list of ints")    
     
-    col_name = 'data_id' if 'data_id' in table.colnames else 'id'
+    col_name = 'data_index' if 'data_index' in table.colnames else 'id'
 
     indices = []
-    for row in table.iterrows():
-        if row['label'] in label: indices.append(row[col_name])
+    for index,row in enumerate(table.iterrows()):
+        if row['label'] in label: 
+            if col_name == 'data_index': indices.append(row[col_name])
+            else: indices.append(index)
 
-    indices = np.unique(indices).tolist()
-    
+    indices = np.unique(indices).tolist()    
     return indices
 
 def load_audio(table, indices=None, table_annot=None, stack=False):
@@ -567,7 +565,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
         if table_annot is None: 
             annot = None
         else: 
-            annot_data = table_annot.read_where("""data_id == {0}""".format(it['id']))
+            annot_data = table_annot.read_where("""data_index == {0}""".format(idx))
             if len(annot_data) > 0:
                 annot = pd.DataFrame()
                 for col_name in ['label','start','end','freq_min','freq_max']:

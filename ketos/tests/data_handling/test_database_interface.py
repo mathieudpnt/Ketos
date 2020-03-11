@@ -104,7 +104,7 @@ def test_add_row_to_annot_table():
     # add a row
     row = table.row
     row['label'] = 12
-    row['data_id'] = 3
+    row['data_index'] = 3
     row['start'] = 0.
     row['end'] = 1.
     row.append()
@@ -156,21 +156,21 @@ def test_write_mag_spec(sine_audio):
     tbl_annot.flush()
     # check that annotations have been properly saved
     x = tbl_annot[0]
-    assert x['data_id'] == 0
+    assert x['data_index'] == 0
     assert x['label'] == 1
     assert x['start'] == 1.
     assert x['end'] == 2.
     x = tbl_annot[1]
-    assert x['data_id'] == 0
+    assert x['data_index'] == 0
     assert x['label'] == 2
     assert x['start'] == 1.5
     assert x['end'] == 2.5
     x = tbl_annot[2]
-    assert x['data_id'] == 1
+    assert x['data_index'] == 1
     x = tbl_annot[3]
-    assert x['data_id'] == 1
+    assert x['data_index'] == 1
     x = tbl_annot[4]
-    assert x['data_id'] == 7
+    assert x['data_index'] == 2
     assert x['label'] == 1
     assert x['start'] == 1.
     assert x['end'] == 2.
@@ -242,7 +242,7 @@ def test_filter_by_label(sine_audio):
     spec2 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
     spec2.annotate(label=2, start=1.0, end=1.4, freq_min=50, freq_max=300)
     spec3 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
-    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,80], 'freq_max':[300,200]})
+    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,60], 'freq_max':[300,200]})
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
     h5file = di.open_file(fpath, 'w')
@@ -274,6 +274,22 @@ def test_filter_by_label(sine_audio):
     assert rows == [0,1,4]
     h5file.close()
     os.remove(fpath)
+
+#def test_test(sine_audio):
+#    spec3 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
+#    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,60], 'freq_max':[300,200]})
+#    # open h5 file
+#    fpath = os.path.join(path_to_tmp, '11x_same_spec.h5')
+#    h5file = di.open_file(fpath, 'w')
+#    # Create table descriptions for storing the spectrogram data
+#    descr_data = di.table_description(spec3)
+#    descr_annot = di.table_description_annot(freq_range=True)
+#    # create tables
+#    tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
+#    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
+#    # write spectrogram to table
+#    for _ in range(11): di.write(x=spec3, table=tbl_data, table_annot=tbl_annot) 
+#    h5file.close()
 
 def test_filter_by_label_raises_exception(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
@@ -334,13 +350,11 @@ def test_load_audio_also_loads_annotations():
     specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     # check annotations for 1st spec
     d = '''label  start  end  freq_min  freq_max
-0      1    1.0  1.4      50.0     300.0
-1      2    2.0  2.4      60.0     200.0'''
+0      2    1.0  1.4      50.0     300.0
+1      3    2.0  2.4      60.0     200.0'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
     res = specs[0].get_annotations()[ans.columns.values].astype({'freq_min': 'float64', 'freq_max': 'float64'})
     pd.testing.assert_frame_equal(ans, res)
-
-    print(specs[0].get_annotations())
     assert specs[0].filename == 'sine_wave'
     h5file.close()
 
