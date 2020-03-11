@@ -473,12 +473,12 @@ def filter_by_label(table, label):
             >>>
             >>> # Retrieve the indices for all spectrograms that contain the label 1
             >>> # (all spectrograms in this table)
-            >>> filter_by_label(table, 1)
+            >>> filter_by_label(table, 2)
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
             >>>
-            >>> # Since none of the spectrograms in the table include the label 3, 
+            >>> # Since none of the spectrograms in the table include the label 4, 
             >>> # an empty list is returned
-            >>> filter_by_label(table, 3)
+            >>> filter_by_label(table, 4)
             []
             >>> h5file.close()
     """
@@ -494,7 +494,7 @@ def filter_by_label(table, label):
 
     indices = []
     for index,row in enumerate(table.iterrows()):
-        if row['label'] in label: 
+        if row['label'] in label:
             if col_name == 'data_index': indices.append(row[col_name])
             else: indices.append(index)
 
@@ -648,8 +648,8 @@ def create_database(output_file, data_dir, selections, channel=0,
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
     
     for _ in tqdm(range(loader.num()), disable = not progress_bar):
-            x = next(loader)
-            writer.write(x=x, path=path_to_dataset, name='data')
+        x = next(loader)
+        writer.write(x=x, path=path_to_dataset, name='data')
 
     writer.close()
 
@@ -741,15 +741,17 @@ class AudioWriter():
         self.include_source = include_source
         self.filename_len = max_filename_len
 
-    def cd(self, fullpath='/'):
-        """ Change the current directory within the database file system
+    def set_table(self, path, name):
+        """ Change the current table
 
             Args:
-                fullpath: str
-                    Full path to the table. For example, /data/spec
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
         """
-        self.path = fullpath[:fullpath.rfind('/')+1]
-        self.name = fullpath[fullpath.rfind('/')+1:]
+        self.path = path
+        self.name = name
 
     def write(self, x, path=None, name=None):
         """ Write waveform or spectrogram object to a table in the database file
@@ -767,6 +769,7 @@ class AudioWriter():
         """
         if path is None: path = self.path
         if name is None: name = self.name
+        self.set_table(path, name)
 
         # ensure a file is open
         self._open_file() 
@@ -776,7 +779,7 @@ class AudioWriter():
             self.data_shape = x.data.shape
 
         # open tables, create if they do not already exist
-        tbl_dict = self._open_tables(x=x, path=path, name=name) 
+        tbl_dict = self._open_tables(path=path, name=name, x=x) 
 
         # write spectrogram to table
         if x.data.shape == self.data_shape or not self.ignore_wrong_shape:
@@ -801,6 +804,13 @@ class AudioWriter():
         if self.file is not None:
 
             actual_fname = self.file.filename
+
+            # create index for data_index column in annotation 
+            # table to allow faster queries
+            # https://www.pytables.org/usersguide/optimization.html
+            tbl_dict = self._open_tables(path=self.path, name=self.name)
+            if 'table_annot' in tbl_dict.keys(): tbl_dict['table_annot'].cols.data_index.create_index()
+
             self.file.close()
             self.file = None
 
@@ -817,18 +827,19 @@ class AudioWriter():
 
             self.item_counter = 0
 
-    def _open_tables(self, x, path, name):
+    def _open_tables(self, path, name, x=None):
         """ Open the specified table.
 
             If the table does not exist, create it.
+            (This requires that x is specified)
 
             Args:
-                x: Waveform or Spectrogram
-                    Object to be saved
                 path: str
                     Path to the group containing the table
                 name: str
                     Name of the table
+                x: Waveform or Spectrogram
+                    Object to be saved
 
             Returns:
                 tbl_dict: dict
@@ -842,14 +853,13 @@ class AudioWriter():
         else:
             fullpath = path + '/' + name
 
-        annot_type, freq_range = self._detect_annot_type(x)
-
         if fullpath in self.file:
             tbl_dict = {'table': self.file.get_node(path, name)}
-            if annot_type is 'strong': 
+            if fullpath+'_annot' in self.file: 
                 tbl_dict['table_annot'] = self.file.get_node(path, name+'_annot')
 
-        else:
+        elif x is not None:
+            annot_type, freq_range = self._detect_annot_type(x)
             include_label = (annot_type == 'weak')
             descr = table_description(data_shape=x.data.shape, 
                                       include_label=include_label, 
@@ -863,6 +873,9 @@ class AudioWriter():
                 descr_annot = table_description_annot(freq_range=freq_range)
                 tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr_annot)
                 tbl_dict['table_annot'] = tbl_annot
+
+        else:
+            tbl_dict = None
 
         return tbl_dict
 

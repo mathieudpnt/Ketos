@@ -275,22 +275,6 @@ def test_filter_by_label(sine_audio):
     h5file.close()
     os.remove(fpath)
 
-#def test_test(sine_audio):
-#    spec3 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
-#    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,60], 'freq_max':[300,200]})
-#    # open h5 file
-#    fpath = os.path.join(path_to_tmp, '11x_same_spec.h5')
-#    h5file = di.open_file(fpath, 'w')
-#    # Create table descriptions for storing the spectrogram data
-#    descr_data = di.table_description(spec3)
-#    descr_annot = di.table_description_annot(freq_range=True)
-#    # create tables
-#    tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
-#    tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
-#    # write spectrogram to table
-#    for _ in range(11): di.write(x=spec3, table=tbl_data, table_annot=tbl_annot) 
-#    h5file.close()
-
 def test_filter_by_label_raises_exception(sine_audio):
     """ Test if filter_by_label raises expected exception when the the label argument is of the wrong type"""
     # open h5 file
@@ -436,11 +420,11 @@ def test_audio_writer_change_directory(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db9.h5')
     writer = di.AudioWriter(output_file=out)
     spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
-    writer.cd('/home/fish')
+    writer.set_table('/home/','fish')
     writer.write(spec)
     writer.write(spec)
     writer.write(spec)
-    writer.cd('/home/whale')
+    writer.set_table('/home','whale')
     writer.write(spec)
     writer.write(spec)
     writer.close()
@@ -463,11 +447,11 @@ def test_two_audio_writers_simultaneously(sine_audio):
     # create spec
     spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     # write 
-    writer1.cd('/home/fish')
+    writer1.set_table('/home/','fish')
     writer1.write(spec)
     writer1.write(spec)
     writer1.write(spec)
-    writer2.cd('/home/whale')
+    writer2.set_table('/home/','whale')
     writer2.write(spec)
     writer2.write(spec)
     # close
