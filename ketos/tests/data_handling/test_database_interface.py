@@ -74,7 +74,7 @@ def test_create_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_data, descr_annot = di.table_description((32,64))
+    descr_data, descr_annot = di.table_description((32,64), annot_type='strong')
     # create data table
     _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
@@ -97,13 +97,15 @@ def test_add_row_to_annot_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_annot = di.table_description_weak_annot()
+    descr_annot = di.table_description_annot()
     # create annotation table
     table = di.create_table(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
     # add a row
     row = table.row
     row['label'] = 12
     row['data_id'] = 3
+    row['start'] = 0.
+    row['end'] = 1.
     row.append()
     table.flush()
     assert table.nrows == 1
@@ -117,7 +119,7 @@ def test_create_table_existing():
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
     h5file = di.open_file(fpath, 'a')
     # create table description
-    descr_annot = di.table_description_weak_annot()
+    descr_annot = di.table_description_annot()
     # create table
     _ = di.create_table(h5file=h5file, path='/train/', name='species1', description=descr_annot)
     table = h5file.get_node("/train/species1")
@@ -476,30 +478,21 @@ def test_create_database_with_single_wav_file(sine_wave_file):
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    assert '/assets/data_annot' in fil
-    specs = di.load_audio(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
+    specs = di.load_audio(table=fil.root.assets.data)
     assert len(specs) == 2
     fil.close()
     os.remove(out)
 
 def test_create_database_ids(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    out = os.path.join(path_to_assets, 'tmp/db13.h5')
     rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav', 'sine_wave.wav','sine_wave.wav'], 'start':[0.1, 0.2, 0.1, 0.2], 'end':[2.0, 2.1, 2.0, 2.1], 'label':[1, 2, 1, 2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, dataset_name='test', selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
-  
     # check database contents
     db = di.open_file(out, 'r')
-
     data_table = db.get_node("/test/data")
-    data_annot_table = db.get_node("/test/data_annot")
-
     np.testing.assert_array_equal(data_table[:]['id'],[0,1,2,3])
-
-    np.testing.assert_array_equal(data_annot_table[:]['data_id'],[0,1,2,3])
-
-
     db.close()
     os.remove(out)
