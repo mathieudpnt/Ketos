@@ -133,7 +133,7 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
             >>> # Open a connection to the database
             >>> h5file = open_file("ketos/tests/assets/tmp/database1.h5", 'w')
             >>> # Create table descriptions for weakly labeled spectrograms with shape (32,64)
-            >>> descr = table_description((32,64))
+            >>> descr = table_description((32,64), include_label=False)
             >>> # Create 'table_data' within 'group1'
             >>> my_table = create_table(h5file, "/group1/", "table_data", descr) 
             >>> # Show the table description, with the field names (columns)
@@ -215,6 +215,7 @@ def table_description(data_shape, include_label=True, include_source=True, filen
             data: Float32Col(shape=(64, 20), dflt=0.0, pos=None)
             filename: StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
             id: UInt32Col(shape=(), dflt=0, pos=None)
+            label: UInt8Col(shape=(), dflt=0, pos=None)
             offset: Float64Col(shape=(), dflt=0.0, pos=None)
             >>>
             >>> #Create a table description for strong annotations
@@ -239,7 +240,7 @@ def table_description(data_shape, include_label=True, include_source=True, filen
             filename = tables.StringCol(filename_len)
             offset = tables.Float64Col()
         if include_label:
-            label = tables.UInt32Col()
+            label = tables.UInt8Col()
 
     return TableDescription
 
@@ -299,7 +300,7 @@ def write_annot(table, id, annots):
         Args:
             table: tables.Table
                 Table in which the annotations will be stored.
-                (described by table_description_data()).
+                (described by table_description()).
             id: int
                 Audio object unique identifier.
             annots: pandas DataFrame
@@ -328,7 +329,7 @@ def write_audio(table, data, filename=None, offset=0, label=None, id=None):
         Args:
             table: tables.Table
                 Table in which the spectrogram will be stored.
-                (described by table_description_data()).
+                (described by table_description()).
             data: numpy array
                 Waveform or spectrogram data array 
             filename: str
@@ -385,7 +386,7 @@ def write(x, table, table_annot=None, id=None):
                 The audio object to be stored in the table.
             table: tables.Table
                 Table in which the audio data will be stored.
-                (described by table_description_data()).
+                (described by table_description()).
             table_annot: tables.Table
                 Table in which the annotations will be stored.
                 (described by table_description_weak_annot() or table_description_strong_annot()).
@@ -400,7 +401,7 @@ def write(x, table, table_annot=None, id=None):
 
         Examples:
             >>> import tables
-            >>> from ketos.data_handling.database_interface import open_file, create_table, table_description_data, write
+            >>> from ketos.data_handling.database_interface import open_file, create_table, table_description, table_description_annot, write
             >>> from ketos.audio.spectrogram import MagSpectrogram
             >>> from ketos.audio.waveform import Waveform
             >>>
@@ -414,7 +415,8 @@ def write(x, table, table_annot=None, id=None):
             >>> # Open a connection to a new HDF5 database file
             >>> h5file = open_file("ketos/tests/assets/tmp/database2.h5", 'w')
             >>> # Create table descriptions for storing the spectrogram data
-            >>> descr_data, descr_annot = table_description(spec, annot_type='strong')
+            >>> descr_data = table_description(spec)
+            >>> descr_annot = table_description_annot()
             >>> # Create tables
             >>> tbl_data = create_table(h5file, "/group1/", "table_data", descr_data) 
             >>> tbl_annot = create_table(h5file, "/group1/", "table_annot", descr_annot) 

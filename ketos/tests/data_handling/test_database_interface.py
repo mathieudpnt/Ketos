@@ -74,7 +74,8 @@ def test_create_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_data, descr_annot = di.table_description((32,64), annot_type='strong')
+    descr_data = di.table_description((32,64))
+    descr_annot = di.table_description_annot()
     # create data table
     _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
@@ -141,7 +142,8 @@ def test_write_mag_spec(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec, annot_type='strong')
+    descr_data = di.table_description(spec)
+    descr_annot = di.table_description_annot()
     # Create tables
     tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
     tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
@@ -199,7 +201,8 @@ def test_write_cqt_spec(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec, annot_type='strong', freq_range=True)
+    descr_data = di.table_description(spec)
+    descr_annot = di.table_description_annot(freq_range=True)
     # create tables
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
@@ -244,7 +247,8 @@ def test_filter_by_label(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec1, annot_type='strong', freq_range=True)
+    descr_data = di.table_description(spec1)
+    descr_annot = di.table_description_annot(freq_range=True)
     # create tables
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
