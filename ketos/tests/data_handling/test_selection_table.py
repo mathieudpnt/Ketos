@@ -290,7 +290,7 @@ def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration
 def test_select_by_segmenting(annot_table_std, file_duration_table):
     a = st.standardize(annot_table_std)
     f = file_duration_table
-    sel = st.select_by_segmenting(a, f, length=5.1, step=4.0, discard_empty=True, pad=True)
+    sel = st.select_by_segmenting(f, length=5.1, annotations=a, step=4.0, discard_empty=True, pad=True)
     # check selection table
     d = '''filename sel_id start  end
 f0.wav   0         0.0  5.1
@@ -363,7 +363,7 @@ f2.wav   0           5   3.15  4.15'''
 def test_query_annotated(annot_table_std, file_duration_table):
     a = st.standardize(annot_table_std)
     f = file_duration_table
-    sel = st.select_by_segmenting(a, f, length=5.1, step=4.0, discard_empty=True, pad=True)
+    sel = st.select_by_segmenting(f, length=5.1, annotations=a, step=4.0, discard_empty=True, pad=True)
     # query for 1 file
     q1, q2 = st.query_annotated(sel[0], sel[1], label=[2,4])
     d = '''filename sel_id start  end

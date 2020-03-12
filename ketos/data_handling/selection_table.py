@@ -817,7 +817,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
 
     return df
 
-def select_by_segmenting(annotations, files, length, step=None,\
+def select_by_segmenting(files, length, annotations=None, step=None,
     discard_empty=False, pad=True):
     """ Generate a selection table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
@@ -831,13 +831,13 @@ def select_by_segmenting(annotations, files, length, step=None,\
         and annotation id.
 
         Args:
-            table: pandas DataFrame
-                Annotation table.
             files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
             length: float
                 Selection length in seconds.
+            annotations: pandas DataFrame
+                Annotation table.
             step: float
                 Selection step size in seconds. If None, the step size is set 
                 equal to the selection length.
@@ -849,8 +849,10 @@ def select_by_segmenting(annotations, files, length, step=None,\
                 beyond the endpoint of the audio file.
 
         Returns:
-            : tuple(pandas DataFrame, pandas DataFrame)
-                Selection table and accompanying annotations table
+            sel: pandas DataFrame
+                Selection table
+            annot: pandas DataFrame
+                Annotations table. Only returned if annotations is specified.
 
         Example:
             >>> import pandas as pd
@@ -881,7 +883,7 @@ def select_by_segmenting(annotations, files, length, step=None,\
             >>>
             >>> #Create a selection table by splitting the audio data into segments of 
             >>> #uniform length. The length is set to 10.0 sec and the step size to 5.0 sec.
-            >>> sel = select_by_segmenting(annotations=annot, files=files, length=10.0, step=5.0) 
+            >>> sel = select_by_segmenting(files=files, length=10.0, annotations=annot, step=5.0) 
             >>> #Inspect the selection table
             >>> print(sel[0].round(2))
                               start   end
@@ -916,10 +918,10 @@ def select_by_segmenting(annotations, files, length, step=None,\
         step = length
 
     # check that the annotation table has expected format
-    assert is_standardized(annotations, has_time=True), 'Annotation table appears not to have the expected structure.'
-
-    # discard annotations with label -1
-    annotations = annotations[annotations.label != -1]
+    if annotations is not None:
+        assert is_standardized(annotations, has_time=True), 'Annotation table appears not to have the expected structure.'
+        
+        annotations = annotations[annotations.label != -1] #discard annotations with label -1
 
     # create selections table by segmenting
     sel = segment_files(files, length=length, step=step, pad=pad)
@@ -928,14 +930,18 @@ def select_by_segmenting(annotations, files, length, step=None,\
     num_segs = sel.index.get_level_values(1).max() + 1
 
     # create annotation table by segmenting
-    annot = segment_annotations(annotations, num=num_segs, length=length, step=step)
+    if annotations is not None:
+        annot = segment_annotations(annotations, num=num_segs, length=length, step=step)
 
-    # discard empties
-    if discard_empty:
-        indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
-        sel = sel.loc[indices].sort_index()
+        # discard empties
+        if discard_empty:
+            indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
+            sel = sel.loc[indices].sort_index()
 
-    return (sel, annot)
+        return sel, annot
+
+    else:
+        return sel
 
 def segment_files(table, length, step=None, pad=True):
     """ Generate a selection table by stepping across the audio files, using a fixed 
