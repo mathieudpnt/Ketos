@@ -273,6 +273,7 @@ def read_wave(file, channel=0, start=0, stop=None):
     """
     signal, rate = sf.read(file=file, start=start, stop=stop, always_2d=True)               
     data = signal[:, channel]
+    data = np.asfortranarray(data)
     return rate, data
 
 def create_dir(dir):

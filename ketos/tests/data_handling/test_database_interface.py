@@ -31,6 +31,7 @@ import tables
 import os
 import numpy as np
 import pandas as pd
+from io import StringIO
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
 from ketos.data_handling.selection_table import use_multi_indexing 
@@ -73,7 +74,8 @@ def test_create_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_data, descr_annot = di.table_description((32,64))
+    descr_data = di.table_description((32,64))
+    descr_annot = di.table_description_annot()
     # create data table
     _ = di.create_table(h5file=h5file, path='/group_1/', name='table_1', description=descr_data)
     group = h5file.get_node("/group_1")
@@ -96,13 +98,15 @@ def test_add_row_to_annot_table():
     fpath = os.path.join(path_to_tmp, 'tmp2_db.h5')
     h5file = di.open_file(fpath, 'w')
     # create table description
-    descr_annot = di.table_description_weak_annot()
+    descr_annot = di.table_description_annot()
     # create annotation table
     table = di.create_table(h5file=h5file, path='/group_1/', name='table_2', description=descr_annot)
     # add a row
     row = table.row
     row['label'] = 12
-    row['data_id'] = 3
+    row['data_index'] = 3
+    row['start'] = 0.
+    row['end'] = 1.
     row.append()
     table.flush()
     assert table.nrows == 1
@@ -116,7 +120,7 @@ def test_create_table_existing():
     fpath = os.path.join(path_to_assets, '15x_same_spec.h5')
     h5file = di.open_file(fpath, 'a')
     # create table description
-    descr_annot = di.table_description_weak_annot()
+    descr_annot = di.table_description_annot()
     # create table
     _ = di.create_table(h5file=h5file, path='/train/', name='species1', description=descr_annot)
     table = h5file.get_node("/train/species1")
@@ -138,7 +142,8 @@ def test_write_mag_spec(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp3_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec, annot_type='strong')
+    descr_data = di.table_description(spec)
+    descr_annot = di.table_description_annot()
     # Create tables
     tbl_data = di.create_table(h5file, "/group1/", "table_data", descr_data) 
     tbl_annot = di.create_table(h5file, "/group1/", "table_annot", descr_annot) 
@@ -151,21 +156,21 @@ def test_write_mag_spec(sine_audio):
     tbl_annot.flush()
     # check that annotations have been properly saved
     x = tbl_annot[0]
-    assert x['data_id'] == 0
+    assert x['data_index'] == 0
     assert x['label'] == 1
     assert x['start'] == 1.
     assert x['end'] == 2.
     x = tbl_annot[1]
-    assert x['data_id'] == 0
+    assert x['data_index'] == 0
     assert x['label'] == 2
     assert x['start'] == 1.5
     assert x['end'] == 2.5
     x = tbl_annot[2]
-    assert x['data_id'] == 1
+    assert x['data_index'] == 1
     x = tbl_annot[3]
-    assert x['data_id'] == 1
+    assert x['data_index'] == 1
     x = tbl_annot[4]
-    assert x['data_id'] == 7
+    assert x['data_index'] == 2
     assert x['label'] == 1
     assert x['start'] == 1.
     assert x['end'] == 2.
@@ -196,7 +201,8 @@ def test_write_cqt_spec(sine_audio):
     fpath = os.path.join(path_to_tmp, 'tmp12_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec, annot_type='strong', freq_range=True)
+    descr_data = di.table_description(spec)
+    descr_annot = di.table_description_annot(freq_range=True)
     # create tables
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
@@ -236,12 +242,13 @@ def test_filter_by_label(sine_audio):
     spec2 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
     spec2.annotate(label=2, start=1.0, end=1.4, freq_min=50, freq_max=300)
     spec3 = MagSpectrogram.from_waveform(sine_audio, window=0.2, step=0.02)
-    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,80], 'freq_max':[300,200]})
+    spec3.annotate(df={'label':[2,3], 'start':[1.0,2.0], 'end':[1.4,2.4], 'freq_min':[50,60], 'freq_max':[300,200]})
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp8_db.h5')
     h5file = di.open_file(fpath, 'w')
     # Create table descriptions for storing the spectrogram data
-    descr_data, descr_annot = di.table_description(spec1, annot_type='strong', freq_range=True)
+    descr_data = di.table_description(spec1)
+    descr_annot = di.table_description_annot(freq_range=True)
     # create tables
     tbl_data  = di.create_table(h5file=h5file, path='/group_1/', name='table_data', description=descr_data)
     tbl_annot = di.create_table(h5file=h5file, path='/group_1/', name='table_annot', description=descr_annot)
@@ -294,28 +301,45 @@ def test_filter_by_label_raises_exception(sine_audio):
    
     h5file.close()
 
-def test_load_specs_no_index_list():
+def test_load_audio_no_index_list():
     """Test if load specs loads the entire table if index_list is None""" 
     fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot)
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot)
     assert len(selected_specs) == tbl_data.nrows
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)    
     h5file.close()
 
-def test_load_specs_with_index_list():
-    """Test if load_specs loads the spectrograms specified by index_list""" 
+def test_load_audio_with_index_list():
+    """Test if load_audio loads the spectrograms specified by index_list""" 
     fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_specs(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     assert len(selected_specs) == 3
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
+    h5file.close()
+
+def test_load_audio_also_loads_annotations():
+    """Test if the spectrograms returned by load_audio have annotations""" 
+    fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
+    h5file = di.open_file(fpath, 'r')
+    tbl_data = di.open_table(h5file,"/group_1/table_data")
+    tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
+    specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    # check annotations for 1st spec
+    d = '''label  start  end  freq_min  freq_max
+0      2    1.0  1.4      50.0     300.0
+1      3    2.0  2.4      60.0     200.0'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
+    res = specs[0].get_annotations()[ans.columns.values].astype({'freq_min': 'float64', 'freq_max': 'float64'})
+    pd.testing.assert_frame_equal(ans, res)
+    assert specs[0].filename == 'sine_wave'
     h5file.close()
 
 def test_init_audio_writer():
@@ -331,7 +355,7 @@ def test_audio_writer_can_write_one_spec(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 1
     fil.close()
 
@@ -345,7 +369,7 @@ def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db6.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 2
     fil.close()
 
@@ -363,9 +387,9 @@ def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/first/test' in fil
     assert '/second/temp' in fil
-    specs = di.load_specs(fil.root.first.test)
+    specs = di.load_audio(fil.root.first.test)
     assert len(specs) == 2
-    specs = di.load_specs(fil.root.second.temp)
+    specs = di.load_audio(fil.root.second.temp)
     assert len(specs) == 3
     fil.close()
 
@@ -381,14 +405,14 @@ def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_au
     fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 2
     fil.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_specs(fil.root.audio)
+    specs = di.load_audio(fil.root.audio)
     assert len(specs) == 1
     fil.close()
 
@@ -396,11 +420,11 @@ def test_audio_writer_change_directory(sine_audio):
     out = os.path.join(path_to_assets, 'tmp/db9.h5')
     writer = di.AudioWriter(output_file=out)
     spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
-    writer.cd('/home/fish')
+    writer.set_table('/home/','fish')
     writer.write(spec)
     writer.write(spec)
     writer.write(spec)
-    writer.cd('/home/whale')
+    writer.set_table('/home','whale')
     writer.write(spec)
     writer.write(spec)
     writer.close()
@@ -408,9 +432,9 @@ def test_audio_writer_change_directory(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
-    specs = di.load_specs(fil.root.home.fish)
+    specs = di.load_audio(fil.root.home.fish)
     assert len(specs) == 3
-    specs = di.load_specs(fil.root.home.whale)
+    specs = di.load_audio(fil.root.home.whale)
     assert len(specs) == 2
     fil.close()
 
@@ -423,11 +447,11 @@ def test_two_audio_writers_simultaneously(sine_audio):
     # create spec
     spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
     # write 
-    writer1.cd('/home/fish')
+    writer1.set_table('/home/','fish')
     writer1.write(spec)
     writer1.write(spec)
     writer1.write(spec)
-    writer2.cd('/home/whale')
+    writer2.set_table('/home/','whale')
     writer2.write(spec)
     writer2.write(spec)
     # close
@@ -436,13 +460,13 @@ def test_two_audio_writers_simultaneously(sine_audio):
     # check file 1
     fil1 = di.open_file(out1, 'r')
     assert '/home/fish' in fil1
-    specs = di.load_specs(fil1.root.home.fish)
+    specs = di.load_audio(fil1.root.home.fish)
     assert len(specs) == 3
     fil1.close()
     # check file 2
     fil2 = di.open_file(out2, 'r')
     assert '/home/whale' in fil2
-    specs = di.load_specs(fil2.root.home.whale)
+    specs = di.load_audio(fil2.root.home.whale)
     assert len(specs) == 2
     fil2.close()
 
@@ -456,30 +480,21 @@ def test_create_database_with_single_wav_file(sine_wave_file):
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    assert '/assets/data_annot' in fil
-    specs = di.load_specs(table=fil.root.assets.data, table_annot=fil.root.assets.data_annot)
+    specs = di.load_audio(table=fil.root.assets.data)
     assert len(specs) == 2
     fil.close()
     os.remove(out)
 
 def test_create_database_ids(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    out = os.path.join(path_to_assets, 'tmp/db13.h5')
     rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav', 'sine_wave.wav','sine_wave.wav'], 'start':[0.1, 0.2, 0.1, 0.2], 'end':[2.0, 2.1, 2.0, 2.1], 'label':[1, 2, 1, 2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, dataset_name='test', selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
-  
     # check database contents
     db = di.open_file(out, 'r')
-
     data_table = db.get_node("/test/data")
-    data_annot_table = db.get_node("/test/data_annot")
-
     np.testing.assert_array_equal(data_table[:]['id'],[0,1,2,3])
-
-    np.testing.assert_array_equal(data_annot_table[:]['data_id'],[0,1,2,3])
-
-
     db.close()
     os.remove(out)

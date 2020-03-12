@@ -173,7 +173,7 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     sel = use_multi_indexing(sel, 'sel_id')
     # create a annotation table
     ann = pd.DataFrame({'filename':[files[0],files[0],files[1]],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
-    ann, _ = standardize(ann)
+    ann = standardize(ann)
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
     s = next(loader)
