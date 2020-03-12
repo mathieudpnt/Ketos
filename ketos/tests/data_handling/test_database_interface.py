@@ -229,7 +229,7 @@ def test_write_cqt_spec(sine_audio):
     assert tbl_d.attrs.freq_min == 1
     assert tbl_d.attrs.bins_per_oct == 32
     assert tbl_d.attrs.type == 'CQTSpectrogram'
-    assert tbl_d.attrs.window_func == 'hamming'
+    assert tbl_d.attrs.window_func == 'hann'
     # clean
     h5file.close()
     os.remove(fpath)
