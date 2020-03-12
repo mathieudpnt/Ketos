@@ -583,7 +583,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
-    max_size=None, verbose=True, progress_bar=True, ignore_wrong_shape=False, 
+    max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
     include_source=True):
     """ Create a database from a selection table.
 
@@ -632,7 +632,7 @@ def create_database(output_file, data_dir, selections, channel=0,
                 Print relevant information during execution such as no. of files written to disk
             progress_bar: bool
                 Show progress bar.  
-            ignore_wrong_shape: bool
+            discard_wrong_shape: bool
                 Ignore objects that do not have the same shape as previously saved objects. Default is False.
             include_source: bool
                 If True, the name of the wav file from which the waveform or 
@@ -642,7 +642,8 @@ def create_database(output_file, data_dir, selections, channel=0,
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations)
 
-    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a')
+    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
+        progress_bar=progress_bar, discard_wrong_shape=discard_wrong_shape, include_source=include_source)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -671,7 +672,7 @@ class AudioWriter():
                 is never split).
             verbose: bool
                 Print relevant information during execution such as no. of files written to disk
-            ignore_wrong_shape: bool
+            discard_wrong_shape: bool
                 Ignore objects that do not have the same shape as previously saved objects. Default is False.
             include_source: bool
                 If True, the name of the wav file from which the waveform or 
@@ -709,7 +710,7 @@ class AudioWriter():
                     ’w’: Write; a new file is created (an existing file with the same name would be deleted).
                     ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
                     ’r+’: It is similar to ‘a’, but the file must already exist.
-            ignore_wrong_shape: bool
+            discard_wrong_shape: bool
                 Ignore objects that do not have the same shape as previously saved objects. Default is False.
             num_ignore: int
                 Number of ignored objects
@@ -722,7 +723,7 @@ class AudioWriter():
             filename_len: int
                 Maximum allowed length of filename. Only used if include_source is True.
     """
-    def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', ignore_wrong_shape=False,
+    def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
         include_source=True, max_filename_len=100):
         
         self.base = output_file[:output_file.rfind('.')]
@@ -734,7 +735,7 @@ class AudioWriter():
         self.name = 'audio'
         self.verbose = verbose
         self.mode = mode
-        self.ignore_wrong_shape = ignore_wrong_shape
+        self.discard_wrong_shape = discard_wrong_shape
         self.item_counter = 0
         self.num_ignored = 0
         self.data_shape = None
@@ -782,7 +783,7 @@ class AudioWriter():
         tbl_dict = self._open_tables(path=path, name=name, x=x) 
 
         # write spectrogram to table
-        if x.data.shape == self.data_shape or not self.ignore_wrong_shape:
+        if x.data.shape == self.data_shape or not self.discard_wrong_shape:
             write(x=x, **tbl_dict)
             self.item_counter += 1
 
