@@ -46,12 +46,13 @@ def test_one_batch():
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
 
     five_specs = train_data[:5]['data']
-    five_labels = train_annot[:5]['label']
+    five_labels = train_data[:5]['label']
+    
+    five_labels = [np.array(l) for l in five_labels]
 
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=5, return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data,batch_size=5, return_batch_ids=True) #create a batch generator 
     ids, X, Y = next(train_generator)
     
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
@@ -63,19 +64,28 @@ def test_one_batch():
     h5.close()
 
 #TODO: create a test database with strong annotations and test if the batch generator returns start, end, min_freq, max_freq instead of label
-# def test_labels_as_Y():
-#     """ Test if batch generator returns labels instead of boxes
-#     """
-#     h5 = open_file(os.path.join(path_to_assets, "15x_same_spec.h5"), 'r') # create the database handle  
-#     train_data = open_table(h5, "/train/species1")
+def test_output_for_strong_annotations():
+    """ Test if batch generator returns multiple labels for strongly annotated instances
+    """
+    h5 = open_file(os.path.join(path_to_assets, "11x_same_spec.h5"), 'r') # create the database handle  
+    data = open_table(h5, "/group_1/table_data")
+    annot = open_table(h5, "/group_1/table_annot")
     
-#     five_labels = train_data[:5]['labels']
 
-#     train_generator = BatchGenerator(hdf5_table=train_data, y_field='labels', batch_size=5, return_batch_ids=False) #create a batch generator 
-#     _, Y = next(train_generator)
-#     np.testing.assert_array_equal(Y, five_labels)
+    
+    expected_y = np.array([[[annot[0]['label'],annot[1]['label']]],
+                            [[annot[2]['label'],annot[3]['label']]],
+                            [[annot[4]['label'],annot[5]['label']]],
+                            [[annot[6]['label'],annot[7]['label']]],
+                            [[annot[8]['label'],annot[9]['label']]]])
 
-#     h5.close()
+
+    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
+    
+    _, Y = next(train_generator)
+    np.testing.assert_array_equal(Y, expected_y)
+
+    h5.close()
     
 
 def test_batch_sequence_same_as_db():
@@ -128,7 +138,7 @@ def test_use_only_subset_of_data():
     train_data = open_table(h5, "/train/data")
     train_annot = open_table(h5, "/train/data_annot")
     
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=4, data_ids=[1,3,5,7,9,11,13,14], return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=4, select_indicess=[1,3,5,7,9,11,13,14], return_batch_ids=True) #create a batch generator 
     #First batch
     ids, X, _ = next(train_generator)
     np.testing.assert_array_equal(ids,[1,3,5,7])
@@ -276,7 +286,7 @@ def test_refresh_on_epoch_end_annot():
 
     ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=6,
-                                     y_field=['data_id','label'], return_batch_ids=True, shuffle=True,
+                                     y_field=['data_index','label'], return_batch_ids=True, shuffle=True,
                                      refresh_on_epoch_end=True, output_transform_func=transform_output) #create a batch generator 
 
     expected_ids = {'epoch_1':  ([17, 19, 11, 18, 13, 6], [16, 1, 9, 14, 12, 5], [2, 4, 10, 0, 15, 7, 3, 8]),
