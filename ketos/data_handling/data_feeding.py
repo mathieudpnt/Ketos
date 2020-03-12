@@ -166,7 +166,10 @@ class BatchGenerator():
                 self.select_indices = select_indices
             self.n_instances = len(self.select_indices)
         else:
-            assert (data_table is not None) and (annot_table is not None), 'data_table + annot_table or x + y must be specified'
+            assert (data_table is not None), 'data_table + annot_table or x + y must be specified'
+            if self.annot_in_data_table == False:
+                assert annot_table is not None,'if annotations are not present in the data_table \
+                    (annot_in_data_table=False), an annotations table (annot_table) must be specified'
             self.data = data_table
             self.annot = annot_table
             self.x_field = x_field
@@ -212,25 +215,16 @@ class BatchGenerator():
                     The list of instance indices
         """
 
-        if self.from_memory:
+        if self.from_memory or self.annot_in_data_table:
             row_index = self.select_indices
             
-            if self.shuffle:
-                np.random.shuffle(self.select_indices)
-            return row_index
         else:
-            
-            
-            # row_index = np.array([(row_idx, row['id']) for row_idx, row in enumerate(self.data.iterrows()) if row['id'] in self.select_indices])
-            # annot_row_index = np.array([(row['data_index'], row_index[row_index[:,1] == row['data_index'],0][0], annot_idx) for annot_idx,row in enumerate(self.annot.iterrows()) if row['data_index'] in row_index[:,1]])
-            annot_row_index = np.array([(row['data_index'], annot_idx) for annot_idx,row in enumerate(self.annot.iterrows()) if row['data_index'] in self.select_indices])
-            
+            row_index = np.array([(row['data_index'], annot_idx) for annot_idx,row in enumerate(self.annot.iterrows()) if row['data_index'] in self.select_indices])
         
-            if self.shuffle:
-                np.random.shuffle(annot_row_index)
+        if self.shuffle:
+                np.random.shuffle(row_index)
               
-        #[data_id, data_idx, annot_idx]
-        return annot_row_index
+        return row_index
 
     def __get_batch_indices__(self):
         """Selects the indices for each batch
@@ -242,7 +236,7 @@ class BatchGenerator():
                     A list of tuple, each containing two integer values: the start and end of the batch. These positions refer to the list stored in self.entry_indices.                
         
         """
-        if self.from_memory:
+        if self.from_memory or self.annot_in_data_table:
             ids = self.entry_indices
         else:
             ids = np.unique(self.entry_indices[:,0])#data_index
@@ -259,9 +253,8 @@ class BatchGenerator():
             batch_indices = list_of_indices
             annot_indices = list_of_indices
         else:
-                        
             data_indices = list_of_indices
-            if self.annot_in_data_table:
+            if self.annot_in_data_table == False:
                 annot_indices = [[self.entry_indices[self.entry_indices[:,0]==data_idx,1] for data_idx in batch] for batch in list_of_indices] 
                 annot_indices = [np.vstack(batch).flatten() for batch in annot_indices]
             else:
@@ -280,14 +273,12 @@ class BatchGenerator():
         """
 
         batch_data_row_index = self.batch_indices_data[self.batch_count]
-        if self.annot_in_data_table:
-            batch_annot_row_index = self.batch_indices_annot[self.batch_count]
         
-        if self.from_memory:
+        if self.from_memory or self.annot_in_data_table:
             batch_ids = batch_data_row_index
-            
         else:
             batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_data_row_index),1]
+            batch_annot_row_index = self.batch_indices_annot[self.batch_count]
 
         if self.from_memory:
             X = np.take(self.x, batch_ids, axis=0)
@@ -295,10 +286,11 @@ class BatchGenerator():
         else:
             X = self.data[batch_data_row_index][self.x_field]
 
-            if self.annot_in_data_table:            
+            if self.annot_in_data_table == False:            
                 Y = self.annot[batch_annot_row_index][['data_index'] + self.y_field]
                 Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
             else:
+                import pdb; pdb.set_trace()
                 Y = self.data[batch_data_row_index][self.y_field]
             
 
