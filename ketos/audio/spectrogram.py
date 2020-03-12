@@ -1362,7 +1362,7 @@ class CQTSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
-    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hamming'):
+    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hann'):
         """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
             https://librosa.github.io/librosa/generated/librosa.core.cqt.html
@@ -1388,8 +1388,8 @@ class CQTSpectrogram(Spectrogram):
                     Window function (optional). Select between
                         * bartlett
                         * blackman
-                        * hamming (default)
-                        * hanning
+                        * hamming
+                        * hanning (default)
 
             Returns:
                 spec: CQTSpectrogram
