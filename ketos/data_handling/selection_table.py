@@ -761,9 +761,9 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
                       4       10.94  13.94      0
     """
     # compute lengths, and discard segments shorter than requested length
-    c = files['filename']
-    c = c.reset_index()
-    c['length'] = files['duration'] - length
+    c = files[['filename','duration']]
+    c.reset_index(drop=True, inplace=True)
+    c['length'] = c['duration'] - length
     c = c[c['length'] >= 0]
 
     # cumulative length 
