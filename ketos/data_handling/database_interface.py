@@ -40,6 +40,7 @@ import tables
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from skimage.transform import resize
 from ketos.utils import tostring
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
@@ -584,7 +585,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
-    include_source=True):
+    allow_resizing=1, include_source=True):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -633,7 +634,11 @@ def create_database(output_file, data_dir, selections, channel=0,
             progress_bar: bool
                 Show progress bar.  
             discard_wrong_shape: bool
-                Ignore objects that do not have the same shape as previously saved objects. Default is False.
+                Discard objects that do not have the same shape as previously saved objects. Default is False.
+            allow_resizing: int
+                If the object shape differs from previously saved objects, the object 
+                will be resized using the resize method of the scikit-image package, provided the mismatch 
+                is no greater than allow_resizing in either dimension. 
             include_source: bool
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
@@ -643,7 +648,8 @@ def create_database(output_file, data_dir, selections, channel=0,
         repres=audio_repres, annotations=annotations)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
-        progress_bar=progress_bar, discard_wrong_shape=discard_wrong_shape, include_source=include_source)
+        discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
+        include_source=include_source)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -673,7 +679,11 @@ class AudioWriter():
             verbose: bool
                 Print relevant information during execution such as no. of files written to disk
             discard_wrong_shape: bool
-                Ignore objects that do not have the same shape as previously saved objects. Default is False.
+                Discard objects that do not have the same shape as previously saved objects. Default is False.
+            allow_resizing: int
+                If the object shape differs from previously saved objects, the object 
+                will be resized using the resize method of the scikit-image package, provided the mismatch 
+                is no greater than allow_resizing in either dimension. 
             include_source: bool
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
@@ -711,7 +721,11 @@ class AudioWriter():
                     ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
                     ’r+’: It is similar to ‘a’, but the file must already exist.
             discard_wrong_shape: bool
-                Ignore objects that do not have the same shape as previously saved objects. Default is False.
+                Discard objects that do not have the same shape as previously saved objects. Default is False.
+            allow_resizing: int
+                If the object shape differs from previously saved objects, the object 
+                will be resized using the resize method of the scikit-image package, provided the mismatch 
+                is no greater than allow_resizing in either dimension. 
             num_ignore: int
                 Number of ignored objects
             data_shape: tuple
@@ -724,7 +738,7 @@ class AudioWriter():
                 Maximum allowed length of filename. Only used if include_source is True.
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
-        include_source=True, max_filename_len=100):
+        allow_resizing=1, include_source=True, max_filename_len=100):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -735,10 +749,12 @@ class AudioWriter():
         self.name = 'audio'
         self.verbose = verbose
         self.mode = mode
-        self.discard_wrong_shape = discard_wrong_shape
         self.item_counter = 0
-        self.num_ignored = 0
+        self.num_discarded = 0
+        self.num_resized = 0
         self.data_shape = None
+        self.discard_wrong_shape = discard_wrong_shape
+        self.allow_resizing = allow_resizing
         self.include_source = include_source
         self.filename_len = max_filename_len
 
@@ -783,6 +799,11 @@ class AudioWriter():
         tbl_dict = self._open_tables(path=path, name=name, x=x) 
 
         # write spectrogram to table
+        shape_diff = np.abs(np.subtract(x.data.shape, self.data_shape))
+        if np.sum(shape_diff) > 0 and np.all(shape_diff <= self.allow_resizing): # resize, if necessary and allowed
+            x.data = resize(x.data, self.data_shape, anti_aliasing=True)
+            self.num_resized += 1
+
         if x.data.shape == self.data_shape or not self.discard_wrong_shape:
             write(x=x, **tbl_dict)
             self.item_counter += 1
@@ -793,7 +814,7 @@ class AudioWriter():
                 self.close(final=False)
 
         else:
-            self.num_ignored += 1
+            self.num_discarded += 1
 
     def close(self, final=True):
         """ Close the currently open database file, if any
@@ -824,7 +845,8 @@ class AudioWriter():
             if self.verbose:
                 plural = ['', 's']
                 print('{0} item{1} saved to {2}'.format(self.item_counter, plural[self.item_counter > 1], fname))
-                if self.num_ignored > 0: print('ignored {0} objects due to shape mismatch'.format(self.num_ignored))
+                if self.num_discarded > 0: print('Discarded {0} objects due to shape mismatch'.format(self.num_discarded))
+                if self.num_resized > 0: print('Resized {0} objects due to shape mismatch'.format(self.num_resized))
 
             self.item_counter = 0
 
