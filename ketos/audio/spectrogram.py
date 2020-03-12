@@ -789,7 +789,7 @@ class MagSpectrogram(Spectrogram):
                 spec: MagSpectrogram
                     Magnitude spectrogram
         """
-        window_func = window_func.lower() #make lowercase
+        if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
         img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
@@ -1008,7 +1008,7 @@ class PowerSpectrogram(Spectrogram):
                 : MagSpectrogram
                     Magnitude spectrogram
         """
-        window_func = window_func.lower() #make lowercase
+        if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
         img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
@@ -1192,7 +1192,7 @@ class MelSpectrogram(Spectrogram):
                 : MelSpectrogram
                     Mel spectrogram
         """
-        window_func = window_func.lower() #make lowercase
+        if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
         img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
@@ -1395,7 +1395,7 @@ class CQTSpectrogram(Spectrogram):
                 spec: CQTSpectrogram
                     CQT spectrogram
         """
-        window_func = window_func.lower() #make lowercase
+        if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute CQT
         img, step = aum.cqt(x=audio.data, rate=audio.rate, step=step,
