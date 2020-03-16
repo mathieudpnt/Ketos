@@ -59,7 +59,7 @@ def test_one_batch():
     assert X.shape == (5, 94, 129)
     np.testing.assert_array_equal(X, five_specs)
     assert Y.shape == (5,)
-    np.testing.assert_array_equal(Y, five_labels)
+    np.testing.assert_array_equal(Y['label'], five_labels)
 
     h5.close()
 
