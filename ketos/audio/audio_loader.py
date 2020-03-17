@@ -64,7 +64,7 @@ class SelectionGenerator():
         return self
 
     def __next__(self):
-        """ Returns offset, duration, file path, and label (if available) 
+        """ Returns offset, duration, data_dir, filename, and label (if available) 
             of the next audio selection.
         
             Must be implemented in child class.
@@ -76,7 +76,9 @@ class SelectionGenerator():
                 : float
                     Duration of the selection in seconds.
                 : str
-                    Full path to wav file.
+                    Data directory
+                : str
+                    Filename or relative path
                 : int
                     Label (if available)
         """
@@ -98,12 +100,16 @@ class SelectionTableIterator(SelectionGenerator):
 
         Args: 
             data_dir: str
-                Path to folder containing *.wav files.
+                Path to top folder containing audio files.
             selection_table: pandas DataFrame
                 Selection table
+            duration: float
+                Use this argument to enforce uniform duration of all selections.
+                Any selection longer than the specified duration will be shortened
     """
-    def __init__(self, data_dir, selection_table):
+    def __init__(self, data_dir, selection_table, duration=None):
         self.sel = selection_table
+        self.duration = duration
         self.dir = data_dir
         self.row_id = 0
 
@@ -117,20 +123,29 @@ class SelectionTableIterator(SelectionGenerator):
                     beginning of the file.
                 duration: float
                     Duration of the selection in seconds.
-                path: str
-                    Full path to wav file.
+                data_dir: str
+                    Data directory
+                filename: str
+                    Filename or relative path
                 label: int
                     Label
         """
         filename = self.sel.index.values[self.row_id][0]
-        path = os.path.join(self.dir, filename)
+        # current row
         s = self.sel.iloc[self.row_id]
-        offset   = s['start']
-        duration = s['end'] - s['start']
+        # start time
+        if 'start' in s.keys(): offset = s['start']
+        else: offset = 0
+        # duration
+        if self.duration is not None: duration = self.duration
+        elif 'end' in s.keys(): duration = s['end'] - offset
+        else: duration = None
+        # label
         if 'label' in self.sel.columns.values: label = s['label']
         else: label = None
+        # update row no.
         self.row_id = (self.row_id + 1) % len(self.sel)
-        return offset, duration, path, label
+        return offset, duration, self.dir, filename, label
 
     def num(self):
         """ Returns total number of selections.
@@ -147,30 +162,42 @@ class FrameStepper(SelectionGenerator):
         to 'frame'.)
 
         Args: 
-            path: str
-                Path to folder containing *.wav files, or path to a single *.wav file
             frame: float
                 Frame length in seconds.
             step: float
                 Separation between consecutive frames in seconds. If None, the step size 
                 equals the frame length.
+            path: str
+                Path to folder containing *.wav files. If None is specified, the current directory will be used.
+            filename: str or list(str)
+                Relative path to a single *.wav file or a list of *.wav files. Optional.
     """
-    def __init__(self, path, frame, step=None):
+    def __init__(self, frame, step=None, path=None, filename=None):
         self.frame = frame
         if step is None: self.step = frame
         else: self.step = step
 
+        if path is None: path = os.getcwd()
+
         # get all wav files in the folder, including subfolders
-        ext = os.path.splitext(path)[1].lower()
-        if ext == '.wav':
-            assert os.path.exists(path), '{0} could not find {1}'.format(self.__class__.__name__, path)
-            self.files = [path]
-        else:
-            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
+        if filename is None:
+            self.dir = path
+            self.files = find_wave_files(path=path, return_path=True, search_subdirs=True)
             assert len(self.files) > 0, '{0} did not find any wave files in {1}'.format(self.__class__.__name__, path)
 
+        else:
+            if isinstance(filename, str):
+                fullpath = os.path.join(path,filename)
+                assert os.path.exists(fullpath), '{0} could not find {1}'.format(self.__class__.__name__, fullpath)
+                self.dir = os.path.dirname(fullpath)
+                self.files = [os.path.basename(fullpath)]
+            else:                
+                assert isinstance(filename, list), 'filename must be str or list(str)'        
+                self.dir = path
+                self.files = filename
+
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((librosa.get_duration(filename=f) - self.frame) / self.step)) + 1 for f in self.files]
+        self.num_segs = [int(np.ceil((librosa.get_duration(filename=os.path.join(self.dir, f)) - self.frame) / self.step)) + 1 for f in self.files]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
         self.file_id = -1
@@ -185,16 +212,18 @@ class FrameStepper(SelectionGenerator):
                     beginning of the file.
                 duration: float
                     Duration of segment in seconds.
-                path: str
-                    Full path to wav file.
+                data_dir: str
+                    Data directory
+                filename: str
+                    Filename or relative path
                 : None
         """
-        offset = self.time
-        path   = self.files[self.file_id]
+        offset   = self.time
+        filename = self.files[self.file_id]
         self.time += self.step #increment time       
         self.seg_id += 1 #increment segment ID
         if self.seg_id == self.num_segs[self.file_id]: self._next_file() #if this was the last segment, jump to the next file
-        return offset, self.frame, path, None
+        return offset, self.frame, self.dir, filename, None
 
     def num(self):
         """ Returns total number of selections.
@@ -220,8 +249,6 @@ class AudioLoader():
         and CQT spectrogram.
 
         Args:
-            path: str
-                Full path to audio file (*.wav) or folder containing audio files
             selection_gen: SelectionGenerator
                 Selection generator
             channel: int
@@ -245,7 +272,7 @@ class AudioLoader():
             See child classes :class:`audio.audio_loader.AudioFrameLoader' and 
             :class:`audio.audio_loader.AudioSelectionLoader'.            
     """
-    def __init__(self, path, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
         repres = copy.deepcopy(repres)
         self.channel = channel
@@ -262,11 +289,11 @@ class AudioLoader():
         """ Load next waveform segment or compute next spectrogram.
 
             Returns: 
-                seg: Waveform or Spectrogram
+                : Waveform or Spectrogram
                     Next segment
         """
-        offset, duration, path, label = next(self.sel_gen)
-        return self.load(offset, duration, path, label)
+        offset, duration, data_dir, filename, label = next(self.sel_gen)
+        return self.load(offset, duration, data_dir, filename, label)
 
     def num(self):
         """ Returns total number of segments.
@@ -277,7 +304,7 @@ class AudioLoader():
         """
         return self.sel_gen.num()
 
-    def load(self, offset, duration, path, label):
+    def load(self, offset, duration, data_dir, filename, label):
         """ Load audio segment for specified file and time.
 
             Args:
@@ -286,8 +313,10 @@ class AudioLoader():
                     beginning of the file.
                 duration: float
                     Duration of segment in seconds.
-                path: str
-                    Full path to wav file.
+                data_dir: str
+                    Data directory
+                filename: str
+                    Filename or relative path
                 label: int
                     Integer label
         
@@ -295,9 +324,11 @@ class AudioLoader():
                 seg: BaseAudio
                     Audio segment
         """
+        path = os.path.join(data_dir, filename)
+
         # load audio
         seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
-            duration=duration, **self.cfg)
+            duration=duration, id=filename, **self.cfg)
     
         # add annotations
         if label is not None:
@@ -320,13 +351,15 @@ class AudioFrameLoader(AudioLoader):
         set equal to 'frame'.)
 
         Args:
-            path: str
-                Full path to audio file (*.wav) or folder containing audio files
             frame: float
                 Segment duration in seconds.
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment duration.
+            path: str
+                Path to folder containing *.wav files. If None is specified, the current directory will be used.
+            filename: str or list(str)
+                relative path to a single *.wav file or a list of *.wav files. Optional
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
@@ -339,14 +372,14 @@ class AudioFrameLoader(AudioLoader):
             >>> import librosa
             >>> from ketos.audio.audio_loader import AudioFrameLoader
             >>> # specify path to wav file
-            >>> path = 'ketos/tests/assets/2min.wav'
+            >>> filename = 'ketos/tests/assets/2min.wav'
             >>> # check the duration of the audio file
-            >>> print(librosa.get_duration(filename=path))
+            >>> print(librosa.get_duration(filename=filename))
             120.832
             >>> # specify the audio representation
             >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
             >>> # create an object for loading 30-s long spectrogram segments, using a step size of 15 s (50% overlap) 
-            >>> loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
+            >>> loader = AudioFrameLoader(frame=30., step=15., filename=filename, repres=rep)
             >>> # print number of segments
             >>> print(loader.num())
             8
@@ -360,12 +393,13 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, path, frame, step=None, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, frame, step=None, path=None, filename=None, channel=0, 
+                    annotations=None, repres={'type': 'Waveform'}):
 
         if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
 
-        super().__init__(path=path, selection_gen=FrameStepper(path=path, frame=frame, step=step), 
+        super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
             channel=channel, annotations=annotations, repres=repres)
 
 class AudioSelectionLoader(AudioLoader):
@@ -374,12 +408,12 @@ class AudioSelectionLoader(AudioLoader):
         The segments to be loaded are specified via a selection table.
 
         Args:
-            path: str
-                Path to folder containing *.wav files.
-            channel: int
-                For stereo recordings, this can be used to select which channel to read from
             selections: pandas DataFrame
                 Selection table
+            path: str
+                Path to folder containing *.wav files
+            filename: str or list(str)
+                relative path to a single *.wav file or a list of *.wav files. Optional
             annotations: pandas DataFrame
                 Annotation table
             repres: dict
@@ -388,8 +422,8 @@ class AudioSelectionLoader(AudioLoader):
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
-        if 'duration' in repres.keys() and repres['duration'] is not None:
-            print("Warning: Specified duration ({1:.3f} s) will be ignored.")
+        if 'duration' in repres.keys(): duration = repres['duration']
+        else: duration = None
 
-        super().__init__(path=path, selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections), 
+        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration), 
             channel=channel, annotations=annotations, repres=repres)

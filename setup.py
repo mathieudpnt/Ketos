@@ -22,7 +22,11 @@ setup(name='ketos',
           'tables',
           'scipy',
           'pandas',
+<<<<<<< HEAD
           'tensorflow==2.0.1',
+=======
+          'tensorflow==2.1',
+>>>>>>> selection_iterator
           'scikit-learn',
           'scikit-image',
           'librosa',
@@ -32,7 +36,7 @@ setup(name='ketos',
           'pint',
           'psutil',
           ],
-      setup_requires=['pytest-runner', ],
+      setup_requires=['pytest-runner','wheel'],
       tests_require=['pytest', ],
       include_package_data=True,
       zip_safe=False)
