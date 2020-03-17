@@ -203,12 +203,11 @@ def test_shuffle():
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
 
     np.random.seed(100)
 
     ids_in_db = train_data[:]['id']
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=6, return_batch_ids=True, shuffle=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True) #create a batch generator 
 
     
     for epoch in range(5):
