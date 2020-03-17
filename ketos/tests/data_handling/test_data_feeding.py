@@ -133,9 +133,8 @@ def test_use_only_subset_of_data():
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
     
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=4, select_indicess=[1,3,5,7,9,11,13,14], return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=4, select_indices=[1,3,5,7,9,11,13,14], return_batch_ids=True) #create a batch generator 
     #First batch
     ids, X, _ = next(train_generator)
     np.testing.assert_array_equal(ids,[1,3,5,7])
