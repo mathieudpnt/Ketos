@@ -48,7 +48,7 @@ def test_init_audio_frame_loader_with_folder(five_time_stamped_wave_files):
 def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file"""
-    loader = AudioFrameLoader(path=sine_wave_file, frame=0.5)
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5)
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
@@ -109,13 +109,13 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     dur = librosa.core.get_duration(filename=sine_wave_file)
     # duration is an integer number of lengths
     l = 0.2
-    loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, repres=rep)
     assert len(loader.sel_gen.files) == 1
     N = int(dur / l)
     assert N == loader.sel_gen.num_segs[0]
     # duration is *not* an integer number of lengths
     l = 0.21
-    loader = AudioFrameLoader(path=sine_wave_file, frame=l, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, repres=rep)
     N = int(np.ceil(dur / l))
     assert N == loader.sel_gen.num_segs[0]
     # loop over all segments
@@ -124,7 +124,7 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     # non-zero overlap
     l = 0.21
     o = 0.8*l
-    loader = AudioFrameLoader(path=sine_wave_file, frame=l, step=l-o, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, step=l-o, repres=rep)
     step = l - o
     N = int(np.ceil((dur-l) / step) + 1)
     assert N == loader.sel_gen.num_segs[0]
@@ -204,6 +204,21 @@ def test_audio_frame_loader_mag_json(five_time_stamped_wave_files, spectr_settin
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
 
+def test_audio_frame_loader_accepts_filename_list(five_time_stamped_wave_files, spectr_settings):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms from json settings""" 
+    data = json.loads(spectr_settings)
+    rep = parse_audio_representation(data['spectrogram'])
+    filename = ['empty_HMS_12_ 5_ 0__DMY_23_ 2_84.wav', 
+                'empty_HMS_12_ 5_ 1__DMY_23_ 2_84.wav',
+                'empty_HMS_12_ 5_ 2__DMY_23_ 2_84.wav']
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, filename=filename, frame=0.5, repres=rep)
+    assert len(loader.sel_gen.files) == 3
+    s = next(loader)
+    assert s.duration() == 0.5
+    s = next(loader)
+    assert s.duration() == 0.5
+    assert loader.sel_gen.file_id == 2
+
 def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
     """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
         and that the spectrograms retain the correct source data (filename, offset) """ 
@@ -226,7 +241,7 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
 def test_audio_frame_loader_on_2min_wav():
     rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':600.}
     path = os.path.join(path_to_assets, '2min.wav')
-    loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
+    loader = AudioFrameLoader(filename=path, frame=30., step=15., repres=rep)
     assert loader.num() == 8
     s = next(loader)
     assert s.freq_max() == pytest.approx(600, abs=s.freq_res())
@@ -235,7 +250,7 @@ def test_audio_frame_loader_subdirs():
     """Test that loader can load audio files from subdirectories"""
     rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
     path = os.path.join(path_to_assets, 'wav_files')
-    loader = AudioFrameLoader(path, frame=30., step=15., repres=rep)
+    loader = AudioFrameLoader(path=path, frame=30., step=15., repres=rep)
     assert len(loader.sel_gen.files) == 3
     for _ in range(loader.num()):
         _ = next(loader)
