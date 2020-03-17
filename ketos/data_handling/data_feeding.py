@@ -275,7 +275,7 @@ class BatchGenerator():
             extra_instance_ids = list(ids[-extra_instances:])
             list_of_indices[-1]=list_of_indices[-1] + extra_instance_ids
         if self.from_memory:
-            batch_indices = list_of_indices
+            data_indices = list_of_indices
             annot_indices = list_of_indices
         else:
             data_indices = list_of_indices
