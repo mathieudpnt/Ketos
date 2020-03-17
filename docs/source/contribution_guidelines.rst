@@ -5,11 +5,11 @@ We welcome contributions!
 
 You can help by:
 
+* Reporting/fixing bugs
+* Suggesting new features
 * Adding features to the codebase
 * Expanding the testing suit
 * Improving the documentation
-* Reporting/fixing bugs
-* Suggesting new features
 
 
 
@@ -73,7 +73,7 @@ and run: ::
 
 You can also specify a module: ::
 
-    pytest ketos/tests/audio_processing/spectrogram.py
+    pytest ketos/tests/audio/test_spectrogram.py
 
 
 

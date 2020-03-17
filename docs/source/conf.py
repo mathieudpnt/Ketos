@@ -20,13 +20,13 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'ketos'
-copyright = '2019 MERIDIAN'
+copyright = '2020 MERIDIAN'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
-version = '1.1'
+version = '2.0'
 # The full version, including alpha/beta/rc tags
-release = '1.1.3'
+release = '2.0.0'
 
 
 # -- General configuration ---------------------------------------------------
