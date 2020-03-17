@@ -1,8 +1,8 @@
 # Welcome to Ketos, a deep learning package for underwater acoustics
 
-Ketos provides a unified, high-level interface for working with acoustic data and deep neural networks, 
-its main purpose being to support the development of deep learning models for detection and 
-classification problems in underwater acoustics.
+Ketos provides a unified, high-level interface for working with acoustic data and deep neural networks. 
+Its main purpose is to support the development of deep learning models for solving challenging 
+detection and classification problems in underwater acoustics.
 
 Ketos is written in Python and utilizes a number of powerful software packages 
 including NumPy, HDF5, and Tensorflow. It is licensed under the [GNU GPLv3 licens](https://www.gnu.org/licenses/) 
