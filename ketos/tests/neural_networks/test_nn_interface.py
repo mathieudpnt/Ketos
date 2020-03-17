@@ -53,7 +53,7 @@ def MLPInterface_subclass():
         @classmethod
         def transform_train_batch(cls, x, y, n_classes=2):
             X = x
-            Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
+            Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
             return (X, Y)
 
         @classmethod
@@ -145,9 +145,9 @@ def instance_of_MLPInterface(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
@@ -155,8 +155,6 @@ def instance_of_MLPInterface(MLPInterface_subclass):
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
-    instance.set_test_generator(test_generator)
-
 
 
     return instance
@@ -193,7 +191,7 @@ def test_to1hot(class_label, n_classes, expected):
 
 def test_transform_train_batch():
     inputs = np.random.rand(10,5,5)
-    labels = np.array([1,0,0,0,1,0,0,1,1,1])
+    labels = np.array([1,0,0,0,1,0,0,1,1,1],  dtype=[('label','<i4')])
 
     X,Y = NNInterface.transform_train_batch(inputs, labels)
 
@@ -412,17 +410,17 @@ def test_train_loop_secondary_metrics(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
+
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics'], secondary_metrics=recipe['secondary_metrics']) 
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
-    instance.set_test_generator(test_generator)
 
     instance.train_loop(5)
 
@@ -445,9 +443,12 @@ def test_train_loop_log_csv(MLPInterface_subclass):
     h5 = tables.open_file(os.path.join(path_to_assets, "vectors_1_0.h5"), 'r')
     train_table = h5.get_node("/train")
     val_table = h5.get_node("/val")
+    test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics'], secondary_metrics=recipe['secondary_metrics']) 
@@ -487,9 +488,9 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, hdf5_table=val_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, hdf5_table=train_table, instance_function=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
@@ -497,7 +498,6 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
-    instance.set_test_generator(test_generator)
     instance.set_log_dir(os.path.join(path_to_tmp, "test_log_dir"))
 
     instance.train_loop(15, log_tensorboard=True)

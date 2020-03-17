@@ -213,7 +213,6 @@ class NNInterface():
                      'Poisson':tf.keras.metrics.Poisson,
                      'Precision':tf.keras.metrics.Precision,
                      'Recall':tf.keras.metrics.Recall,
-                     'PrecisionAtRecall':tf.keras.metrics.PrecisionAtRecall,
                      'RootMeanSquaredError':tf.keras.metrics.RootMeanSquaredError,
                      'SensitivityAtSpecificity':tf.keras.metrics.SensitivityAtSpecificity,
                      'SparseCategoricalAccuracy':tf.keras.metrics.SparseCategoricalAccuracy,
@@ -308,7 +307,7 @@ class NNInterface():
         """
 
         X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
+        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
 
     @classmethod
@@ -721,7 +720,8 @@ class NNInterface():
         instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
 
         return instance
-
+    
+    @classmethod
     def build_from_recipe_file(cls, recipe_file):
         """ Build a model from a recipe file
 
@@ -922,7 +922,7 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False,  ):
+    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False,  ):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
             if self.secondary_metrics is not None:
@@ -959,8 +959,8 @@ class NNInterface():
                         
 
 
-                if verbose == True:
-                    message  = ["Epoch: " + str(epoch) + "batch: " + str(train_batch_id) + " | " + self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
+                if verbose >=2:
+                    message  = ["Epoch: " + str(epoch) + " batch: " + str(train_batch_id) + " | "] + [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
                     print(''.join(message))
 
 
@@ -968,7 +968,7 @@ class NNInterface():
                 for m in self.secondary_metrics:
                     batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
-            if verbose == True and self.secondary_metrics is not None:
+            if verbose >=1 and self.secondary_metrics is not None:
                 metrics_values_msg = ""
                 for m in self.secondary_metrics:
                     metrics_values_msg += 'train_' + m.name + ": " + str(round(float(batch_metrics['train_' + m.name]),3)) + " "
@@ -1010,16 +1010,19 @@ class NNInterface():
                 if self.secondary_metrics is not None:
                     
                     for m in self.secondary_metrics:
-                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.train_generator.n_batches)
+                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.val_generator.n_batches)
                 
-                if verbose == True and self.secondary_metrics is not None:
+                if verbose >=1 and self.secondary_metrics is not None:
                     metrics_values_msg = ""
                     for m in self.secondary_metrics:
-                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3))
+                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3)) + " "
                     
                     print("====================================================================================")
                     print("Val: ")
-                    print(metrics_values_msg)
+                    print(metrics_values_msg )
+                    print("====================================================================================\n")
+
+                    
 
 
                 if log_csv == True:

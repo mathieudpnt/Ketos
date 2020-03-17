@@ -22,11 +22,7 @@ setup(name='ketos',
           'tables',
           'scipy',
           'pandas',
-<<<<<<< HEAD
-          'tensorflow==2.0.1',
-=======
           'tensorflow==2.1',
->>>>>>> selection_iterator
           'scikit-learn',
           'scikit-image',
           'librosa',
