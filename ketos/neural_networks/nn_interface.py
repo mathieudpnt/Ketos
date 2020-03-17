@@ -307,7 +307,7 @@ class NNInterface():
         """
 
         X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y])
+        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
 
     @classmethod
