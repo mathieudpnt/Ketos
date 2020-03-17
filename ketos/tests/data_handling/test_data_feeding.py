@@ -63,7 +63,6 @@ def test_one_batch():
 
     h5.close()
 
-#TODO: create a test database with strong annotations and test if the batch generator returns start, end, min_freq, max_freq instead of label
 def test_output_for_strong_annotations():
     """ Test if batch generator returns multiple labels for strongly annotated instances
     """
@@ -93,10 +92,9 @@ def test_batch_sequence_same_as_db():
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
 
     ids_in_db = train_data[:]['id']
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=3, return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
 
     for i in range(3):
         ids, X, _ = next(train_generator)
