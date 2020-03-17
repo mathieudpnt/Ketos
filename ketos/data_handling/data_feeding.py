@@ -45,26 +45,47 @@ class BatchGenerator():
 
         Instances of this class are python generators. They will load one batch at 
         a time from a HDF5 database, which is particularly useful when working with 
-        larger than memory datasets. Yield (X,Y) or (ids,X,Y) if 'return_batch_ids' 
-        is True. X is a batch of data as a np.array of shape (batch_size,mx,nx) where 
-        mx,nx are the shape of on instance of X in the database. Similarly, Y is an 
-        np.array of shape[0]=batch_size with the corresponding labels.
-
+        larger than memory datasets.
+        
         It is also possible to load the entire data set into memory and provide it 
         to the BatchGenerator via the arguments x and y. This can be convenient when 
         working with smaller data sets.
 
+
+        Yields:
+        (X,Y) or (ids,X,Y) if 'return_batch_ids' is True.
+            X is a batch of data as a np.array of shape like (batch_size,mx,nx) where 
+            mx,nx are the shape of one instance of X in the database. The number
+            of dimensions in addition to 'batch_size' will not necessarily be 2, but correspond to
+            the instance shape (1 for 1d instances, 3 for 3d, etc).
+            
+            Similarly, Y is an np.array of shape(batch_size) with the corresponding labels.
+            Each item in the array is a named array of shape=(n_fields), where n_field is the number of fields
+            specified in the 'y_field' argument. For instance, if 'y_fields'=['label', 'start', 'end'], you can access
+            the first label with Y[0]['label'].
+            Notice that even if y_field==['label'], you would still use the Y[0]['label'] syntax.
+
+        
         Args:
             batch_size: int
                 The number of instances in each batch. The last batch of an epoch might 
                 have fewer examples, depending on the number of instances in the hdf5_table.
-            hdf5_table: pytables table (instance of table.Table()) 
+            data_table: pytables table (instance of table.Table()) 
                 The HDF5 table containing the data
+            annot_in_data_table: bool
+                Whether or not the annotation fields (e.g.: 'label') is in the data_table (True, default) or in a separate annot_table (False).
+            annot_table: pytables table (instance of table.Table()) 
+                A separate table for the annotations(labels), in case they are not included as fields in the data_table.
+                This table must have a 'data_index' field, which corresponds to the the index (row number) of the data instance in the data_tables.
+                Usually, a separete table will be used when the data is strongly annotated (i.e.: possibily more than one annotation per data instance).
+                When there is only one annotation for each data instance, it's recommended that annotations are included in the data_table for performance gains.
             x: numpy array
                 Array containing the data images.
             y: numpy array
-                Array containing the data labels.
-            indices: list of ints
+                Array containing the data labels. 
+                This array is expected to have a one-toone correspondence to the x array (i.e.: y[0] is expected to have the label for x[0], y[1] for x[1], etc).
+                If there are multiple labels for each data instance in x, use a data_table and an annot_table instead.
+            selec_indices: list of ints
                 Indices of those instances that will retrieved from the HDF5 table by the 
                 BatchGenerator. By default all instances are retrieved.
             output_transform_func: function
@@ -110,39 +131,43 @@ class BatchGenerator():
         Examples:
             >>> from tables import open_file
             >>> from ketos.data_handling.database_interface import open_table
-            >>> h5 = open_file("ketos/tests/assets/15x_same_spec.h5", 'r') # create the database handle  
-            >>> train_data = open_table(h5, "/train/species1")
-            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=True) #create a batch generator 
+            >>> h5 = open_file("ketos/tests/assets/11x_same_spec.h5", 'r') # create the database handle  
+            >>> data_table = open_table(h5, "/group_1/table_data")
+            >>> annot_table = open_table(h5, "/group_1/table_annot")
+            >>> #Create a BatchGenerator from a data_table and separate annotations in a anot_table
+            >>> train_generator = BatchGenerator(data_table=data_table, annot_in_data_table=False, annot_table=annot_table,  batch_size=3, x_field='data', return_batch_ids=True) #create a batch generator 
             >>> #Run 2 epochs. 
             >>> n_epochs = 2    
             >>> for e in range(n_epochs):
             ...    for batch_num in range(train_generator.n_batches):
-            ...        ids, batch_X, batch_Y = next(train_generator)   
-            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3}, Y batch shape: {4}".format(e, batch_num, ids, batch_X.shape, batch_Y.shape))
-            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:0, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 2 | instance ids:[6, 7, 8], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 3 | instance ids:[9, 10, 11], X batch shape: (3, 2413, 201), Y batch shape: (3,)
-            epoch:1, batch 4 | instance ids:[12, 13, 14], X batch shape: (3, 2413, 201), Y batch shape: (3,)
+            ...        ids, batch_X, batch_Y = next(train_generator)
+            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3} labels for instance {4}: {5}".format(e, batch_num, ids, batch_X.shape, ids[0], batch_Y[0]['label']))
+            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 150, 4411) labels for instance 0: [2 3]
+            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 150, 4411) labels for instance 3: [2 3]
+            epoch:0, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 150, 4411) labels for instance 6: [2 3]
+            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 150, 4411) labels for instance 0: [2 3]
+            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 150, 4411) labels for instance 3: [2 3]
+            epoch:1, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 150, 4411) labels for instance 6: [2 3]
+            >>> h5.close() #close the database handle.
+            >>> # Creating a Batch Generator from a data tables that includes annotations
+            >>> h5 = open_file("ketos/tests/assets/mini_narw.h5", 'r') # create the database handle  
+            >>> data_table = open_table(h5, "/train/data")
+                     
+            
             >>> #Applying a custom function to the batch
             >>> #Takes the mean of each instance in X; leaves Y untouched
             >>> def apply_to_batch(X,Y):
             ...    X = np.mean(X, axis=(1,2)) #since X is a 3d array
             ...    return (X,Y)
-            >>> train_generator = BatchGenerator(hdf5_table=train_data, batch_size=3, return_batch_ids=False, output_transform_func=apply_to_batch) 
+            >>> train_generator = BatchGenerator(data_table=data_table, batch_size=3, annot_in_data_table=True, return_batch_ids=False, output_transform_func=apply_to_batch) 
             >>> X,Y = next(train_generator)                
-            >>> #Now each X instance is one single number, instead of a (2413,201) matrix
+            >>> #Now each X instance is one single number, instead of a 2d array
             >>> #A batch of size 3 is an array of the 3 means
             >>> X.shape
             (3,)
             >>> #Here is how one X instance looks like
             >>> X[0]
-            7694.1147
+            -37.247124
             >>> #Y is the same as before 
             >>> Y.shape
             (3,)
@@ -277,7 +302,8 @@ class BatchGenerator():
         if self.from_memory or self.annot_in_data_table:
             batch_ids = batch_data_row_index
         else:
-            batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_data_row_index),1]
+            #batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_data_row_index),1]
+            batch_ids = batch_data_row_index
             batch_annot_row_index = self.batch_indices_annot[self.batch_count]
 
         if self.from_memory:
@@ -289,11 +315,11 @@ class BatchGenerator():
             if self.annot_in_data_table == False:            
                 Y = self.annot[batch_annot_row_index][['data_index'] + self.y_field]
                 Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
+                Y = np.array(Y)
             else:
-                import pdb; pdb.set_trace()
+                
                 Y = self.data[batch_data_row_index][self.y_field]
             
-
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.batch_count = 0
