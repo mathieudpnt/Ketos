@@ -314,18 +314,17 @@ def test_refresh_on_epoch_end_annot():
     
     h5.close()
 
-def test_instance_function():
+def test_output_transform_function():
     """ Test if the function passed as 'instance_function' is applied to the batch
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
 
     def apply_to_batch(X,Y):
         X = np.mean(X, axis=(1,2))
         return (X, Y)
 
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=6, return_batch_ids=True, output_transform_func=apply_to_batch) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data,  batch_size=6, return_batch_ids=True, output_transform_func=apply_to_batch) #create a batch generator 
     
     _, X, Y = next(train_generator)
     assert X.shape == (6,)
