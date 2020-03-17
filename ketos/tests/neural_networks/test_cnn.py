@@ -5,7 +5,6 @@ from ketos.neural_networks.nn_interface import RecipeCompat
 from ketos.neural_networks.cnn import CNNArch, CNNInterface
 from ketos.neural_networks.losses import FScoreLoss
 from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
-from ketos.data_handling.data_feeding import BatchGenerator
 import os
 import tables
 import json
