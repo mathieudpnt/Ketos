@@ -462,8 +462,12 @@ class Log2Axis(Axis):
         """  
         return self.bins_per_oct * np.log2(x / self.x_min)
 
-    def bin(self, x, truncate=False):
+    def bin(self, x, truncate=False, closed_right=False):
         """ Get bin number corresponding to a given value.
+
+            By default bins are closed on the left and open on the 
+            right, i.e., [a,b). Use the argument `closed_right` to 
+            reverse this.
 
             If the value lies outside the axis range, a negative 
             bin number or a bin number above N-1 will be returned. 
@@ -476,6 +480,10 @@ class Log2Axis(Axis):
                     Return 0 if x is below the lower axis boundary 
                     and N-1 if x is above the upper boundary. Default 
                     is False.
+                closed_right: bool
+                    If False, bin is closed on the left and open on the 
+                    right. If True, bin is open on the left and closed 
+                    on the right. Default is False.                    
 
             Returns: 
                 b: array-like
@@ -487,7 +495,7 @@ class Log2Axis(Axis):
                 >>> ax.bin([400.,800.])
                 array([ 8, 16])
         """
-        b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate)
+        b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate, closed_right=closed_right)
         return b
 
     def low_edge(self, b):
@@ -523,9 +531,6 @@ class Log2Axis(Axis):
                     Labels
         """
         i = np.arange(0, self.bins, self.bins_per_oct)
-
-        if i[-1] != self.bins:
-            i = np.concatenate((i, [self.bins]))
 
         ticks = self.min() + i * (self.max() - self.min()) / self.bins
 

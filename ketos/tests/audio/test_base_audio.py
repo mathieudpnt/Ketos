@@ -216,3 +216,4 @@ def test_stack_with_annotations(base_audio_1d):
         assert np.all(stacked.get_data(i) == d)
         assert stacked.get_filename(i) == o.filename
         assert len(stacked.get_annotations(i)) == 2
+

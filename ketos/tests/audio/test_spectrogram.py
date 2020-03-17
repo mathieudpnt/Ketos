@@ -220,6 +220,15 @@ def test_mag_from_wav(sine_wave_file):
     # check file name
     assert spec.filename == 'sine_wave.wav'
 
+def test_mag_from_wav_id(sine_wave_file):
+    """ Test that mag spectrogram created with from_wav method 
+        has expected filename attribute"""
+    # duration is even integer multiply of step size
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
+    assert spec.filename == 'sine_wave.wav'
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, id='test/audio.wav')
+    assert spec.filename == 'test/audio.wav'
+
 def test_cqt_from_wav(sine_wave_file):
     # zero offset
     spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32)
@@ -237,6 +246,15 @@ def test_cqt_from_wav(sine_wave_file):
     spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
 
+def test_cqt_from_wav_id(sine_wave_file):
+    """ Test that cqt spectrogram created with from_wav method 
+        has expected filename attribute"""
+    # duration is even integer multiply of step size
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32)
+    assert spec.filename == 'sine_wave.wav'
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, id='test/audio.wav')
+    assert spec.filename == 'test/audio.wav'
+
 def test_stack_mag_specs():
     img = np.ones((20,10))
     s = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4, window_func='hamming')
@@ -249,3 +267,4 @@ def test_stack_mag_specs():
         assert np.all(np.abs(stacked.get_data(i) - img) < 1e-6)
         assert len(stacked.get_annotations(i)) == 2
         assert stacked.window_func == 'hamming'
+

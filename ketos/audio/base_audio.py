@@ -34,6 +34,7 @@
 import os
 import copy
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import ketos.audio.utils.misc as aum
 from ketos.audio.annotation import AnnotationHandler, stack_annotations
@@ -215,7 +216,7 @@ class BaseAudio():
                 measured from the start of the file. Defaults to 0 if not specified.
             label: int
                 Data label.
-            annot: AnnotationHandler
+            annot: AnnotationHandler or pandas DataFrame
                 AnnotationHandler object.
     """
     def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
@@ -223,6 +224,8 @@ class BaseAudio():
         self.data = data
         length = data.shape[0] * time_res
         self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
+
+        if isinstance(annot, pd.DataFrame): annot = AnnotationHandler(annot)
 
         if np.ndim(data) > ndim: #stacked arrays
             filename = stack_attr(filename, shape=data.shape[ndim:], dtype=str)
@@ -555,7 +558,7 @@ class BaseAudio():
 
         return d
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4)):
+    def plot(self, id=0, figsize=(5,4)):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -567,8 +570,6 @@ class BaseAudio():
                 id: int
                     ID of data array to be plotted. Only relevant if the object 
                     contains multiple, stacked data arrays.
-                show_annot: bool
-                    Display annotations
                 figsize: tuple
                     Figure size
             
@@ -605,12 +606,6 @@ class BaseAudio():
             axt = ax.twiny()
             axt.set_xlim(offset, offset + self.duration())
 
-        # superimpose annotation boxes
-        if show_annot is not None:
-            ans = self.get_annotations(id)
-            if ans:
-                print('Drawing of annotations not yet implemented')
-            
-        fig.tight_layout()
+        #fig.tight_layout()
         return fig, ax
 

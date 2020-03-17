@@ -109,6 +109,20 @@ def test_crop_annotations_along_time_axis():
     assert np.allclose(a['end'], [1.2, 3.3, 5], atol=1e-08) 
     assert np.array_equal(a['label'], [2, 3, 4]) 
 
+def test_crop_annotations_along_freq_axis():
+    handler = AnnotationHandler()
+    handler.add(1, 1, 3, 20, 100)
+    handler.add(2, 3, 5.2, 40, 200)
+    handler.add(3, 3, 5.2, 300, 400)
+    a = handler.get()
+    assert len(a) == 3
+    handler.crop(start=None, end=None, freq_min=25, freq_max=150)
+    a = handler.get()
+    assert len(a) == 2
+    assert np.allclose(a['freq_min'], [25, 40], atol=1e-08) 
+    assert np.allclose(a['freq_max'], [100, 150], atol=1e-08) 
+    assert np.array_equal(a['label'], [1, 2]) 
+
 def test_segment_annotations():
     handler = AnnotationHandler()
     handler.add(1, 0.2, 1.1, 0, 100)
@@ -186,3 +200,8 @@ def test_segment_stacked_annotations_with_custom_ids():
     h = h.segment(num_segs=10, window=1.0, step=0.5)
     assert h._df.index.nlevels == 3
 
+def test_get_single_annotation():
+    h = AnnotationHandler()
+    h.add(1, 0.2, 1.1, 50, 200)
+    ann = h.get(id=0)
+    print(ann)

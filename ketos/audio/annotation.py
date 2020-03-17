@@ -279,11 +279,8 @@ class AnnotationHandler():
             ans = ans.loc[self.set_ids()[0]]
 
         if id is not None:
-
-            if not key_error and id not in ans.index:
-                return None
-
-            ans = ans.loc[id]
+            if not key_error and id not in ans.index: return None
+            if len(ans) > 1: ans = ans.loc[id]
 
         # select label(s)
         if label is not None:
@@ -489,7 +486,7 @@ class AnnotationHandler():
 
         # crop max frequency
         if freq_max is not None:
-            self._df['freq_max'][self._df['freq_max'] < freq_max] = freq_max
+            self._df['freq_max'][self._df['freq_max'] > freq_max] = freq_max
 
         # crop stop time
         if end is not None:
@@ -497,11 +494,11 @@ class AnnotationHandler():
             self._df['end'] = self._df['end'] + dr
 
         # crop start time
-        if start > 0:
+        if start is not None and start > 0:
             self.shift(-start)
 
         # remove annotations that were fully cropped along the time dimension
-        if start > 0 or end is not None:
+        if (start is not None and start > 0) or end is not None:
             self._df = self._df[self._df['end'] > self._df['start']]
 
         # remove annotations that were fully cropped along the frequency dimension
