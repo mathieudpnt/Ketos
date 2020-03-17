@@ -5,11 +5,9 @@ Audio Processing
    :maxdepth: 2
    :glob:
 
-   audio_processing
-   image
-   audio
+   base_audio
+   waveform
    spectrogram
-   axis
+   audio_loader
    annotation
-   spectrogram_filters
-
+   Utilities <utils/index>
