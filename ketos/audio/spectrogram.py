@@ -202,7 +202,7 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     return mel_spec, filter_banks
 
 def load_audio_for_spec(path, channel, rate, window, step,\
-            offset, duration, resample_method):
+            offset, duration, resample_method, id=None):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -236,6 +236,8 @@ def load_audio_for_spec(path, channel, rate, window, step,\
                     * polyphase
                 See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                 for details on the individual methods.
+            id: str
+                Unique identifier (optional). If None, the filename will be used.
 
         Returns:
             audio: Waveform
@@ -296,9 +298,11 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     pad_right += max(0, len(x) - com_len)
     x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
+    # parse filename
+    if id is None: id = os.path.basename(path)
+
     # create Waveform object
-    filename = os.path.basename(path) #parse file name
-    audio = Waveform(data=x, rate=rate, filename=filename, offset=offset)
+    audio = Waveform(data=x, rate=rate, filename=id, offset=offset)
 
     return audio, seg_args
 
@@ -788,23 +792,24 @@ class MagSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
             step=step, seg_args=seg_args, window_func=window_func)
 
         time_res = seg_args['step_len'] / audio.rate
-        freq_res = freq_max / img.shape[1]
+        freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
     @classmethod
-    def from_wav(cls, path, window, step, channel=0, rate=None,\
-            window_func='hamming', offset=0, duration=None,\
-            resample_method='scipy', freq_min=None, freq_max=None):
+    def from_wav(cls, path, window, step, channel=0, rate=None,
+            window_func='hamming', offset=0, duration=None,
+            resample_method='scipy', freq_min=None, freq_max=None,
+            id=None):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -847,6 +852,8 @@ class MagSpectrogram(Spectrogram):
                     Lower frequency in Hz.
                 freq_max: str or float
                     Upper frequency in Hz.
+                id: str
+                    Unique identifier (optional). If None, the filename will be used.
 
             Returns:
                 : MagSpectrogram
@@ -867,7 +874,7 @@ class MagSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method)
+            offset=offset, duration=duration, resample_method=resample_method, id=id)
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1004,25 +1011,26 @@ class PowerSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
         img = aum.to_decibel(img) # convert to dB
 
         time_res = seg_args['step_len'] / audio.rate
-        freq_res = freq_max / img.shape[1]
+        freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
     @classmethod
-    def from_wav(cls, path, window, step, channel=0, rate=None,\
-            window_func='hamming', offset=0, duration=None,\
-            resample_method='scipy', freq_min=None, freq_max=None):
+    def from_wav(cls, path, window, step, channel=0, rate=None,
+            window_func='hamming', offset=0, duration=None,
+            resample_method='scipy', freq_min=None, freq_max=None,
+            id=None):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1065,6 +1073,8 @@ class PowerSpectrogram(Spectrogram):
                     Lower frequency in Hz.
                 freq_max: str or float
                     Upper frequency in Hz.
+                id: str
+                    Unique identifier (optional). If None, the filename will be used.
 
             Returns:
                 spec: MagSpectrogram
@@ -1085,7 +1095,7 @@ class PowerSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method)
+            offset=offset, duration=duration, resample_method=resample_method, id=id)
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1185,7 +1195,7 @@ class MelSpectrogram(Spectrogram):
         window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_max, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
@@ -1195,13 +1205,14 @@ class MelSpectrogram(Spectrogram):
         time_res = seg_args['step_len'] / audio.rate   
 
         return cls(data=img, filter_banks=filter_banks, time_res=time_res, 
-            freq_min=0, freq_max=freq_max, window_func=window_func, 
+            freq_min=0, freq_max=freq_nyquist, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
-            offset=0, duration=None, resample_method='scipy'):
+            offset=0, duration=None, resample_method='scipy',
+            id=None):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1246,6 +1257,8 @@ class MelSpectrogram(Spectrogram):
                         * polyphase
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
+                id: str
+                    Unique identifier (optional). If None, the filename will be used.
 
             Returns:
                 spec: MagSpectrogram
@@ -1266,7 +1279,7 @@ class MelSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method)
+            offset=offset, duration=duration, resample_method=resample_method, id=id)
 
         # compute spectrogram
         cls(audio=audio, seg_args=seg_args, window_func=window_func)
@@ -1393,14 +1406,14 @@ class CQTSpectrogram(Spectrogram):
             window_func=window_func, filename=audio.filename, 
             offset=audio.offset, label=audio.label, annot=audio.annot)
 
-        spec.crop(freq_min=freq_min, freq_max=freq_max)
+        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hamming', offset=0, duration=None,
-        resample_method='scipy'):
+        resample_method='scipy', id=None):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -1444,6 +1457,8 @@ class CQTSpectrogram(Spectrogram):
                         * polyphase
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
+                id: str
+                    Unique identifier (optional). If None, the filename will be used.
 
             Returns:
                 : CQTSpectrogram
@@ -1473,7 +1488,7 @@ class CQTSpectrogram(Spectrogram):
 
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
-            offset=offset, duration=duration, resample_method=resample_method)
+            offset=offset, duration=duration, resample_method=resample_method, id=id)
 
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 

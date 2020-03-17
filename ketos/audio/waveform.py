@@ -90,7 +90,8 @@ class Waveform(BaseAudio):
         super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot)
 
     @classmethod
-    def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy'):
+    def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
+        id=None):
         """ Load audio data from wave file.
 
             Args:
@@ -114,6 +115,8 @@ class Waveform(BaseAudio):
                         * polyphase
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
+                id: str
+                    Unique identifier (optional). If None, the filename will be used.
 
             Returns:
                 Instance of Waveform
@@ -149,8 +152,10 @@ class Waveform(BaseAudio):
             num_sampl = int(duration * rate - data.shape[0])
             if num_sampl > 0:
                 data = np.pad(data, pad_width=((0,num_sampl)), mode='constant')
+
+        if id is None: id = os.path.basename(path)
             
-        return cls(rate=rate, data=data, filename=os.path.basename(path), offset=offset)
+        return cls(rate=rate, data=data, filename=id, offset=offset)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, filename="gaussian_noise"):
