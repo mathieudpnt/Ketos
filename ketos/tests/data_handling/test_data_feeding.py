@@ -233,16 +233,15 @@ def test_refresh_on_epoch_end():
     """
     h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
     train_data = open_table(h5, "/train/data")
-    train_annot = open_table(h5, "/train/data_annot")
 
     np.random.seed(100)
 
     ids_in_db = train_data[:]['id']
-    train_generator = BatchGenerator(data_table=train_data, annot_table=train_annot, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
 
-    expected_ids = {'epoch_1':  ([17, 19, 11, 18, 13, 6], [16, 1, 9, 14, 12, 5], [2, 4, 10, 0, 15, 7, 3, 8]),
-                     'epoch_2': ([18, 19, 17, 0, 8, 6], [14, 7, 11, 10, 15, 3], [5, 13, 1, 4, 12, 2, 9, 16]),    
-                     'epoch_3': ([3, 4, 12, 17, 10, 1], [19, 5, 11, 8, 0, 18], [6, 13, 7, 15, 16, 14, 2, 9])}
+    expected_ids = {'epoch_1': ([17, 19, 11, 18, 13,  6], [16,  1,  9, 14, 12,  5], [2,  4, 10,  0, 15, 7,  3,  8]),    
+                     'epoch_2':  ([3,  8,  7, 17,  9, 16], [ 10,  1,  5, 12,  0, 18], [ 6,  4, 19, 13,  2, 11, 14, 15]),
+                     'epoch_3': ([17,  9,  6, 11,  0,  8], [15, 16, 18,  5,  3, 14], [10,  4,  1, 13,  2, 19,  7, 12])}
                      
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
         print(train_generator.batch_indices_data)
