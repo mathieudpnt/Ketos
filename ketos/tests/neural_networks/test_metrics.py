@@ -24,7 +24,7 @@ def test_fscore(beta,onehot, y_pred, y_true, expected):
 
 
 @pytest.mark.parametrize("onehot, y_pred, y_true, expected", [(False, [1., 1., 1., 1.], [1., 1., 1., 1.], 1.0 ),
-                                                            (False, [1., 1., 1., 1.], [1., 0., 1., 0.], 1.0 ),
+                                                            (False, [1., 1., 1., 1.], [1., 0., 1., 0.], 0.5 ),
                                                             (False, [1., 0., 0., 1.], [1., 0., 1., 0.], 0.5 ),
                                                                 
                                                             (True, np.array([[0.3, 0.7],[0.1,0.9]]), np.array([[0., 1.],[0., 1.]]), 1.0 ),
