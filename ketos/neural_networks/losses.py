@@ -38,6 +38,8 @@ import numpy as np
 class FScoreLoss(tf.keras.losses.Loss):
     """ Loss function based on the inverse of F-Score.
 
+        When instantiated, the resulting loss function expects the predictions in the 'y_pred' argument and the true labels in the
+
         Args:
             beta:float
                 The relative weight of recall in relation to precision.
@@ -45,6 +47,7 @@ class FScoreLoss(tf.keras.losses.Loss):
                     If beta = 1.0, recall has same weight as precision
                     If beta = 0.5, recall has half the weight of precision
                     If beta = 2.0, recall has twice the weight of precision
+            
     """
 
     def __init__(self, beta=1.0, **kwargs):
