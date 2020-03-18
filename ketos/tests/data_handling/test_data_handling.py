@@ -31,10 +31,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import ketos.data_handling.data_handling as dh
-import ketos.audio_processing.audio_processing as ap
-from ketos.audio_processing.spectrogram import MagSpectrogram
-from ketos.data_handling.data_handling import AudioSequenceReader, AnnotationTableReader
-from ketos.audio_processing.audio import AudioSignal
+import scipy.io.wavfile as wave
 import datetime
 import shutil
 import os
@@ -44,9 +41,7 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
-
 today = datetime.datetime.today()
-
 
 
 @pytest.mark.parametrize("input,depth,expected",[
@@ -123,17 +118,17 @@ def test_find_wave_files():
     # create two wave files
     f1 = os.path.join(dir, "f1.wav")
     f2 = os.path.join(dir, "f2.wav")
-    ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    wave.write(f2, rate=100, data=np.array([1.,0.]))
+    wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.find_wave_files(dir, fullpath=False)
+    files = dh.find_wave_files(dir, return_path=False)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.find_wave_files(dir, fullpath=True)
+    files = dh.find_wave_files(dir, return_path=True)
     assert len(files) == 2
-    assert files[0] == f1
-    assert files[1] == f2
+    assert files[0] == "f1.wav"
+    assert files[1] == "f2.wav"
     #delete directory and files within
     shutil.rmtree(dir)
 
@@ -153,23 +148,22 @@ def test_find_wave_files_from_multiple_folders():
         os.remove(f)  #clean
     f1 = sub1 + "/f1.wav"
     f2 = sub2 + "/f2.wav"
-    ap.wave.write(f2, rate=100, data=np.array([1.,0.]))
-    ap.wave.write(f1, rate=100, data=np.array([0.,1.]))
+    wave.write(f2, rate=100, data=np.array([1.,0.]))
+    wave.write(f1, rate=100, data=np.array([0.,1.]))
     # get file names
-    files = dh.find_wave_files(folder, fullpath=False, subdirs=True)
+    files = dh.find_wave_files(folder, return_path=False, search_subdirs=True)
     assert len(files) == 2
     assert files[0] == "f1.wav"
     assert files[1] == "f2.wav"
-    files = dh.find_wave_files(folder, fullpath=True, subdirs=True)
+    files = dh.find_wave_files(folder, return_path=True, search_subdirs=True)
     assert len(files) == 2
-    assert files[0] == f1
-    assert files[1] == f2
+    assert files[0] == "sub1/f1.wav"
+    assert files[1] == "sub2/f2.wav"
 
     
 ################################
 # from1hot() tests
 ################################
-
 
 @pytest.mark.parametrize("input,expected",[
     (np.array([0,1]),1),
@@ -217,7 +211,7 @@ def test_read_wave_file(sine_wave_file):
 def test_parse_datetime_with_urban_sharks_format():
     fname = 'empty_HMS_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    ap.wave.write(full_path, rate=1000, data=np.array([0.]))
+    wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
@@ -233,7 +227,7 @@ def test_parse_datetime_with_urban_sharks_format():
 def test_parse_datetime_with_non_matching_format():
     fname = 'empty_HMQ_12_ 5_28__DMY_23_ 2_84.wav'
     full_path = os.path.join(path_to_assets, fname)
-    ap.wave.write(full_path, rate=1000, data=np.array([0.]))
+    wave.write(full_path, rate=1000, data=np.array([0.]))
     fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
@@ -359,7 +353,7 @@ def test_seg_from_time_tag():
     dh.seg_from_time_tag(audio_file=audio_file, start=0.5, end=2.5 , name="seg_1.wav", save_to=os.path.join(path_to_tmp, "from_tags") )
 
     
-    rate, sig  = ap.wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
+    rate, sig  = wave.read(os.path.join(path_to_tmp, "from_tags", "seg_1.wav"))
     duration = len(sig)/rate
     assert duration == 2.0
     shutil.rmtree(os.path.join(path_to_tmp, "from_tags"))
@@ -448,307 +442,3 @@ def test_pad_signal():
     assert pytest.approx(padded[pad_1_limit:pad_2_limit], sig)
 
     
-
-
-def test_init_batch_reader_with_single_file(sine_wave_file):
-    reader = AudioSequenceReader(source=sine_wave_file)
-    assert len(reader.files) == 1
-    assert reader.files[0][0] == sine_wave_file
-
-def test_init_batch_reader_with_two_files(sine_wave_file, sawtooth_wave_file):
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
-    assert len(reader.files) == 2
-    assert reader.files[0][0] == sine_wave_file
-    assert reader.files[1][0] == sawtooth_wave_file
-
-@pytest.fixture
-def five_time_stamped_wave_files():
-
-    files = list()
-    N = 5
-
-    folder = path_to_tmp + '/five_time_stamped_wave_files/'
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    for i in range(N):
-        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
-        full_path = os.path.join(folder, fname)
-        a = AudioSignal(rate=1000, data=np.zeros(500))
-        a.to_wav(full_path)
-        files.append(full_path)
-
-    yield folder
-
-    for f in files:
-        os.remove(f)
-
-def test_init_batch_reader_with_directory(five_time_stamped_wave_files):
-    folder = five_time_stamped_wave_files
-    reader = AudioSequenceReader(source=folder)
-    assert len(reader.files) == 5
-
-def test_batch_reader_can_parse_date_time(five_time_stamped_wave_files):
-    folder = five_time_stamped_wave_files
-    print(folder)
-    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
-    b = reader.next(700)
-    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=0, microsecond=0)
-    b = reader.next(600)
-    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=1, microsecond=0)
-    b = reader.next(300)
-    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=2, microsecond=0)
-    b = reader.next()
-    assert b.begin() == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=2, microsecond=int(3E5))
-
-def test_batch_reader_log_has_correct_data(five_time_stamped_wave_files):
-    folder = five_time_stamped_wave_files
-    fmt = '*HMS_%H_%M_%S__DMY_%d_%m_%y*'
-    reader = AudioSequenceReader(source=folder, datetime_fmt=fmt)
-    reader.next()
-    log = reader.log()
-    for i in range(5):
-        assert log['time'][i] == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=i, microsecond=0)
-        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
-        full_path = os.path.join(folder, fname)
-        assert log['file'][i] == full_path
-    reader.reset()
-    b = reader.next(700)
-    b = reader.next(600)
-    b = reader.next(300)
-    b = reader.next()
-    for i in range(5):
-        assert log['time'][i] == datetime.datetime(year=2084, month=2, day=23, hour=12, minute=5, second=i, microsecond=0)
-        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
-        full_path = os.path.join(folder, fname)
-        assert log['file'][i] == full_path
-
-
-def test_next_batch_with_single_file(sine_wave_file):
-    s = AudioSignal.from_wav(sine_wave_file)
-    reader = AudioSequenceReader(source=sine_wave_file)
-    assert reader.finished() == False
-    b = reader.next()
-    assert reader.finished() == True
-    assert b.duration() == s.duration()
-
-def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
-    b = reader.next()
-    s1 = AudioSignal.from_wav(sine_wave_file)
-    s2 = AudioSignal.from_wav(sawtooth_wave_file)
-    s3 = AudioSignal.from_wav(const_wave_file)
-    assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.n_smooth
-    assert reader.finished() == True
-
-def test_next_batch_with_two_files_and_limited_batch_size(sine_wave_file, sawtooth_wave_file):
-    s1 = AudioSignal.from_wav(sine_wave_file)
-    s2 = AudioSignal.from_wav(sawtooth_wave_file)
-    n1 = len(s1.data)
-    n2 = len(s2.data)
-    size = int((n1+n2) / 1.5)
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file])
-    b = reader.next(size)
-    assert reader.finished() == False
-    assert len(b.data) == size
-    b = reader.next(size)
-    assert reader.finished() == True
-    assert len(b.data) == n1 + n2 - reader.n_smooth - size
-
-def test_next_batch_with_three_files_and_one_file_per_batch(sine_wave_file, sawtooth_wave_file):
-    s1 = AudioSignal.from_wav(sine_wave_file)
-    s2 = AudioSignal.from_wav(sawtooth_wave_file)
-    n1 = len(s1.data)
-    n2 = len(s2.data)
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=1)
-    b = reader.next()
-    assert reader.finished() == False
-    assert len(b.data) == n1
-    b = reader.next()
-    assert reader.finished() == False
-    assert len(b.data) == n2
-    b = reader.next()
-    assert reader.finished() == True
-    assert len(b.data) == n1
-
-def test_next_batch_with_three_files_and_two_files_per_batch(sine_wave_file, sawtooth_wave_file):
-    s1 = AudioSignal.from_wav(sine_wave_file)
-    s2 = AudioSignal.from_wav(sawtooth_wave_file)
-    n1 = len(s1.data)
-    n2 = len(s2.data)
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, sine_wave_file], batch_size_files=2)
-    b = reader.next()
-    assert reader.finished() == False
-    assert len(b.data) == n1 + n2 - reader.n_smooth
-    b = reader.next()
-    assert reader.finished() == True
-    assert len(b.data) == n1
-
-def test_next_batch_with_two_very_short_files():
-    short_file_1 = os.path.join(path_to_assets, "super_short_1.wav")
-    ap.wave.write(short_file_1, rate=4000, data=np.array([1.,2.,3.]))
-    short_file_2 = os.path.join(path_to_assets, "super_short_2.wav")
-    ap.wave.write(short_file_2, rate=4000, data=np.array([1.,2.,3.]))
-    s1 = AudioSignal.from_wav(short_file_1)
-    s2 = AudioSignal.from_wav(short_file_2)
-    n1 = len(s1.data)
-    n2 = len(s2.data)
-    reader = AudioSequenceReader(source=[short_file_1, short_file_2])
-    b = reader.next()
-    assert reader.finished() == True
-    assert len(b.data) == n1+n2-2
-
-def test_next_batch_with_empty_file_and_resampling():
-    empty = os.path.join(path_to_assets, "empty.wav")
-    ap.wave.write(empty, rate=4000, data=np.empty(0))
-    s = AudioSignal.from_wav(empty)
-    n = len(s.data)
-    reader = AudioSequenceReader(source=[empty], rate=2000)
-    b = reader.next()
-    assert reader.finished() == True
-    assert b is None
-
-def test_next_batch_with_multiple_files(sine_wave_file, sawtooth_wave_file, const_wave_file):
-    reader = AudioSequenceReader(source=[sine_wave_file, sawtooth_wave_file, const_wave_file])
-    b = reader.next()
-    s1 = AudioSignal.from_wav(sine_wave_file)
-    s2 = AudioSignal.from_wav(sawtooth_wave_file)
-    s3 = AudioSignal.from_wav(const_wave_file)
-    assert len(b.data) == len(s1.data) + len(s2.data) + len(s3.data) - 2 * reader.n_smooth
-    assert reader.finished() == True
-
-def test_init_annotation_table_reader():
-    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
-    AnnotationTableReader(fname)
-    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
-    AnnotationTableReader(fname)
-
-def test_get_annotations_for_file_with_one_annotation():
-    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
-    a = AnnotationTableReader(fname)
-    l, b = a.get_annotations('x.wav')
-    assert len(l) == 1
-    assert l[0] == 0
-    assert len(b) == 1
-    assert b[0][0] == 1
-    assert b[0][1] == 2
-    assert b[0][2] == 0
-    import math
-    assert b[0][3] == math.inf
-    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
-    a = AnnotationTableReader(fname)
-    l, b = a.get_annotations('x.wav')
-    assert len(l) == 1
-    assert l[0] == 0
-    assert len(b) == 1
-    assert b[0][0] == 1
-    assert b[0][1] == 2
-    assert b[0][2] == 0.
-    assert b[0][3] == 300.
-
-def test_get_annotations_for_file_with_two_annotations():
-    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
-    a = AnnotationTableReader(fname)
-    l, b = a.get_annotations('y.wav')
-    assert len(l) == 2
-    assert l[0] == 1
-    assert l[1] == 2
-    assert len(b) == 2
-    assert b[0][0] == 3
-    assert b[0][1] == 4
-    assert b[0][2] == 0
-    import math
-    assert b[0][3] == math.inf
-    fname = os.path.join(path_to_assets, 'dummy_annotations_w_freq.csv')
-    a = AnnotationTableReader(fname)
-    l, b = a.get_annotations('y.wav')
-    assert len(l) == 2
-    assert l[0] == 1
-    assert l[1] == 2
-    assert len(b) == 2
-    assert b[0][0] == 3
-    assert b[0][1] == 4
-    assert b[0][2] == 4000.
-    assert b[0][3] == 6000.
-
-def test_get_annotations_for_file_with_no_annotations():
-    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
-    a = AnnotationTableReader(fname)
-    l, b = a.get_annotations('z.wav')
-    assert len(l) == 0
-    assert len(b) == 0
-
-def test_get_maximum_number_of_annotations():
-    fname = os.path.join(path_to_assets, 'dummy_annotations.csv')
-    a = AnnotationTableReader(fname)
-    m = a.get_max_annotations()
-    assert m == 2
-
-def test_init_spec_provider_with_folder(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
-    assert len(sp.files) == 5
-
-def test_init_spec_provider_with_wav_file(sine_wave_file):
-    sp = dh.SpecProvider(path=sine_wave_file)
-    assert len(sp.files) == 1
-
-def test_use_spec_provider_on_five_wav_files(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.5
-    s = next(sp)
-    assert s.duration() == 0.5
-    assert sp.fid == 2
-
-def test_use_spec_provider_on_five_wav_files_specify_length(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, step_size=0.01, window_size=0.1)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    assert sp.fid == 1
-
-def test_use_spec_provider_on_five_wav_files_specify_overlap(five_time_stamped_wave_files):
-    sp = dh.SpecProvider(path=five_time_stamped_wave_files, length=0.2, overlap=0.05, step_size=0.01, window_size=0.1)
-    assert len(sp.files) == 5
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    s = next(sp)
-    assert s.duration() == 0.2
-    assert sp.time == pytest.approx(0.45, abs=1e-6)
-    assert sp.fid == 0
-
-def test_spec_provider_number_of_segments(sine_wave_file):
-    import librosa
-    dur = librosa.core.get_duration(filename=sine_wave_file)
-    # duration is an integer number of lengths
-    l = 0.2
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    assert len(sp.files) == 1
-    N = int(dur / l)
-    assert N == sp.num_segs
-    # duration is *not* an integer number of lengths
-    l = 0.21
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=0, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    N = int(np.ceil(dur / l))
-    assert N == sp.num_segs
-    # loop over all segments
-    for _ in range(N):
-        _ = next(sp)
-    # non-zero overlap
-    l = 0.21
-    o = 0.8*l
-    sp = dh.SpecProvider(path=sine_wave_file, length=l, overlap=o, step_size=0.01, window_size=0.1, sampling_rate=2341)
-    step = l - o
-    N = int(np.ceil(dur / step))
-    assert N == sp.num_segs
-    # loop over all segments
-    for _ in range(N):
-        _ = next(sp)

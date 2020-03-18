@@ -41,7 +41,6 @@ from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
-from ketos.data_handling.parsing import SpectrogramConfiguration
 import soundfile
 
 
@@ -75,8 +74,6 @@ def rel_path_unix(path, start=None):
         u = '/' + t + u
 
     return u
-
-
 
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
     """Parse date-time data from string.
@@ -142,7 +139,7 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
 
     return None
 
-def find_files(path, substr, fullpath=True, subdirs=False):
+def find_files(path, substr, return_path=True, search_subdirs=False, search_path=False):
     """ Find all files in the specified directory containing the specified substring in their file name
 
         Args:
@@ -150,10 +147,13 @@ def find_files(path, substr, fullpath=True, subdirs=False):
                 Directory path
             substr: str
                 Substring contained in file name
-            fullpath: bool
-                If True, return relative path to each file. If false, only return the file names 
-            subdirs: bool
+            return_path: bool
+                If True, path to each file, relative to the top directory. 
+                If false, only return the filenames 
+            search_subdirs: bool
                 If True, search all subdirectories
+            search_path: bool
+                Search for substring occurrence in relative path rather than just the filename
 
         Returns:
             files: list (str)
@@ -164,77 +164,87 @@ def find_files(path, substr, fullpath=True, subdirs=False):
             >>>
             >>> # Find files that contain 'super' in the name;
             >>> # Do not return the relative path
-            >>> find_files(path="ketos/tests/assets", substr="super", fullpath=False)
+            >>> find_files(path="ketos/tests/assets", substr="super", return_path=False)
             ['super_short_1.wav', 'super_short_2.wav']
             >>>
             >>> # find all files with '.h5" in the name
             >>> # Return the relative path
-            >>> find_files(path="ketos/tests/assets", substr=".h5")
-            ['ketos/tests/assets/15x_same_spec.h5', 'ketos/tests/assets/cod.h5', 'ketos/tests/assets/humpback.h5', 'ketos/tests/assets/morlet.h5']
+            >>> find_files(path="ketos/tests/", substr="super", search_subdirs=True)
+            ['assets/super_short_1.wav', 'assets/super_short_2.wav']
     """
     # find all files
-    allfiles = list()
-    if not subdirs:
-        f = os.listdir(path)
-        for fil in f:
-            if fullpath:
-                x = path
-                allfiles.append(os.path.join(x, fil))
+    all_files = []
+    if search_subdirs:
+        for dirpath, _, files in os.walk(path):
+            if return_path:
+                all_files += [os.path.relpath(os.path.join(dirpath, f), path) for f in files]
             else:
-                allfiles.append(fil)
+                all_files += files
     else:
-        for r, _, f in os.walk(path):
-            for fil in f:
-                if fullpath:
-                    allfiles.append(os.path.join(r, fil))
-                else:
-                    allfiles.append(fil)
+        all_files = os.listdir(path)
 
     # select those that contain specified substring
-    files = list()
-    for f in allfiles:
-        if substr in f:
-            files.append(f)
+    if isinstance(substr, str): substr = [substr]
+    files = []
+    for f in all_files:
+        for ss in substr:
+            if search_path: s = f
+            else: s = os.path.basename(f)
+            if ss in s:
+                files.append(f)
+                break
 
     # sort alphabetically
     files.sort()
-
     return files
 
 
-def find_wave_files(path, fullpath=True, subdirs=False):
+def find_wave_files(path, return_path=True, search_subdirs=False, search_path=False):
     """ Find all wave files in the specified directory
 
         Args:
             path: str
                 Directory path
-            fullpath: bool
-                Return relative path to each file or just the file name 
+            return_path: bool
+                If True, path to each file, relative to the top directory. 
+                If false, only return the filenames 
+            search_subdirs: bool
+                If True, search all subdirectories
+            search_path: bool
+                Search for substring occurrence in relative path rather than just the filename
 
         Returns:
-            wavefiles: list (str)
+            : list (str)
                 Alphabetically sorted list of file names
 
         Examples:
             >>> from ketos.data_handling.data_handling import find_wave_files
             >>>
-            >>> find_wave_files(path="ketos/tests/assets", fullpath=False)
+            >>> find_wave_files(path="ketos/tests/assets", return_path=False)
             ['2min.wav', 'empty.wav', 'grunt1.wav', 'super_short_1.wav', 'super_short_2.wav']
 
     """
-    wavefiles = find_files(path, '.wav', fullpath, subdirs)
-    wavefiles += find_files(path, '.WAV', fullpath, subdirs)
-    return wavefiles
+    return find_files(path, substr=['.wav', '.WAV'], 
+        return_path=return_path, search_subdirs=search_subdirs, search_path=search_path)
 
+def read_wave(file, channel=0, start=0, stop=None):
+    """ Read a wave file in either mono or stereo mode.
 
-def read_wave(file, channel=0):
-    """ Read a wave file in either mono or stereo mode
+        Wrapper method around 
+        
+            https://pysoundfile.readthedocs.io/en/latest/index.html#soundfile.read
 
         Args:
             file: str
                 path to the wave file
             channel: int
                 Which channel should be used in case of stereo data (0: left, 1: right) 
+            start: int (optional)
+                Where to start reading. A negative value counts from the end. 
+                Defaults to 0.
+            stop: int (optional)
+                The index after the last time step to be read. A negative value counts 
+                from the end.
 
         Returns: (rate,data)
             rate: int
@@ -261,13 +271,9 @@ def read_wave(file, channel=0):
             >>> len(data)/rate
             120.832
     """
-    signal, rate = sf.read(file)
-    
-           
-    if len(signal.shape) == 2:
-        data = signal[:, channel]
-    else:
-        data = signal[:]
+    signal, rate = sf.read(file=file, start=start, stop=stop, always_2d=True)               
+    data = signal[:, channel]
+    data = np.asfortranarray(data)
     return rate, data
 
 def create_dir(dir):
@@ -622,6 +628,8 @@ def _filter_annotations_by_filename(annotations, filename):
             ...                     'end':[6.0,103.0,108.0, 87.0, 94.0]})
             >>> # Filter the annotations associated with file "2min_01"
             >>> annot_01 = _filter_annotations_by_filename(annotations,'2min_01')
+            >>> # enforce desired column ordering
+            >>> annot_01 = annot_01[['filename','label','start','end']]
             >>> annot_01
                   filename  label  start    end
             0  2min_01.wav      1    5.0    6.0
@@ -842,755 +850,3 @@ def pad_signal(signal,rate, length):
 
     padded_signal =  np.concatenate([pad1,signal,pad2])
     return padded_signal
-
-
-class AudioSequenceReader:
-    """ Reads sequences of audio files and serves them as a merged :class::ketos.audio_processing.audio.AudioSignal.
-
-        Separate audio files are joined together in a single time series. 
-
-        If the source is given as a folder (rather than a list of file names), all wav files from
-        the folder will be read.
-        
-        If the file names have date-time information, the date-time information will be 
-        parsed and used to sort the files chronologically. Any gaps will be filled with zeros.
-
-        If the file names do not contain date-time information, the files will be sorted 
-        alphabetically (if given as a folder name) or in the order provided (if given as a list 
-        of file names).
-
-        OBS: Note that the AudioSequenceReader always loads entire wav files into memory, 
-        even when the requested batch size is smaller than the file size. This can cause 
-        problems if the wav files are very large.
-
-        TODO: If the file size is larger than the batch size, only load the relevant part of 
-        the wav file into memory, to avoid problems with very large wav files.
-        
-        Args:
-            source: str or list
-                File name, list of file names, or directory name 
-            recursive_search: bool
-                If True, includes .wav files from all subdirectories 
-            rate: float
-                Sampling rate in Hz
-            datetime_stamp: str
-                A default datetime to be used in case the file names do not contain datetime information.
-                If left to None, the the AudioSequenceReader will try to extract datetime from the filename
-                using the 'datetime_fmt' argument.
-            datetime_fmt: str
-                Format for parsing date-time data from file names. If the file names do not contain
-                datetime information and a 'datetime_stamp' is not provided, the current day will be used
-                a time starting at 00:00:00:000
-            n_smooth: int
-                Size of region (number of samples) used for smoothly joining audio signals 
-            verbose: bool
-                If True, print progress messages during processing
-            batch_size_samples: int
-                Number of samples loaded for each batch.
-            batch_size_files: int
-                Number of wav files loaded for each batch. (Overwrites batch_size_samples.)
-        
-        Raises:
-            AssertionError:
-                If the specified directory does not exist
-                If the specified directory does not have any .wav files
-
-        Examples:
-
-        >>> from ketos.data_handling.data_handling import AudioSequenceReader
-        >>> # Define the folder containing the audio files
-        >>> path_to_files = "ketos/tests/assets/2s_segs"
-        >>> # This folder contains 60 files (of 2 seconds each) 
-        >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
-        >>> 
-        >>> # Define the size (in samples) for each batch.
-        >>> size = 2000 * 20 # The sampling rate is 2000Hz
-        >>> # Create an AudioSequenceReader object
-        >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
-        >>> # get the first audio signal
-        >>> seq_1 = reader.next(size=size)
-        >>> # The length the same as the specified size
-        >>> len(seq_1.data)
-        40000
-        >>> seq_2 = reader.next(size=size)
-        >>> len(seq_2.data)
-        40000
-
-    """
-    def __init__(self, source, recursive_search=False, rate=None, datetime_stamp=None, datetime_fmt=None, n_smooth=100, verbose=False,\
-            batch_size_samples=None, batch_size_files=None):
-        self.rate = rate
-        self.n_smooth = n_smooth
-        self.times = list()
-        self.files = list()
-        self.batch = None
-        self.signal = None
-        self.index = -1
-        self.time = None
-        self.eof = False
-        self.verbose = verbose
-        self.batch_size_samples = batch_size_samples
-        self.batch_size_files = batch_size_files
-        self.load(source=source, recursive_search=recursive_search, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
-
-    def load(self, source, recursive_search=False, datetime_stamp=None, datetime_fmt=None):
-        """
-            Reset the reader and load new data.
-            
-            OBS: These method does not actually load any audio data into memory, but merely 
-            creates a record of all the wav files to be processed.
-
-            Args:
-                source: str or list
-                    File name, list of file names, or directory name 
-                recursive_search: bool
-                    If true, include wav files from all subdirectories
-                datetime_stamp: str
-                    A default datetime to be used in case the file names do not contain datetime information.
-                    Requires the format to be specified by the 'datetime_fmt' argument.
-                    If left to None, the the AudioSequenceReader will try to extract datetime from the filename
-                    using the 'datetime_fmt'.
-                datetime_fmt: str
-                    Format for parsing date-time data from file names. If the file names do not contain
-                    datetime information and a 'datetime_stamp' is not provided, the current day will be used
-                    a time starting at 00:00:00:000
-
-            Raises:
-                AssertionError:
-                    If the specified directory does not exist
-                    If the specified directory does not have any .wav files
-
-            Examples:
-
-                >>> from glob import glob
-                >>> from ketos.data_handling.data_handling import AudioSequenceReader
-                >>>
-                >>> # Define the folder containing the audio files
-                >>> path_to_files = "ketos/tests/assets/2s_segs"
-                >>> # Define a list with the 10 files
-                >>> list_of_files_1 = glob(path_to_files + "/*" )[0:10]
-                >>> # Define another list with 10 different files
-                >>> list_of_files_2 = glob(path_to_files + "/*" )[10:20]
-                >>>
-                >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 20 # The sampling rate is 2000Hz
-                >>>                
-                >>> # Create an AudioSequenceReader object with the first list of files
-                >>> reader = AudioSequenceReader(source=list_of_files_1, rate=2000)
-                >>> # Load the reader with a new source of files
-                >>> reader.load(source=list_of_files_1)
-
-        """
-        self.files.clear()
-
-        # get list of file names
-        fnames = list()
-        if isinstance(source, list):
-            fnames = source
-        else:
-            if source[-4:] == '.wav':
-                fnames = [source]
-            else:
-                fnames = find_wave_files(path=source, subdirs=recursive_search)
-
-            # sort file names alphabetically
-            fnames = sorted(fnames)
-
-        # check that files exist
-        for f in fnames:
-            assert os.path.exists(f), " Could not find {0}".format(f)
-
-        # check that we have at least 1 file
-        assert len(fnames) > 0, " No wave files found in {0}".format(source)
-
-        # default time stamp
-        if datetime_stamp is not None:
-            t0 = datetime.datetime.strptime(datetime_stamp, datetime_fmt)  
-        else:
-            t0 = datetime.datetime.today()
-            t0 = datetime.datetime.combine(t0, datetime.datetime.min.time())
-
-        # time stamps
-        for f in fnames:
-            fmt = datetime_fmt
-            p_unix = f.rfind('/')
-            p_win = f.rfind('\\')
-            p = max(p_unix, p_win)
-            folder = f[:p+1]
-            if folder is not None and fmt is not None:
-                fmt = folder + fmt
-            t = parse_datetime(f, fmt)
-            if t is None:
-                t = t0
-            self.files.append([f, t])
-
-        # sort signals in chronological order
-        def sorting(y):
-            return y[1]
-
-        self.files.sort(key=sorting)
-
-        # reset the reader
-        self.reset()
-
-    def _read_file(self, i):
-        from ketos.audio_processing.audio import TimeStampedAudioSignal
-    
-        assert i < len(self.files), "attempt to read file with id {0} but only {1} files have been loaded".format(i, len(self.files))
-
-        if self.verbose:
-            print(' File {0} of {1}'.format(i+1, len(self.files)), end="\r")
-            
-        f = self.files[i]
-        s = TimeStampedAudioSignal.from_wav(path=f[0], time_stamp=f[1]) # read in audio data from wav file
-        
-        if self.rate is not None:
-            s.resample(new_rate=self.rate) # resamples
-
-        return s
-        
-    def _read_next_file(self):
-        """
-            Read next file, increment file counter, and update time.
-        """
-        self.index += 1 # increment counter
-        if self.index < len(self.files):
-            self.signal = self._read_file(self.index) # read audio file
-            self.time = self.signal.begin() # start time of this audio file
-        else:
-            self.signal = None
-            self.time = None
-            
-        if self.signal is None:
-            self.eof = True
-
-    def _add_to_batch(self, size, new_batch):
-        """
-            Add audio from current file to batch.
-            
-            Args:
-                size: int
-                    Maximum batch size (number of samples) 
-                new_batch: bool
-                    Start a new batch or add to existing
-        """
-        if self.signal.empty():
-            self._read_next_file()
-           
-        if self.signal is None:
-            return
-
-        file_is_new = self.signal.begin() == self.time # check if we have already read from this file
-
-        if new_batch:
-            if self.batch is not None:
-                t_prev = self.batch.end() # end time of the previous batch
-            else:
-                t_prev = None
-
-            self.batch = self.signal.split(s=size) # create a new batch
-
-            if t_prev is not None and self.batch.begin() < t_prev: 
-                self.batch.time_stamp = t_prev # ensure that new batch starts after the end of the previous batch
-                
-            if file_is_new: 
-                self.times.append(self.batch.begin()) # collect times
-        else:
-            l = len(self.signal.data)
-            if file_is_new:
-                n_smooth = self.n_smooth
-            else:
-                n_smooth = 0
-
-            t = self.batch.append(signal=self.signal, n_smooth=n_smooth, max_length=size) # add to existing batch
-            if file_is_new and (self.signal.empty() or len(self.signal.data) < l): 
-                self.times.append(t) # collect times
-        
-        if self.signal.empty() and self.index == len(self.files) - 1: # check if there is more data
-            self.eof = True 
-
-    def next(self, size=math.inf):
-        """
-            Read next batch of audio files and merge into a single audio signal. 
-            
-            If no maximum size is given, all loaded files will be read and merged, 
-            unless either batch_size_samples or batch_size_files has been specified 
-            at the time of initialization.  
-            
-            Args:
-                size: int
-                    Maximum batch size (number of samples).
-                    
-            Returns:
-                batch: TimeStampedAudioSignal
-                    Merged audio signal
-
-            Examples:
-
-                >>> from ketos.data_handling.data_handling import AudioSequenceReader
-                >>>
-                >>> # Define the folder containing the audio files
-                >>> path_to_files = "ketos/tests/assets/2s_segs"
-                >>> 
-                >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
-                >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source = path_to_files, rate=2000)
-                >>>
-                >>> seq1 = reader.next(size=size)
-                >>> len(seq1.data)
-                40000
-                >>> seq2 = reader.next(size=size)
-                >>> len(seq2.data)
-                40000
-        """
-        num_files = None
-
-        # ensure that size has type int
-        if size is not math.inf:
-            size = int(size)
-        
-        elif self.batch_size_files is not None:
-            num_files = self.batch_size_files
-
-        elif self.batch_size_samples is not None:
-            size = self.batch_size_samples
-
-        if self.finished():
-            return None
-        
-        # batch size corresponds to certain number of wav files
-        if num_files is not None:
-            file_no = 0
-            while file_no < num_files and not self.finished():
-                self._add_to_batch(size=math.inf, new_batch=(file_no==0))
-                file_no += 1
-
-        # batch size corresponds to certain number of samples
-        else:
-            length = 0        
-            while length < size and not self.finished():
-                self._add_to_batch(size=size, new_batch=(length==0))                
-                if self.batch is not None:
-                    length = len(self.batch.data)
-
-        if self.finished() and self.verbose:
-            print(' Successfully processed {0} files'.format(len(self.files)))
-
-        return self.batch
-        
-                
-    def finished(self):
-        """
-            Reader has read all load data.
-            
-            Returns: 
-                x: bool
-                True if all data has been process, False otherwise
-            
-            Example:
-
-                >>> from ketos.data_handling.data_handling import AudioSequenceReader
-                >>> # Define the folder containing the audio files
-                >>> path_to_files = "ketos/tests/assets/2s_segs"
-                >>> # This folder contains 60 files (of 2 seconds each) 
-                >>> # We want to read them in chunks of 10 (i.e.: 20-second long signals)       
-                >>> 
-                >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 20 # The sampling rate is 2000Hz
-                >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
-                >>>
-                >>> # Go through the batches, retriving the merged ausio signal
-                >>> # and printing the number of samples in each, until there are no btaches left unprocessed
-                >>> while reader.finished() != True:
-                ...     seq = reader.next(size=size)
-                ...     print(len(seq.data))
-                40000
-                40000
-                40000
-                40000
-                40000
-                30300
-                >>> # The last batch generated a signal with 30300 samples only, because there were not 
-                >>> # enough files to create a 40000 samples signal as specified by the 'size' argument
-
-            
-        """
-        return self.eof
-    
-    def reset(self):
-        """
-            Go back and start reading from the beginning of the first file.
-
-            Examples:
-
-                >>> from ketos.data_handling.data_handling import AudioSequenceReader
-                >>> # Define the folder containing the audio files
-                >>> path_to_files = "ketos/tests/assets/2s_segs"
-                >>> 
-                >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 60 # The sampling rate is 2000Hz, so each batch will be 60s long
-                >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source=path_to_files, rate=2000)
-                
-                >>> # Here we want 5 signals, even it it means they'll come from repeated batches.
-                >>> 
-                >>> for i in range(5):
-                ...    seq = reader.next(size=size)
-                ...    print(len(seq.data))
-                ...    if reader.finished(): #When there are no batches left, reset the reader
-                ...        reader.reset()
-                120000
-                110200
-                120000
-                110200
-                120000
-
-
-                
-            
-        """
-        # reset 
-        self.index = -1
-        self.times.clear()
-        self.eof = False
-        self.batch = None
-
-        # read the first file 
-        self._read_next_file()
-
-    def log(self):
-        """
-            Generate summary of all processed data.
-
-            Returns:
-                df: pandas DataFrame
-                    Table with file names and time stamps
-
-            Example:
-
-                >>> from glob import glob
-                >>> from ketos.data_handling.data_handling import AudioSequenceReader
-                >>>
-                >>> # Define the folder containing the audio files
-                >>> path_to_files = "ketos/tests/assets/2s_segs"
-                >>> # Define a list with the 10 files that start with 'id_2min_1'
-                >>> list_of_files = glob(path_to_files + "/id_2min_1*" )
-                >>> list_of_files.sort()
-                >>> 
-                >>> # Define the size (in samples) for each batch.
-                >>> size = 2000 * 20 # The sampling rate is 2000Hz, so each batch will be 20s long
-                >>> # Define a default datetime stamp
-                >>> datetime_stamp = "1960-06-10 16:30:00.000"
-                >>> # Define the datetime format specification
-                >>> datetime_fmt = "%Y-%m-%d %H:%M:%S.%f"
-                >>>
-                >>> # Create an AudioSequenceReader object
-                >>> reader = AudioSequenceReader(source = list_of_files, rate=2000, datetime_stamp=datetime_stamp, datetime_fmt=datetime_fmt)
-                >>>
-                >>> seq1 = reader.next(size=size)
-                >>> seq2 = reader.next(size=size)
-                >>> reader.log()
-                                      time                                             file
-                0  1960-06-10 16:30:00.000  ketos/tests/assets/2s_segs/id_2min_10_l_[0].wav
-                1  1960-06-10 16:30:01.950  ketos/tests/assets/2s_segs/id_2min_11_l_[0].wav
-                2  1960-06-10 16:30:03.900  ketos/tests/assets/2s_segs/id_2min_12_l_[0].wav
-                3  1960-06-10 16:30:05.850  ketos/tests/assets/2s_segs/id_2min_13_l_[0].wav
-                4  1960-06-10 16:30:07.800  ketos/tests/assets/2s_segs/id_2min_14_l_[0].wav
-                5  1960-06-10 16:30:09.750  ketos/tests/assets/2s_segs/id_2min_15_l_[0].wav
-                6  1960-06-10 16:30:11.700  ketos/tests/assets/2s_segs/id_2min_16_l_[0].wav
-                7  1960-06-10 16:30:13.650  ketos/tests/assets/2s_segs/id_2min_17_l_[0].wav
-                8  1960-06-10 16:30:15.600  ketos/tests/assets/2s_segs/id_2min_18_l_[0].wav
-                9  1960-06-10 16:30:17.550  ketos/tests/assets/2s_segs/id_2min_19_l_[0].wav
-                10 1960-06-10 16:30:19.500   ketos/tests/assets/2s_segs/id_2min_1_l_[0].wav
-
-        """
-        n = len(self.times)
-        fnames = [x[0] for x in self.files]
-        df = pd.DataFrame(data={'time':self.times,'file':fnames[:n]})
-        return df
-
-
-class AnnotationTableReader():
-    """ Reads annotation data from csv file
-
-        The csv file should have at least the following columns:
-
-           * "filename": file name
-           * "label": label value (0, 1, 2, ...)
-           * "start": start time in seconds measured from the beginning of the audio file
-           * "end": end time in seconds
-
-        In addition, it can the following two optional columns:
-
-           * "flow": frequency lower boundary in Hz
-           * "fhigh": frequency upper boundary in Hz
-
-        Args:
-            path: str
-                Full path to annotation csv file
-
-        Example:
-
-            >>> # create a pandas dataframe with dummy annotations
-            >>> import pandas as pd
-            >>> d = {'filename': ['x.wav', 'y.wav'], 'start': [3.0, 4.0], 'end': [17.0, 12.0], 'label': [0, 1]}
-            >>> df = pd.DataFrame(data=d)
-            >>> # save the dataframe to a csv file
-            >>> fname = "ketos/tests/assets/tmp/ann.csv"
-            >>> df.to_csv(fname)
-            >>> # create an annotation reader
-            >>> from ketos.data_handling.data_handling import AnnotationTableReader
-            >>> reader = AnnotationTableReader(fname)
-            >>> # get the annotations for x.wav
-            >>> labels, boxes = reader.get_annotations('x.wav')
-            >>> print(labels, boxes)
-            [0] [[3.0, 17.0, 0.0, inf]]
-    """
-    def __init__(self, path):
-
-        self.df = pd.read_csv(path)
-
-        required_cols = ['filename', 'start', 'end', 'label']
-
-        for r in required_cols:
-            assert r in self.df.columns, 'column {0} is missing'.format(r)
-
-        self.max_ann = None
-        
-    def get_max_annotations(self):
-        """ Returns the maximum number of annotations attached to any single audio file.
-            
-            Returns:
-                m: int
-                    Number of annotations
-        """        
-        if self.max_ann is not None:
-            m = self.max_ann
-        else:
-            x = self.df['filename'].values
-            _, counts = np.unique(x, return_counts=True)
-            m = np.max(counts)
-            self.max_ann = m
-
-        return m
-
-    def get_annotations(self, filename):
-        """ Get annotations associated with the specified file 
-            
-            Args:
-                filename: str
-                    File name
-                    
-            Returns:
-                labels: list(int)
-                    Labels
-                boxes: list(tuple)
-                    Boxes
-        """
-        # select rows with matching file name
-        sel = self.df[self.df['filename']==filename]
-
-        m = len(sel)
-
-        # get labels
-        labels = sel['label'].values
-
-        # get times
-        start = sel['start'].values
-        stop  = sel['end'].values
-
-        # get frequencies
-        if 'flow' in sel.columns:
-            flow = sel['flow'].values
-        else:
-            flow = np.zeros(m)
-        if 'fhigh' in sel.columns:
-            fhigh = sel['fhigh'].values        
-        else:
-            fhigh = np.ones(m) * math.inf
-
-        # construct boxes
-        boxes = list()
-        for t1,t2,f1,f2 in zip(start, stop, flow, fhigh):
-            b = [t1, t2, f1, f2]
-            boxes.append(b)
-
-        return labels, boxes
-
-
-class SpecProvider():
-    """ Compute spectrograms from raw audio (*.wav) files.
-
-        Note that if spec_config is specified, the following arguments are ignored: 
-        sampling_rate, window_size, step_size, length, overlap, flow, fhigh, cqt, bins_per_octave.
-
-        TODO: Modify implementation so that arguments are not ignored when spec_config is specified.
-    
-        Args:
-            path: str
-                Full path to audio file (*.wav) or folder containing audio files
-            channel: int
-                For stereo recordings, this can be used to select which channel to read from
-            spec_config: SpectrogramConfiguration
-                Spectrogram configuration object.
-            sampling_rate: float
-                If specified, audio data will be resampled at this rate
-            window_size: float
-                Window size (seconds) used for computing the spectrogram
-            step_size: float
-                Step size (seconds) used for computing the spectrogram
-            length: float
-                Duration in seconds of individual spectrograms.
-            overlap: float
-                Overlap in seconds between consecutive spectrograms.
-            flow: float
-                Lower cut on frequency (Hz)
-            fhigh: float
-                Upper cut on frequency (Hz)
-            cqt: bool
-                Compute CQT magnitude spectrogram instead of the standard STFT magnitude 
-                spectrogram.
-            bins_per_octave: int
-                Number of bins per octave. Only applicable if cqt is True.
-            pad: bool
-                If True (default), audio files will be padded with zeros at the end to produce an 
-                integer number of spectrogram if necessary. If False, audio files 
-                will be truncated at the end.
-
-            Example:
-    """
-    def __init__(self, path, channel=0, spec_config=None, sampling_rate=None, window_size=0.2, step_size=0.02, length=None,\
-        overlap=0, flow=None, fhigh=None, cqt=False, bins_per_octave=32, pad=True):
-
-        if spec_config is None:
-            spec_config = SpectrogramConfiguration(rate=sampling_rate, window_size=window_size, step_size=step_size,\
-                bins_per_octave=bins_per_octave, window_function=None, low_frequency_cut=flow, high_frequency_cut=fhigh,\
-                length=length, overlap=overlap, type=['Mag', 'CQT'][cqt])
-
-        if spec_config.length is not None:
-            assert spec_config.overlap < spec_config.length, 'Overlap must be less than spectrogram length'
-
-        self.spec_config = spec_config
-        self.channel = channel
-        self.pad = pad
-
-        # get all wav files in the folder, including any subfolders
-        if path[-3:].lower() == 'wav':
-            assert os.path.exists(path), 'SpecProvider could not find the specified wave file.'
-            self.files = [path]
-        else:
-            self.files = find_wave_files(path=path, fullpath=True, subdirs=True)
-            assert len(self.files) > 0, 'SpecProvider did not find any wave files in the specified folder.'
-
-        # file ID
-        self.fid = -1
-        self._next_file()
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        """ Compute next spectrogram.
-
-            Returns: 
-                spec: instance of MagSpectrogram or CQTSpectrogram
-                    Spectrogram.
-        """
-        # get spectrogram
-        spec = self.get(time=self.time, file_id=self.fid)
-
-        # increment time
-        self.time += spec.duration() - self.spec_config.overlap
-
-        # increment segment ID
-        self.sid += 1
-
-        # if this was the last segment, jump to the next file
-        file_duration = librosa.core.get_duration(filename=self.files[self.fid])
-        if self.sid == self.num_segs or self.time >= file_duration:
-            self._next_file()
-
-        return spec
-
-    def reset(self):
-        """ Go back to the beginning of the first file.
-        """
-        self.jump(0)
-
-    def jump(self, file_id=0):
-        """ Go to the beginning of the selected file.
-
-            Args:
-                file_id: int
-                    File ID
-        """
-        self.fid = file_id - 1
-        self._next_file()
-
-    def get(self, time=0, file_id=0):
-        """ Compute spectrogram from specific file and time.
-
-            Args:
-                time: float
-                    Start time of the spectrogram in seconds, measured from the 
-                    beginning of the file.
-                file_id: int
-                    Integer file identifier.
-        
-            Returns: 
-                spec: instance of MagSpectrogram or CQTSpectrogram
-                    Spectrogram.
-        """
-        from ketos.audio_processing.spectrogram import MagSpectrogram, CQTSpectrogram
-
-        # file
-        f = self.files[file_id]
-
-        # compute spectrogram
-        if self.spec_config.type == 'CQT':
-            spec = CQTSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
-                offset=time, decibel=True, channel=self.channel)
-
-        else:
-            spec = MagSpectrogram.from_wav(path=f, spec_config=self.spec_config,\
-                offset=time, decibel=True, adjust_duration=True, channel=self.channel)
-
-        return spec
-
-    def _next_file(self):
-        """ Jump to next file. 
-        """
-        # increment file ID
-        self.fid += 1
-
-        if self.fid == len(self.files):
-            self.fid = 0
-
-        # check if file exists
-        f = self.files[self.fid]
-        exists = os.path.exists(f)
-
-        # if not, jump to the next file
-        if not exists:
-            self._next_file()
-
-        # get duration
-        duration = librosa.get_duration(filename=f)
-
-        if self.spec_config.length is None:
-            self.num_segs = 1
-        else:
-            if self.pad:
-                self.num_segs = int(np.ceil(duration / (self.spec_config.length - self.spec_config.overlap)))
-            else:
-                x = (duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)
-                self.num_segs = int(np.floor((duration - self.spec_config.length) / (self.spec_config.length - self.spec_config.overlap)))
-                self.num_segs += 1
-
-        # reset segment ID and time
-        self.sid = 0
-        self.time = 0
-
-

@@ -34,7 +34,6 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 from functools import reduce
-from sympy import Interval, Union, Complement
 
 def factors(n):    
     """ Returns sorted set of all divisors of n
@@ -433,6 +432,22 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
 
     return res
 
+def complex_value(mag, angle):
+    """ Computes complex value from magnitude and phase angle.
+
+        Args:
+            mag: numpy array
+                Magnitude
+            angle: float or numpy array
+                Phase angle in radians
+
+        Returns:
+            c: numpy array
+                Complex value
+    """
+    phase = np.cos(angle) + 1.j * np.sin(angle)
+    c = mag * phase
+    return c  
 
 def get_member(cls, member_name):
     """ Query class member by name.
@@ -475,31 +490,3 @@ def str_is_int(s, signed=True):
         res = s.isdigit()
          
     return res
-
-def complement_intervals(a, b):
-    """ Compute the complement of multiple of intervals.
-
-        Args:
-            a: list 
-                Set with respect to which the complement is computed, e.g. [0., 100.]
-            b: list of lists or tuples
-                Intervals with respect to which the complement is computed, e.g. [[1.2, 7.0],[14.4,18.0]]
-    
-        Returns:
-            c list of tuples
-                Intervals that comprise the complement set.
-    """
-    a = Interval(a[0], a[1])
-    b = [Interval(begin, end) for (begin, end) in b]
-    u = Union(*b)
-    c = Complement(a, u)
-    if isinstance(c, Interval):
-        c = [list(c.args[:2])]
-
-    elif isinstance(c, Union):
-        c = [interval.args[:2] for interval in list(c.args)]
-
-    else:
-        c = []
-
-    return c
