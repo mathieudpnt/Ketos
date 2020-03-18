@@ -1,23 +1,33 @@
+.. _installation_instructions:
+
 Installation
 =============
 
-The easiest way to install the Ketos package is using pip: ::
+Ketos is most easily installed using the Anaconda package manager.
+Anaconda is freely available from `docs.anaconda.com/anaconda/install <https://docs.anaconda.com/anaconda/install/>`_. 
+Make sure you get the Python 3.7 version and make sure to pick the installer appropriate for your OS (Linux, macOS, Windows) 
 
-    pip install ketos
+Clone the Ketos repository: ::
 
-You can also clone the repository and build from source: ::
+    git clone https://gitlab.meridian.cs.dal.ca/public_projects/ketos.git
+    cd ketos
 
-    git clone https://gitlab.meridian.cs.dal.ca/data_analytics_dal/packages/ketos.git
+Create and activate Anaconda environment: ::
 
-From the cloned repository, run the setup.py script to build the package tarball::
+    conda create --name ketos_env
+    conda activate ketos_env
+ 
+Install the PyPI package manager and Jupyter Notebook: ::
+    
+    conda install pip
+    conda install jupyter
 
-    cd <path/to/ketos>
+Install Ketos: ::
+    
     python setup.py sdist
+    pip install dist/ketos-2.0.0.tar.gz
 
-And install using pip::
+Check that everything is working by running pytest: ::
 
-    pip install dist/ketos-x.y.z/tar.gz
-
-Where x.y.z is the package version.
-
+    pytest ketos/ --doctest-modules
 

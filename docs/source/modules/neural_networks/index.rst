@@ -5,5 +5,8 @@ Neural Networks
    :maxdepth: 2
    
    neural_networks
+   losses
+   metrics
+   nn_interface
    cnn
-   edtcn
+   resnet
