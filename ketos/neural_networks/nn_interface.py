@@ -778,7 +778,7 @@ class NNInterface():
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
         if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
+                recipe['secondary_metrics'] = self.metrics_to_recipe(self.secondary_metrics)
 
         return recipe
 
@@ -925,7 +925,7 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False,  ):
+    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
             if self.secondary_metrics is not None:
@@ -1043,7 +1043,11 @@ class NNInterface():
                     if self.secondary_metrics is not None:
                         for m in self.secondary_metrics:
                             tf.summary.scalar('val_' + m.name, data = batch_metrics['val_' + m.name], step=epoch)
-                        
+            
+            if (epoch + 1)  % checkpoint_freq == 0:
+                checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
+                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
+                    
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self.log_dir,"log.csv"))
 

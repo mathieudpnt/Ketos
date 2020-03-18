@@ -375,7 +375,7 @@ class ResNetInterface(NNInterface):
         recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self.metrics_to_recipe(self.metrics)
         if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
+                recipe['secondary_metrics'] = self.metrics_to_recipe(self.secondary_metrics)
 
         return recipe
 
