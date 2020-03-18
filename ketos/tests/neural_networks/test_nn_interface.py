@@ -155,6 +155,7 @@ def instance_of_MLPInterface(MLPInterface_subclass):
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
+    
 
 
     return instance
@@ -388,6 +389,7 @@ def test_write_recipe(instance_of_MLPInterface):
 
 
 def test_train_loop(instance_of_MLPInterface):
+    instance_of_MLPInterface.set_checkpoint_dir(os.path.join(path_to_tmp, "test_train_loop_checkpoints"))
     instance_of_MLPInterface.train_loop(n_epochs=5)
 
 
@@ -421,6 +423,8 @@ def test_train_loop_secondary_metrics(MLPInterface_subclass):
 
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
+    instance.set_checkpoint_dir(os.path.join(path_to_tmp, "test_train_loop_secondary_metrics_checkpoints"))
+
 
     instance.train_loop(5)
 
@@ -456,11 +460,13 @@ def test_train_loop_log_csv(MLPInterface_subclass):
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
     instance.set_log_dir(os.path.join(path_to_tmp, "test_log_dir"))
+    instance.set_checkpoint_dir(os.path.join(path_to_tmp, "test_train_loop_log_csv_checkpoints"))
 
     instance.train_loop(15, log_csv=True)
 
     assert os.path.isfile(os.path.join(instance.log_dir, "log.csv"))
     os.remove(os.path.join(instance.log_dir, "log.csv"))
+
 
 
 def test_train_loop_log_tensorboard(MLPInterface_subclass):
@@ -499,6 +505,7 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
     instance.set_train_generator(train_generator)
     instance.set_val_generator(val_generator)
     instance.set_log_dir(os.path.join(path_to_tmp, "test_log_dir"))
+    instance.set_checkpoint_dir(os.path.join(path_to_tmp, "test_train_loop_log_tensorboard_checkpoints"))
 
     instance.train_loop(15, log_tensorboard=True)
 
