@@ -1,6 +1,9 @@
 import tensorflow as tf
 from .losses import FScoreLoss
 from .metrics import Accuracy, Precision, Recall, FScore
+from zipfile import ZipFile
+from glob import glob
+from shutil import rmtree
 import numpy as np
 import pandas as pd
 import json
@@ -186,11 +189,11 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {'Accuracy_Ketos': Accuracy,
-                     'Precision_Ketos': Precision,
-                     'Recall_Ketos': Recall,
-                     'FScore_Ketos': FScore,
-                     'Accuracy':tf.keras.metrics.Accuracy,
+    valid_metrics = {'Accuracy': Accuracy,
+                     'Precision': Precision,
+                     'Recall': Recall,
+                     'FScore': FScore,
+                     'Accuracy_tf':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
                      'BinaryCrossentropy':tf.keras.metrics.BinaryCrossentropy,
@@ -211,8 +214,8 @@ class NNInterface():
                      'MeanSquaredError':tf.keras.metrics.MeanSquaredError,
                      'MeanSquaredLogarithmicError':tf.keras.metrics.MeanSquaredLogarithmicError,
                      'Poisson':tf.keras.metrics.Poisson,
-                     'Precision':tf.keras.metrics.Precision,
-                     'Recall':tf.keras.metrics.Recall,
+                     'Precision_tf':tf.keras.metrics.Precision,
+                     'Recall_tf':tf.keras.metrics.Recall,
                      'RootMeanSquaredError':tf.keras.metrics.RootMeanSquaredError,
                      'SensitivityAtSpecificity':tf.keras.metrics.SensitivityAtSpecificity,
                      'SparseCategoricalAccuracy':tf.keras.metrics.SparseCategoricalAccuracy,

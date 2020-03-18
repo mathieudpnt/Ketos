@@ -38,8 +38,6 @@
 import os
 import tensorflow as tf
 import numpy as np
-from .losses import FScoreLoss
-from .metrics import precision_recall_accuracy_f
 from .nn_interface import RecipeCompat, NNInterface
 import json
 from zipfile import ZipFile
