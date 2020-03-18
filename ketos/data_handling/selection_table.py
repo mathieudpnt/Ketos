@@ -39,6 +39,31 @@
     The user may add any number of additional columns.
     Note that the table uses two levels of indices, the first index being the 
     filename and the second index an annotation identifier. 
+
+    
+    Here is a minimum example:
+
+                                 label
+            filename  annot_id                    
+            file1.wav 0          2
+                      1          1
+                      2          2
+            file2.wav 0          2
+                      1          2
+                      2          1
+
+
+    And here is a table with time information (call-level annotations) and a few extra columns ('min_freq', 'max_freq' and 'file_time_stamp')
+
+                                 start   end  label  min_freq  max_freq  file_time_stamp
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2    180.6     294.3    2019-02-24 13:15:00
+                      1           8.5  12.5      1    174.2     258.7    2019-02-24 13:15:00
+                      2          13.1  14.0      2    183.4     292.3    2019-02-24 13:15:00
+            file2.wav 0           2.2   3.1      2    148.8     286.6    2019-02-24 13:30:00
+                      1           5.8   6.8      2    156.6     278.3    2019-02-24 13:30:00
+                      2           9.0  13.0      1    178.2     304.5    2019-02-24 13:30:00
+    
 """
 
 import os
@@ -263,7 +288,7 @@ def missing_columns(table, has_time=False):
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
 
-def is_standardized(table, has_time=False):
+def is_standardized(table, has_time=False, verbose=True):
     """ Check if the table has the correct indices and the minimum required columns.
 
         Args:
@@ -271,6 +296,8 @@ def is_standardized(table, has_time=False):
                 Annotation table. 
             has_time: bool
                 Require time information for each annotation, i.e. start and stop times.
+            verbose: bool
+                If True and the table is not standardized, print a message with an example table in the standard format.
 
         Returns:
             res: bool
@@ -283,6 +310,43 @@ def is_standardized(table, has_time=False):
 
     mis_cols = [x for x in required_cols if x not in table.columns.values]
     res = (table.index.names == required_indices) and (len(mis_cols) == 0)
+
+    message = """ Your table is not in the Ketos format.
+
+            It should have two levels of indices: filename and annot_id.
+            It should also contain at least the 'label' column.
+            If your annotations have time information, these should appear in the 'start' and 'end' columns
+
+            extra columns are allowed.
+
+            Here is a minimum example:
+
+                                 label
+            filename  annot_id                    
+            file1.wav 0          2
+                      1          1
+                      2          2
+            file2.wav 0          2
+                      1          2
+                      2          1
+
+
+            And here is a table with time information and a few extra columns ('min_freq', 'max_freq' and 'file_time_stamp')
+
+                                 start   end  label  min_freq  max_freq  file_time_stamp
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2    180.6     294.3    2019-02-24 13:15:00
+                      1           8.5  12.5      1    174.2     258.7    2019-02-24 13:15:00
+                      2          13.1  14.0      2    183.4     292.3    2019-02-24 13:15:00
+            file2.wav 0           2.2   3.1      2    148.8     286.6    2019-02-24 13:30:00
+                      1           5.8   6.8      2    156.6     278.3    2019-02-24 13:30:00
+                      2           9.0  13.0      1    178.2     304.5    2019-02-24 13:30:00
+
+    
+    """
+    if res == False and verbose == True:
+        print(message)            
+
     return res
 
 def create_label_dict(signal_labels, backgr_labels, discard_labels):
