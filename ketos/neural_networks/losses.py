@@ -39,6 +39,7 @@ class FScoreLoss(tf.keras.losses.Loss):
     """ Loss function based on the inverse of F-Score.
 
         When instantiated, the resulting loss function expects the predictions in the 'y_pred' argument and the true labels in the
+        'y_true' argument.
 
         Args:
             beta:float
