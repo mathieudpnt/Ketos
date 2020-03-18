@@ -1,7 +1,7 @@
 Spectrogram
 ===========
 
-.. automodule:: ketos.audio_processing.spectrogram
+.. automodule:: ketos.audio.spectrogram
    :members:
    :undoc-members:
    :show-inheritance:

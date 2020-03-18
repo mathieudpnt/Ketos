@@ -1,7 +1,7 @@
 Axis
 ====
 
-.. automodule:: ketos.audio_processing.axis
+.. automodule:: ketos.audio.utils.axis
    :members:
    :undoc-members:
    :show-inheritance:

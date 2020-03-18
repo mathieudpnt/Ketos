@@ -1,7 +1,7 @@
-Annotation
+Base Audio
 ==========
 
-.. automodule:: ketos.audio_processing.annotation
+.. automodule:: ketos.audio.base_audio
    :members:
    :undoc-members:
    :show-inheritance:

@@ -293,7 +293,7 @@ class NNInterface():
 
                     
                 >>> # Create a batch of 10 labels (0 or 1)
-                >>> labels = np.random.choice([0,1], size=10)
+                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
                 >>> labels.shape
                 (10,)
 
