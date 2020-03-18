@@ -59,4 +59,6 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
 
 ## Jupyter notebook tutorials
 
- 1. [notebook 1](docs/source/tutorials/bla/bla.ipynb)
+ * [Creating a training database (Basic)](docs/source/tutorials/create_database_simpler/create_database_simpler.ipynb)
+ * [Creating a training database (Extended)](docs/source/tutorials/create_database/create_database.ipynb)
+ * [Training a ResNet classifier](docs/source/tutorials/train_a_narw_classifier/train_a_narw_classifier_part_1.ipynb)
