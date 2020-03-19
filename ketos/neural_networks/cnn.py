@@ -33,12 +33,12 @@
         CNNInterface class:
 """
 import tensorflow as tf
-from .nn_interface import NNInterface
+from .nn_interface import NNInterface, RecipeCompat
 import json
 
 
 
-vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+vgg_like_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True},
                                     {'n_filters':128, "filter_shape":(3,3), 'strides':1, 'padding':'valid','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
                                     {'n_filters':128, "filter_shape":(3,3), 'strides':1, 'padding':'valid','activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True},
@@ -57,12 +57,20 @@ vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3),
                  
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},]
+                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},],
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)],
+                  'secondary_metrics': None
 
-                    }                
+}
 
 
-alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
+                                    
+
+
+alexnet_like_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
                                     {'n_filters':256, "filter_shape":(5,5), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
                                     {'n_filters':384, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
                                     {'n_filters':384, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
@@ -70,7 +78,28 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
                   
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}]
+                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}],
+
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)],
+                  'secondary_metrics': None
+
+
+                    }
+
+default_recipe = {'convolutional_layers':  [{'n_filters':32, "filter_shape":(8,8), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
+                                    {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },],
+                  
+                  'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':128, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},],
+
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)],
+                  'secondary_metrics': None
 
                     }
 
@@ -364,7 +393,7 @@ class CNNInterface(NNInterface):
                            ...  'dense_set: [512, 256],
                            ...  'convolutional_layers: ,
                            ...  'dense_layers: ,
-                           ...  'n_classes': 2 ,
+                           ... 'n_classes': 2 ,
                            ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                            ... 'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
                            ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
@@ -377,7 +406,6 @@ class CNNInterface(NNInterface):
                             ...    'convolutional_layers: ,
                             ...    'dense_layers: ,
                             ...    'n_classes': 2 ,
-                            ...    'initial_filters':16,        
                             ...    'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                             ...    'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
                             ...    'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
@@ -432,7 +460,10 @@ class CNNInterface(NNInterface):
         return recipe_dict
 
 
-    def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics, secondary_metrics=None):
+    def __init__(self, convolutional_layers=default_recipe['convolutional_layers'], dense_layers=default_recipe['dense_layers'],
+                 n_classes=default_recipe['n_classes'], optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], 
+                 metrics=default_recipe['metrics'], secondary_metrics=default_recipe['secondary_metrics']):
+
         self.conv_set = None
         self.dense_det = None
         self.convolutional_layers = convolutional_layers
