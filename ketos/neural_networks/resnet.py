@@ -39,6 +39,7 @@ import os
 import tensorflow as tf
 import numpy as np
 from .nn_interface import RecipeCompat, NNInterface
+from .metrics import Precision, Recall, FScore
 import json
 from zipfile import ZipFile
 from glob import glob
@@ -46,15 +47,15 @@ from shutil import rmtree
 
 
 
- default_recipe =  {'block_sets':[2,2,2], # doctest:
+default_recipe =  {'block_sets':[2,2,2],
                     'n_classes':2,
                     'initial_filters':16,        
                     'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                    'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
                     'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
-
-
+                    'secondary_metrics': [RecipeCompat('Precision', Precision),
+                                          RecipeCompat('Recall', Recall),
+                                          RecipeCompat('FScore', FScore)]}
 
 
 class ResNetBlock(tf.keras.Model):
