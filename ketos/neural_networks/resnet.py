@@ -44,6 +44,19 @@ from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
 
+
+
+ default_recipe =  {'block_sets':[2,2,2], # doctest:
+                    'n_classes':2,
+                    'initial_filters':16,        
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+
+
+
+
 class ResNetBlock(tf.keras.Model):
     """ Residual block for ResNet architectures.
 
@@ -328,7 +341,8 @@ class ResNetInterface(NNInterface):
 
         return recipe_dict
 
-    def __init__(self, block_sets, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
+    def __init__(self, block_sets=default_recipe['block_sets'], n_classes=default_recipe['n_classes'], initial_filters=default_recipe['initial_filters'],
+                       optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], metrics=default_recipe['metrics'], secondary_metrics=default_recipe['secondary_metrics']):
         self.block_sets = block_sets
         self.n_classes = n_classes
         self.initial_filters = initial_filters
