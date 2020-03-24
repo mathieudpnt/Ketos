@@ -237,7 +237,7 @@ class NNInterface():
 
             Args:
                 class_label: int
-                    An integer number representing the a class label
+                    An integer number representing the class label
                 n_class: int
                     The number of classes available
             
@@ -275,7 +275,7 @@ class NNInterface():
                     The batch of inputs.
                 y:numpy:array
                     The batch of labels.
-                    Each label must be represented as on integer, ranging from zero to n_classes
+                    Each label must be represented as an integer, ranging from zero to n_classes
                 n_classes:int
                     The number of possible classes for one hot encoding.
                     
@@ -753,8 +753,6 @@ class NNInterface():
 
         self.model = None
         self.compile_model()
-        #self.metrics_names = self.model.metrics_names
-
         
         self.log_dir = None
         self.checkpoint_dir = None
@@ -900,7 +898,6 @@ class NNInterface():
         """
 
         message  = [self.model.metrics_names[i] + ": {:.3f} ".format(metric_values[i]) for i in range(len(self.model.metrics_names))]
-        #import pdb; pdb.set_trace()
         print(''.join(message))
 
 

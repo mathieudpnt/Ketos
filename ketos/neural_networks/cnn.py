@@ -159,7 +159,6 @@ class CNNArch(tf.keras.Model):
 
         output = self.convolutional_block(inputs, training=training)
         output = self.dense_block(output, training=training)
-        #output = self.softmax(output)
 
         return output
 
