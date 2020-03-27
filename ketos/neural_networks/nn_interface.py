@@ -823,9 +823,10 @@ class NNInterface():
             Uses the instance attributes optimizer, loss_function and metrics.
         """
         self.model.compile(optimizer=self.optimizer.func,
-                            loss = self.loss_function,
-                            metrics = self.metrics)
+                            loss = self.loss_function.func,
+                            metrics = [m.func for m in self.metrics])
         self.metrics_names = self.model.metrics_names
+
 
     def set_train_generator(self, train_generator):
         """ Link a batch generator (used for training) to this instance.
