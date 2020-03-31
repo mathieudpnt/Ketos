@@ -1,10 +1,10 @@
 import pytest
 import numpy as np
 import tensorflow as tf
-from ketos.neural_networks.nn_interface import RecipeCompat
+from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.resnet import ResNetBlock, ResNetArch, ResNetInterface
-from ketos.neural_networks.losses import FScoreLoss
-from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
+from ketos.neural_networks.dev_utils.losses import FScoreLoss
+from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
 import os
 import tables
 import json
