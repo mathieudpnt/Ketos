@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 from .losses import FScoreLoss
 from .metrics import Accuracy, Precision, Recall, FScore
 from zipfile import ZipFile
@@ -198,11 +199,11 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {'Accuracy': Accuracy,
-                     'Precision': Precision,
-                     'Recall': Recall,
-                     'FScore': FScore,
-                     'Accuracy_tf':tf.keras.metrics.Accuracy,
+    valid_metrics = {#'Accuracy': Accuracy,
+                     #'Precision': Precision,
+                     #'Recall': Recall,
+                     'FScore': tfa.metrics.FBetaScore,
+                     'Accuracy':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
                      'BinaryCrossentropy':tf.keras.metrics.BinaryCrossentropy,
@@ -223,8 +224,8 @@ class NNInterface():
                      'MeanSquaredError':tf.keras.metrics.MeanSquaredError,
                      'MeanSquaredLogarithmicError':tf.keras.metrics.MeanSquaredLogarithmicError,
                      'Poisson':tf.keras.metrics.Poisson,
-                     'Precision_tf':tf.keras.metrics.Precision,
-                     'Recall_tf':tf.keras.metrics.Recall,
+                     'Precision':tf.keras.metrics.Precision,
+                     'Recall':tf.keras.metrics.Recall,
                      'RootMeanSquaredError':tf.keras.metrics.RootMeanSquaredError,
                      'SensitivityAtSpecificity':tf.keras.metrics.SensitivityAtSpecificity,
                      'SparseCategoricalAccuracy':tf.keras.metrics.SparseCategoricalAccuracy,
@@ -241,7 +242,7 @@ class NNInterface():
 
 
     @classmethod
-    def to1hot(cls, class_label, n_classes=2):
+    def _to1hot(cls, class_label, n_classes=2):
         """ Create the one hot representation of class_label 
 
             Args:
@@ -273,7 +274,7 @@ class NNInterface():
         return one_hot
     
     @classmethod
-    def transform_train_batch(cls, x, y, y_fields=['label'], n_classes=2):
+    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -319,8 +320,9 @@ class NNInterface():
                 
         """
 
-        X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        #X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
+        X = cls.transform_input(x)
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
 
     @classmethod
@@ -333,7 +335,7 @@ class NNInterface():
 
             Args:
                 input:numpy.array
-                    An input instance. Must be of shape (n,m) or (1,n,m).
+                    An input instance. Must be of shape (n,m) or (k,n,m).
 
             Raises:
                 ValueError if input does not have 2 or 3 dimensions.
@@ -412,7 +414,7 @@ class NNInterface():
 
 
     @classmethod
-    def optimizer_from_recipe(cls, optimizer):
+    def _optimizer_from_recipe(cls, optimizer):
         """ Create a recipe-compatible optimizer object from an optimizer dictionary
 
             Used when building a model from a recipe dictionary.
@@ -444,7 +446,7 @@ class NNInterface():
         return built_optimizer
 
     @classmethod
-    def optimizer_to_recipe(cls, optimizer):
+    def _optimizer_to_recipe(cls, optimizer):
         """ Create an optimizer dictionary from a recipe-compatible optimizer object
 
             Used when creating a ketos recipe that can be used to recreate the model.
@@ -470,7 +472,7 @@ class NNInterface():
         return recipe_optimizer
 
     @classmethod
-    def loss_function_from_recipe(cls, loss_function):
+    def _loss_function_from_recipe(cls, loss_function):
         """ Create a recipe-compatible loss object from a loss function dictionary
 
             Used when building a model from a recipe dictionary.
@@ -501,7 +503,7 @@ class NNInterface():
         return built_loss
 
     @classmethod
-    def loss_function_to_recipe(cls, loss_function):
+    def _loss_function_to_recipe(cls, loss_function):
         """ Create a loss function dictionary from a recipe-compatible loss function object
 
             Used when creating a ketos recipe that can be used to recreate the model.
@@ -528,7 +530,7 @@ class NNInterface():
 
 
     @classmethod
-    def metrics_from_recipe(cls, metrics):
+    def _metrics_from_recipe(cls, metrics):
         """ Create a list of recipe-compatible metric objects from a metrics dictionary
 
             Used when building a model from a recipe dictionary.
@@ -562,7 +564,7 @@ class NNInterface():
         return built_metrics
 
     @classmethod
-    def metrics_to_recipe(cls, metrics):
+    def _metrics_to_recipe(cls, metrics):
         """ Create a metrics dictionary from a list of recipe-compatible metric objects
          
             Used when creating a ketos recipe that can be used to recreate the model
@@ -590,7 +592,7 @@ class NNInterface():
 
 
     @classmethod
-    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+    def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
 
             When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
@@ -634,7 +636,7 @@ class NNInterface():
         return recipe_dict
 
     @classmethod
-    def write_recipe_file(cls, json_file, recipe):
+    def _write_recipe_file(cls, json_file, recipe):
         """ Write a recipe dictionary into a .json file
 
             Args:
@@ -657,7 +659,7 @@ class NNInterface():
 
 
     @classmethod
-    def load(cls, recipe, weights_path):
+    def _load_model(cls, recipe, weights_path):
         """ Load a model given a recipe dictionary and the saved weights.
 
             If multiple versions of the model are available in the folder indicated by weights_path the latest will be selected. 
@@ -670,14 +672,14 @@ class NNInterface():
                     Saved weights are tensorflow chekpoint. The path should not include the checkpoint files, only the folder containing them. (e.g.: '/home/user/my_saved_models/model_a/')
 
         """
-        instance = cls.build_from_recipe(recipe) 
+        instance = cls._build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
         instance.model.load_weights(latest_checkpoint)
 
         return instance
 
     @classmethod
-    def load_model(cls, model_file, new_model_folder, overwrite=True):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
@@ -703,14 +705,14 @@ class NNInterface():
 
         with ZipFile(model_file, 'r') as zip:
             zip.extractall(path=new_model_folder)
-        recipe = cls.read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
-        model_instance = cls.load(recipe,  os.path.join(new_model_folder, "checkpoints"))
+        recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
+        model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
 
         
         return model_instance
     
     @classmethod
-    def build_from_recipe(cls, recipe):
+    def _build_from_recipe(cls, recipe):
         """ Build a model from a recipe dictionary
 
             When subclassing NNInterface to create interfaces for new neural networks, the method
@@ -748,8 +750,8 @@ class NNInterface():
 
         """
 
-        recipe = cls.read_recipe_file(recipe_file)
-        instance = cls.build_from_recipe(recipe)
+        recipe = cls._read_recipe_file(recipe_file)
+        instance = cls._build_from_recipe(recipe)
 
         return instance
        
@@ -762,16 +764,16 @@ class NNInterface():
         self.secondary_metrics = secondary_metrics
 
         self.model = None
-        self.compile_model()
+        #self.compile_model()
         
-        self.log_dir = None
-        self.checkpoint_dir = None
+        self._log_dir = None
+        self._checkpoint_dir = None
         self.tensorboard_callback = None
-        self.train_generator = None
-        self.val_generator = None
-        self.test_generator = None
+        self._train_generator = None
+        self._val_generator = None
+        self._test_generator = None
 
-    def write_recipe(self):
+    def _write_recipe(self):
         """ Create a recipe dictionary from a neural network instance.
 
             The resulting recipe contains all the fields necessary to build  the same network architecture used by the instance calling this method.
@@ -782,16 +784,16 @@ class NNInterface():
                     A dictionary containing the recipe fields necessary to build the same network architecture used by the instance calling this method
         """
         recipe = {}
-        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
         if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = self.metrics_to_recipe(self.secondary_metrics)
+                recipe['secondary_metrics'] = self._metrics_to_recipe(self.secondary_metrics)
 
         return recipe
 
-    def save_recipe(self, recipe_file):
-        """ Creates a recipe from an existing neural network instance and save it into a .joson file.
+    def save_recipe_file(self, recipe_file):
+        """ Creates a recipe from an existing neural network instance and save it into a .json file.
 
             This method is a convenience method that wraps :func:`write_recipe` and :func:`write_recipe_file`
 
@@ -800,8 +802,8 @@ class NNInterface():
                     Path to .json file in which the recipe will be saved.
 
         """
-        recipe = self.write_recipe()
-        self.write_recipe_file(json_file=recipe_file, recipe=recipe)
+        recipe = self._write_recipe()
+        self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
     def save_model(self, model_file):
         """ Save the current neural network instance as a ketos (.kt) model file.
@@ -818,7 +820,7 @@ class NNInterface():
             
             latest = tf.train.latest_checkpoint(self.checkpoint_dir)
             checkpoints = glob(latest + '*')                                                                                                                 
-            self.save_recipe(recipe_path)
+            self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
             for c in checkpoints:
@@ -827,58 +829,118 @@ class NNInterface():
         os.remove(recipe_path)
 
     
-    def compile_model(self):
-        """ Compile the tensorflow model.
+    # def compile_model(self):
+    #     """ Compile the tensorflow model.
 
-            Uses the instance attributes optimizer, loss_function and metrics.
-        """
-        self.model.compile(optimizer=self.optimizer.func,
-                            loss = self.loss_function.func,
-                            metrics = [m.func for m in self.metrics])
-        self.metrics_names = self.model.metrics_names
+    #         Uses the instance attributes optimizer, loss_function and metrics.
+    #     """
+    #     self.model.compile(optimizer=self.optimizer.func,
+    #                         loss = self.loss_function.func,
+    #                         metrics = [m.func for m in self.metrics])
+    #     self.metrics_names = self.model.metrics_names
 
 
-    def set_train_generator(self, train_generator):
+    @property
+    def train_generator(self):
+        if not typeself._train_generator
+        return self._train_generator
+
+    @train_generator.setter
+    def train_generator(self, train_generator):
         """ Link a batch generator (used for training) to this instance.
 
             Args:
                 train_generator: instance of BatchGenerator
                     A batch generator that provides training data during the training loop 
         """
-        self.train_generator = train_generator
+        self._train_generator = train_generator    
 
-    def set_val_generator(self, val_generator):
+    @property
+    def val_generator(self):
+        return self._val_generator
+
+    @val_generator.setter
+    def val_generator(self, val_generator):
         """ Link a batch generator (used for validation) to this instance.
 
             Args:
                 val_generator: instance of BatchGenerator
                     A batch generator that provides validation data during the training loop 
         """
-        self.val_generator = val_generator
+        self._val_generator = val_generator    
 
-    def set_test_generator(self, test_generator):
+    @property
+    def test_generator(self):
+        return self._test_generator
+
+    @test_generator.setter
+    def test_generator(self, test_generator):
         """ Link a batch generator (used for testing) to this instance.
 
             Args:
                 test_generator: instance of BatchGenerator
-                    A batch generator that provides testing data
+                    A batch generator that provides test data
         """
-        self.test_generator = test_generator
+        self._test_generator = test_generator    
+    
+    # def set_train_generator(self, train_generator):
+        
+    #     self.train_generator = train_generator
 
-    def set_log_dir(self, log_dir):
+    # def set_val_generator(self, val_generator):
+    #     """ Link a batch generator (used for validation) to this instance.
+
+    #         Args:
+    #             val_generator: instance of BatchGenerator
+    #                 A batch generator that provides validation data during the training loop 
+    #     """
+    #     self.val_generator = val_generator
+
+    # def set_test_generator(self, test_generator):
+    #     """ Link a batch generator (used for testing) to this instance.
+
+    #         Args:
+    #             test_generator: instance of BatchGenerator
+    #                 A batch generator that provides testing data
+    #     """
+    #     self.test_generator = test_generator
+
+    @property
+    def log_dir(self):
+        return self._log_dir
+
+    @log_dir.setter
+    def log_dir(self, log_dir):
         """ Defines the directory where tensorboard log files and .csv log files can be stored
         
-            Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
+             Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
 
-            Args:
-                log_dir:str
-                    Path to the directory 
-
+             Args:
+                 log_dir:str
+                     Path to the directory 
         """
-        self.log_dir = log_dir
-        os.makedirs(self.log_dir, exist_ok=True)
+        self._log_dir = log_dir
+        os.makedirs(self._log_dir, exist_ok=True)
+    
+    # def set_log_dir(self, log_dir):
+    #     """ Defines the directory where tensorboard log files and .csv log files can be stored
         
-    def set_checkpoint_dir(self, checkpoint_dir):
+    #         Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
+
+    #         Args:
+    #             log_dir:str
+    #                 Path to the directory 
+
+    #     """
+    #     self.log_dir = log_dir
+    #     os.makedirs(self.log_dir, exist_ok=True)
+        
+    @property
+    def checkpont_dir(self):
+        return self._checkpoint_dir
+
+    @checkpoint_dir.setter
+    def checkpoint_dir(self, checkpoint_dir):
         """ Defines the directory where tensorflow checkpoint files can be stored
 
             Args:
@@ -887,17 +949,29 @@ class NNInterface():
 
         """
 
-        self.checkpoint_dir = checkpoint_dir
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self._checkpoint_dir = checkpoint_dir
+        os.makedirs(self._checkpoint_dir, exist_ok=True)
 
-    def set_tensorboard_callback(self):
+    # def set_checkpoint_dir(self, checkpoint_dir):
+    #     """ Defines the directory where tensorflow checkpoint files can be stored
+
+    #         Args:
+    #             log_dir:str
+    #                 Path to the directory
+
+    #     """
+
+    #     self.checkpoint_dir = checkpoint_dir
+    #     os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def _set_tensorboard_callback(self):
         """ Link tensorboard callback to this instances model, so that tensorboard logs can be saved
         """
 
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
         tensorboard_callback.set_model(self.model)
         
-    def print_metrics(self, metric_values):
+    def _print_metrics(self, metric_values):
         """ Print the metric values to the screen.
 
             This method can be overwritten to customize the message.
@@ -913,7 +987,7 @@ class NNInterface():
 
 
 
-    def name_logs(self, logs, prefix="train_"):
+    def _name_logs(self, logs, prefix="train_"):
         """ Attach the prefix string to each log name.
 
             Args:
@@ -959,8 +1033,8 @@ class NNInterface():
            
             self.model.reset_metrics()
                 
-            for train_batch_id in range(self.train_generator.n_batches):
-                train_X, train_Y = next(self.train_generator)  
+            for train_batch_id in range(self._train_generator.n_batches):
+                train_X, train_Y = next(self._train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
 
                 if self.secondary_metrics is not None:
