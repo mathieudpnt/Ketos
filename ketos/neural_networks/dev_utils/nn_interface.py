@@ -18,10 +18,10 @@ class RecipeCompat():
         The resulting object can be included in a ketos recipe and read by the NNInterface (or it's subclasses)
 
         Args:
-            name: str
+            recipe_name: str
                 The name to be used in the recipe
-            func: constructor
-                The loss function, metric or optimizer constructor function
+            template: constructor
+                The loss function, metric or optimizer constructor 
             kwargs
                 Any keyword arguments to be passed to the constructor (func)
 
@@ -44,16 +44,25 @@ class RecipeCompat():
     
     """
     def __repr__(self):
-        return "{0} ketos recipe".format(self.name)
+        return "{0} ketos recipe".format(self.recipe_name)
 
-    def __init__(self, name, func, **kwargs):
-        self.name = name
-        self.func = func(**kwargs)
+    def __init__(self, recipe_name, template, **kwargs):
+        self.recipe_name = recipe_name
         self.args = kwargs
+        self.template = template
+        self.instance = self.instantiate_template(**kwargs)
+        
+    
+    def instantiate_template(self, **template_kwargs):
+        args = self.args
+        args.update(template_kwargs)
+        inst = self.template(**args)
+        return inst
 
     def __call__(self, *args, **kwargs):
-        result = self.func(*args, **kwargs)
+        result = self.instance(*args, **kwargs)
         return result
+
 
 
 
