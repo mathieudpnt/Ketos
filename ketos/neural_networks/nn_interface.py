@@ -264,7 +264,7 @@ class NNInterface():
         return one_hot
     
     @classmethod
-    def transform_train_batch(cls, x, y, n_classes=2):
+    def transform_train_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -272,10 +272,11 @@ class NNInterface():
 
             Args:
                 x:numpy.array
-                    The batch of inputs.
-                y:numpy:array
+                    The batch of inputs with shape (batch_size, width, height)
+                y:numpy.array
                     The batch of labels.
                     Each label must be represented as an integer, ranging from zero to n_classes
+                    The array is expected to have a field named 'label'.
                 n_classes:int
                     The number of possible classes for one hot encoding.
                     
