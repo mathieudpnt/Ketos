@@ -773,6 +773,14 @@ class NNInterface():
         self._val_generator = None
         self._test_generator = None
 
+        self._train_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._val_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._train_metrics = []
+        self._val_metrics = []
+        for m in self.metrics:
+            self.train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
+            self.val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
+
     def _write_recipe(self):
         """ Create a recipe dictionary from a neural network instance.
 
