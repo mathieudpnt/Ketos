@@ -1018,6 +1018,15 @@ class NNInterface():
         
         for train_metric in self.train_metrics:
             train_metric(labels, predictions)
+
+    @tf.function
+    def _val_step(self,inputs, labels):
+        predictions = self.model(inputs, training=False)
+        v_loss = self.loss_function.instance(labels, predictions)
+
+        self.val_loss(v_loss)
+        for val_metric in self.val_metrics:
+            val_metric(labels, predictions)
             
 
     def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
