@@ -1007,6 +1007,19 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
+    @tf.function
+    def _train_step(self, inputs, labels):
+        with tf.GradientTape() as tape:
+            predictions = self.model(inputs, training=True)
+            loss = self.loss_function.instance(labels, predictions)
+        gradients = tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.instance.apply_gradients(zip(gradients, self.model.trainable_variables))
+        self.train_loss(loss)
+        
+        for train_metric in self.train_metrics:
+            train_metric(labels, predictions)
+            
+
     def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
