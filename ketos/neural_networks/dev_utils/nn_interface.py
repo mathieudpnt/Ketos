@@ -55,7 +55,7 @@ class RecipeCompat():
         
     
     def instantiate_template(self, **template_kwargs):
-        args = self.args
+        args = self.args.copy()
         args.update(template_kwargs)
         inst = self.template(**args)
         return inst
@@ -321,12 +321,12 @@ class NNInterface():
         """
 
         #X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        X = cls.transform_input(x)
+        X = cls._transform_input(x)
         Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
 
     @classmethod
-    def transform_input(cls,input):
+    def _transform_input(cls,input):
         """ Transforms a training input to the format expected by the network.
 
             Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
@@ -377,7 +377,7 @@ class NNInterface():
         return transformed_input
 
     @classmethod
-    def transform_output(cls,output):
+    def _transform_output(cls,output):
         """ Transforms the network output 
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -436,12 +436,12 @@ class NNInterface():
 
         """
 
-        name = optimizer['name']
+        recipe_name = optimizer['recipe_name']
         kwargs = optimizer['parameters']
 
-        if name not in cls.valid_optimizers.keys():
-            raise ValueError("Invalid optimizer name '{}'".format(name))
-        built_optimizer = RecipeCompat(name,cls.valid_optimizers[name],**kwargs)
+        if recipe_name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(recipe_name))
+        built_optimizer = RecipeCompat(recipe_name,cls.valid_optimizers[recipe_name],**kwargs)
 
         return built_optimizer
 
@@ -462,12 +462,12 @@ class NNInterface():
                 ValueError if the optimizer name is not included in the valid_optimizers class attribute.
 
         """
-        name = optimizer.name
+        recipe_name = optimizer.recipe_name
         kwargs = optimizer.args
 
-        if name not in cls.valid_optimizers.keys():
-            raise ValueError("Invalid optimizer name '{}'".format(name))
-        recipe_optimizer = {'name':name, 'parameters':kwargs}
+        if recipe_name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(recipe_name))
+        recipe_optimizer = {'recipe_name':recipe_name, 'parameters':kwargs}
 
         return recipe_optimizer
 
@@ -493,12 +493,12 @@ class NNInterface():
                 ValueError if the loss function name is not included in the valid_losses class attribute.
 
         """
-        name = loss_function['name']
+        recipe_name = loss_function['recipe_name']
         kwargs = loss_function['parameters']
 
-        if name not in cls.valid_losses.keys():
-            raise ValueError("Invalid loss function name '{}'".format(name))
-        built_loss = RecipeCompat(name, cls.valid_losses[name],**kwargs)
+        if recipe_name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(recipe_name))
+        built_loss = RecipeCompat(recipe_name, cls.valid_losses[recipe_name],**kwargs)
 
         return built_loss
 
@@ -519,12 +519,12 @@ class NNInterface():
                 ValueError if the loss_function name is not included in the valid_losses class attribute.
 
         """
-        name = loss_function.name
+        recipe_name = loss_function.recipe_name
         kwargs = loss_function.args
 
-        if name not in cls.valid_losses.keys():
-            raise ValueError("Invalid loss function name '{}'".format(name))
-        recipe_loss = {'name':name, 'parameters':kwargs}
+        if recipe_name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(recipe_name))
+        recipe_loss = {'recipe_name':recipe_name, 'parameters':kwargs}
 
         return recipe_loss
 
@@ -554,12 +554,12 @@ class NNInterface():
         
         built_metrics = []
         for m in metrics:
-            name = m['name']
+            recipe_name = m['recipe_name']
             kwargs = m['parameters']
              
-            if name not in cls.valid_metrics.keys():
-                raise ValueError("Invalid metric name '{}'".format(m['name']))
-            built_metrics.append(RecipeCompat(name, cls.valid_metrics[name], **kwargs))
+            if recipe_name not in cls.valid_metrics.keys():
+                raise ValueError("Invalid metric name '{}'".format(m['recipe_name']))
+            built_metrics.append(RecipeCompat(recipe_name, cls.valid_metrics[recipe_name], **kwargs))
 
         return built_metrics
 
@@ -583,9 +583,9 @@ class NNInterface():
         
         recipe_metrics = []
         for m in metrics: 
-            if m.name not in cls.valid_metrics.keys():
-                raise ValueError("Invalid metric name '{}'".format(m['name']))
-            recipe_metrics.append({'name':m.name, 'parameters':m.args})
+            if m.recipe_name not in cls.valid_metrics.keys():
+                raise ValueError("Invalid metric name '{}'".format(m['recipe_name']))
+            recipe_metrics.append({'recipe_name':m.recipe_name, 'parameters':m.args})
 
         return recipe_metrics
 
@@ -612,9 +612,9 @@ class NNInterface():
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
-        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
         
 
         if return_recipe_compat == True:
@@ -623,9 +623,9 @@ class NNInterface():
             recipe_dict['metrics'] = metrics
         
         else:
-            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
         
         return recipe_dict
 
@@ -766,10 +766,10 @@ class NNInterface():
         self._train_metrics = []
         self._val_metrics = []
         for m in self.metrics:
-            self.train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
-            self.val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
+            self._train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
+            self._val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
 
-    def _write_recipe(self):
+    def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a neural network instance.
 
             The resulting recipe contains all the fields necessary to build  the same network architecture used by the instance calling this method.
@@ -796,7 +796,7 @@ class NNInterface():
                     Path to .json file in which the recipe will be saved.
 
         """
-        recipe = self._write_recipe()
+        recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
     def save_model(self, model_file):
@@ -929,7 +929,7 @@ class NNInterface():
     #     os.makedirs(self.log_dir, exist_ok=True)
         
     @property
-    def checkpont_dir(self):
+    def checkpoint_dir(self):
         return self._checkpoint_dir
 
     @checkpoint_dir.setter
@@ -1007,9 +1007,9 @@ class NNInterface():
             loss = self.loss_function.instance(labels, predictions)
         gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.instance.apply_gradients(zip(gradients, self.model.trainable_variables))
-        self.train_loss(loss)
+        self._train_loss(loss)
         
-        for train_metric in self.train_metrics:
+        for train_metric in self._train_metrics:
             train_metric(labels, predictions)
 
     @tf.function
@@ -1017,14 +1017,14 @@ class NNInterface():
         predictions = self.model(inputs, training=False)
         v_loss = self.loss_function.instance(labels, predictions)
 
-        self.val_loss(v_loss)
-        for val_metric in self.val_metrics:
+        self._val_loss(v_loss)
+        for val_metric in self._val_metrics:
             val_metric(labels, predictions)
             
 
     def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
-            column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
+            column_names = ['epoch', 'loss', 'dataset'] + [ m.recipe_name for m in self.metrics]
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
@@ -1046,7 +1046,7 @@ class NNInterface():
                 
             for train_batch_id in range(self._train_generator.n_batches):
                 train_X, train_Y = next(self._train_generator)  
-                self.train_step(train_X, train_Y)
+                self._train_step(train_X, train_Y)
                                 
             if verbose == True:
                 print("\n====================================================================================")
@@ -1055,17 +1055,17 @@ class NNInterface():
 
             
             if log_csv == True:
-                log_row = [epoch + 1, self._train_loss.result(), "train"]
-                log_row = log_row + [m.result() for m in self._train_metrics]
+                log_row = [epoch + 1, self._train_loss.result().numpy(), "train"]
+                log_row = log_row + [m.result().numpy() for m in self._train_metrics]
 
                 log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
              
             
             if log_tensorboard == True:
-                tf.summary.scalar('train_loss', data=self._train_loss.result(), step=epoch)
+                tf.summary.scalar('train_loss', data=self._train_loss.result().numpy(), step=epoch)
                 for m in self._train_metrics:
-                    tf.summary.scalar(m.name, data=m.result(), step=epoch)
+                    tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
             
             
             if validate == True:
@@ -1079,17 +1079,17 @@ class NNInterface():
                     print("".join([m.name + ": {:.3f} ".format(m.result()) for m in self._val_metrics]))
 
                 if log_csv == True:
-                    log_row = [epoch + 1, self._val_loss.result(), "val"]
-                    log_row = log_row + [m.result() for m in self._val_metrics]
+                    log_row = [epoch + 1, self._val_loss.result().numpy(), "val"]
+                    log_row = log_row + [m.result().numpy() for m in self._val_metrics]
 
                     log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
              
             
                 if log_tensorboard == True:
-                    tf.summary.scalar('val_loss', data=self._val_loss.result(), step=epoch)
+                    tf.summary.scalar('val_loss', data=self._val_loss.result().numpy(), step=epoch)
                     for m in self._val_metrics:
-                        tf.summary.scalar(m.name, data=m.result(), step=epoch)
+                        tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
 
             if verbose == True:
                 print("\n====================================================================================")
@@ -1118,11 +1118,11 @@ class NNInterface():
                     The model output
                 
         """
-        input = self.transform_input(input)
+        input = self._transform_input(input)
         output = self.model.predict(input)
         
         if not return_raw_output:
-            return self.transform_output(output)
+            return self._transform_output(output)
         else:
             return output
 
@@ -1145,11 +1145,11 @@ class NNInterface():
         """
 
         if transform_input == True:
-            input_batch = self.transform_input(input_batch)
+            input_batch = self._transform_input(input_batch)
         output = self.model.predict(input_batch)
         
         if not return_raw_output:
-            return self.transform_output(output)
+            return self._transform_output(output)
         else:
             return output
 
