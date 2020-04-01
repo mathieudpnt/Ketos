@@ -615,24 +615,18 @@ class NNInterface():
         optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
         loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-        if 'secondary_metrics' in recipe_dict.keys():
-            secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
-        else:
-            secondary_metrics = None
+        
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
-            if 'secondary_metrics' in recipe_dict.keys():
-                    recipe_dict['secondary_metrics'] = secondary_metrics
+        
         else:
             recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
             recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
             recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-            if 'secondary_metrics' in recipe_dict.keys():
-                    recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
-
+        
         return recipe_dict
 
     @classmethod
@@ -727,12 +721,8 @@ class NNInterface():
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
-        if 'secondary_metrics' in recipe.keys():
-            secondary_metrics = recipe['secondary_metrics']
-        else:
-            secondary_metrics = None
 
-        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
     
@@ -756,13 +746,11 @@ class NNInterface():
         return instance
        
 
-    def __init__(self, optimizer, loss_function, metrics, secondary_metrics=None):
+    def __init__(self, optimizer, loss_function, metrics):
         
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
-        self.secondary_metrics = secondary_metrics
-
         self.model = None
         #self.compile_model()
         
@@ -795,8 +783,6 @@ class NNInterface():
         recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self._metrics_to_recipe(self.metrics)
-        if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = self._metrics_to_recipe(self.secondary_metrics)
 
         return recipe
 
@@ -1040,9 +1026,7 @@ class NNInterface():
     def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
-            if self.secondary_metrics is not None:
-                secondary_metric_names = [ m.name for m in self.secondary_metrics]
-                column_names = column_names + secondary_metric_names
+            
                 
             log_csv_df = pd.DataFrame(columns = column_names)
 
@@ -1054,11 +1038,6 @@ class NNInterface():
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             batch_metrics = {}
-            if self.secondary_metrics is not None:
-                for m in self.secondary_metrics:
-                    batch_metrics['train_' + m.name] = 0
-                    batch_metrics['val_' + m.name] = 0
-                    batch_metrics['test_' + m.name] = 0
             
            
             self.model.reset_metrics()
@@ -1067,11 +1046,6 @@ class NNInterface():
                 train_X, train_Y = next(self._train_generator)  
                 train_result = self.model.train_on_batch(train_X, train_Y)
 
-                if self.secondary_metrics is not None:
-                    train_set_pred = self.model.predict(train_X)
-                    for m in self.secondary_metrics:
-                        batch_metrics['train_' + m.name] += m.func(y_true=train_Y, y_pred=train_set_pred)
-                        
 
 
                 if verbose >=2:
@@ -1079,23 +1053,10 @@ class NNInterface():
                     print(''.join(message))
 
 
-            if self.secondary_metrics is not None:
-                for m in self.secondary_metrics:
-                    batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
-            if verbose >=1 and self.secondary_metrics is not None:
-                metrics_values_msg = ""
-                for m in self.secondary_metrics:
-                    metrics_values_msg += 'train_' + m.name + ": " + str(round(float(batch_metrics['train_' + m.name]),3)) + " "
-                
-                print("====================================================================================")
-                print("train: ","Epoch:{}".format(epoch))
-                print(metrics_values_msg)
 
             if log_csv == True:
                 log_row = [epoch, train_result[0], "train"] + train_result[1:]
-                if self.secondary_metrics is not None:
-                    log_row = log_row + [batch_metrics['train_' + m.name] for m in self.secondary_metrics]
 
                 log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
@@ -1105,10 +1066,7 @@ class NNInterface():
                 tf.summary.scalar('train_loss', data=train_result[0], step=epoch)
                 for m_index, m in enumerate(self.metrics):
                     tf.summary.scalar('train_' + m.name, data = train_result[m_index + 1], step=epoch  ) #the first train_result is the loss
-                if self.secondary_metrics is not None:
-                    for m in self.secondary_metrics:
-                        tf.summary.scalar('train_' + m.name, data = batch_metrics['train_' + m.name], step=epoch)
-
+                
             if validate == True:
                 for val_batch_id in range(self.val_generator.n_batches):
                     val_X, val_Y = next(self.val_generator)
@@ -1116,21 +1074,8 @@ class NNInterface():
                                                 # return accumulated metrics
                                                 reset_metrics=False)
                     
-                    if self.secondary_metrics is not None:
-                        val_set_pred = self.model.predict(val_X)
-                        for m in self.secondary_metrics:
-                            batch_metrics['val_' + m.name] += m.func(y_true=val_Y, y_pred=val_set_pred)
-
-
-                if self.secondary_metrics is not None:
-                    
-                    for m in self.secondary_metrics:
-                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.val_generator.n_batches)
                 
-                if verbose >=1 and self.secondary_metrics is not None:
-                    metrics_values_msg = ""
-                    for m in self.secondary_metrics:
-                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3)) + " "
+
                     
                     print("====================================================================================")
                     print("Val: ")
@@ -1142,8 +1087,6 @@ class NNInterface():
 
                 if log_csv == True:
                     log_row = [epoch, val_result[0], "val"] + val_result[1:]
-                    if self.secondary_metrics is not None:
-                        log_row = log_row + [batch_metrics['val_' + m.name] for m in self.secondary_metrics]
 
                     log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns),ignore_index=True)
 
@@ -1152,9 +1095,6 @@ class NNInterface():
                     tf.summary.scalar('val_loss', data=val_result[0], step=epoch)
                     for m_index, m in enumerate(self.metrics):
                         tf.summary.scalar('val_' + m.name, data = val_result[m_index + 1], step=epoch  ) #the first val_result is the loss
-                    if self.secondary_metrics is not None:
-                        for m in self.secondary_metrics:
-                            tf.summary.scalar('val_' + m.name, data = batch_metrics['val_' + m.name], step=epoch)
             
             if (epoch + 1)  % checkpoint_freq == 0:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
