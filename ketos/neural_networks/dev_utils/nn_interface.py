@@ -756,7 +756,7 @@ class NNInterface():
         
         self._log_dir = None
         self._checkpoint_dir = None
-        self.tensorboard_callback = None
+        self._tensorboard_callback = None
         self._train_generator = None
         self._val_generator = None
         self._test_generator = None
@@ -836,7 +836,6 @@ class NNInterface():
 
     @property
     def train_generator(self):
-        if not typeself._train_generator
         return self._train_generator
 
     @train_generator.setter
@@ -1023,88 +1022,88 @@ class NNInterface():
             val_metric(labels, predictions)
             
 
-    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
-            
-                
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
-            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self.log_dir, "tensorboard_metrics"))
+            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, "tensorboard_metrics"))
             tensorboard_writer.set_as_default()
 
 
         for epoch in range(n_epochs):
             #Reset the metric accumulators
-            batch_metrics = {}
+            self._train_loss.reset_states()
+            for train_metric in self._train_metrics:
+                train_metric.reset_states()
+
             
-           
-            self.model.reset_metrics()
+            
+            self._val_loss.reset_states()
+            for val_metric in self._val_metrics:
+                val_metric.reset_states()
                 
             for train_batch_id in range(self._train_generator.n_batches):
                 train_X, train_Y = next(self._train_generator)  
-                train_result = self.model.train_on_batch(train_X, train_Y)
-
-
-
-                if verbose >=2:
-                    message  = ["Epoch: " + str(epoch) + " batch: " + str(train_batch_id) + " | "] + [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
-                    print(''.join(message))
-
+                self.train_step(train_X, train_Y)
+                                
+            if verbose == True:
+                print("\n====================================================================================")
+                print("Epoch: {} \ntrain_loss: {}".format(epoch + 1, self._train_loss.result()))
+                print("".join([m.name + ": {:.3f} ".format(m.result()) for m in self._train_metrics]))
 
             
-
             if log_csv == True:
-                log_row = [epoch, train_result[0], "train"] + train_result[1:]
+                log_row = [epoch + 1, self._train_loss.result(), "train"]
+                log_row = log_row + [m.result() for m in self._train_metrics]
 
                 log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
              
             
             if log_tensorboard == True:
-                tf.summary.scalar('train_loss', data=train_result[0], step=epoch)
-                for m_index, m in enumerate(self.metrics):
-                    tf.summary.scalar('train_' + m.name, data = train_result[m_index + 1], step=epoch  ) #the first train_result is the loss
-                
+                tf.summary.scalar('train_loss', data=self._train_loss.result(), step=epoch)
+                for m in self._train_metrics:
+                    tf.summary.scalar(m.name, data=m.result(), step=epoch)
+            
+            
             if validate == True:
-                for val_batch_id in range(self.val_generator.n_batches):
-                    val_X, val_Y = next(self.val_generator)
-                    val_result = self.model.test_on_batch(val_X, val_Y, 
-                                                # return accumulated metrics
-                                                reset_metrics=False)
-                    
-                
-
-                    
-                    print("====================================================================================")
-                    print("Val: ")
-                    print(metrics_values_msg )
-                    print("====================================================================================\n")
-
-                    
-
+                for val_batch_id in range(self._val_generator.n_batches):
+                    val_X, val_Y = next(self._val_generator)
+                    self._val_step(val_X, val_Y)
+                                           
+                                    
+                if verbose == True:
+                    print("val_loss: {}".format(self._val_loss.result()))
+                    print("".join([m.name + ": {:.3f} ".format(m.result()) for m in self._val_metrics]))
 
                 if log_csv == True:
-                    log_row = [epoch, val_result[0], "val"] + val_result[1:]
+                    log_row = [epoch + 1, self._val_loss.result(), "val"]
+                    log_row = log_row + [m.result() for m in self._val_metrics]
 
-                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns),ignore_index=True)
+                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
-                            
-                if log_tensorboard == True:
-                    tf.summary.scalar('val_loss', data=val_result[0], step=epoch)
-                    for m_index, m in enumerate(self.metrics):
-                        tf.summary.scalar('val_' + m.name, data = val_result[m_index + 1], step=epoch  ) #the first val_result is the loss
+             
             
+                if log_tensorboard == True:
+                    tf.summary.scalar('val_loss', data=self._val_loss.result(), step=epoch)
+                    for m in self._val_metrics:
+                        tf.summary.scalar(m.name, data=m.result(), step=epoch)
+
+            if verbose == True:
+                print("\n====================================================================================")
+
+
             if (epoch + 1)  % checkpoint_freq == 0:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
-                self.model.save_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
+                self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
                     
         if log_csv == True:
-            log_csv_df.to_csv(os.path.join(self.log_dir,"log.csv"))
+            log_csv_df.to_csv(os.path.join(self._log_dir,"log.csv"))
 
         
-    def run(self, input, return_raw_output=False):
+    def run_on_instance(self, input, return_raw_output=False):
         """ Run the model on one input
 
             Args:
