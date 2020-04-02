@@ -4,7 +4,7 @@ import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.resnet import ResNetBlock, ResNetArch, ResNetInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
-from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
+#from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
 import os
 import tables
 import json
@@ -18,9 +18,9 @@ def recipe_dict():
     recipe = {'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':16,        
-               'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-               'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-               'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
         
     }
     return recipe
@@ -131,16 +131,16 @@ def test_ResNetArch():
 def test_ResNetInterface_build_from_recipe(recipe):
     resnet = ResNetInterface.build_from_recipe(recipe)
 
-    assert resnet.optimizer.name == recipe['optimizer'].name
-    assert resnet.optimizer.func.__class__ == recipe['optimizer'].func.__class__
+    assert resnet.optimizer.recipe_name == recipe['optimizer'].recipe_name
+    assert resnet.optimizer.instance.__class__ == recipe['optimizer'].instance.__class__
     assert resnet.optimizer.args == recipe['optimizer'].args
 
-    assert resnet.loss_function.name == recipe['loss_function'].name
-    assert resnet.loss_function.func.__class__ == recipe['loss_function'].func.__class__
+    assert resnet.loss_function.recipe_name == recipe['loss_function'].recipe_name
+    assert resnet.loss_function.instance.__class__ == recipe['loss_function'].instance.__class__
     assert resnet.loss_function.args == recipe['loss_function'].args
 
-    assert resnet.metrics[0].name == recipe['metrics'][0].name
-    assert resnet.metrics[0].func.__class__ == recipe['metrics'][0].func.__class__
+    assert resnet.metrics[0].recipe_name == recipe['metrics'][0].recipe_name
+    assert resnet.metrics[0].instance.__class__ == recipe['metrics'][0].instance.__class__
     assert resnet.metrics[0].args == recipe['metrics'][0].args
 
     assert resnet.initial_filters == recipe['initial_filters']
@@ -148,9 +148,9 @@ def test_ResNetInterface_build_from_recipe(recipe):
     assert resnet.n_classes ==  recipe['n_classes']
 
 
-def test_write_recipe(recipe, recipe_dict):
+def test_extract_recipe_dict(recipe, recipe_dict):
     resnet = ResNetInterface.build_from_recipe(recipe)
-    written_recipe = resnet.write_recipe()
+    written_recipe = resnet._extract_recipe_dict()
 
     assert written_recipe == recipe_dict
 
@@ -158,25 +158,25 @@ def test_write_recipe(recipe, recipe_dict):
 def test_read_recipe_file(recipe, recipe_dict):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe.json")
     resnet = ResNetInterface.build_from_recipe(recipe)
-    written_recipe = resnet.write_recipe()
-    resnet.save_recipe(path_to_recipe_file)
+    written_recipe = resnet._extract_recipe_dict()
+    resnet.save_recipe_file(path_to_recipe_file)
 
     #Read recipe as a recipe dict
-    read_recipe = resnet.read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    read_recipe = resnet._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
     assert read_recipe == recipe_dict
 
     #Read recipe as a recipe dict with RecipeCompat objects
-    read_recipe = resnet.read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
-    assert read_recipe['optimizer'].name ==recipe['optimizer'].name
-    assert read_recipe['optimizer'].func.__class__ == recipe['optimizer'].func.__class__
+    read_recipe = resnet._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name ==recipe['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe['optimizer'].instance.__class__
     assert read_recipe['optimizer'].args == recipe['optimizer'].args
 
-    assert read_recipe['loss_function'].name == recipe['loss_function'].name
-    assert read_recipe['loss_function'].func.__class__ == recipe['loss_function'].func.__class__
+    assert read_recipe['loss_function'].recipe_name == recipe['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe['loss_function'].instance.__class__
     assert read_recipe['loss_function'].args == recipe['loss_function'].args
     
-    assert read_recipe['metrics'][0].name == recipe['metrics'][0].name
-    assert read_recipe['metrics'][0].func.__class__ == recipe['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].recipe_name == recipe['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe['metrics'][0].instance.__class__
     assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
 
     assert read_recipe['initial_filters'] == recipe['initial_filters']
