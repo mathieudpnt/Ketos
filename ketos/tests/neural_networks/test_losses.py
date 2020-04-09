@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import tensorflow as tf
-from ketos.neural_networks.losses import FScoreLoss
+from ketos.neural_networks.dev_utils.losses import FScoreLoss
 
 
 @pytest.mark.parametrize("beta, y_pred, y_true, expected", [(1.0, [0., 1.], [0., 1.], 0.0 ),

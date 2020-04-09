@@ -4,7 +4,6 @@ import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.cnn import CNNArch, CNNInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
-from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
 import os
 import tables
 import json

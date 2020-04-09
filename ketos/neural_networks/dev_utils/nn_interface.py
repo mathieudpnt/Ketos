@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 from .losses import FScoreLoss
-from .metrics import Accuracy, Precision, Recall, FScore
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
@@ -199,10 +198,7 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {#'Accuracy': Accuracy,
-                     #'Precision': Precision,
-                     #'Recall': Recall,
-                     'FScore': tfa.metrics.FBetaScore,
+    valid_metrics = {'FScore': tfa.metrics.FBetaScore,
                      'Accuracy':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
@@ -256,16 +252,16 @@ class NNInterface():
                     The one hot representation of the class_label in a 1 x n_classes array.
 
             Examples:
-                >>> NNInterface.to1hot(class_label=0, n_classes=2)
+                >>> NNInterface._to1hot(class_label=0, n_classes=2)
                 array([1., 0.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=2)
+                >>> NNInterface._to1hot(class_label=1, n_classes=2)
                 array([0., 1.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=3)
+                >>> NNInterface._to1hot(class_label=1, n_classes=3)
                 array([0., 1., 0.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=5)
+                >>> NNInterface._to1hot(class_label=1, n_classes=5)
                 array([0., 1., 0., 0., 0.])
 
         """
@@ -311,7 +307,7 @@ class NNInterface():
                 >>> labels.shape
                 (10,)
 
-                >>> transformed_inputs, transformed_labels = NNInterface.transform_train_batch(inputs, labels, n_classes=2)
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_batch(inputs, labels, n_classes=2)
                 >>> transformed_inputs.shape
                 (10, 5, 5, 1)
 
@@ -352,7 +348,7 @@ class NNInterface():
                 >>> selected_input.shape
                 (5, 5)
                  
-                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input = NNInterface._transform_input(selected_input)
                 >>> transformed_input.shape
                 (1, 5, 5, 1)
 
@@ -361,7 +357,7 @@ class NNInterface():
                 >>> selected_input.shape
                 (1, 5, 5)
                  
-                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input = NNInterface._transform_input(selected_input)
                 >>> transformed_input.shape
                 (1, 5, 5, 1)
 
@@ -393,11 +389,11 @@ class NNInterface():
             Example:
                 >>> import numpy as np
                 >>> output = np.array([[0.2,0.1,0.7]])  
-                >>> NNInterface.transform_output(output)
+                >>> NNInterface._transform_output(output)
                 (array([2]), array([0.7]))
 
                 >>> output = np.array([[0.2,0.1,0.7],[0.05,0.65,0.3]])  
-                >>> NNInterface.transform_output(output)
+                >>> NNInterface._transform_output(output)
                 (array([2, 1]), array([0.7 , 0.65]))
 
         """
@@ -1051,7 +1047,7 @@ class NNInterface():
             if verbose == True:
                 print("\n====================================================================================")
                 print("Epoch: {} \ntrain_loss: {}".format(epoch + 1, self._train_loss.result()))
-                print("".join([m.name + ": {:.3f} ".format(m.result()) for m in self._train_metrics]))
+                print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._train_metrics]))
 
             
             if log_csv == True:
@@ -1076,7 +1072,7 @@ class NNInterface():
                                     
                 if verbose == True:
                     print("val_loss: {}".format(self._val_loss.result()))
-                    print("".join([m.name + ": {:.3f} ".format(m.result()) for m in self._val_metrics]))
+                    print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
 
                 if log_csv == True:
                     log_row = [epoch + 1, self._val_loss.result().numpy(), "val"]
