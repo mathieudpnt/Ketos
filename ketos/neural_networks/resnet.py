@@ -55,8 +55,7 @@ default_recipe =  {'block_sets':[2,2,2],
                     'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
                     'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
                                 RecipeCompat('Precision',tf.keras.metrics.Precision),
-                                RecipeCompat('Recall',tf.keras.metrics.Recall),
-                                RecipeCompat('FScore', tfa.metrics.FBetaScore, num_classes=2, average='macro')],
+                                RecipeCompat('Recall',tf.keras.metrics.Recall)],
                     }
 
 
