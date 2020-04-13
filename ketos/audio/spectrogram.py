@@ -644,10 +644,12 @@ class Spectrogram(BaseAudio):
 
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4)):
+    def plot(self, id=0, show_annot=False, figsize=(5,4), cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
+
+            The colormaps available can be seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
@@ -660,6 +662,8 @@ class Spectrogram(BaseAudio):
                     Display annotations
                 figsize: tuple
                     Figure size
+                cmap: string
+                    The colormap to be used
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -684,7 +688,7 @@ class Spectrogram(BaseAudio):
 
         x = self.get_data(id) # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
-        img = ax.imshow(x.T, aspect='auto', origin='lower', extent=extent)# draw image
+        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent)# draw image
         ax.set_ylabel(self.freq_ax.label) # axis label        
         fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
 
@@ -1290,8 +1294,10 @@ class MelSpectrogram(Spectrogram):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 
             'filter_banks':self.filter_banks, 'type':self.__class__.__name__}
 
-    def plot(self, filter_bank=False):
+    def plot(self, filter_bank=False, cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
+
+            The colormaps available can be seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
@@ -1302,6 +1308,8 @@ class MelSpectrogram(Spectrogram):
                 filter_bank: bool
                     If True, plot the filter banks if True. If False (default), 
                     print the mel spectrogram.
+                cmap: string
+                    The colormap to be used
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -1311,7 +1319,7 @@ class MelSpectrogram(Spectrogram):
             img = self.filter_banks
             fig, ax = plt.subplots()
             extent = (0,self.length,self.freq_min(),self.freq_max())
-            img_plot = ax.imshow(img.T,aspect='auto',origin='lower',extent=extent)
+            img_plot = ax.imshow(img.T,aspect='auto',origin='lower', cmap=cmap, extent=extent)
             ax.set_xlabel(self.time_ax.label)
             fig.colorbar(img_plot,format='%+2.0f dB')
 
