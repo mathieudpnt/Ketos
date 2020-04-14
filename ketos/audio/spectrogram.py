@@ -1412,7 +1412,7 @@ class CQTSpectrogram(Spectrogram):
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
-        channel=0, rate=None, window_func='hamming', offset=0, duration=None,
+        channel=0, rate=None, window_func='hann', offset=0, duration=None,
         resample_method='scipy', id=None):
         """ Create CQT spectrogram directly from wav file.
 
