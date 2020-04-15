@@ -29,6 +29,7 @@
 
 import os
 import pytest
+import warnings
 import numpy as np
 import pandas as pd
 from tables import open_file
@@ -333,4 +334,49 @@ def test_output_transform_function():
     
     h5.close()
 
+def test_extended_batches():
+    """ Test that batches can be extended to include last/first samples from previous/next batch
+    """
+    h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    train_data = open_table(h5, "/train/data")
 
+    ids_in_db = train_data[:]['id']
+    train_generator = BatchGenerator(data_table=train_data, batch_size=6, return_batch_ids=True, n_extend=2) #create a batch generator 
+    
+    #First batch
+    ids, X, _ = next(train_generator)
+    np.testing.assert_array_equal(ids,[0,1,2,3,4,5,6,7])
+    assert X.shape == (8, 94, 129)
+
+    #Second batch
+    ids, X, _ = next(train_generator)
+    np.testing.assert_array_equal(ids,[4,5,6,7,8,9,10,11,12,13])
+    assert X.shape == (10, 94, 129)
+
+    #Third batch; Last batch ( will have the remaining instances)
+    ids, X, _ = next(train_generator)
+    np.testing.assert_array_equal(ids,[10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+    assert X.shape == (10, 94, 129)
+    
+    h5.close()
+
+def test_batch_size_larger_than_dataset_size():
+    """ Test that batch size can exceed dataset size
+    """
+    h5 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    train_data = open_table(h5, "/train/data")
+
+    ids_in_db = train_data[:]['id']
+    with warnings.catch_warnings(record=True) as w:
+        train_generator = BatchGenerator(data_table=train_data, batch_size=99, return_batch_ids=True) #create a batch generator 
+
+        assert train_generator.batch_size == 20
+        assert len(w) == 1
+        assert "The batch size is greater than the number of instances available. Setting batch_size to n_instances." in str(w[-1].message)
+    
+    #First batch
+    ids, X, _ = next(train_generator)
+    np.testing.assert_array_equal(ids,[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19])
+    assert X.shape == (20, 94, 129)
+    
+    h5.close()
