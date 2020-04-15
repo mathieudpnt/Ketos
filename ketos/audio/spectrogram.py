@@ -1294,7 +1294,7 @@ class MelSpectrogram(Spectrogram):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 
             'filter_banks':self.filter_banks, 'type':self.__class__.__name__}
 
-    def plot(self, filter_bank=False, cmap='viridis'):
+    def plot(self, filter_bank=False, figsize=(5,4), cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             The colormaps available can be seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
@@ -1308,6 +1308,8 @@ class MelSpectrogram(Spectrogram):
                 filter_bank: bool
                     If True, plot the filter banks if True. If False (default), 
                     print the mel spectrogram.
+                figsize: tuple
+                    Figure size
                 cmap: string
                     The colormap to be used
             
@@ -1317,7 +1319,7 @@ class MelSpectrogram(Spectrogram):
         """
         if filter_bank:
             img = self.filter_banks
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
             extent = (0,self.length,self.freq_min(),self.freq_max())
             img_plot = ax.imshow(img.T,aspect='auto',origin='lower', cmap=cmap, extent=extent)
             ax.set_xlabel(self.time_ax.label)
@@ -1515,10 +1517,12 @@ class CQTSpectrogram(Spectrogram):
         """
         return self.freq_ax.bins_per_oct
 
-    def plot(self, id=0, show_annot=False):
+    def plot(self, id=0, show_annot=False, figsize=(5,4), cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
+
+            The colormaps available can be seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
 
             Note: The resulting figure can be shown (fig.show())
             or saved (fig.savefig(file_name))
@@ -1529,12 +1533,16 @@ class CQTSpectrogram(Spectrogram):
                     contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
+                figsize: tuple
+                    Figure size
+                cmap: string
+                    The colormap to be used
             
             Returns:
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(id, show_annot)
+        fig = super().plot(id, show_annot, figsize, cmap)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig
