@@ -1282,7 +1282,8 @@ class MelSpectrogram(Spectrogram):
             offset=offset, duration=duration, resample_method=resample_method, id=id)
 
         # compute spectrogram
-        cls(audio=audio, seg_args=seg_args, window_func=window_func)
+        spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
+            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter)
 
         return spec
 
