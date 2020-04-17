@@ -1261,21 +1261,21 @@ class MelSpectrogram(Spectrogram):
                     Unique identifier (optional). If None, the filename will be used.
 
             Returns:
-                spec: MagSpectrogram
-                    Magnitude spectrogram
+                spec: MelSpectrogram
+                    Mel spectrogram
 
             Example:
                 >>> # load spectrogram from wav file
-                >>> from ketos.audio.spectrogram import MagSpectrogram
-                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
+                >>> from ketos.audio.spectrogram import MelSpectrogram
+                >>> spec = MelSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.01)
                 >>> # crop frequency
                 >>> spec = spec.crop(freq_min=50, freq_max=800)
                 >>> # show
                 >>> fig = spec.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
+                >>> fig.savefig("ketos/tests/assets/tmp/mel_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+                .. image:: ../../../../ketos/tests/assets/tmp/mel_grunt1.png
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
