@@ -2,8 +2,9 @@ Neural Networks
 ----------------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
+   overview
    neural_networks
    losses
    metrics
