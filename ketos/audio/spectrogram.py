@@ -644,7 +644,7 @@ class Spectrogram(BaseAudio):
 
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4)):
+    def plot(self, id=0, show_annot=False, figsize=(5,4), label_in_title=True):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -660,6 +660,8 @@ class Spectrogram(BaseAudio):
                     Display annotations
                 figsize: tuple
                     Figure size
+                label_in_title: bool
+                    Include label (if available) in figure title
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -680,7 +682,7 @@ class Spectrogram(BaseAudio):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
         """
-        fig, ax = super().plot(id, figsize)
+        fig, ax = super().plot(id, figsize, label_in_title)
 
         x = self.get_data(id) # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
@@ -1507,7 +1509,7 @@ class CQTSpectrogram(Spectrogram):
         """
         return self.freq_ax.bins_per_oct
 
-    def plot(self, id=0, show_annot=False):
+    def plot(self, id=0, show_annot=False, label_in_title=True):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -1521,12 +1523,14 @@ class CQTSpectrogram(Spectrogram):
                     contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
+                label_in_title: bool
+                    Include label (if available) in figure title
             
             Returns:
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(id, show_annot)
+        fig = super().plot(id, show_annot, label_in_title)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig
