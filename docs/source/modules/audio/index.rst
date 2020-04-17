@@ -8,7 +8,7 @@ For the implementation of these functionalities, we rely extensively on
 
 Waveforms
 ~~~~~~~~~
-The Waveform class in the :ref:`waveform` module provides a convenient interface for working with 
+The :class:`Waveform` class in the :ref:`waveform` module provides a convenient interface for working with 
 audio time series. For example, the following command will load a segment of a wav file into memory:: 
 
     >>> from ketos.audio.waveform import Waveform

@@ -63,6 +63,7 @@ sympy==1.5.1
 tables==3.6.1
 tensorboard==2.1
 tensorflow==2.1
+tensorflow-addons==0.9.1
 tensorflow-estimator==2.1
 termcolor==1.1.0
 tqdm==4.40.2
