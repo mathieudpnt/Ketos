@@ -18,7 +18,7 @@ setup(name='ketos',
           'scipy',
           'pandas',
           'tensorflow==2.1',
-          'tensorflow-addons==0.8.3'
+          'tensorflow-addons==0.8.3',
           'scikit-learn',
           'scikit-image',
           'librosa',
