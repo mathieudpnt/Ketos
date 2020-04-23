@@ -40,7 +40,6 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import numpy as np
 from .dev_utils.nn_interface import RecipeCompat, NNInterface
-#from .dev_utils.metrics import Precision, Recall, FScore
 import json
 from zipfile import ZipFile
 from glob import glob
@@ -333,21 +332,8 @@ class ResNetInterface(NNInterface):
         self.block_sets = block_sets
         self.n_classes = n_classes
         self.initial_filters = initial_filters
-        # self.optimizer = optimizer
-        # self.loss_function = loss_function
-        # self.metrics = metrics
 
         self.model=ResNetArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
-        #self.compile_model()
-        #self.metrics_names = self.model.metrics_names
-
-        
-        # self.log_dir = None
-        # self.checkpoint_dir = None
-        # self.tensorboard_callback = None
-        # self.train_generator = None
-        # self.val_generator = None
-        # self.test_generator = None
 
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a ResNetInterface instance.
