@@ -1327,7 +1327,7 @@ class MelSpectrogram(Spectrogram):
             fig.colorbar(img_plot,format='%+2.0f dB')
 
         else:
-            fig = super().plot()
+            fig = super().plot(cmap=cmap, figsize=figsize)
 
         return fig
 
