@@ -105,22 +105,31 @@ class NNInterface():
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
-        >>> class MLPInterface(NNInterface): # doctest: +SKIP
+        from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
+        
+        >>> class MLPInterface(NNInterface):  # doctest: +SKIP
         ...
         ...    @classmethod
-        ...    def build_from_recipe(cls, recipe):
-        ...        n_neurons = recipe['n_neurons']
-        ...        activation = recipe['activation']
-        ...        optimizer = recipe['optimizer']
-        ...        loss_function = recipe['loss_function']
-        ...        metrics = recipe['metrics']
+        ...    def _build_from_recipe(cls, recipe, recipe_compat=True):
+        ...        n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
+        ...        activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
+        ...        
+        ...         if recipe_compat == True:
+        ...            optimizer = recipe['optimizer']
+        ...            loss_function = recipe['loss_function']
+        ...            metrics = recipe['metrics']
+        ...            
+        ...        else:
+        ...            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+        ...            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+        ...            metrics = cls._metrics_from_recipe(recipe['metrics'])
         ...
         ...        instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
         ...
         ...        return instance
         ... 
-        ...   @classmethod
-        ...   def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        ...  @classmethod
+        ...  def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         ...        
         ...        with open(json_file, 'r') as json_recipe:
         ...            recipe_dict = json.load(json_recipe)
@@ -135,35 +144,33 @@ class NNInterface():
         ...            recipe_dict['loss_function'] = loss_function
         ...            recipe_dict['metrics'] = metrics
         ...        else:
-        ...            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-        ...            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-        ...            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+        ...            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+        ...            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+        ...            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
         ...
-        ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']
-        ...        recipe_dict['activation'] = recipe_dict['activation']
+        ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']    # read the n_neurons parameter from the recipe file
+        ...        recipe_dict['activation'] = recipe_dict['activation']  # read the activation parameter from the recipe file
+        ...        
         ...        return recipe_dict
         ...
         ...     def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
-        ...        #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+        ...        super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
         ...        self.n_neurons = n_neurons
         ...        self.activation = activation
         ...        self.model = MLP(n_neurons=n_neurons, activation=activation)
-        ...        self.optimizer=optimizer
-        ...        self.loss_function=loss_function
-        ...        self.metrics=metrics
+        ...       
         ...
-        ...    def write_recipe(self):
+        ...    def _extract_recipe_dict(self):
         ...   
         ...        recipe = {}
-        ...        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        ...        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        ...        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        ...        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        ...        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        ...        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
         ...        recipe['n_neurons'] = self.n_neurons
         ...        recipe['activation'] = self.activation
+        ...        
         ...        return recipe
-            
-       
-            
+
     """
 
 
