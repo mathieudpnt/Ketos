@@ -129,7 +129,7 @@ def test_ResNetArch():
 
 
 def test_ResNetInterface_build_from_recipe(recipe):
-    resnet = ResNetInterface.build_from_recipe(recipe)
+    resnet = ResNetInterface._build_from_recipe(recipe)
 
     assert resnet.optimizer.recipe_name == recipe['optimizer'].recipe_name
     assert resnet.optimizer.instance.__class__ == recipe['optimizer'].instance.__class__
@@ -149,7 +149,7 @@ def test_ResNetInterface_build_from_recipe(recipe):
 
 
 def test_extract_recipe_dict(recipe, recipe_dict):
-    resnet = ResNetInterface.build_from_recipe(recipe)
+    resnet = ResNetInterface._build_from_recipe(recipe)
     written_recipe = resnet._extract_recipe_dict()
 
     assert written_recipe == recipe_dict
@@ -157,7 +157,7 @@ def test_extract_recipe_dict(recipe, recipe_dict):
 
 def test_read_recipe_file(recipe, recipe_dict):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe.json")
-    resnet = ResNetInterface.build_from_recipe(recipe)
+    resnet = ResNetInterface._build_from_recipe(recipe)
     written_recipe = resnet._extract_recipe_dict()
     resnet.save_recipe_file(path_to_recipe_file)
 

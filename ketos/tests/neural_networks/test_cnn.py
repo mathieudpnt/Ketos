@@ -123,7 +123,7 @@ def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
 
  
 def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
 
     assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
     assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
@@ -143,7 +143,7 @@ def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
 
 
 def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_simple, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple_dict, recipe_compat=False)
+    cnn = CNNInterface._build_from_recipe(recipe_simple_dict, recipe_compat=False)
 
     assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
     assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
@@ -163,7 +163,7 @@ def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_s
 
 
 def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
 
     assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
     assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
@@ -182,7 +182,7 @@ def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
     assert cnn.n_classes ==  recipe_detailed['n_classes']
 
 def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_detailed_dict):
-    cnn = CNNInterface.build_from_recipe(recipe_detailed_dict, recipe_compat=False)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed_dict, recipe_compat=False)
 
     assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
     assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
@@ -201,7 +201,7 @@ def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_de
     assert cnn.n_classes ==  recipe_detailed['n_classes']
 
 def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
     written_recipe = cnn._extract_recipe_dict()
 
     #Even when the model is built from a simplified recipe, the detailed form will be included when writing the recipe again
@@ -214,7 +214,7 @@ def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed)
 
 def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detailed):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_simple.json")
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
     #written_recipe = resnet.write_recipe()
     cnn.save_recipe_file(path_to_recipe_file)
 
@@ -250,7 +250,7 @@ def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detai
 
 def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed.json")
-    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
     #written_recipe = resnet.write_recipe()
     cnn.save_recipe_file(path_to_recipe_file)
 

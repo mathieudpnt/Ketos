@@ -227,7 +227,7 @@ class ResNetInterface(NNInterface):
     """
 
     @classmethod
-    def build_from_recipe(cls, recipe, recipe_compat=True):
+    def _build_from_recipe(cls, recipe, recipe_compat=True):
         """ Build a ResNet model from a recipe.
 
             Args:

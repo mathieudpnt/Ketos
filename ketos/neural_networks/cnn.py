@@ -126,9 +126,7 @@ class CNNArch(tf.keras.Model):
                 The number of classes the network will be used to classify.
                 The output will be this number of values representing the scores for each class. 
                 Scores sum to 1.0.
-
     """
-
 
     def __init__(self, convolutional_layers, dense_layers, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
@@ -154,7 +152,6 @@ class CNNArch(tf.keras.Model):
         self.dense_block.add(tf.keras.layers.Softmax(n_classes))
 
     def call(self, inputs, training=None):
-
         output = self.convolutional_block(inputs, training=training)
         output = self.dense_block(output, training=training)
 
@@ -296,7 +293,7 @@ class CNNInterface(NNInterface):
 
 
     @classmethod
-    def build_from_recipe(cls, recipe, recipe_compat=True ):
+    def _build_from_recipe(cls, recipe, recipe_compat=True ):
         """ Build a CNN model from a recipe.
 
             Args:
