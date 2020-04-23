@@ -826,6 +826,10 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
     """
     # compute lengths, and discard segments shorter than requested length
     c = files[['filename','duration']]
+
+    if 'offset' in files.columns.names: c['offset'] = files['offset']
+    else: c['offset'] = 0
+
     c.reset_index(drop=True, inplace=True)
     c['length'] = c['duration'] - length
     c = c[c['length'] >= 0]
@@ -845,7 +849,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             idx = np.argmax(t < cs) - 1
             row = c.iloc[idx]
             fname = row['filename']
-            start = t - cs[idx]
+            start = t - cs[idx] + row['offset']
             end   = start + length
 
             q = query(annotations, filename=fname, start=start, end=end)
