@@ -1018,13 +1018,67 @@ class NNInterface():
             val_metric(labels, predictions)
             
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5):
+        """ Train the model
+
+
+            Typically, before starting the training loop, a few steps will already have been taken:
+            
+        
+            #Set the batch generator for the training data
+            model.train_generator = my_train_generator
+            #Set the batch generator for the validation data (optional; only if the validate option is set to True)
+            model.val_generator = my_val_generator
+            # Set the log_dir
+            model.log_dir = "./my_logs"
+            # Set the checkpoint_dir
+            model.checkpoint_dir = "./my_checkpoints"
+            model.train_loop(n_epochs=50)
+
+
+            Args:
+                n_epochs:int
+                    The number of epochs (i.e.: passes through the entire training dataset, as defined by the train_generator attribute)
+                verbose:bool
+                    If True, print summary metrics at the end of each epoch
+                validate:bool
+                    If True, evaluate the model on the validation data (as defined by the val_generator attribute) at the end of each epoch
+                log_tensorboard:bool
+                    If True, log the training and validation (if validate is True) metrics in the tensoraboard format.
+                    See 'tensorboard_metrics_name' below.
+                tensorboard_metrics_name:string
+                    The name of the directory where the tensorboard metrics will be saved. This directory will be created within the path specified by the log_dir attribute.
+                    Default is 'tensorboard_metrics'. Only relevant if log_tensorboard is True.
+                log_csv:bool
+                    If True, log the training and validation (if validate is True) metrics in a csv file (see csv_name).
+                    
+                    The csv will have the following columns:
+                    epoch: the epoch number, starting from 1
+                    loss: the value of the loss metric
+                    dataset: 'train' or 'val'(only when validate is True)
+                    In addition, each metric defined by the metrics attribute will be added as a column.
+
+                    Example:
+                    
+                    epoch,loss,dataset,CategoricalAccuracy,Precision,Recall
+                    1,0.353,train,0.668,0.653,0.796
+                    1,0.560,val,0.448,0.448,1.0
+                    ...
+                    50,0.053,train,0.968,0.953,0.986
+                    50,0.160,val,0.848,0.748,0.838
+
+                checkpoint_freq:int
+                    The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
+                
+
+        """
+
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.recipe_name for m in self.metrics]
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
-            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, "tensorboard_metrics"))
+            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, tensorboard_metrics_name))
             tensorboard_writer.set_as_default()
 
 
@@ -1096,7 +1150,7 @@ class NNInterface():
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
                     
         if log_csv == True:
-            log_csv_df.to_csv(os.path.join(self._log_dir,"log.csv"))
+            log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
 
         
     def run_on_instance(self, input, return_raw_output=False):
