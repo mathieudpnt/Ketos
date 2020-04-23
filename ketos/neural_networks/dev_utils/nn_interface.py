@@ -748,7 +748,6 @@ class NNInterface():
         self.loss_function = loss_function
         self.metrics = metrics
         self.model = None
-        #self.compile_model()
         
         self._log_dir = None
         self._checkpoint_dir = None
@@ -818,18 +817,6 @@ class NNInterface():
 
         os.remove(recipe_path)
 
-    
-    # def compile_model(self):
-    #     """ Compile the tensorflow model.
-
-    #         Uses the instance attributes optimizer, loss_function and metrics.
-    #     """
-    #     self.model.compile(optimizer=self.optimizer.func,
-    #                         loss = self.loss_function.func,
-    #                         metrics = [m.func for m in self.metrics])
-    #     self.metrics_names = self.model.metrics_names
-
-
     @property
     def train_generator(self):
         return self._train_generator
@@ -872,28 +859,6 @@ class NNInterface():
         """
         self._test_generator = test_generator    
     
-    # def set_train_generator(self, train_generator):
-        
-    #     self.train_generator = train_generator
-
-    # def set_val_generator(self, val_generator):
-    #     """ Link a batch generator (used for validation) to this instance.
-
-    #         Args:
-    #             val_generator: instance of BatchGenerator
-    #                 A batch generator that provides validation data during the training loop 
-    #     """
-    #     self.val_generator = val_generator
-
-    # def set_test_generator(self, test_generator):
-    #     """ Link a batch generator (used for testing) to this instance.
-
-    #         Args:
-    #             test_generator: instance of BatchGenerator
-    #                 A batch generator that provides testing data
-    #     """
-    #     self.test_generator = test_generator
-
     @property
     def log_dir(self):
         return self._log_dir
@@ -911,18 +876,6 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
-    # def set_log_dir(self, log_dir):
-    #     """ Defines the directory where tensorboard log files and .csv log files can be stored
-        
-    #         Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
-
-    #         Args:
-    #             log_dir:str
-    #                 Path to the directory 
-
-    #     """
-    #     self.log_dir = log_dir
-    #     os.makedirs(self.log_dir, exist_ok=True)
         
     @property
     def checkpoint_dir(self):
@@ -941,18 +894,7 @@ class NNInterface():
         self._checkpoint_dir = checkpoint_dir
         os.makedirs(self._checkpoint_dir, exist_ok=True)
 
-    # def set_checkpoint_dir(self, checkpoint_dir):
-    #     """ Defines the directory where tensorflow checkpoint files can be stored
-
-    #         Args:
-    #             log_dir:str
-    #                 Path to the directory
-
-    #     """
-
-    #     self.checkpoint_dir = checkpoint_dir
-    #     os.makedirs(self.checkpoint_dir, exist_ok=True)
-
+    
     def _set_tensorboard_callback(self):
         """ Link tensorboard callback to this instances model, so that tensorboard logs can be saved
         """
