@@ -436,9 +436,9 @@ class CNNInterface(NNInterface):
         return recipe_dict
 
 
-    def __init__(self, convolutional_layers=default_recipe['convolutional_layers'], dense_layers=default_recipe['dense_layers'],
-                 n_classes=default_recipe['n_classes'], optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], 
-                 metrics=default_recipe['metrics']):
+    def __init__(self, convolutional_layers=default_cnn_recipe['convolutional_layers'], dense_layers=default_cnn_recipe['dense_layers'],
+                 n_classes=default_cnn_recipe['n_classes'], optimizer=default_cnn_recipe['optimizer'], loss_function=default_cnn_recipe['loss_function'], 
+                 metrics=default_cnn_recipe['metrics']):
         super(CNNInterface, self).__init__(optimizer, loss_function, metrics)
         self.conv_set = None
         self.dense_det = None
