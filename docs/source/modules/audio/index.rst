@@ -24,16 +24,44 @@ The Waveform object thus created stores the audio data as a Numpy array along wi
     >>> print(audio.get_offset())
     3.0
     >>> print(audio.get_attrs())
-    {'rate': 44100, 'type': 'Waveform'}
+    {'rate': 1000, 'type': 'Waveform'}
 
 To Waveform class has a number of useful methods for manipulating audio data, e.g., adding Gaussian noise to 
 an audio segment (:meth:`add_gaussian_noise <ketos.audio.waveform.Waveform.add_gaussian_noise>`), or splitting an audio segment 
-into several shorter segments (:meth:`segment <ketos.audio.waveform.Waveform.segment>`). Consult the documentation of the 
+into several shorter segments (:meth:`segment <ketos.audio.waveform.Waveform.segment>`). Please consult the documentation of the 
 :ref:`waveform` module for the complete list.
 
 
 Spectrograms
 ~~~~~~~~~~~~
+Four different types of spectrograms have been implemented in ketos: :class:`magnitude spectrogram <ketos.audio.spectrogram.MagSpectrogram>`,
+:class:`power spectrogram <ketos.audio.spectrogram.PowSpectrogram>`, :class:`mel spectrogram <ketos.audio.spectrogram.MelSpectrogram>`, and
+:class:`CQT spectrogram <ketos.audio.spectrogram.CQTSpectrogram>`. These are all derived from the same 
+:class:`Spectrogram <ketos.audio.spectrogram.Spectrogram>` parent class, which in turn derives from the 
+:class:`BaseAudio <ketos.audio.base_audio.BaseAudio>` base class.
+
+The spectrogram classes provide interfaces for computing and manipulating spectral frequency presentations of audio data. 
+Like a waveform, a spectrogram object can also be created directly from a wav file:: 
+
+    >>> from ketos.audio.spectrogram import MagSpectrogram
+    >>> spec = MagSpectrogram.from_wav('sound.wav', window=0.2, step=0.01, offset=3.0, duration=6.0) #spectrogram of a 6-s long segment starting 3 s from the beginning of the audio file
+
+The MagSpectrogram object thus created stores the spectral representation of the audio data as a (masked) 2D Numpy array along with the 
+filename, offset, and some additional attributes::
+
+    >>> print(type(audio.get_data()))
+    <class 'numpy.ma.core.MaskedArray'>
+    >>> print(audio.get_filename())
+    sound.wav
+    >>> print(audio.get_offset())
+    3.0
+    >>> print(audio.get_attrs())
+    {'time_res': 0.01, 'freq_min': 0.0, 'freq_res': 4.9504950495049505, 'window_func': 'hamming', 'type': 'MagSpectrogram'}
+
+The spectrogram classes have a number of useful methods for manipulating spectrograms, e.g., cropping in either the time or 
+frequency dimension or both (:meth:`crop <ketos.audio.spectrogram.Spectrogram.crop>`), or recovering 
+the original waveform (:meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>`). 
+Please consult the documentation of the :ref:`spectrogram` module for the complete list.
 
 
 .. toctree::
