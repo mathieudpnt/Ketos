@@ -6,9 +6,10 @@ and computing various spectral representations such as magnitude spectrograms an
 For the implementation of these functionalities, we rely extensively on 
 `LibROSA <https://librosa.github.io/librosa/>`_ and `SoundFile <https://pysoundfile.readthedocs.io/en/latest/index.html>`_ .
 
+
 Waveforms
 ~~~~~~~~~
-The :class:`Waveform` class in the :ref:`waveform` module provides a convenient interface for working with 
+The :class:`Waveform <ketos.audio.waveform.Waveform>` class provides a convenient interface for working with 
 audio time series. For example, the following command will load a segment of a wav file into memory:: 
 
     >>> from ketos.audio.waveform import Waveform
@@ -26,7 +27,8 @@ The Waveform object thus created stores the audio data as a Numpy array along wi
     {'rate': 44100, 'type': 'Waveform'}
 
 To Waveform class has a number of useful methods for manipulating audio data, e.g., adding Gaussian noise to 
-an audio segment, or splitting an audio segment into several shorter segments. Consult the documentation of the 
+an audio segment (:meth:`add_gaussian_noise <ketos.audio.waveform.Waveform.add_gaussian_noise>`), or splitting an audio segment 
+into several shorter segments (:meth:`segment <ketos.audio.waveform.Waveform.segment>`). Consult the documentation of the 
 :ref:`waveform` module for the complete list.
 
 
