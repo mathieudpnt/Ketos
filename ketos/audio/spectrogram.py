@@ -1509,7 +1509,7 @@ class CQTSpectrogram(Spectrogram):
         """
         return self.freq_ax.bins_per_oct
 
-    def plot(self, id=0, show_annot=False, label_in_title=True):
+    def plot(self, id=0, show_annot=False, figsize=(5,4), label_in_title=True):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -1523,6 +1523,8 @@ class CQTSpectrogram(Spectrogram):
                     contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
+                figsize: tuple
+                    Figure size
                 label_in_title: bool
                     Include label (if available) in figure title
             
@@ -1530,7 +1532,7 @@ class CQTSpectrogram(Spectrogram):
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(id, show_annot, label_in_title)
+        fig = super().plot(id, show_annot, figsize, label_in_title)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig
