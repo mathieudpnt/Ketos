@@ -33,12 +33,12 @@
         CNNInterface class:
 """
 import tensorflow as tf
-from .nn_interface import NNInterface
+from .dev_utils.nn_interface import NNInterface, RecipeCompat
 import json
 
 
 
-vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+vgg_like_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True},
                                     {'n_filters':128, "filter_shape":(3,3), 'strides':1, 'padding':'valid','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
                                     {'n_filters':128, "filter_shape":(3,3), 'strides':1, 'padding':'valid','activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True},
@@ -57,12 +57,20 @@ vgg19_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,3),
                  
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},]
+                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},],
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)]
+                  
 
-                    }                
+}
 
 
-alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
+                                    
+
+
+alexnet_like_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
                                     {'n_filters':256, "filter_shape":(5,5), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
                                     {'n_filters':384, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
                                     {'n_filters':384, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
@@ -70,8 +78,27 @@ alexnet_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape":(11,
                   
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}]
+                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}],
 
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)]                 
+
+
+                    }
+
+default_recipe = {'convolutional_layers':  [{'n_filters':32, "filter_shape":(8,8), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
+                                    {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },],
+                  
+                  'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':128, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},],
+
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                  'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy)]
+                  
                     }
 
 
@@ -99,9 +126,7 @@ class CNNArch(tf.keras.Model):
                 The number of classes the network will be used to classify.
                 The output will be this number of values representing the scores for each class. 
                 Scores sum to 1.0.
-
     """
-
 
     def __init__(self, convolutional_layers, dense_layers, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
@@ -127,10 +152,8 @@ class CNNArch(tf.keras.Model):
         self.dense_block.add(tf.keras.layers.Softmax(n_classes))
 
     def call(self, inputs, training=None):
-
         output = self.convolutional_block(inputs, training=training)
         output = self.dense_block(output, training=training)
-        #output = self.softmax(output)
 
         return output
 
@@ -188,7 +211,7 @@ class CNNInterface(NNInterface):
 
     
     @classmethod
-    def convolutional_layers_from_conv_set(cls, conv_set):
+    def _convolutional_layers_from_conv_set(cls, conv_set):
         """ Create a detailed description of the convolutional layers based on the simplified description in 'conv_set'
 
             The resulting detailed description can then be used to build the convolutional layers in the model
@@ -234,7 +257,7 @@ class CNNInterface(NNInterface):
 
 
     @classmethod
-    def dense_layers_from_dense_set(cls, dense_set):
+    def _dense_layers_from_dense_set(cls, dense_set):
         """ Create a detailed description of the dense layers based on the simplified description in 'dense_set'
 
             The resulting detailed description can then be used to build the convolutional layers in the model.
@@ -270,7 +293,7 @@ class CNNInterface(NNInterface):
 
 
     @classmethod
-    def build_from_recipe(cls, recipe, recipe_compat=True ):
+    def _build_from_recipe(cls, recipe, recipe_compat=True ):
         """ Build a CNN model from a recipe.
 
             Args:
@@ -283,8 +306,7 @@ class CNNInterface(NNInterface):
                         ...  'n_classes':2,
                         ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                         ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                        ...  'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
+                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
                         ...  ]
 
                         The only optional field is 'secondary_metrics'.
@@ -303,7 +325,6 @@ class CNNInterface(NNInterface):
                         ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                         ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
                         ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                        ...  'secondary_metrics':[{'name':'FScore', 'parameters':{beta=1.0}}]
                         ...  ]
 
 
@@ -319,8 +340,8 @@ class CNNInterface(NNInterface):
         elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
             conv_set = recipe['conv_set']
             dense_set = recipe['dense_set']
-            convolutional_layers = cls.convolutional_layers_from_conv_set(conv_set)
-            dense_layers = cls.dense_layers_from_dense_set(dense_set)
+            convolutional_layers = cls._convolutional_layers_from_conv_set(conv_set)
+            dense_layers = cls._dense_layers_from_dense_set(dense_set)
             
         n_classes = recipe['n_classes']
         
@@ -328,29 +349,22 @@ class CNNInterface(NNInterface):
             optimizer = recipe['optimizer']
             loss_function = recipe['loss_function']
             metrics = recipe['metrics']
-            if 'secondary_metrics' in recipe.keys():
-                secondary_metrics = recipe['secondary_metrics']
-            else:
-                secondary_metrics = None
+            
         else:
-            optimizer = cls.optimizer_from_recipe(recipe['optimizer'])
-            loss_function = cls.loss_function_from_recipe(recipe['loss_function'])
-            metrics = cls.metrics_from_recipe(recipe['metrics'])
-            if 'secondary_metrics' in recipe.keys():
-                secondary_metrics = cls.metrics_from_recipe(recipe['secondary_metrics'])
-            else:
-                secondary_metrics = None
-
+            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls._metrics_from_recipe(recipe['metrics'])
+            
         
 
-        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
         instance.conv_set = conv_set
         instance.dense_set = dense_set
 
         return instance
    
     @classmethod
-    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+    def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a CNN recipe saved in a .json file.
 
             Args:
@@ -364,11 +378,10 @@ class CNNInterface(NNInterface):
                            ...  'dense_set: [512, 256],
                            ...  'convolutional_layers: ,
                            ...  'dense_layers: ,
-                           ...  'n_classes': 2 ,
+                           ... 'n_classes': 2 ,
                            ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                            ... 'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                           ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                           ... 'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                           ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
 
                     If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
                     dictionary representation of such fields instead of the RecipeCompat objects:
@@ -377,11 +390,9 @@ class CNNInterface(NNInterface):
                             ...    'convolutional_layers: ,
                             ...    'dense_layers: ,
                             ...    'n_classes': 2 ,
-                            ...    'initial_filters':16,        
                             ...    'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                             ...    'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                            ...    'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                            ...    'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+                            ...    'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]}
 
                 Returns:
                     recipe, according to 'return_recipe_compat'.
@@ -391,36 +402,29 @@ class CNNInterface(NNInterface):
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
-        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-        if 'secondary_metrics' in recipe_dict.keys():
-                secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
-        else:
-                secondary_metrics = None
+        optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
+        
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
-            if 'secondary_metrics' in recipe_dict.keys():
-                recipe_dict['secondary_metrics'] = secondary_metrics
             
         else:
-            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-            if 'secondary_metrics' in recipe_dict.keys():
-                recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
-
+            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
+            
         if 'convolutional_layers' in recipe_dict.keys() and 'dense_layers' in recipe_dict.keys():
             convolutional_layers = recipe_dict['convolutional_layers']
             dense_layers = recipe_dict['dense_layers']
         elif 'conv_set' in recipe.keys() and 'dense_set' in recipe_dict.keys():
             conv_set = recipe_dict['conv_set']
             dense_set = recipe_dict['dense_set']
-            convolutional_layers = cls.convolutional_layers_from_conv_set(conv_set)
-            dense_layers = cls.dense_layers_from_dense_set(dense_set)
+            convolutional_layers = cls._convolutional_layers_from_conv_set(conv_set)
+            dense_layers = cls._dense_layers_from_dense_set(dense_set)
             
         recipe_dict['conv_set'] = recipe_dict['conv_set']
         recipe_dict['dense_set'] = recipe_dict['dense_set']
@@ -432,30 +436,32 @@ class CNNInterface(NNInterface):
         return recipe_dict
 
 
-    def __init__(self, convolutional_layers, dense_layers, n_classes, optimizer, loss_function, metrics, secondary_metrics=None):
+    def __init__(self, convolutional_layers=default_recipe['convolutional_layers'], dense_layers=default_recipe['dense_layers'],
+                 n_classes=default_recipe['n_classes'], optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], 
+                 metrics=default_recipe['metrics']):
+        super(CNNInterface, self).__init__(optimizer, loss_function, metrics)
         self.conv_set = None
         self.dense_det = None
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
-        self.optimizer = optimizer
-        self.loss_function = loss_function
-        self.metrics = metrics
-        self.secondary_metrics = secondary_metrics
+        # self.optimizer = optimizer
+        # self.loss_function = loss_function
+        # self.metrics = metrics
        
         self.model=CNNArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
-        self.compile_model()
+        # self.compile_model()
 
         
-        self.log_dir = None
-        self.checkpoint_dir = None
-        self.tensorboard_callback = None
-        self.train_generator = None
-        self.val_generator = None
-        self.test_generator = None
+        # self.log_dir = None
+        # self.checkpoint_dir = None
+        # self.tensorboard_callback = None
+        # self.train_generator = None
+        # self.val_generator = None
+        # self.test_generator = None
 
 
-    def write_recipe(self):
+    def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a CNNInterface instance.
 
             The resulting recipe contains all the fields necessary to build the same network architecture used by the instance calling this method.
@@ -471,8 +477,7 @@ class CNNInterface(NNInterface):
                         ...  'n_classes':2,
                         ...  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                         ...  'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                        ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                        ...  'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                        ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
         """
 
         recipe = {}
@@ -481,9 +486,8 @@ class CNNInterface(NNInterface):
         recipe['convolutional_layers'] = self.convolutional_layers
         recipe['dense_layers'] = self.dense_layers
         recipe['n_classes'] = self.n_classes
-        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
-        if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
+        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
+        
         return recipe

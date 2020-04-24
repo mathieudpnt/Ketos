@@ -37,14 +37,27 @@
 
 import os
 import tensorflow as tf
+import tensorflow_addons as tfa
 import numpy as np
-from .losses import FScoreLoss
-from .metrics import precision_recall_accuracy_f
-from .nn_interface import RecipeCompat, NNInterface
+from .dev_utils.nn_interface import RecipeCompat, NNInterface
+#from .dev_utils.metrics import Precision, Recall, FScore
 import json
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
+
+
+
+default_recipe =  {'block_sets':[2,2,2],
+                    'n_classes':2,
+                    'initial_filters':16,        
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                    'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
+                                RecipeCompat('Precision',tf.keras.metrics.Precision),
+                                RecipeCompat('Recall',tf.keras.metrics.Recall)],
+                    }
+
 
 class ResNetBlock(tf.keras.Model):
     """ Residual block for ResNet architectures.
@@ -214,7 +227,7 @@ class ResNetInterface(NNInterface):
     """
 
     @classmethod
-    def build_from_recipe(cls, recipe, recipe_compat=True):
+    def _build_from_recipe(cls, recipe, recipe_compat=True):
         """ Build a ResNet model from a recipe.
 
             Args:
@@ -230,9 +243,9 @@ class ResNetInterface(NNInterface):
                     ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                     ...    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
                     ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                    ...    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                    }
 
-                        The only optional field is 'secondary_metrics'. 
+                     
 
             Returns:
                 An instance of ResNetInterface.
@@ -247,25 +260,19 @@ class ResNetInterface(NNInterface):
             optimizer = recipe['optimizer']
             loss_function = recipe['loss_function']
             metrics = recipe['metrics']
-            if 'secondary_metrics' in recipe.keys():
-                secondary_metrics = recipe['secondary_metrics']
-            else:
-                secondary_metrics = None
+            
         else:
-            optimizer = cls.optimizer_from_recipe(recipe['optimizer'])
-            loss_function = cls.loss_function_from_recipe(recipe['loss_function'])
-            metrics = cls.metrics_from_recipe(recipe['metrics'])
-            if 'secondary_metrics' in recipe.keys():
-                secondary_metrics = cls.metrics_from_recipe(recipe['secondary_metrics'])
-            else:
-                secondary_metrics = None
+            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls._metrics_from_recipe(recipe['metrics'])
+            
 
-        instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
 
     @classmethod
-    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+    def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a ResNet recipe saved in a .json file.
 
             Args:
@@ -281,8 +288,7 @@ class ResNetInterface(NNInterface):
                             ... 'initial_filters':16,        
                             ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                             ... 'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                            ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                            ... 'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                            ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
 
                     If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
                     dictionary representation of such fields instead of the RecipeCompat objects:
@@ -291,8 +297,7 @@ class ResNetInterface(NNInterface):
                             ... 'initial_filters':16,        
                             ... 'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
                             ... 'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-                            ... 'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
-                            ... 'secondary_metrics': [{'name':'Precision_Ketos', 'parameters':{}}]}
+                            ... 'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]}
 
                 Returns:
                     recipe, according to 'return_recipe_compat.
@@ -302,56 +307,49 @@ class ResNetInterface(NNInterface):
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
-        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-        if 'secondary_metrics' in recipe_dict.keys():
-                secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
-        else:
-                secondary_metrics = None
-
+        optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
+        
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
-            if 'secondary_metrics' in recipe_dict.keys():
-                recipe_dict['secondary_metrics'] = secondary_metrics
             
         else:
-            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-            if 'secondary_metrics' in recipe_dict.keys():
-                recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
-
+            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
+        
         recipe_dict['block_sets'] = recipe_dict['block_sets']
         recipe_dict['n_classes'] = recipe_dict['n_classes']
         recipe_dict['initial_filters'] = recipe_dict['initial_filters']
 
         return recipe_dict
 
-    def __init__(self, block_sets, n_classes, initial_filters, optimizer, loss_function, metrics, secondary_metrics):
+    def __init__(self, block_sets=default_recipe['block_sets'], n_classes=default_recipe['n_classes'], initial_filters=default_recipe['initial_filters'],
+                       optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], metrics=default_recipe['metrics']):
+        super(ResNetInterface, self).__init__(optimizer, loss_function, metrics)
         self.block_sets = block_sets
         self.n_classes = n_classes
         self.initial_filters = initial_filters
-        self.optimizer = optimizer
-        self.loss_function = loss_function
-        self.metrics = metrics
-        self.secondary_metrics = secondary_metrics
+        # self.optimizer = optimizer
+        # self.loss_function = loss_function
+        # self.metrics = metrics
 
         self.model=ResNetArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
-        self.compile_model()
+        #self.compile_model()
         #self.metrics_names = self.model.metrics_names
 
         
-        self.log_dir = None
-        self.checkpoint_dir = None
-        self.tensorboard_callback = None
-        self.train_generator = None
-        self.val_generator = None
-        self.test_generator = None
+        # self.log_dir = None
+        # self.checkpoint_dir = None
+        # self.tensorboard_callback = None
+        # self.train_generator = None
+        # self.val_generator = None
+        # self.test_generator = None
 
-    def write_recipe(self):
+    def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a ResNetInterface instance.
 
             The resulting recipe contains all the fields necessary to build the same network architecture used by the instance calling this method.
@@ -365,20 +363,17 @@ class ResNetInterface(NNInterface):
                         ...    'initial_filters':16,        
                         ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                         ...    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
-                        ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
-                        ...    'secondary_metrics': [RecipeCompat('Precision_Ketos', ketos.neural_networks.metrics.Precision)]}
+                        ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
         """
 
         recipe = {}
         recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
         recipe['initial_filters'] = self.initial_filters
-        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
-        if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
-
+        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
+        
         return recipe
 
 

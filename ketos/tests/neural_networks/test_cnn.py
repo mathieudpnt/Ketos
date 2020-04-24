@@ -1,10 +1,9 @@
 import pytest
 import numpy as np
 import tensorflow as tf
-from ketos.neural_networks.nn_interface import RecipeCompat
+from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.cnn import CNNArch, CNNInterface
-from ketos.neural_networks.losses import FScoreLoss
-from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
+from ketos.neural_networks.dev_utils.losses import FScoreLoss
 import os
 import tables
 import json
@@ -20,9 +19,9 @@ def recipe_simple_dict():
     recipe = {'conv_set':[[64, False], [128, True], [256, True]],
                'dense_set': [512, 256],
                'n_classes':2,
-               'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-               'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-               'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
     }
 
@@ -51,9 +50,9 @@ def recipe_detailed_dict():
                                     {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     ],
                'n_classes':2,
-               'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-               'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-               'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
     }
 
@@ -113,29 +112,29 @@ def test_CNNArch():
    
 
 def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
-    detailed_layers = CNNInterface.convolutional_layers_from_conv_set(recipe_simple['conv_set'])
+    detailed_layers = CNNInterface._convolutional_layers_from_conv_set(recipe_simple['conv_set'])
     assert detailed_layers == recipe_detailed['convolutional_layers']
     
 
 def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
-    detailed_layers = CNNInterface.dense_layers_from_dense_set(recipe_simple['dense_set'])
+    detailed_layers = CNNInterface._dense_layers_from_dense_set(recipe_simple['dense_set'])
     assert detailed_layers == recipe_detailed['dense_layers']
 
 
  
 def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
 
-    assert cnn.optimizer.name == recipe_simple['optimizer'].name
-    assert cnn.optimizer.func.__class__ == recipe_simple['optimizer'].func.__class__
+    assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
     assert cnn.optimizer.args == recipe_simple['optimizer'].args
 
-    assert cnn.loss_function.name == recipe_simple['loss_function'].name
-    assert cnn.loss_function.func.__class__ == recipe_simple['loss_function'].func.__class__
+    assert cnn.loss_function.recipe_name == recipe_simple['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_simple['loss_function'].instance.__class__
     assert cnn.loss_function.args == recipe_simple['loss_function'].args
 
-    assert cnn.metrics[0].name == recipe_simple['metrics'][0].name
-    assert cnn.metrics[0].func.__class__ == recipe_simple['metrics'][0].func.__class__
+    assert cnn.metrics[0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
     assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
 
     assert cnn.conv_set == recipe_simple['conv_set']
@@ -144,18 +143,18 @@ def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
 
 
 def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_simple, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple_dict, recipe_compat=False)
+    cnn = CNNInterface._build_from_recipe(recipe_simple_dict, recipe_compat=False)
 
-    assert cnn.optimizer.name == recipe_simple['optimizer'].name
-    assert cnn.optimizer.func.__class__ == recipe_simple['optimizer'].func.__class__
+    assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
     assert cnn.optimizer.args == recipe_simple['optimizer'].args
 
-    assert cnn.loss_function.name == recipe_simple['loss_function'].name
-    assert cnn.loss_function.func.__class__ == recipe_simple['loss_function'].func.__class__
+    assert cnn.loss_function.recipe_name == recipe_simple['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_simple['loss_function'].instance.__class__
     assert cnn.loss_function.args == recipe_simple['loss_function'].args
 
-    assert cnn.metrics[0].name == recipe_simple['metrics'][0].name
-    assert cnn.metrics[0].func.__class__ == recipe_simple['metrics'][0].func.__class__
+    assert cnn.metrics[0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
     assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
 
     assert cnn.conv_set == recipe_simple['conv_set']
@@ -164,18 +163,18 @@ def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_s
 
 
 def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
 
-    assert cnn.optimizer.name == recipe_detailed['optimizer'].name
-    assert cnn.optimizer.func.__class__ == recipe_detailed['optimizer'].func.__class__
+    assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
     assert cnn.optimizer.args == recipe_detailed['optimizer'].args
 
-    assert cnn.loss_function.name == recipe_detailed['loss_function'].name
-    assert cnn.loss_function.func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert cnn.loss_function.recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_detailed['loss_function'].instance.__class__
     assert cnn.loss_function.args == recipe_detailed['loss_function'].args
 
-    assert cnn.metrics[0].name == recipe_detailed['metrics'][0].name
-    assert cnn.metrics[0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert cnn.metrics[0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
     assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
 
     assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
@@ -183,18 +182,18 @@ def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
     assert cnn.n_classes ==  recipe_detailed['n_classes']
 
 def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_detailed_dict):
-    cnn = CNNInterface.build_from_recipe(recipe_detailed_dict, recipe_compat=False)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed_dict, recipe_compat=False)
 
-    assert cnn.optimizer.name == recipe_detailed['optimizer'].name
-    assert cnn.optimizer.func.__class__ == recipe_detailed['optimizer'].func.__class__
+    assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
     assert cnn.optimizer.args == recipe_detailed['optimizer'].args
 
-    assert cnn.loss_function.name == recipe_detailed['loss_function'].name
-    assert cnn.loss_function.func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert cnn.loss_function.recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_detailed['loss_function'].instance.__class__
     assert cnn.loss_function.args == recipe_detailed['loss_function'].args
 
-    assert cnn.metrics[0].name == recipe_detailed['metrics'][0].name
-    assert cnn.metrics[0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert cnn.metrics[0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
     assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
 
     assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
@@ -202,10 +201,10 @@ def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_de
     assert cnn.n_classes ==  recipe_detailed['n_classes']
 
 def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
-    written_recipe = cnn.write_recipe()
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
+    written_recipe = cnn._extract_recipe_dict()
 
-    #Even when the model is built from a simplified recipe, the detailed form will still be included when writing the recipe again
+    #Even when the model is built from a simplified recipe, the detailed form will be included when writing the recipe again
 
     recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
     recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
@@ -215,12 +214,12 @@ def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed)
 
 def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detailed):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_simple.json")
-    cnn = CNNInterface.build_from_recipe(recipe_simple)
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
     #written_recipe = resnet.write_recipe()
-    cnn.save_recipe(path_to_recipe_file)
+    cnn.save_recipe_file(path_to_recipe_file)
 
     #Read recipe as a recipe dict
-    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
     recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
     recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
     assert read_recipe == recipe_simple_dict
@@ -230,17 +229,17 @@ def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detai
     recipe_simple['convolutional_layers'] = recipe_detailed['convolutional_layers']
     recipe_simple['dense_layers'] = recipe_detailed['dense_layers']
 
-    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
-    assert read_recipe['optimizer'].name == recipe_simple['optimizer'].name
-    assert read_recipe['optimizer'].func.__class__ == recipe_simple['optimizer'].func.__class__
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name == recipe_simple['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_simple['optimizer'].instance.__class__
     assert read_recipe['optimizer'].args == recipe_simple['optimizer'].args
 
-    assert read_recipe['loss_function'].name == recipe_simple['loss_function'].name
-    assert read_recipe['loss_function'].func.__class__ == recipe_simple['loss_function'].func.__class__
+    assert read_recipe['loss_function'].recipe_name == recipe_simple['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_simple['loss_function'].instance.__class__
     assert read_recipe['loss_function'].args == recipe_simple['loss_function'].args
     
-    assert read_recipe['metrics'][0].name == recipe_simple['metrics'][0].name
-    assert read_recipe['metrics'][0].func.__class__ == recipe_simple['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
     assert read_recipe['metrics'][0].args == recipe_simple['metrics'][0].args
 
     assert read_recipe['conv_set'] == recipe_simple['conv_set']
@@ -249,14 +248,14 @@ def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detai
     assert read_recipe['dense_layers'] == recipe_simple['dense_layers']
 
 
-def test_read_recipe_simple_detailedd(recipe_detailed, recipe_detailed_dict):
+def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed.json")
-    cnn = CNNInterface.build_from_recipe(recipe_detailed)
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
     #written_recipe = resnet.write_recipe()
-    cnn.save_recipe(path_to_recipe_file)
+    cnn.save_recipe_file(path_to_recipe_file)
 
     #Read recipe as a recipe dict
-    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
     recipe_detailed_dict['conv_set'] = None
     recipe_detailed_dict['dense_set'] = None
     assert read_recipe == recipe_detailed_dict
@@ -265,17 +264,17 @@ def test_read_recipe_simple_detailedd(recipe_detailed, recipe_detailed_dict):
     recipe_detailed['conv_set'] = None
     recipe_detailed['dense_set'] = None
 
-    read_recipe = cnn.read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
-    assert read_recipe['optimizer'].name == recipe_detailed['optimizer'].name
-    assert read_recipe['optimizer'].func.__class__ == recipe_detailed['optimizer'].func.__class__
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_detailed['optimizer'].instance.__class__
     assert read_recipe['optimizer'].args == recipe_detailed['optimizer'].args
 
-    assert read_recipe['loss_function'].name == recipe_detailed['loss_function'].name
-    assert read_recipe['loss_function'].func.__class__ == recipe_detailed['loss_function'].func.__class__
+    assert read_recipe['loss_function'].recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_detailed['loss_function'].instance.__class__
     assert read_recipe['loss_function'].args == recipe_detailed['loss_function'].args
     
-    assert read_recipe['metrics'][0].name == recipe_detailed['metrics'][0].name
-    assert read_recipe['metrics'][0].func.__class__ == recipe_detailed['metrics'][0].func.__class__
+    assert read_recipe['metrics'][0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
     assert read_recipe['metrics'][0].args == recipe_detailed['metrics'][0].args
 
     assert read_recipe['conv_set'] == recipe_detailed['conv_set']

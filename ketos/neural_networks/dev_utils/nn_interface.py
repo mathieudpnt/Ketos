@@ -1,6 +1,9 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 from .losses import FScoreLoss
-from .metrics import Accuracy, Precision, Recall, FScore
+from zipfile import ZipFile
+from glob import glob
+from shutil import rmtree
 import numpy as np
 import pandas as pd
 import json
@@ -15,10 +18,10 @@ class RecipeCompat():
         The resulting object can be included in a ketos recipe and read by the NNInterface (or it's subclasses)
 
         Args:
-            name: str
+            recipe_name: str
                 The name to be used in the recipe
-            func: constructor
-                The loss function, metric or optimizer constructor function
+            template: constructor
+                The loss function, metric or optimizer constructor 
             kwargs
                 Any keyword arguments to be passed to the constructor (func)
 
@@ -41,16 +44,25 @@ class RecipeCompat():
     
     """
     def __repr__(self):
-        return "{0} ketos recipe".format(self.name)
+        return "{0} ketos recipe".format(self.recipe_name)
 
-    def __init__(self, name, func, **kwargs):
-        self.name = name
-        self.func = func(**kwargs)
+    def __init__(self, recipe_name, template, **kwargs):
+        self.recipe_name = recipe_name
         self.args = kwargs
+        self.template = template
+        self.instance = self.instantiate_template(**kwargs)
+        
+    
+    def instantiate_template(self, **template_kwargs):
+        args = self.args.copy()
+        args.update(template_kwargs)
+        inst = self.template(**args)
+        return inst
 
     def __call__(self, *args, **kwargs):
-        result = self.func(*args, **kwargs)
+        result = self.instance(*args, **kwargs)
         return result
+
 
 
 
@@ -186,10 +198,7 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {'Accuracy_Ketos': Accuracy,
-                     'Precision_Ketos': Precision,
-                     'Recall_Ketos': Recall,
-                     'FScore_Ketos': FScore,
+    valid_metrics = {'FScore': tfa.metrics.FBetaScore,
                      'Accuracy':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
@@ -229,12 +238,12 @@ class NNInterface():
 
 
     @classmethod
-    def to1hot(cls, class_label, n_classes=2):
+    def _to1hot(cls, class_label, n_classes=2):
         """ Create the one hot representation of class_label 
 
             Args:
                 class_label: int
-                    An integer number representing the a class label
+                    An integer number representing the class label
                 n_class: int
                     The number of classes available
             
@@ -243,16 +252,16 @@ class NNInterface():
                     The one hot representation of the class_label in a 1 x n_classes array.
 
             Examples:
-                >>> NNInterface.to1hot(class_label=0, n_classes=2)
+                >>> NNInterface._to1hot(class_label=0, n_classes=2)
                 array([1., 0.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=2)
+                >>> NNInterface._to1hot(class_label=1, n_classes=2)
                 array([0., 1.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=3)
+                >>> NNInterface._to1hot(class_label=1, n_classes=3)
                 array([0., 1., 0.])
 
-                >>> NNInterface.to1hot(class_label=1, n_classes=5)
+                >>> NNInterface._to1hot(class_label=1, n_classes=5)
                 array([0., 1., 0., 0., 0.])
 
         """
@@ -261,7 +270,7 @@ class NNInterface():
         return one_hot
     
     @classmethod
-    def transform_train_batch(cls, x, y, n_classes=2):
+    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -269,10 +278,11 @@ class NNInterface():
 
             Args:
                 x:numpy.array
-                    The batch of inputs.
-                y:numpy:array
+                    The batch of inputs with shape (batch_size, width, height)
+                y:numpy.array
                     The batch of labels.
-                    Each label must be represented as on integer, ranging from zero to n_classes
+                    Each label must be represented as an integer, ranging from zero to n_classes
+                    The array is expected to have a field named 'label'.
                 n_classes:int
                     The number of possible classes for one hot encoding.
                     
@@ -297,7 +307,7 @@ class NNInterface():
                 >>> labels.shape
                 (10,)
 
-                >>> transformed_inputs, transformed_labels = NNInterface.transform_train_batch(inputs, labels, n_classes=2)
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_batch(inputs, labels, n_classes=2)
                 >>> transformed_inputs.shape
                 (10, 5, 5, 1)
 
@@ -306,12 +316,13 @@ class NNInterface():
                 
         """
 
-        X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
-        Y = np.array([cls.to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        #X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
+        X = cls._transform_input(x)
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
 
     @classmethod
-    def transform_input(cls,input):
+    def _transform_input(cls,input):
         """ Transforms a training input to the format expected by the network.
 
             Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
@@ -320,7 +331,7 @@ class NNInterface():
 
             Args:
                 input:numpy.array
-                    An input instance. Must be of shape (n,m) or (1,n,m).
+                    An input instance. Must be of shape (n,m) or (k,n,m).
 
             Raises:
                 ValueError if input does not have 2 or 3 dimensions.
@@ -337,7 +348,7 @@ class NNInterface():
                 >>> selected_input.shape
                 (5, 5)
                  
-                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input = NNInterface._transform_input(selected_input)
                 >>> transformed_input.shape
                 (1, 5, 5, 1)
 
@@ -346,7 +357,7 @@ class NNInterface():
                 >>> selected_input.shape
                 (1, 5, 5)
                  
-                >>> transformed_input = NNInterface.transform_input(selected_input)
+                >>> transformed_input = NNInterface._transform_input(selected_input)
                 >>> transformed_input.shape
                 (1, 5, 5, 1)
 
@@ -362,7 +373,7 @@ class NNInterface():
         return transformed_input
 
     @classmethod
-    def transform_output(cls,output):
+    def _transform_output(cls,output):
         """ Transforms the network output 
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -378,11 +389,11 @@ class NNInterface():
             Example:
                 >>> import numpy as np
                 >>> output = np.array([[0.2,0.1,0.7]])  
-                >>> NNInterface.transform_output(output)
+                >>> NNInterface._transform_output(output)
                 (array([2]), array([0.7]))
 
                 >>> output = np.array([[0.2,0.1,0.7],[0.05,0.65,0.3]])  
-                >>> NNInterface.transform_output(output)
+                >>> NNInterface._transform_output(output)
                 (array([2, 1]), array([0.7 , 0.65]))
 
         """
@@ -399,7 +410,7 @@ class NNInterface():
 
 
     @classmethod
-    def optimizer_from_recipe(cls, optimizer):
+    def _optimizer_from_recipe(cls, optimizer):
         """ Create a recipe-compatible optimizer object from an optimizer dictionary
 
             Used when building a model from a recipe dictionary.
@@ -421,17 +432,17 @@ class NNInterface():
 
         """
 
-        name = optimizer['name']
+        recipe_name = optimizer['recipe_name']
         kwargs = optimizer['parameters']
 
-        if name not in cls.valid_optimizers.keys():
-            raise ValueError("Invalid optimizer name '{}'".format(name))
-        built_optimizer = RecipeCompat(name,cls.valid_optimizers[name],**kwargs)
+        if recipe_name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(recipe_name))
+        built_optimizer = RecipeCompat(recipe_name,cls.valid_optimizers[recipe_name],**kwargs)
 
         return built_optimizer
 
     @classmethod
-    def optimizer_to_recipe(cls, optimizer):
+    def _optimizer_to_recipe(cls, optimizer):
         """ Create an optimizer dictionary from a recipe-compatible optimizer object
 
             Used when creating a ketos recipe that can be used to recreate the model.
@@ -447,17 +458,17 @@ class NNInterface():
                 ValueError if the optimizer name is not included in the valid_optimizers class attribute.
 
         """
-        name = optimizer.name
+        recipe_name = optimizer.recipe_name
         kwargs = optimizer.args
 
-        if name not in cls.valid_optimizers.keys():
-            raise ValueError("Invalid optimizer name '{}'".format(name))
-        recipe_optimizer = {'name':name, 'parameters':kwargs}
+        if recipe_name not in cls.valid_optimizers.keys():
+            raise ValueError("Invalid optimizer name '{}'".format(recipe_name))
+        recipe_optimizer = {'recipe_name':recipe_name, 'parameters':kwargs}
 
         return recipe_optimizer
 
     @classmethod
-    def loss_function_from_recipe(cls, loss_function):
+    def _loss_function_from_recipe(cls, loss_function):
         """ Create a recipe-compatible loss object from a loss function dictionary
 
             Used when building a model from a recipe dictionary.
@@ -478,17 +489,17 @@ class NNInterface():
                 ValueError if the loss function name is not included in the valid_losses class attribute.
 
         """
-        name = loss_function['name']
+        recipe_name = loss_function['recipe_name']
         kwargs = loss_function['parameters']
 
-        if name not in cls.valid_losses.keys():
-            raise ValueError("Invalid loss function name '{}'".format(name))
-        built_loss = RecipeCompat(name, cls.valid_losses[name],**kwargs)
+        if recipe_name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(recipe_name))
+        built_loss = RecipeCompat(recipe_name, cls.valid_losses[recipe_name],**kwargs)
 
         return built_loss
 
     @classmethod
-    def loss_function_to_recipe(cls, loss_function):
+    def _loss_function_to_recipe(cls, loss_function):
         """ Create a loss function dictionary from a recipe-compatible loss function object
 
             Used when creating a ketos recipe that can be used to recreate the model.
@@ -504,18 +515,18 @@ class NNInterface():
                 ValueError if the loss_function name is not included in the valid_losses class attribute.
 
         """
-        name = loss_function.name
+        recipe_name = loss_function.recipe_name
         kwargs = loss_function.args
 
-        if name not in cls.valid_losses.keys():
-            raise ValueError("Invalid loss function name '{}'".format(name))
-        recipe_loss = {'name':name, 'parameters':kwargs}
+        if recipe_name not in cls.valid_losses.keys():
+            raise ValueError("Invalid loss function name '{}'".format(recipe_name))
+        recipe_loss = {'recipe_name':recipe_name, 'parameters':kwargs}
 
         return recipe_loss
 
 
     @classmethod
-    def metrics_from_recipe(cls, metrics):
+    def _metrics_from_recipe(cls, metrics):
         """ Create a list of recipe-compatible metric objects from a metrics dictionary
 
             Used when building a model from a recipe dictionary.
@@ -539,17 +550,17 @@ class NNInterface():
         
         built_metrics = []
         for m in metrics:
-            name = m['name']
+            recipe_name = m['recipe_name']
             kwargs = m['parameters']
              
-            if name not in cls.valid_metrics.keys():
-                raise ValueError("Invalid metric name '{}'".format(m['name']))
-            built_metrics.append(RecipeCompat(name, cls.valid_metrics[name], **kwargs))
+            if recipe_name not in cls.valid_metrics.keys():
+                raise ValueError("Invalid metric name '{}'".format(m['recipe_name']))
+            built_metrics.append(RecipeCompat(recipe_name, cls.valid_metrics[recipe_name], **kwargs))
 
         return built_metrics
 
     @classmethod
-    def metrics_to_recipe(cls, metrics):
+    def _metrics_to_recipe(cls, metrics):
         """ Create a metrics dictionary from a list of recipe-compatible metric objects
          
             Used when creating a ketos recipe that can be used to recreate the model
@@ -568,16 +579,16 @@ class NNInterface():
         
         recipe_metrics = []
         for m in metrics: 
-            if m.name not in cls.valid_metrics.keys():
-                raise ValueError("Invalid metric name '{}'".format(m['name']))
-            recipe_metrics.append({'name':m.name, 'parameters':m.args})
+            if m.recipe_name not in cls.valid_metrics.keys():
+                raise ValueError("Invalid metric name '{}'".format(m['recipe_name']))
+            recipe_metrics.append({'recipe_name':m.recipe_name, 'parameters':m.args})
 
         return recipe_metrics
 
 
 
     @classmethod
-    def read_recipe_file(cls, json_file, return_recipe_compat=True):
+    def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
 
             When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
@@ -597,31 +608,25 @@ class NNInterface():
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
 
-        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
-        if 'secondary_metrics' in recipe_dict.keys():
-            secondary_metrics = cls.metrics_from_recipe(recipe_dict['secondary_metrics'])
-        else:
-            secondary_metrics = None
+        optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
+        
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
             recipe_dict['loss_function'] = loss_function
             recipe_dict['metrics'] = metrics
-            if 'secondary_metrics' in recipe_dict.keys():
-                    recipe_dict['secondary_metrics'] = secondary_metrics
+        
         else:
-            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
-            if 'secondary_metrics' in recipe_dict.keys():
-                    recipe_dict['secondary_metrics'] = cls.metrics_to_recipe(secondary_metrics)
-
+            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
+        
         return recipe_dict
 
     @classmethod
-    def write_recipe_file(cls, json_file, recipe):
+    def _write_recipe_file(cls, json_file, recipe):
         """ Write a recipe dictionary into a .json file
 
             Args:
@@ -644,7 +649,7 @@ class NNInterface():
 
 
     @classmethod
-    def load(cls, recipe, weights_path):
+    def _load_model(cls, recipe, weights_path):
         """ Load a model given a recipe dictionary and the saved weights.
 
             If multiple versions of the model are available in the folder indicated by weights_path the latest will be selected. 
@@ -657,14 +662,14 @@ class NNInterface():
                     Saved weights are tensorflow chekpoint. The path should not include the checkpoint files, only the folder containing them. (e.g.: '/home/user/my_saved_models/model_a/')
 
         """
-        instance = cls.build_from_recipe(recipe) 
+        instance = cls._build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
         instance.model.load_weights(latest_checkpoint)
 
         return instance
 
     @classmethod
-    def load_model(cls, model_file, new_model_folder, overwrite=True):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
@@ -690,14 +695,14 @@ class NNInterface():
 
         with ZipFile(model_file, 'r') as zip:
             zip.extractall(path=new_model_folder)
-        recipe = cls.read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
-        model_instance = cls.load(recipe,  os.path.join(new_model_folder, "checkpoints"))
+        recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
+        model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
 
         
         return model_instance
     
     @classmethod
-    def build_from_recipe(cls, recipe):
+    def _build_from_recipe(cls, recipe):
         """ Build a model from a recipe dictionary
 
             When subclassing NNInterface to create interfaces for new neural networks, the method
@@ -712,12 +717,8 @@ class NNInterface():
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
-        if 'secondary_metrics' in recipe.keys():
-            secondary_metrics = recipe['secondary_metrics']
-        else:
-            secondary_metrics = None
 
-        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics, secondary_metrics=secondary_metrics)
+        instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
     
@@ -735,32 +736,36 @@ class NNInterface():
 
         """
 
-        recipe = cls.read_recipe_file(recipe_file)
-        instance = cls.build_from_recipe(recipe)
+        recipe = cls._read_recipe_file(recipe_file)
+        instance = cls._build_from_recipe(recipe)
 
         return instance
        
 
-    def __init__(self, optimizer, loss_function, metrics, secondary_metrics=None):
+    def __init__(self, optimizer, loss_function, metrics):
         
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.metrics = metrics
-        self.secondary_metrics = secondary_metrics
-
         self.model = None
-        self.compile_model()
-        #self.metrics_names = self.model.metrics_names
-
+        #self.compile_model()
         
-        self.log_dir = None
-        self.checkpoint_dir = None
-        self.tensorboard_callback = None
-        self.train_generator = None
-        self.val_generator = None
-        self.test_generator = None
+        self._log_dir = None
+        self._checkpoint_dir = None
+        self._tensorboard_callback = None
+        self._train_generator = None
+        self._val_generator = None
+        self._test_generator = None
 
-    def write_recipe(self):
+        self._train_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._val_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._train_metrics = []
+        self._val_metrics = []
+        for m in self.metrics:
+            self._train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
+            self._val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
+
+    def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a neural network instance.
 
             The resulting recipe contains all the fields necessary to build  the same network architecture used by the instance calling this method.
@@ -771,16 +776,14 @@ class NNInterface():
                     A dictionary containing the recipe fields necessary to build the same network architecture used by the instance calling this method
         """
         recipe = {}
-        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
-        if self.secondary_metrics is not None:
-                recipe['secondary_metrics'] = cls.metrics_to_recipe(self.secondary_metrics)
+        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
 
         return recipe
 
-    def save_recipe(self, recipe_file):
-        """ Creates a recipe from an existing neural network instance and save it into a .joson file.
+    def save_recipe_file(self, recipe_file):
+        """ Creates a recipe from an existing neural network instance and save it into a .json file.
 
             This method is a convenience method that wraps :func:`write_recipe` and :func:`write_recipe_file`
 
@@ -789,8 +792,8 @@ class NNInterface():
                     Path to .json file in which the recipe will be saved.
 
         """
-        recipe = self.write_recipe()
-        self.write_recipe_file(json_file=recipe_file, recipe=recipe)
+        recipe = self._extract_recipe_dict()
+        self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
     def save_model(self, model_file):
         """ Save the current neural network instance as a ketos (.kt) model file.
@@ -807,7 +810,7 @@ class NNInterface():
             
             latest = tf.train.latest_checkpoint(self.checkpoint_dir)
             checkpoints = glob(latest + '*')                                                                                                                 
-            self.save_recipe(recipe_path)
+            self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
             for c in checkpoints:
@@ -816,57 +819,117 @@ class NNInterface():
         os.remove(recipe_path)
 
     
-    def compile_model(self):
-        """ Compile the tensorflow model.
+    # def compile_model(self):
+    #     """ Compile the tensorflow model.
 
-            Uses the instance attributes optimizer, loss_function and metrics.
-        """
-        self.model.compile(optimizer=self.optimizer.func,
-                            loss = self.loss_function,
-                            metrics = self.metrics)
-        self.metrics_names = self.model.metrics_names
+    #         Uses the instance attributes optimizer, loss_function and metrics.
+    #     """
+    #     self.model.compile(optimizer=self.optimizer.func,
+    #                         loss = self.loss_function.func,
+    #                         metrics = [m.func for m in self.metrics])
+    #     self.metrics_names = self.model.metrics_names
 
-    def set_train_generator(self, train_generator):
+
+    @property
+    def train_generator(self):
+        return self._train_generator
+
+    @train_generator.setter
+    def train_generator(self, train_generator):
         """ Link a batch generator (used for training) to this instance.
 
             Args:
                 train_generator: instance of BatchGenerator
                     A batch generator that provides training data during the training loop 
         """
-        self.train_generator = train_generator
+        self._train_generator = train_generator    
 
-    def set_val_generator(self, val_generator):
+    @property
+    def val_generator(self):
+        return self._val_generator
+
+    @val_generator.setter
+    def val_generator(self, val_generator):
         """ Link a batch generator (used for validation) to this instance.
 
             Args:
                 val_generator: instance of BatchGenerator
                     A batch generator that provides validation data during the training loop 
         """
-        self.val_generator = val_generator
+        self._val_generator = val_generator    
 
-    def set_test_generator(self, test_generator):
+    @property
+    def test_generator(self):
+        return self._test_generator
+
+    @test_generator.setter
+    def test_generator(self, test_generator):
         """ Link a batch generator (used for testing) to this instance.
 
             Args:
                 test_generator: instance of BatchGenerator
-                    A batch generator that provides testing data
+                    A batch generator that provides test data
         """
-        self.test_generator = test_generator
+        self._test_generator = test_generator    
+    
+    # def set_train_generator(self, train_generator):
+        
+    #     self.train_generator = train_generator
 
-    def set_log_dir(self, log_dir):
+    # def set_val_generator(self, val_generator):
+    #     """ Link a batch generator (used for validation) to this instance.
+
+    #         Args:
+    #             val_generator: instance of BatchGenerator
+    #                 A batch generator that provides validation data during the training loop 
+    #     """
+    #     self.val_generator = val_generator
+
+    # def set_test_generator(self, test_generator):
+    #     """ Link a batch generator (used for testing) to this instance.
+
+    #         Args:
+    #             test_generator: instance of BatchGenerator
+    #                 A batch generator that provides testing data
+    #     """
+    #     self.test_generator = test_generator
+
+    @property
+    def log_dir(self):
+        return self._log_dir
+
+    @log_dir.setter
+    def log_dir(self, log_dir):
         """ Defines the directory where tensorboard log files and .csv log files can be stored
         
-            Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
+             Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
 
-            Args:
-                log_dir:str
-                    Path to the directory 
-
+             Args:
+                 log_dir:str
+                     Path to the directory 
         """
-        self.log_dir = log_dir
-        os.makedirs(self.log_dir, exist_ok=True)
+        self._log_dir = log_dir
+        os.makedirs(self._log_dir, exist_ok=True)
+    
+    # def set_log_dir(self, log_dir):
+    #     """ Defines the directory where tensorboard log files and .csv log files can be stored
         
-    def set_checkpoint_dir(self, checkpoint_dir):
+    #         Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
+
+    #         Args:
+    #             log_dir:str
+    #                 Path to the directory 
+
+    #     """
+    #     self.log_dir = log_dir
+    #     os.makedirs(self.log_dir, exist_ok=True)
+        
+    @property
+    def checkpoint_dir(self):
+        return self._checkpoint_dir
+
+    @checkpoint_dir.setter
+    def checkpoint_dir(self, checkpoint_dir):
         """ Defines the directory where tensorflow checkpoint files can be stored
 
             Args:
@@ -875,17 +938,29 @@ class NNInterface():
 
         """
 
-        self.checkpoint_dir = checkpoint_dir
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self._checkpoint_dir = checkpoint_dir
+        os.makedirs(self._checkpoint_dir, exist_ok=True)
 
-    def set_tensorboard_callback(self):
+    # def set_checkpoint_dir(self, checkpoint_dir):
+    #     """ Defines the directory where tensorflow checkpoint files can be stored
+
+    #         Args:
+    #             log_dir:str
+    #                 Path to the directory
+
+    #     """
+
+    #     self.checkpoint_dir = checkpoint_dir
+    #     os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def _set_tensorboard_callback(self):
         """ Link tensorboard callback to this instances model, so that tensorboard logs can be saved
         """
 
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
         tensorboard_callback.set_model(self.model)
         
-    def print_metrics(self, metric_values):
+    def _print_metrics(self, metric_values):
         """ Print the metric values to the screen.
 
             This method can be overwritten to customize the message.
@@ -897,12 +972,11 @@ class NNInterface():
         """
 
         message  = [self.model.metrics_names[i] + ": {:.3f} ".format(metric_values[i]) for i in range(len(self.model.metrics_names))]
-        #import pdb; pdb.set_trace()
         print(''.join(message))
 
 
 
-    def name_logs(self, logs, prefix="train_"):
+    def _name_logs(self, logs, prefix="train_"):
         """ Attach the prefix string to each log name.
 
             Args:
@@ -922,130 +996,110 @@ class NNInterface():
             named_logs[prefix+l[0]] = l[1]
         return named_logs
 
-    def train_loop(self, n_epochs, verbose=2, validate=True, log_tensorboard=False, log_csv=False,  ):
+    @tf.function
+    def _train_step(self, inputs, labels):
+        with tf.GradientTape() as tape:
+            predictions = self.model(inputs, training=True)
+            loss = self.loss_function.instance(labels, predictions)
+        gradients = tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.instance.apply_gradients(zip(gradients, self.model.trainable_variables))
+        self._train_loss(loss)
+        
+        for train_metric in self._train_metrics:
+            train_metric(labels, predictions)
+
+    @tf.function
+    def _val_step(self,inputs, labels):
+        predictions = self.model(inputs, training=False)
+        v_loss = self.loss_function.instance(labels, predictions)
+
+        self._val_loss(v_loss)
+        for val_metric in self._val_metrics:
+            val_metric(labels, predictions)
+            
+
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
         if log_csv == True:
-            column_names = ['epoch', 'loss', 'dataset'] + [ m.name for m in self.metrics]
-            if self.secondary_metrics is not None:
-                secondary_metric_names = [ m.name for m in self.secondary_metrics]
-                column_names = column_names + secondary_metric_names
-                
+            column_names = ['epoch', 'loss', 'dataset'] + [ m.recipe_name for m in self.metrics]
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
-            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self.log_dir, "tensorboard_metrics"))
+            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, "tensorboard_metrics"))
             tensorboard_writer.set_as_default()
 
 
         for epoch in range(n_epochs):
             #Reset the metric accumulators
-            batch_metrics = {}
-            if self.secondary_metrics is not None:
-                for m in self.secondary_metrics:
-                    batch_metrics['train_' + m.name] = 0
-                    batch_metrics['val_' + m.name] = 0
-                    batch_metrics['test_' + m.name] = 0
+            self._train_loss.reset_states()
+            for train_metric in self._train_metrics:
+                train_metric.reset_states()
+
             
-           
-            self.model.reset_metrics()
-                
-            for train_batch_id in range(self.train_generator.n_batches):
-                train_X, train_Y = next(self.train_generator)  
-                train_result = self.model.train_on_batch(train_X, train_Y)
-
-                if self.secondary_metrics is not None:
-                    train_set_pred = self.model.predict(train_X)
-                    for m in self.secondary_metrics:
-                        batch_metrics['train_' + m.name] += m.func(y_true=train_Y, y_pred=train_set_pred)
-                        
-
-
-                if verbose >=2:
-                    message  = ["Epoch: " + str(epoch) + " batch: " + str(train_batch_id) + " | "] + [self.model.metrics_names[i] + ": {:.3f} ".format(train_result[i]) for i in range(len(self.model.metrics_names))]
-                    print(''.join(message))
-
-
-            if self.secondary_metrics is not None:
-                for m in self.secondary_metrics:
-                    batch_metrics['train_' + m.name] = float(batch_metrics['train_' + m.name] / self.train_generator.n_batches)
             
-            if verbose >=1 and self.secondary_metrics is not None:
-                metrics_values_msg = ""
-                for m in self.secondary_metrics:
-                    metrics_values_msg += 'train_' + m.name + ": " + str(round(float(batch_metrics['train_' + m.name]),3)) + " "
+            self._val_loss.reset_states()
+            for val_metric in self._val_metrics:
+                val_metric.reset_states()
                 
-                print("====================================================================================")
-                print("train: ","Epoch:{}".format(epoch))
-                print(metrics_values_msg)
+            for train_batch_id in range(self._train_generator.n_batches):
+                train_X, train_Y = next(self._train_generator)  
+                self._train_step(train_X, train_Y)
+                                
+            if verbose == True:
+                print("\n====================================================================================")
+                print("Epoch: {} \ntrain_loss: {}".format(epoch + 1, self._train_loss.result()))
+                print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._train_metrics]))
 
+            
             if log_csv == True:
-                log_row = [epoch, train_result[0], "train"] + train_result[1:]
-                if self.secondary_metrics is not None:
-                    log_row = log_row + [batch_metrics['train_' + m.name] for m in self.secondary_metrics]
+                log_row = [epoch + 1, self._train_loss.result().numpy(), "train"]
+                log_row = log_row + [m.result().numpy() for m in self._train_metrics]
 
                 log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
              
             
             if log_tensorboard == True:
-                tf.summary.scalar('train_loss', data=train_result[0], step=epoch)
-                for m_index, m in enumerate(self.metrics):
-                    tf.summary.scalar('train_' + m.name, data = train_result[m_index + 1], step=epoch  ) #the first train_result is the loss
-                if self.secondary_metrics is not None:
-                    for m in self.secondary_metrics:
-                        tf.summary.scalar('train_' + m.name, data = batch_metrics['train_' + m.name], step=epoch)
-
+                tf.summary.scalar('train_loss', data=self._train_loss.result().numpy(), step=epoch)
+                for m in self._train_metrics:
+                    tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
+            
+            
             if validate == True:
-                for val_batch_id in range(self.val_generator.n_batches):
-                    val_X, val_Y = next(self.val_generator)
-                    val_result = self.model.test_on_batch(val_X, val_Y, 
-                                                # return accumulated metrics
-                                                reset_metrics=False)
-                    
-                    if self.secondary_metrics is not None:
-                        val_set_pred = self.model.predict(val_X)
-                        for m in self.secondary_metrics:
-                            batch_metrics['val_' + m.name] += m.func(y_true=val_Y, y_pred=val_set_pred)
-
-
-                if self.secondary_metrics is not None:
-                    
-                    for m in self.secondary_metrics:
-                        batch_metrics['val_' + m.name] = float(batch_metrics['val_' + m.name] / self.val_generator.n_batches)
-                
-                if verbose >=1 and self.secondary_metrics is not None:
-                    metrics_values_msg = ""
-                    for m in self.secondary_metrics:
-                        metrics_values_msg += 'val_' + m.name + ": " + str(round(float(batch_metrics['val_' + m.name]),3)) + " "
-                    
-                    print("====================================================================================")
-                    print("Val: ")
-                    print(metrics_values_msg )
-                    print("====================================================================================\n")
-
-                    
-
+                for val_batch_id in range(self._val_generator.n_batches):
+                    val_X, val_Y = next(self._val_generator)
+                    self._val_step(val_X, val_Y)
+                                           
+                                    
+                if verbose == True:
+                    print("val_loss: {}".format(self._val_loss.result()))
+                    print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
 
                 if log_csv == True:
-                    log_row = [epoch, val_result[0], "val"] + val_result[1:]
-                    if self.secondary_metrics is not None:
-                        log_row = log_row + [batch_metrics['val_' + m.name] for m in self.secondary_metrics]
+                    log_row = [epoch + 1, self._val_loss.result().numpy(), "val"]
+                    log_row = log_row + [m.result().numpy() for m in self._val_metrics]
 
-                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns),ignore_index=True)
+                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
-                            
+             
+            
                 if log_tensorboard == True:
-                    tf.summary.scalar('val_loss', data=val_result[0], step=epoch)
-                    for m_index, m in enumerate(self.metrics):
-                        tf.summary.scalar('val_' + m.name, data = val_result[m_index + 1], step=epoch  ) #the first val_result is the loss
-                    if self.secondary_metrics is not None:
-                        for m in self.secondary_metrics:
-                            tf.summary.scalar('val_' + m.name, data = batch_metrics['val_' + m.name], step=epoch)
-                        
+                    tf.summary.scalar('val_loss', data=self._val_loss.result().numpy(), step=epoch)
+                    for m in self._val_metrics:
+                        tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
+
+            if verbose == True:
+                print("\n====================================================================================")
+
+
+            if (epoch + 1)  % checkpoint_freq == 0:
+                checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
+                self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
+                    
         if log_csv == True:
-            log_csv_df.to_csv(os.path.join(self.log_dir,"log.csv"))
+            log_csv_df.to_csv(os.path.join(self._log_dir,"log.csv"))
 
         
-    def run(self, input, return_raw_output=False):
+    def run_on_instance(self, input, return_raw_output=False):
         """ Run the model on one input
 
             Args:
@@ -1060,11 +1114,11 @@ class NNInterface():
                     The model output
                 
         """
-        input = self.transform_input(input)
+        input = self._transform_input(input)
         output = self.model.predict(input)
         
         if not return_raw_output:
-            return self.transform_output(output)
+            return self._transform_output(output)
         else:
             return output
 
@@ -1087,11 +1141,11 @@ class NNInterface():
         """
 
         if transform_input == True:
-            input_batch = self.transform_input(input_batch)
+            input_batch = self._transform_input(input_batch)
         output = self.model.predict(input_batch)
         
         if not return_raw_output:
-            return self.transform_output(output)
+            return self._transform_output(output)
         else:
             return output
 

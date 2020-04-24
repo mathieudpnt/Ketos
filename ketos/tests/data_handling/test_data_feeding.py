@@ -34,7 +34,7 @@ import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
 from ketos.data_handling.data_feeding import BatchGenerator
-from ketos.neural_networks.neural_networks import class_confidences, predictions
+
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
