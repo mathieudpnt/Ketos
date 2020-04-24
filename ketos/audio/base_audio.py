@@ -461,7 +461,7 @@ class BaseAudio():
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
 
-            Input arguments are described in :method:`audio.annotation.AnnotationHandler.add`
+            Input arguments are described in :meth:`ketos.audio.annotation.AnnotationHandler.add`
         """
         if self.annot is None: #if the object does not have an annotation handler, create one!
             self.annot = AnnotationHandler() 
