@@ -17,13 +17,13 @@ audio time series. For example, the following command will load a segment of a w
 
 The Waveform object thus created stores the audio data as a Numpy array along with the filename, offset, and some additional attributes::
 
-    >>> print(type(audio.get_data()))
+    >>> type(audio.get_data())
     <class 'numpy.ndarray'>
-    >>> print(audio.get_filename())
-    sound.wav
-    >>> print(audio.get_offset())
+    >>> audio.get_filename()
+    'sound.wav'
+    >>> audio.get_offset()
     3.0
-    >>> print(audio.get_attrs())
+    >>> audio.get_attrs()
     {'rate': 1000, 'type': 'Waveform'}
 
 To Waveform class has a number of useful methods for manipulating audio data, e.g., adding Gaussian noise to 
@@ -49,18 +49,26 @@ Like a waveform, a spectrogram object can also be created directly from a wav fi
 The MagSpectrogram object thus created stores the spectral representation of the audio data as a (masked) 2D Numpy array along with the 
 filename, offset, and some additional attributes::
 
-    >>> print(type(audio.get_data()))
+    >>> type(spec.get_data())
     <class 'numpy.ma.core.MaskedArray'>
-    >>> print(audio.get_filename())
-    sound.wav
-    >>> print(audio.get_offset())
+    >>> audio.get_filename()
+    'sound.wav'
+    >>> spec.get_offset()
     3.0
-    >>> print(audio.get_attrs())
+    >>> spec.get_attrs()
     {'time_res': 0.01, 'freq_min': 0.0, 'freq_res': 4.9504950495049505, 'window_func': 'hamming', 'type': 'MagSpectrogram'}
 
 The spectrogram classes have a number of useful methods for manipulating spectrograms, e.g., cropping in either the time or 
 frequency dimension or both (:meth:`crop <ketos.audio.spectrogram.Spectrogram.crop>`), or recovering 
 the original waveform (:meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>`). 
+Note that annotations can be added to both waveform and spectrogram objects using the 
+:meth:`annotate <ketos.audio.base_audio.BaseAudio.annotate>` method. For example,::
+
+    >>> spec.annotate(start=3.5, end=4.6, label=1)
+    >>> spec.get_annotations()
+   label  start  end  freq_min  freq_max
+0      1    3.5  4.6       NaN       NaN
+
 Please consult the documentation of the :ref:`spectrogram` module for the complete list.
 
 
