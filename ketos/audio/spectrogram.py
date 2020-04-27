@@ -1321,7 +1321,7 @@ class MelSpectrogram(Spectrogram):
         if filter_bank:
             img = self.filter_banks
             fig, ax = plt.subplots(figsize=figsize)
-            extent = (0,self.length,self.freq_min(),self.freq_max())
+            extent = (0,self.duration(),self.freq_min(),self.freq_max())
             img_plot = ax.imshow(img.T,aspect='auto',origin='lower', cmap=cmap, extent=extent)
             ax.set_xlabel(self.time_ax.label)
             fig.colorbar(img_plot,format='%+2.0f dB')
