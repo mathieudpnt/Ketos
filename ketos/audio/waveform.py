@@ -24,7 +24,7 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-""" audio module within the ketos library
+""" Waveform module within the ketos library
 
     This module provides utilities to work with audio data.
 

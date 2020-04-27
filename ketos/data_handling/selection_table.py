@@ -28,9 +28,7 @@
 
     This module provides functions for handling annotation tables and creating 
     selection tables. 
-    A Ketos annotation table always uses two levels of indices, the first index 
-    being the filename and the second index an annotation identifier, and always 
-    has the column 'label'. 
+    A Ketos annotation table always has the column 'label'. 
     For call-level annotations, the table also contains the columns 'start' 
     and 'end', giving the start and end time of the call measured in seconds 
     since the beginning of the file. 
