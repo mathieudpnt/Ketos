@@ -1,3 +1,5 @@
+.. _selection_table:
+
 Selection Table
 ================
 

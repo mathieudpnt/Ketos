@@ -2,11 +2,9 @@ Neural Networks
 ----------------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
-   neural_networks
-   losses
-   metrics
-   nn_interface
+   overview
    cnn
    resnet
+   Developer utilities <dev_utils/index>

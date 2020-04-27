@@ -185,8 +185,8 @@ class BatchGenerator():
 
         self.from_memory = x is not None and y is not None
         self.annot_in_data_table = annot_in_data_table
-
-       
+        self.filter = filter
+        
 
         if self.from_memory:
             check_data_sanity(x, y)
@@ -216,7 +216,7 @@ class BatchGenerator():
                 self.n_instances = len(select_indices)
                 self.select_indices = select_indices
 
-            if filter is not None:
+            if self.filter is not None:
                 self.id_row_index = self.data.get_where_list(self.filter)
                 self.select_indices = self.data[self.id_row_index]['id']
                 self.n_instances = len(self.select_indices)

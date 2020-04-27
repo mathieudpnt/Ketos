@@ -585,7 +585,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
-    allow_resizing=1, include_source=True):
+    allow_resizing=1, include_source=True, include_label=True):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -643,13 +643,15 @@ def create_database(output_file, data_dir, selections, channel=0,
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
+            include_label: bool
+                Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
     """
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
-        include_source=include_source)
+        include_source=include_source, include_label=include_label)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -734,11 +736,13 @@ class AudioWriter():
                 If True, the name of the wav file from which the waveform or 
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
+            include_label: bool
+                Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
             filename_len: int
                 Maximum allowed length of filename. Only used if include_source is True.
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
-        allow_resizing=1, include_source=True, max_filename_len=100):
+        allow_resizing=1, include_source=True, include_label=True, max_filename_len=100):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -756,6 +760,7 @@ class AudioWriter():
         self.discard_wrong_shape = discard_wrong_shape
         self.allow_resizing = allow_resizing
         self.include_source = include_source
+        self.include_label = include_label
         self.filename_len = max_filename_len
 
     def set_table(self, path, name):
@@ -883,7 +888,7 @@ class AudioWriter():
 
         elif x is not None:
             annot_type, freq_range = self._detect_annot_type(x)
-            include_label = (annot_type == 'weak')
+            include_label = self.include_label and (annot_type == 'weak')
             descr = table_description(data_shape=x.data.shape, 
                                       include_label=include_label, 
                                       include_source=self.include_source, 

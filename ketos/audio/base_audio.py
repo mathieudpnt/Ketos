@@ -461,7 +461,7 @@ class BaseAudio():
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
 
-            Input arguments are described in :method:`audio.annotation.AnnotationHandler.add`
+            Input arguments are described in :meth:`ketos.audio.annotation.AnnotationHandler.add`
         """
         if self.annot is None: #if the object does not have an annotation handler, create one!
             self.annot = AnnotationHandler() 
@@ -558,7 +558,7 @@ class BaseAudio():
 
         return d
 
-    def plot(self, id=0, figsize=(5,4)):
+    def plot(self, id=0, figsize=(5,4), label_in_title=True):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -572,6 +572,8 @@ class BaseAudio():
                     contains multiple, stacked data arrays.
                 figsize: tuple
                     Figure size
+                label_in_title: bool
+                    Include label (if available) in figure title
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -594,7 +596,7 @@ class BaseAudio():
         # title
         title = ""
         if filename is not None: title += "{0}".format(filename)       
-        if label is not None:
+        if label is not None and label_in_title:
             if len(title) > 0: title += ", "
             title += "{0}".format(label)
 
