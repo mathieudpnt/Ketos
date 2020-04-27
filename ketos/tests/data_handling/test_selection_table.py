@@ -265,6 +265,14 @@ def test_create_rndm_backgr_files_missing_duration(annot_table_std, file_duratio
     dur = file_duration_table.drop(0) 
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=11)
 
+def test_create_rndm_backgr_nonzero_offset(annot_table_std, file_duration_table):
+    """ Check that the random background selection creation method works when file duration 
+        table includes offsets"""
+    np.random.seed(1)
+    df = st.standardize(annot_table_std)
+    file_duration_table['offset'] = [1, 2, 3, 4, 5, 6]
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=file_duration_table, length=2.0, num=11)
+
 def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration_table):
     """ Check that random selections have no overlap"""
     np.random.seed(1)

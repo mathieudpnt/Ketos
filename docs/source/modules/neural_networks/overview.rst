@@ -1,24 +1,22 @@
-Ketos Neural Networks Module Overview
---------------------------------------
+
+Overview
+=========
 
 Ketos provides interfaces that can be used to build and interact with a variety of neural network architectures.
 Currently, the following interfaces are available:
 
-* CNN (CNNInterface): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc)
-* ResNet (ResNetInterface): used to build and interact with typical 2D Residual Networks
+* CNN (:class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc)
+* ResNet (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNetInterface>`): used to build and interact with typical 2D Residual Networks
 
 
 The interfaces have common methods, which will be all that most users will need to create neural networks, train on their own data, load pre-trained models, etc.
 
 
-Code Snnipets
-~~~~~~~~~~~~~~
-
 Here are a few snippets commonly used
 
 
 Loading a pre-trained model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 Ketos makes it easy to save and load trained models, so you can share your trained neural networks or use what others make available.
 When you load a saved model, ketos will build the same network architecture used by the model you are loading and then populate it with the saved weights.
@@ -39,7 +37,7 @@ We will see how to save a network after training it, but first let's see how to 
 
 
 Creating a fresh model from a recipe
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------
 
 Ketos recipes are instructions that the network interfaces use to replicate an architecture and other supporting.
 Different from loading a pre-trained model, the recipe does not contains any weights, so the result is a fresh network.
@@ -139,7 +137,7 @@ This can be useful for programatically generating recipes, but most users will f
 
 
 Training a model
-~~~~~~~~~~~~~~~~
+-----------------
 
 
 With a freshly built model, you can start training on your own data.
@@ -187,9 +185,9 @@ Advanced users who are able to implement their own neural network architectures 
 wrap them with the ketos interface. This will allow to their architectures to use the same functionalities
 available to the architectures implemented in Ketos (e.g.: saving/loading models,  saving/loading recipes, using the batch generators, etc).
 
-These functionalities are implemented by the NNInterface class (found in :ref:`nn_interface` ).
+These functionalities are implemented by the NNInterface class (found in :class:`NNInterface <ketos.neural_networks.dev_utils.nn_interface.NNInterface>` ).
 The following examples demonstrate minimum integrations. For a comprehensive look into the interface, developers are encouraged to look
-into this class' source code and how it is used within ketos (for example, in the CNNInterface class found in :ref:`cnn`).
+into this class' source code and how it is used within ketos (for example, in the CNNInterface class found in :class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`).
 
 Ketos uses architectures implemented with TensorFlow 2's subclassing API.
 For the following examples, let's suppose you implemented a simple multilayer perceptron and now want to integrate it with Ketos.
@@ -248,10 +246,11 @@ This is useful you want to share your interface with other users or if you envis
 
         from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
         
-        def _build_from_recipe(cls, recipe, recipe_compat=True):
+        
+        class MLPInterface(NNInterface): 
         
             @classmethod
-            def _build_from_recipe(cls, recipe):
+            def _build_from_recipe(cls, recipe, recipe_compat=True):
                 n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
                 activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
                 

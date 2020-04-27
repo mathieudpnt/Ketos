@@ -88,7 +88,7 @@ alexnet_like_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape"
 
                     }
 
-default_recipe = {'convolutional_layers':  [{'n_filters':32, "filter_shape":(8,8), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
+default_cnn_recipe = {'convolutional_layers':  [{'n_filters':32, "filter_shape":(8,8), 'strides':4, 'padding':'valid',  'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },
                                     {'n_filters':64, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True, },],
                   
                   'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -436,29 +436,18 @@ class CNNInterface(NNInterface):
         return recipe_dict
 
 
-    def __init__(self, convolutional_layers=default_recipe['convolutional_layers'], dense_layers=default_recipe['dense_layers'],
-                 n_classes=default_recipe['n_classes'], optimizer=default_recipe['optimizer'], loss_function=default_recipe['loss_function'], 
-                 metrics=default_recipe['metrics']):
+    def __init__(self, convolutional_layers=default_cnn_recipe['convolutional_layers'], dense_layers=default_cnn_recipe['dense_layers'],
+                 n_classes=default_cnn_recipe['n_classes'], optimizer=default_cnn_recipe['optimizer'], loss_function=default_cnn_recipe['loss_function'], 
+                 metrics=default_cnn_recipe['metrics']):
         super(CNNInterface, self).__init__(optimizer, loss_function, metrics)
         self.conv_set = None
         self.dense_det = None
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
-        # self.optimizer = optimizer
-        # self.loss_function = loss_function
-        # self.metrics = metrics
        
         self.model=CNNArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
-        # self.compile_model()
-
-        
-        # self.log_dir = None
-        # self.checkpoint_dir = None
-        # self.tensorboard_callback = None
-        # self.train_generator = None
-        # self.val_generator = None
-        # self.test_generator = None
+       
 
 
     def _extract_recipe_dict(self):

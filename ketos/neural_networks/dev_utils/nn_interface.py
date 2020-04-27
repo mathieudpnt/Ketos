@@ -105,22 +105,31 @@ class NNInterface():
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
-        >>> class MLPInterface(NNInterface): # doctest: +SKIP
+        from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
+        
+        >>> class MLPInterface(NNInterface):  # doctest: +SKIP
         ...
         ...    @classmethod
-        ...    def build_from_recipe(cls, recipe):
-        ...        n_neurons = recipe['n_neurons']
-        ...        activation = recipe['activation']
-        ...        optimizer = recipe['optimizer']
-        ...        loss_function = recipe['loss_function']
-        ...        metrics = recipe['metrics']
+        ...    def _build_from_recipe(cls, recipe, recipe_compat=True):
+        ...        n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
+        ...        activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
+        ...        
+        ...         if recipe_compat == True:
+        ...            optimizer = recipe['optimizer']
+        ...            loss_function = recipe['loss_function']
+        ...            metrics = recipe['metrics']
+        ...            
+        ...        else:
+        ...            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+        ...            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+        ...            metrics = cls._metrics_from_recipe(recipe['metrics'])
         ...
         ...        instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
         ...
         ...        return instance
         ... 
-        ...   @classmethod
-        ...   def read_recipe_file(cls, json_file, return_recipe_compat=True):
+        ...  @classmethod
+        ...  def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         ...        
         ...        with open(json_file, 'r') as json_recipe:
         ...            recipe_dict = json.load(json_recipe)
@@ -135,35 +144,33 @@ class NNInterface():
         ...            recipe_dict['loss_function'] = loss_function
         ...            recipe_dict['metrics'] = metrics
         ...        else:
-        ...            recipe_dict['optimizer'] = cls.optimizer_to_recipe(optimizer)
-        ...            recipe_dict['loss_function'] = cls.loss_function_to_recipe(loss_function)
-        ...            recipe_dict['metrics'] = cls.metrics_to_recipe(metrics)
+        ...            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+        ...            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+        ...            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
         ...
-        ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']
-        ...        recipe_dict['activation'] = recipe_dict['activation']
+        ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']    # read the n_neurons parameter from the recipe file
+        ...        recipe_dict['activation'] = recipe_dict['activation']  # read the activation parameter from the recipe file
+        ...        
         ...        return recipe_dict
         ...
         ...     def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
-        ...        #super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+        ...        super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
         ...        self.n_neurons = n_neurons
         ...        self.activation = activation
         ...        self.model = MLP(n_neurons=n_neurons, activation=activation)
-        ...        self.optimizer=optimizer
-        ...        self.loss_function=loss_function
-        ...        self.metrics=metrics
+        ...       
         ...
-        ...    def write_recipe(self):
+        ...    def _extract_recipe_dict(self):
         ...   
         ...        recipe = {}
-        ...        recipe['optimizer'] = self.optimizer_to_recipe(self.optimizer)
-        ...        recipe['loss_function'] = self.loss_function_to_recipe(self.loss_function)
-        ...        recipe['metrics'] = self.metrics_to_recipe(self.metrics)
+        ...        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        ...        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        ...        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
         ...        recipe['n_neurons'] = self.n_neurons
         ...        recipe['activation'] = self.activation
+        ...        
         ...        return recipe
-            
-       
-            
+
     """
 
 
@@ -748,7 +755,6 @@ class NNInterface():
         self.loss_function = loss_function
         self.metrics = metrics
         self.model = None
-        #self.compile_model()
         
         self._log_dir = None
         self._checkpoint_dir = None
@@ -818,18 +824,6 @@ class NNInterface():
 
         os.remove(recipe_path)
 
-    
-    # def compile_model(self):
-    #     """ Compile the tensorflow model.
-
-    #         Uses the instance attributes optimizer, loss_function and metrics.
-    #     """
-    #     self.model.compile(optimizer=self.optimizer.func,
-    #                         loss = self.loss_function.func,
-    #                         metrics = [m.func for m in self.metrics])
-    #     self.metrics_names = self.model.metrics_names
-
-
     @property
     def train_generator(self):
         return self._train_generator
@@ -872,28 +866,6 @@ class NNInterface():
         """
         self._test_generator = test_generator    
     
-    # def set_train_generator(self, train_generator):
-        
-    #     self.train_generator = train_generator
-
-    # def set_val_generator(self, val_generator):
-    #     """ Link a batch generator (used for validation) to this instance.
-
-    #         Args:
-    #             val_generator: instance of BatchGenerator
-    #                 A batch generator that provides validation data during the training loop 
-    #     """
-    #     self.val_generator = val_generator
-
-    # def set_test_generator(self, test_generator):
-    #     """ Link a batch generator (used for testing) to this instance.
-
-    #         Args:
-    #             test_generator: instance of BatchGenerator
-    #                 A batch generator that provides testing data
-    #     """
-    #     self.test_generator = test_generator
-
     @property
     def log_dir(self):
         return self._log_dir
@@ -911,18 +883,6 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
-    # def set_log_dir(self, log_dir):
-    #     """ Defines the directory where tensorboard log files and .csv log files can be stored
-        
-    #         Note: Creates folder if it does not exist. If it already exists, this method does not delete any content.
-
-    #         Args:
-    #             log_dir:str
-    #                 Path to the directory 
-
-    #     """
-    #     self.log_dir = log_dir
-    #     os.makedirs(self.log_dir, exist_ok=True)
         
     @property
     def checkpoint_dir(self):
@@ -941,18 +901,7 @@ class NNInterface():
         self._checkpoint_dir = checkpoint_dir
         os.makedirs(self._checkpoint_dir, exist_ok=True)
 
-    # def set_checkpoint_dir(self, checkpoint_dir):
-    #     """ Defines the directory where tensorflow checkpoint files can be stored
-
-    #         Args:
-    #             log_dir:str
-    #                 Path to the directory
-
-    #     """
-
-    #     self.checkpoint_dir = checkpoint_dir
-    #     os.makedirs(self.checkpoint_dir, exist_ok=True)
-
+    
     def _set_tensorboard_callback(self):
         """ Link tensorboard callback to this instances model, so that tensorboard logs can be saved
         """
@@ -1018,13 +967,67 @@ class NNInterface():
             val_metric(labels, predictions)
             
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, log_csv=False, checkpoint_freq=5):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5):
+        """ Train the model
+
+
+            Typically, before starting the training loop, a few steps will already have been taken:
+            
+        
+            #Set the batch generator for the training data
+            model.train_generator = my_train_generator
+            #Set the batch generator for the validation data (optional; only if the validate option is set to True)
+            model.val_generator = my_val_generator
+            # Set the log_dir
+            model.log_dir = "./my_logs"
+            # Set the checkpoint_dir
+            model.checkpoint_dir = "./my_checkpoints"
+            model.train_loop(n_epochs=50)
+
+
+            Args:
+                n_epochs:int
+                    The number of epochs (i.e.: passes through the entire training dataset, as defined by the train_generator attribute)
+                verbose:bool
+                    If True, print summary metrics at the end of each epoch
+                validate:bool
+                    If True, evaluate the model on the validation data (as defined by the val_generator attribute) at the end of each epoch
+                log_tensorboard:bool
+                    If True, log the training and validation (if validate is True) metrics in the tensoraboard format.
+                    See 'tensorboard_metrics_name' below.
+                tensorboard_metrics_name:string
+                    The name of the directory where the tensorboard metrics will be saved. This directory will be created within the path specified by the log_dir attribute.
+                    Default is 'tensorboard_metrics'. Only relevant if log_tensorboard is True.
+                log_csv:bool
+                    If True, log the training and validation (if validate is True) metrics in a csv file (see csv_name).
+                    
+                    The csv will have the following columns:
+                    epoch: the epoch number, starting from 1
+                    loss: the value of the loss metric
+                    dataset: 'train' or 'val'(only when validate is True)
+                    In addition, each metric defined by the metrics attribute will be added as a column.
+
+                    Example:
+                    
+                    epoch,loss,dataset,CategoricalAccuracy,Precision,Recall
+                    1,0.353,train,0.668,0.653,0.796
+                    1,0.560,val,0.448,0.448,1.0
+                    ...
+                    50,0.053,train,0.968,0.953,0.986
+                    50,0.160,val,0.848,0.748,0.838
+
+                checkpoint_freq:int
+                    The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
+                
+
+        """
+
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.recipe_name for m in self.metrics]
             log_csv_df = pd.DataFrame(columns = column_names)
 
         if log_tensorboard == True:
-            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, "tensorboard_metrics"))
+            tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, tensorboard_metrics_name))
             tensorboard_writer.set_as_default()
 
 
@@ -1096,7 +1099,7 @@ class NNInterface():
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
                     
         if log_csv == True:
-            log_csv_df.to_csv(os.path.join(self._log_dir,"log.csv"))
+            log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
 
         
     def run_on_instance(self, input, return_raw_output=False):

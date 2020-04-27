@@ -1,7 +1,7 @@
 Audio Processing
 -----------------
 
-The audio modules provide high-level interfaces for loading, handling, and manipulating audio data 
+The audio modules provide high-level interfaces for loading and manipulating audio data 
 and computing various spectral representations such as magnitude spectrograms and CQT spectrograms. 
 For the implementation of these functionalities, we rely extensively on 
 `LibROSA <https://librosa.github.io/librosa/>`_ and `SoundFile <https://pysoundfile.readthedocs.io/en/latest/index.html>`_ .
