@@ -5,8 +5,8 @@ Overview
 Ketos provides interfaces that can be used to build and interact with a variety of neural network architectures.
 Currently, the following interfaces are available:
 
-* CNN (CNNInterface): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc)
-* ResNet (ResNetInterface): used to build and interact with typical 2D Residual Networks
+* CNN (:class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc)
+* ResNet (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNetInterface>`): used to build and interact with typical 2D Residual Networks
 
 
 The interfaces have common methods, which will be all that most users will need to create neural networks, train on their own data, load pre-trained models, etc.
@@ -185,9 +185,9 @@ Advanced users who are able to implement their own neural network architectures 
 wrap them with the ketos interface. This will allow to their architectures to use the same functionalities
 available to the architectures implemented in Ketos (e.g.: saving/loading models,  saving/loading recipes, using the batch generators, etc).
 
-These functionalities are implemented by the NNInterface class (found in :doc:`nn_interface` ).
+These functionalities are implemented by the NNInterface class (found in :class:`NNInterface <ketos.neural_networks.dev_utils.nn_interface.NNInterface>` ).
 The following examples demonstrate minimum integrations. For a comprehensive look into the interface, developers are encouraged to look
-into this class' source code and how it is used within ketos (for example, in the CNNInterface class found in :doc:`cnn`).
+into this class' source code and how it is used within ketos (for example, in the CNNInterface class found in :class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`).
 
 Ketos uses architectures implemented with TensorFlow 2's subclassing API.
 For the following examples, let's suppose you implemented a simple multilayer perceptron and now want to integrate it with Ketos.

@@ -5,7 +5,6 @@ Neural Networks
    :maxdepth: 1
    
    overview
-   losses
-   nn_interface
    cnn
    resnet
+   Developer utilities <dev_utils/index>
