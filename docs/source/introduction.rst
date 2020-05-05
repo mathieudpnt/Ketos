@@ -24,7 +24,9 @@ some familiarity with Python and especially the NumPy package would be beneficia
 the fundamentals of machine learning and neural networks would also be an advantage.
 
 To get started with Ketos, follow the :ref:`installation_instructions` instructions and then proceed to 
-the :ref:`tutorials` section.
+the :ref:`tutorials` section. For an example application of Ketos, see `Kirsebom, Frazao, et al., Performance of 
+a deep neural network at detecting North Atlantic right whale upcalls, JASA, 147, 2636 (2020) <https://doi.org/10.1121/10.0001132>`_ 
+(`preprint <https://arxiv.org/abs/2001.09127>`_).
 
 The name Ketos was chosen to highlight the package's main intended application, underwater acoustics.
 In Ancient Greek, the word ketos denotes a large fish, whale, shark, or sea monster. The word ketos 
