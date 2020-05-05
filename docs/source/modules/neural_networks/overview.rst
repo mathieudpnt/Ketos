@@ -39,8 +39,8 @@ We will see how to save a network after training it, but first let's see how to 
 Creating a fresh model from a recipe
 ------------------------------------
 
-Ketos recipes are instructions that the network interfaces use to replicate an architecture and other supporting.
-Different from loading a pre-trained model, the recipe does not contains any weights, so the result is a fresh network.
+Ketos recipes are instructions that the network interfaces use to replicate an architecture and other supporting objects, like an otimizer.
+Different from loading a pre-trained model, the recipe does not contain any weights, so the result is a fresh (untrained) network.
 You might want to do this if you want to use the exact same architecture, optimizer, metrics and loss function as used 
 by someone else (or yourself) in another project, but train on a different dataset.
 
@@ -60,11 +60,10 @@ It's also useful if you want to make small modifications (e.g.: change the learn
 More on Ketos recipes
 ----------------------
 
-A recipe file is simply a .json file with the required information for a given ketos network interface. Each interface has it's own recipe format and has a default recipe included it's module.
+A recipe file is simply a .json file with the required information for a given ketos network interface. Each interface has its own recipe format and has a default recipe included in its module.
 When a recipe is loaded, it is represented by a recipe dictionary. The items in this dictionary correspond to the fields in a recipe json file. While the .json recipe represents everything as
-numbers and strings, in the dictionary some values are more comples objects. The  optimizer, loss function and metrics are converted to a Ketos RecipeCompat object, which allows facilitates the
-conversion between the recipe and actual optimizer, loss and metric objects using with the model.
-
+numbers and strings, in the dictionary some values are more complex objects. The  optimizer, loss function and metrics are converted to a Ketos RecipeCompat object, which facilitates the
+conversion between the recipe and the actual optimizer, loss and metric objects using with the model.
 
 
 The easiest way to modify a recipe is to directly edit the .json file.
@@ -85,7 +84,7 @@ The equivalent recipe dictionary (the default recipe in the resnet module).
 .. code-block:: python
     
     
-    >>> from ketos.neuralNetworks.resnet import default_recipe
+    >>> from ketos.neuralNetworks.resnet import default_resnet_recipe
 
     >>> default_recipe
 
@@ -139,9 +138,8 @@ This can be useful for programatically generating recipes, but most users will f
 Training a model
 -----------------
 
-
 With a freshly built model, you can start training on your own data.
-The recommended pipeline  uses data stored in hdf5 databases and ketos batch generators to access that data.
+The recommended pipeline uses data stored in hdf5 databases and ketos batch generators to access that data.
 
 
 .. code-block:: python
@@ -178,11 +176,11 @@ The recommended pipeline  uses data stored in hdf5 databases and ketos batch gen
 For a more detailed guide on training a model, check the 'Train a ResNet classifier' tutorial.
 
 
-Adding the ketos Neural Netwrok interface to your own architectures.
+Adding the ketos Neural Network interface to your own architectures.
 --------------------------------------------------------------------
 
 Advanced users who are able to implement their own neural network architectures might want to 
-wrap them with the ketos interface. This will allow to their architectures to use the same functionalities
+wrap them with the ketos interface. This will allow their architectures to use the same functionalities
 available to the architectures implemented in Ketos (e.g.: saving/loading models,  saving/loading recipes, using the batch generators, etc).
 
 These functionalities are implemented by the NNInterface class (found in :class:`NNInterface <ketos.neural_networks.dev_utils.nn_interface.NNInterface>` ).
@@ -213,7 +211,7 @@ For the following examples, let's suppose you implemented a simple multilayer pe
     
 With the architecture, the interface to the MLP can be created by subclassing NNInterface.
 
-The simplest case will not overwrite any of thre NNInterface's methods:
+The simplest case will not overwrite any of the NNInterface's methods:
 
     .. code-block:: python
 
@@ -230,11 +228,10 @@ The simplest case will not overwrite any of thre NNInterface's methods:
 That might suffice in some cases. The MLPInterface we just created now has access to the all the infrastructure provided by the NNInterface.
 However, you might want to overwrite some of the methods to make your interface easier to reuse.
 
-For example, the NNInterface._transform_input and NNInterface._transform_batch methods are helpful to put input data in the network's expected format.
+For example, the NNInterface._transform_input() and NNInterface._transform_batch methods() are helpful to put input data in the network's expected format.
 They can be used when building BatchGenerators (as seen in the 'Training a model' section above') or pre-processing data at inference time.
-Although you could do whatever processing steps are necessary outside your Interface class, it overwriting these methods makes it easier to keep
-the code using the class simple.
-
+Although you could do whatever processing steps are necessary outside your Interface class, overwriting these methods makes it easier to keep
+the code organized.
 
 In our MLP example, there are two parameters: n_neurons and activation, with default values of 128 and 'relu', respectively.
 By default, the NNInterface only includes the optimizer, loss function and metrics in the recipe and uses the default values for any other parameters defined in your architecture implementation.
