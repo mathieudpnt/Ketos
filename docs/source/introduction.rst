@@ -15,8 +15,8 @@ Ketos was developed by the `MERIDIAN <http://meridian.cs.dal.ca/>`_ Data Analyti
 `Institute for Big Data Analytics <https://bigdata.cs.dal.ca/>`_ at Dalhousie University. 
 We are greatful to Amalis Riera and Francis Juanes at the University of Victoria, 
 Kim Davies and Chris Taggart at Dalhousie University, and Kristen Kanes at Ocean Networks Canada 
-for providing us with annotated acoustic data sets, which played a key role in the development work.
-The first version of Ketos was released in April 2019. 
+for providing us with annotated acoustic data sets, which played a key role in the early phases 
+of the project. The first version of Ketos was released in April 2019. 
 
 The intended users of Ketos are primarily researchers and data scientists working with (underwater) 
 acoustics data. While Ketos comes with complete documentation and comprehensive step-by-step tutorials, 
