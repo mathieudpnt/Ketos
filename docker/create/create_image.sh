@@ -3,7 +3,7 @@
 cp -r ../../ketos/ .
 cp ../../setup.py .
 cp ../../requirements.txt .
-cp ../../../meridian-rtd-theme/dist/sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
+cp ../../../sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
 
 # build image
 docker build --tag=ketos_v2.0.0b0 .

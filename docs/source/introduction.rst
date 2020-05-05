@@ -15,8 +15,8 @@ Ketos was developed by the `MERIDIAN <http://meridian.cs.dal.ca/>`_ Data Analyti
 `Institute for Big Data Analytics <https://bigdata.cs.dal.ca/>`_ at Dalhousie University. 
 We are greatful to Amalis Riera and Francis Juanes at the University of Victoria, 
 Kim Davies and Chris Taggart at Dalhousie University, and Kristen Kanes at Ocean Networks Canada 
-for providing us with annotated acoustic data sets, which played a key role in the development work.
-The first version of Ketos was released in April 2019. 
+for providing us with annotated acoustic data sets, which played a key role in the early phases 
+of the project. The first version of Ketos was released in April 2019. 
 
 The intended users of Ketos are primarily researchers and data scientists working with (underwater) 
 acoustics data. While Ketos comes with complete documentation and comprehensive step-by-step tutorials, 
@@ -24,7 +24,9 @@ some familiarity with Python and especially the NumPy package would be beneficia
 the fundamentals of machine learning and neural networks would also be an advantage.
 
 To get started with Ketos, follow the :ref:`installation_instructions` instructions and then proceed to 
-the :ref:`tutorials` section.
+the :ref:`tutorials` section. For an example application of Ketos, see `Kirsebom, Frazao, et al., Performance of 
+a deep neural network at detecting North Atlantic right whale upcalls, JASA, 147, 2636 (2020) <https://doi.org/10.1121/10.0001132>`_ 
+(`preprint <https://arxiv.org/abs/2001.09127>`_).
 
 The name Ketos was chosen to highlight the package's main intended application, underwater acoustics.
 In Ancient Greek, the word ketos denotes a large fish, whale, shark, or sea monster. The word ketos 

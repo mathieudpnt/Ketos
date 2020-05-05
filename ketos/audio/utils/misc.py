@@ -537,7 +537,7 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
             >>> _ = plt.plot(audio_est)
             >>> plt.savefig("ketos/tests/assets/tmp/sig_est.png")
 
-            .. image:: ../../../../ketos/tests/assets/tmp/sig_est.png
+            .. image:: ../../../../../ketos/tests/assets/tmp/sig_est.png
     """
     # swap axis to conform with librosa 
     image = np.swapaxes(image, 0, 1)

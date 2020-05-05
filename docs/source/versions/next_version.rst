@@ -1,4 +1,4 @@
 Next version
 ============
 
-Features that will be included in the next release will be listed here.
+Features that will be included in version 3.0 will be listed here.
