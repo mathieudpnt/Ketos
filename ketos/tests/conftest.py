@@ -29,12 +29,13 @@ import datetime
 import os
 import numpy as np
 import scipy.signal as sg
+import soundfile as sf
 import pandas as pd
-import ketos.audio_processing.audio_processing as ap
-from ketos.neural_networks.cnn import BasicCNN
+import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
-import ketos.audio_processing.audio as aud
-from tensorflow import reset_default_graph
+from ketos.audio.waveform import Waveform
+from ketos.audio.utils.axis import LinearAxis, Log2Axis
+import ketos.audio.base_audio as aba
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
 
@@ -45,11 +46,8 @@ def sine_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600*np.sin(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = np.sin(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
-
 
 @pytest.fixture
 def square_wave():
@@ -57,9 +55,7 @@ def square_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.square(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = sg.square(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
 
 @pytest.fixture
@@ -68,9 +64,7 @@ def sawtooth_wave():
     frequency = 2000
     duration = 3
     x = np.arange(duration * sampling_rate)
-
-    signal = 32600 * sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
-
+    signal = sg.sawtooth(2 * np.pi * frequency * x / sampling_rate) 
     return sampling_rate, signal
 
 @pytest.fixture
@@ -79,9 +73,7 @@ def const_wave():
     duration = 3
     x = np.arange(duration * sampling_rate)
     signal = np.ones(len(x))
-
     return sampling_rate, signal
-
 
 @pytest.fixture
 def sine_wave_file(sine_wave):
@@ -91,18 +83,15 @@ def sine_wave_file(sine_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-    
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def square_wave_file(square_wave):
@@ -112,18 +101,15 @@ def square_wave_file(square_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "square_wave.wav")
     rate, sig = square_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def sawtooth_wave_file(sawtooth_wave):
@@ -133,18 +119,15 @@ def sawtooth_wave_file(sawtooth_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "sawtooth_wave.wav")
     rate, sig = sawtooth_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
-
 
 @pytest.fixture
 def const_wave_file(const_wave):
@@ -154,15 +137,13 @@ def const_wave_file(const_wave):
        When the tests using this fixture are done, 
        the file is deleted.
 
-
        Yields:
             wav_file : str
                 A string containing the path to the .wav file.
     """
     wav_file =  os.path.join(path_to_assets, "const_wave.wav")
     rate, sig = const_wave
-    ap.wave.write(wav_file, rate=rate, data=sig)
-
+    sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
 
@@ -240,37 +221,9 @@ def database_prepared_for_NN_2_classes():
 
 
 @pytest.fixture
-def trained_BasicCNN(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    path_to_saved_model = os.path.join(path_to_assets, "saved_models")
-    path_to_meta = os.path.join(path_to_saved_model, "trained_BasicCNN")         
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, batch_size=1, num_labels=2)
-    tf_nodes = network.create()
-    network.set_tf_nodes(tf_nodes)
-    network.train()
-    network.save(path_to_meta)
-    test_acc = network.accuracy_on_test()
-    meta = path_to_meta + ".meta"
-    reset_default_graph()
-    return meta, path_to_saved_model, test_acc
-
-@pytest.fixture
 def sine_audio(sine_wave):
     rate, data = sine_wave
-    today = datetime.datetime.today()
-    a = aud.TimeStampedAudioSignal(rate=rate, data=data, time_stamp=today, tag="audio")
-    return a
-
-@pytest.fixture
-def sine_audio_without_time_stamp(sine_wave):
-    rate, data = sine_wave
-    a = aud.AudioSignal(rate=rate, data=data)
+    a = Waveform(rate=rate, data=data, filename='sine_wave')
     return a
     
 @pytest.fixture
@@ -332,3 +285,187 @@ def prepare_database(database, x_column, y_column, divisions):
                         "test_x": stacked_test["x"],
                         "test_y": stacked_test["y"]}
     return stacked_datasets
+
+
+@pytest.fixture
+def file_duration_table():
+    """ Create a table of file durations as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                File duration table
+    """
+    N = 6
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    duration = [x + 30.0 for x in np.arange(N)]
+    tbl = pd.DataFrame({'filename': filename, 'duration': duration})
+    return tbl
+
+@pytest.fixture
+def annot_table_std():
+    """ Create a standardized annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 3, 0, 0, -1]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x%3) for x in np.arange(N)]
+    start = np.arange(N, dtype=float)
+    end = start + 3.3
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
+    return tbl
+
+@pytest.fixture
+def annot_table():
+    """ Create an annotations table as a pandas DataFrame.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = [1, 2, 'k', -99, 'whale', 'zebra']
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    stop = start + 1
+    tbl = pd.DataFrame({'fname': filename, 'label': label, 'start': start, 'STOP': stop})
+    return tbl
+
+@pytest.fixture
+def annot_table_mult_labels():
+    """ Create an annotations table as a pandas DataFrame with 
+        multiple labels per row.
+
+        Yields:
+            tbl: pandas DataFrame
+                Annotation table
+    """
+    label = ['1,2', 3]
+    N = len(label)
+    filename = ['f{0}.wav'.format(x) for x in np.arange(N)]
+    start = np.arange(N)
+    end = start + 1
+    tbl = pd.DataFrame({'filename': filename, 'label': label, 'start': start, 'end': end})
+    return tbl
+
+@pytest.fixture
+def annot_table_file(annot_table):
+    """ Create an annotations table csv file with the 'annot_table()' fixture
+    
+        The file is saved as tests/assets/tmp/annot_002.csv.
+        When the tests using this fixture are done, 
+        the file is deleted.
+
+        Yields:
+            csv_file : str
+                A string containing the path to the .csv file.
+    """
+    csv_file = os.path.join(os.path.join(path_to_assets, "tmp"), "annot_002.csv")
+    tbl = annot_table
+    tbl.to_csv(csv_file, index=False)
+    yield csv_file
+    os.remove(csv_file)
+
+@pytest.fixture
+def linear_axis_200():
+    """ Create a linear axis with range 0-100 and 200 bins.
+
+        Yields:
+            ax: LinearAxis
+                Axis object
+    """
+    ax = LinearAxis(bins=200, extent=(0.,100.))
+    return ax
+
+@pytest.fixture
+def log2_axis_8_16():
+    """ Create a log2 axis with 8 octaves, 16 bins per octave, and 
+        minimum value of 10.
+
+        Yields:
+            ax: Log2Axis
+                Axis object
+    """
+    ax = Log2Axis(bins=8*16, bins_per_oct=16, min_value=10.)
+    return ax
+
+@pytest.fixture
+def spec_image_with_attrs():
+    """ Creates a spectrogram image with shape (20,10) and random pixel values, 
+        with time resolution of 0.5 s, and a linear frequency axis from 0 to 
+        500 Hz.
+
+        Yields:
+            img: 2d numpy array
+                Pixel values
+            dt: float
+                Time resolution
+            ax: LinearAxis
+                Frequency axis            
+    """
+    img = np.random.rand(20,10)
+    dt = 0.5
+    ax = LinearAxis(bins=10, extent=(0.,500.), label='Frequency (Hz)')
+    return img,dt,ax
+
+@pytest.fixture
+def base_audio_1d():
+    """ Create a simple 1d BaseAudio object with value 1 everywhere, length 
+        of 10 s, time resolution of 0.001 s, filename 'x', offset of 2 s, and label 13.
+
+        Yields:
+            o: BaseAudio
+                BaseAudio object
+    """
+    N = 10000
+    d = np.ones(N)
+    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    return o, d
+
+@pytest.fixture
+def base_audio_1d_stacked():
+    """ Create a 1d BaseAudio object consisting of three stacked arrays (with values 1,2,3 
+        everywhere), and having a length of 10 s, time resolution of 0.001 s, filename 'x',
+        'y','z', offset of 2 s, and label 13.
+
+        Yields:
+            o: BaseAudio
+                BaseAudio object
+    """
+    N = 10000
+    d = np.ones((N,3))
+    d[:,1] = 2
+    d[:,2] = 3
+    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
+    return o, d
+
+@pytest.fixture
+def five_time_stamped_wave_files():
+    N = 5
+    path_to_tmp = os.path.join(path_to_assets,'tmp')
+    folder = path_to_tmp + '/five_time_stamped_wave_files/'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    files = list()
+    for i in range(N):
+        fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
+        full_path = os.path.join(folder, fname)
+        a = Waveform(rate=1000, data=np.zeros(500))
+        a.to_wav(full_path)
+        files.append(full_path)
+
+    yield folder
+
+    for f in files:
+        os.remove(f)
+
+@pytest.fixture
+def spectr_settings():
+    j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
+        "window": "0.1 s", "step": "0.025 s",\
+        "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
+        "duration": "1.0s", "resample_method": "scipy"}}'
+    return j

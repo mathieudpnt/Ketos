@@ -1,235 +1,285 @@
-# ================================================================================ #
-#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
-#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
-#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
-#   Team: Data Analytics                                                           #
-#   Project: ketos                                                                 #
-#   Project goal: The ketos library provides functionalities for handling          #
-#   and processing acoustic data and applying deep neural networks to sound        #
-#   detection and classification tasks.                                            #
-#                                                                                  #
-#   License: GNU GPLv3                                                             #
-#                                                                                  #
-#       This program is free software: you can redistribute it and/or modify       #
-#       it under the terms of the GNU General Public License as published by       #
-#       the Free Software Foundation, either version 3 of the License, or          #
-#       (at your option) any later version.                                        #
-#                                                                                  #
-#       This program is distributed in the hope that it will be useful,            #
-#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
-#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
-#       GNU General Public License for more details.                               # 
-#                                                                                  #
-#       You should have received a copy of the GNU General Public License          #
-#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
-# ================================================================================ #
-
-""" Unit tests for the 'cnn' module within the ketos library
-"""
-
 import pytest
+import numpy as np
+import tensorflow as tf
+from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
+from ketos.neural_networks.cnn import CNNArch, CNNInterface
+from ketos.neural_networks.dev_utils.losses import FScoreLoss
 import os
 import tables
-import numpy as np
-import ketos.data_handling.data_handling as dh
-import ketos.data_handling.database_interface as di
-from ketos.data_handling.data_feeding import BatchGenerator, ActiveLearningBatchGenerator
-from ketos.neural_networks.cnn import BasicCNN, ConvParams
-from tensorflow import reset_default_graph
+import json
+
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
-@pytest.mark.test_BasicCNN
-def test_initialize_BasicCNN_with_default_constructor_and_default_args(database_prepared_for_NN):
-    d = database_prepared_for_NN
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    _ = BasicCNN(train_x=train_x, train_y=train_y, verbosity=0)
-    reset_default_graph()
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_default_args(database_prepared_for_NN):
-    d = database_prepared_for_NN
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
-    _ = network.create()
-    network.train()
-    reset_default_graph()
+@pytest.fixture
+def recipe_simple_dict():
+    recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+               'dense_set': [512, 256],
+               'n_classes':2,
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_two_channel_images():
-    N = 32
-    # training data
-    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
-    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
-    # initialize network
-    network = BasicCNN(train_x=train_x, train_y=train_y,  num_labels=2, verbosity=0)
-    _ = network.create()
-    network.train()
-    reset_default_graph()
+    }
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_two_channel_images_and_validation():
-    N = 128
-    # training data
-    train_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
-    train_y = np.sum(train_x, axis=(1,2,3)) > 1.5
-    # validation data
-    val_x = np.random.randn(N,8,6,2) + 3 * np.random.uniform()
-    val_y = np.sum(val_x, axis=(1,2,3)) > 1.5
-    # initialize network
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=val_x, validation_y=val_y,\
-            num_labels=2, verbosity=0, batch_size=32, num_epochs=10)
-    _ = network.create()
-    network.train()
-    reset_default_graph()
+    return recipe
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_batch_norm():
-    x = 2.0 * np.random.randn(128,8,8) + 1.5
-    y = np.random.randn(128)
-    y = (y > 0.5)    
-    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, batch_size=32, num_epochs=3)
-    _ = network.create(batch_norm=True)
-    network.train()
-    # retrieve moving average and variance
-    import tensorflow as tf
-    with tf.variable_scope("", reuse=tf.AUTO_REUSE):
-        out = network.sess.run([tf.get_variable('batch_normalization/moving_mean'),
-                        tf.get_variable('batch_normalization/moving_variance')])
-        moving_average, moving_variance = out
-        assert moving_average[0] == pytest.approx(0.2, abs=0.1)
-        assert moving_variance[0] == pytest.approx(1.3, abs=0.2)
 
-    reset_default_graph()
+@pytest.fixture
+def recipe_simple():
+    recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+               'dense_set': [512, 256],
+               'n_classes':2,        
+               'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+               'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+               'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]
+        
+    }
+    return recipe
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_default_args2(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
-    _ = network.create()
-    network.train()
-    reset_default_graph()
 
-@pytest.mark.test_BasicCNN
-def test_train_BasicCNN_with_train_batch_generator(database_prepared_for_NN_2_classes):
-    """ Test if batch generator returns labels instead of boxes
-    """
-    database = tables.open_file(os.path.join(path_to_assets,"humpback.h5"), 'r')
-    train_data = di.open_table(database, "/train/mel_specs" )
-    val_data = di.open_table(database, "/validation/mel_specs" )
-    test_data = di.open_table(database, "/test/mel_specs")
+@pytest.fixture
+def recipe_detailed_dict():
+    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
+              'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    ],
+               'n_classes':2,
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
+
+    }
+
+    return recipe
+
+@pytest.fixture
+def recipe_detailed():
+    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
+              'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    ],
+               'n_classes':2,
+               'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+               'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+               'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]
+        
+    }
+
+    return recipe
+
+
+def test_CNNArch():
+    conv_layers =  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}]
+
+    dense_layers = [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    ]
     
-    image_shape = train_data[0]['data'].shape
-    def parse_y(y):
-        labels=list(map(lambda l: dh.to1hot(di.parse_labels(l)[0], depth=2), y ))
-        return np.array(labels)
+    cnn = CNNArch(convolutional_layers=conv_layers, dense_layers=dense_layers, n_classes=2)
+    assert len(cnn.layers) == 2
 
+    #convolutional block
+    assert len(cnn.layers[0].layers) == 8
+    assert isinstance(cnn.layers[0].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[2], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[3], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[4], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[5], tf.keras.layers.Conv2D)
+    assert isinstance(cnn.layers[0].layers[6], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[7], tf.keras.layers.BatchNormalization)
 
-    def apply_to_batch(X,Y):
-        Y = parse_y(Y)
-        return (X,Y)
+    #Dense block
+    assert len(cnn.layers[1].layers) == 8
+    assert isinstance(cnn.layers[1].layers[0], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[1].layers[2], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[1].layers[3], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[4], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[1].layers[5], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[1].layers[6], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[1].layers[7], tf.keras.layers.Softmax)
+   
+
+def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
+    detailed_layers = CNNInterface._convolutional_layers_from_conv_set(recipe_simple['conv_set'])
+    assert detailed_layers == recipe_detailed['convolutional_layers']
     
-    validation_x = val_data[:5]['data']
-    validation_y = parse_y(val_data[:5]['labels'])
+
+def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
+    detailed_layers = CNNInterface._dense_layers_from_dense_set(recipe_simple['dense_set'])
+    assert detailed_layers == recipe_detailed['dense_layers']
+
+
+ 
+def test_CNNInterface_build_from_recipe_simple(recipe_simple, recipe_detailed):
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
+
+    assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_simple['optimizer'].args
+
+    assert cnn.loss_function.recipe_name == recipe_simple['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_simple['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_simple['loss_function'].args
+
+    assert cnn.metrics[0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
+
+    assert cnn.conv_set == recipe_simple['conv_set']
+    assert cnn.dense_set == recipe_simple['dense_set']
+    assert cnn.n_classes ==  recipe_simple['n_classes']
+
+
+def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_simple, recipe_detailed):
+    cnn = CNNInterface._build_from_recipe(recipe_simple_dict, recipe_compat=False)
+
+    assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_simple['optimizer'].args
+
+    assert cnn.loss_function.recipe_name == recipe_simple['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_simple['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_simple['loss_function'].args
+
+    assert cnn.metrics[0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
+
+    assert cnn.conv_set == recipe_simple['conv_set']
+    assert cnn.dense_set == recipe_simple['dense_set']
+    assert cnn.n_classes ==  recipe_simple['n_classes']
+
+
+def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
+
+    assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_detailed['optimizer'].args
+
+    assert cnn.loss_function.recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_detailed['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_detailed['loss_function'].args
+
+    assert cnn.metrics[0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
+
+    assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
+    assert cnn.dense_layers == recipe_detailed['dense_layers']
+    assert cnn.n_classes ==  recipe_detailed['n_classes']
+
+def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_detailed_dict):
+    cnn = CNNInterface._build_from_recipe(recipe_detailed_dict, recipe_compat=False)
+
+    assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_detailed['optimizer'].args
+
+    assert cnn.loss_function.recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_detailed['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_detailed['loss_function'].args
+
+    assert cnn.metrics[0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
+
+    assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
+    assert cnn.dense_layers == recipe_detailed['dense_layers']
+    assert cnn.n_classes ==  recipe_detailed['n_classes']
+
+def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
+    written_recipe = cnn._extract_recipe_dict()
+
+    #Even when the model is built from a simplified recipe, the detailed form will be included when writing the recipe again
+
+    recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
+    recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
+
+    assert written_recipe == recipe_simple_dict
     
-    train_generator = BatchGenerator(hdf5_table=train_data, y_field='labels', batch_size=5, return_batch_ids=False, instance_function=apply_to_batch) 
+
+def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detailed):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_simple.json")
+    cnn = CNNInterface._build_from_recipe(recipe_simple)
+    #written_recipe = resnet.write_recipe()
+    cnn.save_recipe_file(path_to_recipe_file)
+
+    #Read recipe as a recipe dict
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
+    recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
+    assert read_recipe == recipe_simple_dict
     
-       
-    network = BasicCNN(image_shape=image_shape, validation_x=validation_x, validation_y=validation_y, num_epochs=2, num_labels=2, seed=123, batch_size=5, verbosity=0 )
 
-    conv_params = [ConvParams(name='conv_1', n_filters=32, filter_shape=[2,8]),
-         ConvParams(name='conv_2', n_filters=64, filter_shape=[30,8])]
+    #Read recipe as a recipe dict with RecipeCompat objects
+    recipe_simple['convolutional_layers'] = recipe_detailed['convolutional_layers']
+    recipe_simple['dense_layers'] = recipe_detailed['dense_layers']
 
-    _ = network.create(conv_params=conv_params, dense_size=[512])
-    network.train(train_batch_gen=train_generator)
-    # network.train()
-    reset_default_graph()
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name == recipe_simple['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_simple['optimizer'].instance.__class__
+    assert read_recipe['optimizer'].args == recipe_simple['optimizer'].args
 
-@pytest.mark.test_BasicCNN
-def test_load_BasicCNN_model(database_prepared_for_NN_2_classes, trained_BasicCNN):
-    d = database_prepared_for_NN_2_classes
-    train_x = d["train_x"]
-    train_y = d["train_y"]
-    validation_x = d["validation_x"]
-    validation_y = d["validation_y"]
-    test_x = d["test_x"]
-    test_y = d["test_y"]
-    network = BasicCNN(train_x=train_x, train_y=train_y, validation_x=validation_x, validation_y=validation_y, test_x=test_x, test_y=test_y, num_labels=2, verbosity=0)
-    path_to_meta, path_to_saved_model, test_acc = trained_BasicCNN
-    _ = network.load(path_to_meta, path_to_saved_model)
-    assert test_acc == network.accuracy_on_test()
-    reset_default_graph()
+    assert read_recipe['loss_function'].recipe_name == recipe_simple['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_simple['loss_function'].instance.__class__
+    assert read_recipe['loss_function'].args == recipe_simple['loss_function'].args
     
-@pytest.mark.test_BasicCNN
-def test_compute_class_weights_with_BasicCNN(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    x = d["train_x"]
-    y = d["train_y"]
-    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, seed=41)
-    _ = network.create()
-    network.train()
-    img = np.zeros((20, 20))
-    result = network.get_class_weights(x=[img])
-    weights = result[0]
-    assert weights[0] + weights[1] == pytest.approx(1.000, abs=0.001)
-    reset_default_graph()
+    assert read_recipe['metrics'][0].recipe_name == recipe_simple['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
+    assert read_recipe['metrics'][0].args == recipe_simple['metrics'][0].args
 
-@pytest.mark.test_BasicCNN
-def test_compute_class_weights_with_BasicCNN_with_batch_norm(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    x = d["train_x"]
-    y = d["train_y"]
-    network = BasicCNN(train_x=x, train_y=y, num_labels=2, verbosity=0, seed=41)
-    _ = network.create(batch_norm=True)
-    network.train()
-    img = np.zeros((20, 20))
-    result = network.get_class_weights(x=[img])
-    weights = result[0]
-    assert weights[0] + weights[1] == pytest.approx(1.000, abs=0.001)
-    reset_default_graph()
+    assert read_recipe['conv_set'] == recipe_simple['conv_set']
+    assert read_recipe['dense_set'] == recipe_simple['dense_set']
+    assert read_recipe['convolutional_layers'] == recipe_simple['convolutional_layers']
+    assert read_recipe['dense_layers'] == recipe_simple['dense_layers']
 
-@pytest.mark.test_BasicCNN
-def test_compute_features_with_BasicCNN(database_prepared_for_NN_2_classes):
-    d = database_prepared_for_NN_2_classes
-    x = d["train_x"]
-    y = d["train_y"]
-    network = BasicCNN(train_x=x, train_y=y,  num_labels=2, verbosity=0, seed=41)
-    _ = network.create()
-    network.train()
-    img = np.zeros((20, 20))
-    result = network.get_features(x=[img], layer_name='dense_1')
-    f = result[0]
-    assert f.shape == (512,)
-    reset_default_graph()
 
-@pytest.mark.test_BasicCNN
-def test_active_learning():
-    # initialize BasicCNN for classifying 2x2 images
-    cnn = BasicCNN(image_shape=(2,2), verbosity=0, seed=1)
-    # create a small network with one convolutional layers and one dense layer
-    params = ConvParams(name='conv_1', n_filters=4, filter_shape=[2,2])
-    _ = cnn.create(conv_params=[params], dense_size=[4])
-    # create some training data
-    img0 = np.zeros(shape=(2,2))
-    img1 = np.ones(shape=(2,2))
-    x = [img0, img1, img0, img1, img0, img1, img0] # input data
-    y = [0, 1, 0, 1, 0, 1, 0] # labels
-    # create a data provider
-    g = ActiveLearningBatchGenerator(session_size=4, batch_size=2, x=x, y=y)
-    # train it
-    _, _ = cnn.train_active(provider=g, num_sessions=3, num_epochs=7, learning_rate=0.005)
-    reset_default_graph()
+def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed.json")
+    cnn = CNNInterface._build_from_recipe(recipe_detailed)
+    #written_recipe = resnet.write_recipe()
+    cnn.save_recipe_file(path_to_recipe_file)
+
+    #Read recipe as a recipe dict
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    recipe_detailed_dict['conv_set'] = None
+    recipe_detailed_dict['dense_set'] = None
+    assert read_recipe == recipe_detailed_dict
+    
+    #Read recipe as a recipe dict with RecipeCompat objects
+    recipe_detailed['conv_set'] = None
+    recipe_detailed['dense_set'] = None
+
+    read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name == recipe_detailed['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_detailed['optimizer'].instance.__class__
+    assert read_recipe['optimizer'].args == recipe_detailed['optimizer'].args
+
+    assert read_recipe['loss_function'].recipe_name == recipe_detailed['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_detailed['loss_function'].instance.__class__
+    assert read_recipe['loss_function'].args == recipe_detailed['loss_function'].args
+    
+    assert read_recipe['metrics'][0].recipe_name == recipe_detailed['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
+    assert read_recipe['metrics'][0].args == recipe_detailed['metrics'][0].args
+
+    assert read_recipe['conv_set'] == recipe_detailed['conv_set']
+    assert read_recipe['dense_set'] == recipe_detailed['dense_set']
+    assert read_recipe['convolutional_layers'] == recipe_detailed['convolutional_layers']
+    assert read_recipe['dense_layers'] == recipe_detailed['dense_layers']
+
+

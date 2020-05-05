@@ -1,3 +1,5 @@
+.. _database_interface:
+
 Database Interface
 ==================
 

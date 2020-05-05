@@ -2,8 +2,9 @@ Neural Networks
 ----------------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
-   neural_networks
+   overview
    cnn
-   edtcn
+   resnet
+   Developer utilities <dev_utils/index>

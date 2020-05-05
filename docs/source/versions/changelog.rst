@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 2.0.0 (beta)** (May 5, 2020)
+
+ * Extensive upgrades to all modules!
+
 
 **Version 1.1.5** (November 20, 2019)
 

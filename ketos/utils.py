@@ -432,6 +432,22 @@ def detect_peaks(df, distance=1, multiplicity=1, prominence=1.0, height=None, th
 
     return res
 
+def complex_value(mag, angle):
+    """ Computes complex value from magnitude and phase angle.
+
+        Args:
+            mag: numpy array
+                Magnitude
+            angle: float or numpy array
+                Phase angle in radians
+
+        Returns:
+            c: numpy array
+                Complex value
+    """
+    phase = np.cos(angle) + 1.j * np.sin(angle)
+    c = mag * phase
+    return c  
 
 def get_member(cls, member_name):
     """ Query class member by name.
@@ -454,3 +470,23 @@ def get_member(cls, member_name):
 
     s = ", ".join(name for name, _ in cls.__members__.items())
     raise ValueError("Unknown value \'{0}\'. Select between: {1}".format(member_name, s))
+
+def str_is_int(s, signed=True):
+    """ Check if a given string represents a (signed) integer.
+
+        Args:
+            s: str
+                Input string.
+            signed: bool
+                Check if string represents a signed integer (default) or unsigned.
+
+        Returns:
+            res: bool
+                Result of check
+    """
+    if signed:
+        res = s.isdigit() or (s.startswith('-') and s[1:].isdigit()) or (s.startswith('+') and s[1:].isdigit())
+    else:
+        res = s.isdigit()
+         
+    return res
