@@ -26,11 +26,7 @@ author = 'Fabio Frazao, Oliver Kirsebom'
 # The short X.Y version
 version = '2.0'
 # The full version, including alpha/beta/rc tags
-<<<<<<< HEAD
-release = '1.1.5'
-=======
-release = '2.0.0-beta4'
->>>>>>> development
+release = '2.0.0b4'
 
 
 # -- General configuration ---------------------------------------------------
