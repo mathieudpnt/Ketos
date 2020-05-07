@@ -25,7 +25,7 @@ Install the PyPI package manager and Jupyter Notebook: ::
 Install Ketos: ::
     
     python setup.py sdist
-    pip install dist/ketos-2.0.0.tar.gz
+    pip install dist/ketos-2.0.0b4.tar.gz
 
 Check that everything is working by running pytest: ::
 

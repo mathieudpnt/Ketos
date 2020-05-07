@@ -54,7 +54,7 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
  4. Install Ketos:
     ```bash
     python setup.py sdist
-    pip install dist/ketos-2.0.0.tar.gz
+    pip install dist/ketos-2.0.0b4.tar.gz
     ```
 
 ## Jupyter notebook tutorials
