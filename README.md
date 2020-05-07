@@ -29,20 +29,20 @@ is also the origin of the scientific term for whales, cetacean.
 
 ## Installation
 
-Ketos is available on the Python package repository and the latest version can be installed with pip: ::
+Ketos is available on the Python package index repository and the latest version can be installed with pip:
 
    ```bash 
-   pip install pip install dist/ketos-2.0.0b4.tar.gz 
+   pip install ketos==2.0.0b4
    ``` 
 
-Because Ketos uses tensorflow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7
-If you have a GPU and would like to take advantage of it, intall tensorflow-gpu after installing ketos: ::
+Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7.
+If you have a GPU and would like to take advantage of it, install tensorflow-gpu after installing ketos:
    
    ```bash 
    pip install tensorflow-gpu 
    ``` 
 
-Note that GPU support depends on CUDA enabled graphics cards and the necessary drivers and libraries. Refer to  https://www.tensorflow.org/install/gpu for more information.
+Note that GPU support depends on CUDA enabled graphics cards and the necessary drivers and libraries. Refer to  https://www.tensorflow.org/install/gpu for more information further instructions.
 
 
 Depending on your operating system, you might have to install other dependencies (like hdf5lib).
@@ -53,7 +53,7 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
 
  1. Clone the Ketos repository:
     ```bash
-    git clone https://gitlab.meridian.cs.dal.ca/public_projects/ketos.git
+    git clone --depth=1 https://gitlab.meridian.cs.dal.ca/public_projects/ketos.git
     cd ketos
     ```
 
@@ -63,7 +63,7 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
     conda activate ketos_env
     ```
 
- 3. Install the PyPI package manager and Jupyter Notebook:
+ 3. Install the pip package manager and Jupyter Notebook:
     ```bash
     conda install pip
     conda install jupyter #if you want to run the executable jupyter notebooks in the tutorials 
