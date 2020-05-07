@@ -51,28 +51,21 @@ If you try the steps above and receive errors due to missing dependencies and do
 Anaconda is freely available from [docs.anaconda.com/anaconda/install](https://docs.anaconda.com/anaconda/install/). 
 Make sure you get the Python 3.7 version and make sure to pick the installer appropriate for your OS (Linux, macOS, Windows) 
 
- 1. Clone the Ketos repository:
-    ```bash
-    git clone --depth=1 https://gitlab.meridian.cs.dal.ca/public_projects/ketos.git
-    cd ketos
-    ```
-
- 2. Create and activate a new Anaconda environment:
+ 1. Create and activate a new Anaconda environment:
     ```bash
     conda create --name ketos_env
     conda activate ketos_env
     ```
 
- 3. Install the pip package manager and Jupyter Notebook:
+ 2. Install the pip package manager and Jupyter Notebook:
     ```bash
     conda install pip
     conda install jupyter #if you want to run the executable jupyter notebooks in the tutorials 
     ```
 
- 4. Install Ketos:
+ 3. Install the latest version of Ketos:
     ```bash
-    python setup.py sdist
-    pip install dist/ketos-2.0.0b4.tar.gz
+    pip install ketos==2.0.0b4
     ```
 
 ## Jupyter notebook tutorials
