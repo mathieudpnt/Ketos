@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_addons as tfa
 from .losses import FScoreLoss
 from zipfile import ZipFile
 from glob import glob
@@ -205,8 +204,7 @@ class NNInterface():
                     'SparseCategoricalCrossentropy':tf.keras.losses.SparseCategoricalCrossentropy,          
                     }
 
-    valid_metrics = {'FScore': tfa.metrics.FBetaScore,
-                     'Accuracy':tf.keras.metrics.Accuracy,
+    valid_metrics = {'Accuracy':tf.keras.metrics.Accuracy,
                      'AUC':tf.keras.metrics.AUC,
                      'BinaryAccuracy':tf.keras.metrics.BinaryAccuracy,
                      'BinaryCrossentropy':tf.keras.metrics.BinaryCrossentropy,
