@@ -1101,6 +1101,29 @@ class NNInterface():
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
 
+    def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):
+        if compute_val_metrics:
+            self._val_loss.reset_states()
+            for val_metric in self._val_metrics:
+                val_metric.reset_states()
+
+        predictions = []
+        for batch_id in range(self._test_generator.n_batches):
+                    X, Y = next(self._test_generator)
+                    if compute_val_metrics: self._val_step(X, Y)
+                    predictions.append(self.model(X, training=False))
+                                           
+                                    
+        if verbose == True and compute_val_metrics == True:
+            print("loss: {}".format(self._val_loss.result()))
+            print("".join([m.name.split('_val')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
+
+        predictions = np.array(predictions)
+
+        return predictions
+
+        
+
         
     def run_on_instance(self, input, return_raw_output=False):
         """ Run the model on one input
