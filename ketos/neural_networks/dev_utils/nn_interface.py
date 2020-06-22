@@ -801,21 +801,31 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-    def save_model(self, model_file):
+    def save_model(self, model_file, checkpoint_name=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
-            The file includes the recipe necessary to build the network architecture and the current parameter weights.
+            The file includes the recipe necessary to build the network architecture and the parameter weights.
 
             Args:
                 model_file: str
                     Path to the .kt file. 
 
+                checkpoint_name: str
+                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    If None, will use the latest checkpoints
+
         """
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
-            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-            checkpoints = glob(latest + '*')                                                                                                                 
+            if checkpoint_name is None:
+                checkpoint_base = tf.train.latest_checkpoint(self.checkpoint_dir)
+            else:
+                checkpoint_base = os.path.join(self.checkpoint_dir, checkpoint_name)
+            
+            checkpoints = glob(checkpoint_base + '*')
+            if len(checkpoints) == 0:
+                raise ValueError("Could not find valid checkpoints.")
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
@@ -883,7 +893,15 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
-        
+    
+    @property
+    def early_stopping_monitor(self, metric="train_loss", decreasing=True, min_epochs=5, max_epochs=None):
+        parameters = {"metric": metric,
+                      "decreasing": decreasing,
+                      "min_epochs": min_epochs,
+                      "max_epochs": max_epochs}
+        self._early_stopping_monitor = parameters
+
     @property
     def checkpoint_dir(self):
         return self._checkpoint_dir
@@ -966,6 +984,7 @@ class NNInterface():
         for val_metric in self._val_metrics:
             val_metric(labels, predictions)
             
+
 
     def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5):
         """ Train the model
