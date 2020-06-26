@@ -764,12 +764,20 @@ class NNInterface():
         self._test_generator = None
 
         self._train_loss = tf.keras.metrics.Mean(name='train_loss')
-        self._val_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._val_loss = tf.keras.metrics.Mean(name='val_loss')
         self._train_metrics = []
         self._val_metrics = []
         for m in self.metrics:
             self._train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
             self._val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
+
+        self._early_stopping_monitor = {"metric": 'val_loss',
+                                        "decreasing": True,
+                                        "period":10,
+                                        "min_epochs": 5,
+                                        "max_epochs": None,
+                                        "delta" : 0.1,
+                                        "baseline":0.5}
 
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a neural network instance.
@@ -895,11 +903,24 @@ class NNInterface():
     
     
     @property
-    def early_stopping_monitor(self, metric="train_loss", decreasing=True, min_epochs=5, max_epochs=None):
-        parameters = {"metric": metric,
-                      "decreasing": decreasing,
-                      "min_epochs": min_epochs,
-                      "max_epochs": max_epochs}
+    def early_stopping_monitor(self):
+        return self._early_stopping_monitor
+
+
+    @early_stopping_monitor.setter
+    def early_stopping_monitor(self, parameters):
+        valid_metrics = [m.name for m in self._train_metrics] + [m.name for m in self._val_metrics] + [self._train_loss.name] + [self._val_loss.name]
+        assert parameters['metric'] in  valid_metrics, "Invalid metric. Must be one of {}".format(str(valid_metrics)) 
+
+
+        # parameters = {"metric": metric,
+        #               "decreasing": decreasing,
+        #               "period": period,
+        #               "min_epochs": min_epochs,
+        #               "max_epochs": max_epochs,
+        #               "delta" : delta,
+        #               "baseline":baseline}
+
         self._early_stopping_monitor = parameters
 
     @property
@@ -985,8 +1006,22 @@ class NNInterface():
             val_metric(labels, predictions)
             
 
+    def _get_metric_value(self, metric_name):
+        if metric_name == 'train_loss':
+            return self._train_loss.result()
+        elif metric_name == "val_loss":
+            return self._val_loss.result()
+        elif metric_name.startswith("train_"):
+            for m in self._train_metrics:
+                if m.name == metric_name:
+                    return m.result()
+        elif metric_name.startswith("val_"):
+            for m in self._val_metrics:
+                if m.name == metric_name:
+                    return m.result()
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5):
+
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5, early_stopping=False):
         """ Train the model
 
 
@@ -1037,6 +1072,9 @@ class NNInterface():
 
                 checkpoint_freq:int
                     The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
+
+                early_stopping: bool
+                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reaches (or n_epochs is reached, whichever happens first).
                 
 
         """
@@ -1049,6 +1087,14 @@ class NNInterface():
             tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, tensorboard_metrics_name))
             tensorboard_writer.set_as_default()
 
+        if early_stopping == True:
+            early_stopping_metric = []
+            best_metric_value = None
+            last_epoch_with_improvement = 0
+            epochs_without_improvement = 0
+            should_stop = False
+            checkpoint_freq = 1
+        
 
         for epoch in range(n_epochs):
             #Reset the metric accumulators
@@ -1109,16 +1155,74 @@ class NNInterface():
                     for m in self._val_metrics:
                         tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
 
+            
+            
+
+            
+
             if verbose == True:
                 print("\n====================================================================================")
-
 
             if (epoch + 1)  % checkpoint_freq == 0:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
+            
+            
+            if early_stopping == True:
+               
+                print("\nFocus metric", self._early_stopping_monitor['metric'])
+                current_early_stopping_metric = (self._get_metric_value(self._early_stopping_monitor['metric']))
+                if best_metric_value is None:
+                    best_metric_value = current_early_stopping_metric
+                # if len(early_stopping) > self._early_stopping_monitor.period:
+                #     early_stopping.pop(0)
+
+                if epoch >= self._early_stopping_monitor['min_epochs']:# and len(early_stopping_metric) > self._early_stopping_monitor.period:
                     
+                    if self._early_stopping_monitor['decreasing'] == True:
+                        if current_early_stopping_metric <= self._early_stopping_monitor['baseline']:
+                            should_stop = True
+                        else:
+                            current_delta = current_early_stopping_metric - best_metric_value
+                            if current_delta < 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is decreasing = improvement
+                                epochs_without_improvement = 0
+                                last_epoch_with_improvement = epoch
+                                best_metric_value = current_early_stopping_metric
+                            else:                 # metric is not decreasing = no improvement
+                                epochs_without_improvement += 1
+                                
+                                
+                    elif self._early_stopping_monitor['decreasing'] == False:
+                        if current_early_stopping_metric >= self._early_stopping_monitor['baseline']:
+                            should_stop = True
+                            print("\nhit baseline")
+                        else:
+                            current_delta = current_early_stopping_metric - best_metric_value
+                            print("abs:", abs(current_delta))
+                            if current_delta > 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is increasing = improvement
+                                epochs_without_improvement = 0
+                                last_epoch_with_improvement = epoch
+                                best_metric_value = current_early_stopping_metric
+                            else:                 # metric is not increasing = no improvement
+                                epochs_without_improvement += 1
+
+                    print("\nEpochs without improvement:", epochs_without_improvement)  
+                    print("\nCurrent value:", current_early_stopping_metric)
+                    print("\nBest value:", best_metric_value)
+
+                    if epochs_without_improvement > self._early_stopping_monitor['period']:
+                        should_stop = True
+                    
+                    if should_stop == True:
+                        break
+
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
+        
+        if early_stopping:
+            last_checkpoint_with_improvement = "cp-{:04d}.ckpt".format(last_epoch_with_improvement + 1)
+            self.model.load_weights(os.path.join(self.checkpoint_dir, last_checkpoint_with_improvement))
+            return {'checkpoint_name':last_checkpoint_with_improvement}
 
     def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):
         if compute_val_metrics:
