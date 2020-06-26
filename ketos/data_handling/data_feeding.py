@@ -211,7 +211,7 @@ class BatchGenerator():
                 self.y_field = [self.y_field]
             if select_indices is None:
                 self.n_instances = self.data.nrows
-                self.select_indices = self.data[:]['id']
+                self.select_indices = self.data.col('id')
             else:
                 self.n_instances = len(select_indices)
                 self.select_indices = select_indices

@@ -5,7 +5,7 @@ Installation
 
 Ketos is available on the Python package index repository and the latest version can be installed with pip: ::
 
-    pip install ketos==2.0.0b4
+    pip install ketos
 
 
 Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7. 
@@ -34,4 +34,4 @@ Install the PyPI package manager and Jupyter Notebook: ::
 
 Install the latest version of Ketos: ::
     
-    pip install ketos==2.0.0b4
+    pip install ketos

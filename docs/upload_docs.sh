@@ -5,10 +5,10 @@ echo 'Enter username'
 read user
 
 # copy html folder
-scp -P 10022 -r build/html $user@206.12.88.81:/var/www/html/ketos2
+scp -P 23022 -r build/html $user@206.12.88.81:/var/www/html/ketos2
 
 # replace old folder on server, and set permissions
-ssh -p 10022 $user@206.12.88.81 << EOF
+ssh -p 23022 $user@206.12.88.81 << EOF
 cd /var/www/html/
 rm -rf ketos
 mv ketos2 ketos
