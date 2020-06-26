@@ -1133,7 +1133,7 @@ class NNInterface():
                                     
         if verbose == True and compute_val_metrics == True:
             print("loss: {}".format(self._val_loss.result()))
-            print("".join([m.name.split('_val')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
+            print("".join([m.name.split('val_')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
 
         predictions = np.array(predictions)
 
