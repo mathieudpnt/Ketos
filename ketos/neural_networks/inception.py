@@ -112,10 +112,9 @@ class InceptionArch(tf.keras.Model):
     """ Implements an Inception network, building on InceptionBlocks
 
         Args:
-            num_blocks:int
+            n_blocks:int
                 Number of Inception Blocks
-
-            num_classes:int
+            n_classes:int
                 Number of possible classes 
             initial_filters:int
                 Number of filters (i.e.: channels) in the first block
@@ -123,20 +122,20 @@ class InceptionArch(tf.keras.Model):
     
     """
 
-    def __init__(self, num_blocks, num_classes, initial_filters=16, **kwargs):
+    def __init__(self, n_blocks, n_classes, initial_filters=16, **kwargs):
         super(Inception, self).__init__(**kwargs)
 
         self.input_channels = initial_filters
         self.output_channels = initial_filters
-        self.num_blocks = num_blocks
-        self.num_classes = num_classes
+        self.n_blocks = n_blocks
+        self.n_classes = n_classes
         self.initial_filters = initial_filters
 
         self.conv1 = ConvBatchNormRelu(self.initial_filters)
 
         self.blocks = tf.keras.models.Sequential(name='dynamic-blocks')
 
-        for block_id in range(self.num_blocks):
+        for block_id in range(self.n_blocks):
             for layer_id in range(2):
 
                 if layer_id == 0:
@@ -149,14 +148,180 @@ class InceptionArch(tf.keras.Model):
             self.output_channels *= 2
 
         self.avg_pool = tf.keras.layers.GlobalAveragePooling2D()
-        self.dense = tf.keras.layers.Dense(self.num_classes)
+        self.dense = tf.keras.layers.Dense(self.n_classes)
+        self.softmax = tf.keras.layers.Softmax()
 
-    def call(self, x, training=None):
-        out = self.conv1(x, training=training)
-        out = self.blocks(out, training=training)
-        out = self.avg_pool(out)
-        out = self.dense(out)
+    def call(self, inputs, training=None):
+        output = self.conv1(inputs, training=training)
+        output = self.blocks(output, training=training)
+        output = self.avg_pool(output)
+        output = self.dense(output)
+        output = self.softmax(output)
 
-        return out
-
+        return output
         
+class InceptionInterface(NNInterface):
+    """ Creates an Inception model with the standardized Ketos interface.
+
+        Args:
+            num_blocks: int
+                The number of inception blocks to be used. 
+            
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+
+            initial_filters:int
+                The number of filters used in the first ResNetBlock. Subsequent blocks 
+                will have two times more filters than their previous block.
+
+            optimizer: ketos.neural_networks.RecipeCompat object
+                A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            loss_function: ketos.neural_networks.RecipeCompat object
+                A recipe compatible loss_function (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These metrics will be computed on each batch during training.
+                
+    """
+
+    @classmethod
+    def _build_from_recipe(cls, recipe, recipe_compat=True):
+        """ Build an Inception model from a recipe.
+
+            Args:
+                recipe: dict
+                    A recipe dictionary. optimizer, loss function
+                    and metrics must be instances of ketos.neural_networks.RecipeCompat.
+                    
+                    Example recipe:
+                    
+                    >>> {{'n_blocks':3, # doctest: +SKIP
+                    ...    'n_classes':2,
+                    ...    'initial_filters':16,        
+                    ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    ...    'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                    ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                    }
+
+
+            Returns:
+                An instance of InceptionInterface.
+
+        """
+
+        n_blocks = recipe['n_blocks']
+        n_classes = recipe['n_classes']
+        initial_filters = recipe['initial_filters']
+        
+        if recipe_compat == True:
+            optimizer = recipe['optimizer']
+            loss_function = recipe['loss_function']
+            metrics = recipe['metrics']
+            
+        else:
+            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls._metrics_from_recipe(recipe['metrics'])
+            
+
+        instance = cls(n_blocks=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
+        return instance
+
+    @classmethod
+    def _read_recipe_file(cls, json_file, return_recipe_compat=True):
+        """ Read an Inception recipe saved in a .json file.
+
+            Args:
+                json_file:string
+                    Full path (including filename and extension) to the .json file containing the recipe.
+                return_recipe_compat:bool
+                    If True, returns a dictionary where the optimizer, loss_function, metrics and 
+                    secondary_metrics (if available) values are instances of the ketos.neural_networks.nn_interface.RecipeCompat.
+                    The returned dictionary will be equivalent to:
+                            
+                            >>> {'n_blocks':3, # doctest: +SKIP
+                            ... 'n_classes':2,
+                            ... 'initial_filters':16,        
+                            ... 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                            ... 'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                            ... 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
+
+                    If False, the optimizer, loss_function, metrics and secondary_metrics (if available) values will contain a
+                    dictionary representation of such fields instead of the RecipeCompat objects:
+                            >>> {'n_blocks':3, # doctest: +SKIP
+                            ... 'n_classes':2,
+                            ... 'initial_filters':16,        
+                            ... 'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                            ... 'loss_function': {'name':'BinaryCrossentropy', 'parameters':{}},  
+                            ... 'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]}
+
+                Returns:
+                    recipe, according to 'return_recipe_compat.
+
+        """
+
+        with open(json_file, 'r') as json_recipe:
+            recipe_dict = json.load(json_recipe)
+
+        optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
+        loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
+        metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
+        
+        if return_recipe_compat == True:
+            recipe_dict['optimizer'] = optimizer
+            recipe_dict['loss_function'] = loss_function
+            recipe_dict['metrics'] = metrics
+            
+        else:
+            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
+        
+        # recipe_dict['n_blocks'] = recipe_dict['n_blocks']
+        # recipe_dict['n_classes'] = recipe_dict['n_classes']
+        # recipe_dict['initial_filters'] = recipe_dict['initial_filters']
+
+        return recipe_dict
+
+    def __init__(self, n_blocks=default_inception_recipe['n_blocks'], n_classes=default_inception_recipe['n_classes'], initial_filters=default_inception_recipe['initial_filters'],
+                       optimizer=default_inception_recipe['optimizer'], loss_function=default_inception_recipe['loss_function'], metrics=default_inception_recipe['metrics']):
+        super(ResNetInterface, self).__init__(optimizer, loss_function, metrics)
+        self.n_blocks = n_blocks
+        self.n_classes = n_classes
+        self.initial_filters = initial_filters
+
+        self.model=InceptionArch(block_sets=n_blocks, n_classes=n_classes, initial_filters=initial_filters)
+
+    def _extract_recipe_dict(self):
+        """ Create a recipe dictionary from an InceptionInterface instance.
+
+            The resulting recipe contains all the fields necessary to build the same network architecture used by the instance calling this method.
+            
+            Returns:
+                recipe:dict
+                    A dictionary containing the recipe fields necessary to build the same network architecture.
+                    The output is equivalent to:
+                        >>> {'n_blocks':3, # doctest: +SKIP
+                        ...    'n_classes':2,
+                        ...    'initial_filters':16,        
+                        ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                        ...    'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                        ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)]}
+        """
+
+        recipe = {}
+        recipe['n_blocks'] = self.n_blocks
+        recipe['n_classes'] = self.n_classes
+        recipe['initial_filters'] = self.initial_filters
+        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
+        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
+        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
+        
+        return recipe
+
+
