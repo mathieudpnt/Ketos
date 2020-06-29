@@ -38,13 +38,28 @@
 import tensorflow as tf
 
 class ConvBatchNormRelu(tf.keras.Model):
-    
+    """ Convolutional layer with batch normalization and relu activation.
 
-    def __init__(self, ch, kernel_size=3, strides=1, padding='same'):
+        Used in Inception  Blocks
+
+        Args: 
+            n_filters: int
+                Number of filters in the convolutional layer
+            filter_shape: int
+                The filter (i.e.: kernel) shape. 
+            strides: int
+                Strides to be used for the convolution operation
+            padding:str
+                Type of padding: 'same' or 'valid'
+        
+    """
+
+
+    def __init__(self, n_filters, filter_shape=3, strides=1, padding='same'):
         super(ConvBatchNormRelu, self).__init__()
 
         self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(ch, kernel_size, strides=strides, padding=padding),
+            tf.keras.layers.Conv2D(n_filters, filter_shape, strides=strides, padding=padding),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.ReLU()
         ])
