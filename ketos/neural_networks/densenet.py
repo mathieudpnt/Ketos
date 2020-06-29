@@ -135,3 +135,70 @@ class TransitionBlock(tf.keras.Model):
         outputs = self.avg_pool(outputs)
 
         return outputs
+
+
+class DenseNetArch(tf.keras.Model):
+    """Implements a DenseNet architecture, building on top of Dense and tansition blocks
+
+        Args:
+            block_sets: list of ints
+                A list specifying the block sets and how many blocks each set contains.
+                Example: [6, 12, 24, 16]  will create a DenseNet with 4 block sets containing 6, 12, 24 and 16
+                dense blocks, with a total of 58 blocks.
+            growth_rate:int
+                The factor by which the number of filters (i.e.: channels) within each dense block grows.
+            compression_factor: float
+                The factor by which transition blocks reduce the number of filters (i.e.: channels) between dense blocks.
+            dropout_rate: float
+                The droput rate (between 0 and 1) used in each transition block. Use 0 for no dropout.
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+            
+    """
+
+    def __init__(self, dense_blocks, growth_rate, compression_factor, n_classes, dropout_rate):
+        super(DenseNetArch, self).__init__()
+
+        self.dense_blocks = dense_blocks
+        self.growth_rate = growth_rate
+        self.compression_factor = compression_factor
+        self.n_classes = n_classes
+        self.dropout_rate = dropout_rate
+
+        self.initial_conv = tf.keras.layers.Conv2D(2 * self.growth_rate, kernel_size=7, strides=2, padding="same")
+        self.initial_batch_norm = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
+        self.initial_relu = tf.keras.layers.Activation('relu')
+        self.initial_pool = tf.keras.layers.MaxPool2D((2,2), strides=2)
+
+        self.n_channels = 2 * self.growth_rate
+        self.dense_blocks_seq = tf.keras.Sequential()
+        for n_layers in self.dense_blocks:
+            self.dense_blocks_seq.add(DenseBlock(growth_rate=self.growth_rate, n_blocks=n_layers))
+            self.n_channels += n_layers * self.growth_rate
+            self.dense_blocks_seq.add(TransitionBlock(n_channels=self.n_channels, compression_factor=self.compression_factor, dropout_rate=self.dropout_rate))
+
+        self.global_avg_pool = tf.keras.layers.GlobalAveragePooling2D()
+        self.flatten = tf.keras.layers.Flatten()
+        self.dense = tf.keras.layers.Dense(self.n_classes)
+        self.softmax = tf.keras.layers.Softmax()
+
+    
+    def call(self, inputs, training=False):
+        outputs = self.initial_conv(inputs)
+        outputs = self.initial_batch_norm(outputs, training=training)
+        outputs = self.initial_relu(outputs)
+        outputs = self.initial_pool(outputs)
+
+        outputs = self.dense_blocks_seq(outputs)
+
+        outputs = self.global_avg_pool(outputs)
+        outputs = self.flatten(outputs)
+        outputs = self.dense(outputs)
+        outputs = self.softmax(outputs)
+
+        return outputs
+
+
+
