@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 2.0.0** (June 26, 2020)
+
+ *  Added convenience method to the NNInterface class for model testing.
+
 **Version 2.0.0 (beta)** (May 7, 2020)
 
  * Extensive upgrades to all modules!

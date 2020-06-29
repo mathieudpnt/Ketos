@@ -32,7 +32,7 @@ is also the origin of the scientific term for whales, cetacean.
 Ketos is available on the Python package index repository and the latest version can be installed with pip:
 
    ```bash 
-   pip install ketos==2.0.0b4
+   pip install ketos
    ``` 
 
 Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7.
@@ -65,7 +65,7 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
 
  3. Install the latest version of Ketos:
     ```bash
-    pip install ketos==2.0.0b4
+    pip install ketos
     ```
 
 ## Jupyter notebook tutorials
