@@ -71,19 +71,29 @@ class ConvBatchNormRelu(tf.keras.Model):
 
 
 class InceptionBlock(tf.keras.Model):
+    """ Inception Block for the Inception Architecture
+
+        Args:
+            n_filters:int
+               The number of filters (i.e.: channels) to be used in each convolutional layer of the block
+            strides: int
+                Strides used in the first 3 and and 5th convolutional layers of the block
+
+    """
+
     def __init__(self, n_filters, strides=1):
         super(InceptionBlock, self).__init__()
 
-        self.n_fileters = n_filters
+        self.n_filters = n_filters
         self.strides = strides
 
-        self.conv1 = ConvBatchNormRelu(self.n_fileters, strides=self.strides)
-        self.conv2 = ConvBatchNormRelu(self.n_fileters, filter_shape=3, strides=self.strides)
-        self.conv3_1 = ConvBatchNormRelu(self.n_fileters, filter_shape=3, strides=self.strides)
-        self.conv3_2 = ConvBatchNormRelu(self.n_fileters, filter_shape=3, strides=1)
+        self.conv1 = ConvBatchNormRelu(self.n_filters, strides=self.strides)
+        self.conv2 = ConvBatchNormRelu(self.n_filters, filter_shape=3, strides=self.strides)
+        self.conv3_1 = ConvBatchNormRelu(self.n_filters, filter_shape=3, strides=self.strides)
+        self.conv3_2 = ConvBatchNormRelu(self.n_filters, filter_shape=3, strides=1)
 
         self.pool = tf.keras.layers.MaxPooling2D(3, strides=1, padding='same')
-        self.pool_conv = ConvBatchNormRelu(self.n_fileters, strides=self.strides)
+        self.pool_conv = ConvBatchNormRelu(self.n_filters, strides=self.strides)
 
     def call(self, x, training=None):
         x1 = self.conv1(x, training=training)
