@@ -40,6 +40,40 @@ from .dev_utils.nn_interface import RecipeCompat, NNInterface
 import json
 
 
+class ConvBlock(tf.keras.Model):
+    """ Convolutional Blocks used in the Dense Blocks.
+
+        Args:
+            growth_rate:int
+                The growth rate for the number of filters (i.e.: channels) between convolutional layers
+    
+    """
+    def __init__(self, growth_rate):
+        super(ConvBlock, self).__init__()
+
+        self.growth_rate = growth_rate
+
+        self.batch_norm1 = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
+        self.relu1 = tf.keras.layers.Activation('relu')
+        self.conv1 = tf.keras.layers.Conv2D(4 * self.growth_rate, kernel_size=1, strides=1, use_bias=False, padding="same")
+
+        self.batch_norm2 = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
+        self.relu2 = tf.keras.layers.Activation('relu')
+        self.conv2 = tf.keras.layers.Conv2D(self.growth_rate, kernel_size=3, strides=1, use_bias=False, padding="same")
+
+    def call(self, inputs, training=False):
+        outputs = self.batch_norm1(inputs, training=training)
+        outputs = self.relu1(outputs)
+        outputs = self.conv1(outputs)
+
+        outputs = self.batch_norm2(outputs, training=training)
+        outputs = self.relu2(outputs)
+        outputs = self.conv2(outputs)
+
+        return outputs
+
+
+
 
 class DenseBlock(tf.keras.Model):
     """ Dense block for DenseNet architectures
