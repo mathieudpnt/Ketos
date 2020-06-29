@@ -29,13 +29,34 @@
     This module provides classes that implement Inception Neural Networks.
 
     Contents:
-        ConvBatchNormRelu class:
-        InceptionBlock class:
-        Inception class:
+        ConvBatchNormRelu class
+        InceptionBlock class
+        Inception class
+        InceptionInterface
 
 """
 
+import os
 import tensorflow as tf
+import tensorflow_addons as tfa
+import numpy as np
+from .dev_utils.nn_interface import RecipeCompat, NNInterface
+import json
+from zipfile import ZipFile
+from glob import glob
+from shutil import rmtree
+
+
+
+default_inception_recipe =  {'n_blocks':3,
+                    'n_classes':2,
+                    'initial_filters':16,        
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                    'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
+                                RecipeCompat('Precision',tf.keras.metrics.Precision),
+                                RecipeCompat('Recall',tf.keras.metrics.Recall)],
+                    }
 
 class ConvBatchNormRelu(tf.keras.Model):
     """ Convolutional layer with batch normalization and relu activation.
