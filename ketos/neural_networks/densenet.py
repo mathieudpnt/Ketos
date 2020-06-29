@@ -99,3 +99,39 @@ class DenseBlock(tf.keras.Model):
         outputs = tf.keras.layers.concatenate([inputs, outputs])
 
         return outputs
+
+
+class TransitionBlock(tf.keras.Model):
+    """ Transition Blocks for the DenseNet architecture
+
+        Args:
+            n_filters:int
+                Number of filters (i,e,: channels)
+            compression_factor: float
+                The compression factor used within the transition block
+                (i.e.: the reduction of filters/channels from the previous dense block to the next)
+            dropout_rate:float
+                Dropout rate for the convolutional layer (between 0 and 1, use 0 for no dropout)
+
+    """
+    def __init__(self, n_channels, compression_factor, dropout_rate=0.2):
+        super(TransitionBlock, self).__init__()
+        
+        self.n_channels = n_channels
+        self.compression_factor = compression_factor
+        self.dropout_rate = dropout_rate
+
+        self.batch_norm = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
+        self.conv = tf.keras.layers.Conv2D(int(self.n_channels * self.compression_factor), kernel_size=1, strides=1, padding="same")
+        self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
+        self.relu = tf.keras.layers.Activation('relu')
+        self.avg_pool = tf.keras.layers.AveragePooling2D((2,2), strides=2)
+
+    def call(self, inputs, training=False):
+        outputs = self.batch_norm(inputs, training=training)
+        outputs = self.relu(outputs)
+        outputs = self.conv(outputs)
+        outputs = self.dropout(outputs, training=training)
+        outputs = self.avg_pool(outputs)
+
+        return outputs
