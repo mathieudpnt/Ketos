@@ -108,5 +108,55 @@ class InceptionBlock(tf.keras.Model):
         return out
 
 
+class InceptionArch(tf.keras.Model):
+    """ Implements an Inception network, building on InceptionBlocks
+
+        Args:
+            num_blocks:int
+                Number of Inception Blocks
+
+            num_classes:int
+                Number of possible classes 
+            initial_filters:int
+                Number of filters (i.e.: channels) in the first block
+   
+    
+    """
+
+    def __init__(self, num_blocks, num_classes, initial_filters=16, **kwargs):
+        super(Inception, self).__init__(**kwargs)
+
+        self.input_channels = initial_filters
+        self.output_channels = initial_filters
+        self.num_blocks = num_blocks
+        self.num_classes = num_classes
+        self.initial_filters = initial_filters
+
+        self.conv1 = ConvBatchNormRelu(self.initial_filters)
+
+        self.blocks = tf.keras.models.Sequential(name='dynamic-blocks')
+
+        for block_id in range(self.num_blocks):
+            for layer_id in range(2):
+
+                if layer_id == 0:
+                    block = InceptionBlock(self.output_channels, strides=2)
+                else:
+                    block = InceptionBlock(self.output_channels, strides=1)
+
+                self.blocks.add(block)
+
+            self.output_channels *= 2
+
+        self.avg_pool = tf.keras.layers.GlobalAveragePooling2D()
+        self.dense = tf.keras.layers.Dense(self.num_classes)
+
+    def call(self, x, training=None):
+        out = self.conv1(x, training=training)
+        out = self.blocks(out, training=training)
+        out = self.avg_pool(out)
+        out = self.dense(out)
+
+        return out
 
         
