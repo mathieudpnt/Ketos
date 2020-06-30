@@ -44,6 +44,22 @@ from .dev_utils.nn_interface import RecipeCompat, NNInterface
 import json
 
 
+default_densenet_recipe =  {'dense_blocks':[ 6, 12, 24, 16],
+                    'growth_rate':32,
+                    'compression_factor':0.5,
+                    'n_classes':2,
+                    'dropout_rate':0.2,
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
+                    'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
+                                RecipeCompat('Precision',tf.keras.metrics.Precision, class_id=1),
+                                RecipeCompat('Recall',tf.keras.metrics.Recall, class_id=1)],
+                    }
+
+
+
+
+
 class ConvBlock(tf.keras.Model):
     """ Convolutional Blocks used in the Dense Blocks.
 
@@ -205,18 +221,6 @@ class DenseNetArch(tf.keras.Model):
         return outputs
 
 
-
-default_densenet_recipe =  {'dense_blocks':[ 6, 12, 24, 16],
-                    'growth_rate':32,
-                    'compression_factor':0.5,
-                    'n_classes':2,
-                    'dropout_rate':0.2,
-                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                    'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
-                    'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
-                                RecipeCompat('Precision',tf.keras.metrics.Precision, class_id=1),
-                                RecipeCompat('Recall',tf.keras.metrics.Recall, class_id=1)],
-                    }
 
 
 
