@@ -366,6 +366,7 @@ class DenseNetInterface(NNInterface):
                         ...  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
                         ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
                         }
+      
         """
 
         recipe = {}
