@@ -187,7 +187,7 @@ class CNNArch(tf.keras.Model):
 
 
 class CNN1DArch(tf.keras.Model):
-     """ Implement an 1D (temporal) Convolutional Neural Network
+    """ Implement an 1D (temporal) Convolutional Neural Network
 
         Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense
               layer will always be added to the end. The output of this layer is determined by the 'n_classes'
@@ -211,8 +211,8 @@ class CNN1DArch(tf.keras.Model):
                 Scores sum to 1.0.
     """
 
-    def __init__(self, dense_layers, n_classes, convolutional_layers=None, pre_trained_base=None, **kwargs):
-        
+    def __init__(self, dense_layers, n_classes, convolutional_layers=None, pre_trained_base=None, **kwargs): 
+
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
@@ -576,10 +576,10 @@ class CNNInterface(NNInterface):
 
 
 class CNN1DInterface(CNNInterface):
-        """ Create an 1D (temporal) CNN model with the standardized Ketos interface.
+    """ Create an 1D (temporal) CNN model with the standardized Ketos interface.
 
         Args:
-             convolutional_layers: list
+            convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
                 Each layer is specified as a dictionary with the following format:
                 >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
@@ -625,8 +625,6 @@ class CNN1DInterface(CNNInterface):
             >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False) # doctest: +SKIP
                 
     """
-
-
 
     @classmethod
     def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
