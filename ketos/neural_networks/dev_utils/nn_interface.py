@@ -373,7 +373,7 @@ class NNInterface():
         elif input.ndim == 3:
             transformed_input = input.reshape(input.shape[0],input.shape[1], input.shape[2],1)
         else:
-            raise ValueError("Expected input to have 2 or 3 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+            raise ValueError("Expected input to have 2 or 3 dimensions, got {}({}) instead".format(input.ndim, input.shape))
 
         return transformed_input
 
@@ -388,7 +388,7 @@ class NNInterface():
                 output:np.array
                     The output neural network output. An array of one or more vectors of float scores that each add to 1.0.
             Returns:
-                transormed_output:tuple
+                transformed_output:tuple
                     The transformed output, where the first value is the integer representing the highest  classs in the rank the second is the respective score
 
             Example:
@@ -1134,11 +1134,15 @@ class NNInterface():
             print("".join([m.name.split('val_')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
 
         predictions = np.array(predictions)
+        
+        if return_raw_output == False:
+            reshaped_predictions = predictions.reshape(-1, predictions.shape[2])
+            predictions = self._transform_output(reshaped_predictions)
 
         return predictions
 
         
-    def run_on_instance(self, input, return_raw_output=False):
+    def run_on_instance(self, input, return_raw_output=False, transform_input=True):
         """ Run the model on one input
 
             Args:
@@ -1147,14 +1151,19 @@ class NNInterface():
                 return_raw_output:bool
                     If False, the model output will be transformed by :func:`transform_output`.
                     If true, the model output will be returned without any modifications.
+                transform_input:bool
+                    If True, the input is transformed by the interface's :func:`transform_input` method
 
             Returns:
                 output
                     The model output
                 
         """
-        input = self._transform_input(input)
-        output = self.model.predict(input)
+        
+        if transform_input == True:
+            input = self._transform_input(input)
+        output = self.model(input)
+        output = output.numpy()
         
         if not return_raw_output:
             return self._transform_output(output)
@@ -1169,7 +1178,7 @@ class NNInterface():
                 input_batch: numpy.array
                     The  batch of inputs 
                 transform_input:bool
-                    If True, the input_batch is transformed by :func:`transform_input`
+                    If True, the input_batch is transformed by the interface's :func:`transform_input` method
                 return_raw_output:bool
                     If False, the model output will be transformed by :func:`transform_output`.
                     If true, the model output will be returned without any modifications.
@@ -1181,7 +1190,8 @@ class NNInterface():
 
         if transform_input == True:
             input_batch = self._transform_input(input_batch)
-        output = self.model.predict(input_batch)
+        output = self.model(input_batch)
+        output = output.numpy()
         
         if not return_raw_output:
             return self._transform_output(output)
