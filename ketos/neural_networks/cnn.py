@@ -128,6 +128,7 @@ class CNNArch(tf.keras.Model):
                 Scores sum to 1.0.
     """
 
+
     def __init__(self, convolutional_layers, dense_layers, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
 
@@ -162,6 +163,72 @@ class CNNArch(tf.keras.Model):
 
         return output
 
+
+
+
+class CNN1DArch(tf.keras.Model):
+     """ Implement an 1D (temporal) Convolutional Neural Network
+
+        Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense
+              layer will always be added to the end. The output of this layer is determined by the 'n_classes'
+              parameter. 
+
+        Args:
+            convolutional_layers: list
+                A list of dictionaries containing the detailed specification for the convolutional layers.
+                Each layer is specified as a dictionary with the following format:
+                >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
+
+            dense_layers: list
+                A list of dictionaries containing the detailed specification for the fully connected layers.
+                Each layer is specified as a dictionary with the following format:
+                >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
+                This list should not include the output layr, which will be automatically added based on the 'n_classes' parameter.
+
+            n_classes:int
+                The number of classes the network will be used to classify.
+                The output will be this number of values representing the scores for each class. 
+                Scores sum to 1.0.
+    """
+
+    def __init__(self, dense_layers, n_classes, convolutional_layers=None, pre_trained_base=None, **kwargs):
+        
+        self.convolutional_layers = convolutional_layers
+        self.dense_layers = dense_layers
+        self.n_classes = n_classes
+        super(CNN1DArch, self).__init__(**kwargs)
+
+        if pre_pre_trained_base:
+            self.convolutional_block = pre_trained_base
+        else:
+            self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
+            for conv_layer in self.convolutional_layers:
+                self.convolutional_block.add(tf.keras.layers.Conv1D(filters=conv_layer['n_filters'], kernel_size=conv_layer['filter_shape'], strides=conv_layer['strides'], activation=conv_layer['activation'], padding=conv_layer['padding']))
+                if conv_layer['max_pool'] is not None:
+                    self.convolutional_block.add(tf.keras.layers.MaxPooling1D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
+                if conv_layer['batch_normalization'] == True:
+                    self.convolutional_block.add(tf.keras.layers.BatchNormalization())
+
+        self.flatten = tf.keras.layers.Flatten()
+        
+        self.dense_block = tf.keras.models.Sequential(name="dense_block")
+        for fc_layer in self.dense_layers:
+            self.dense_block.add(tf.keras.layers.Dense(units=fc_layer['n_hidden'], activation=fc_layer['activation']))
+            if fc_layer['batch_normalization'] == True:
+                self.dense_block.add(tf.keras.layers.BatchNormalization())
+            if fc_layer['dropout'] > 0.0:
+                self.dense_block.add(tf.keras.layers.Dropout(fc_layer['dropout']))
+        self.dense_block.add(tf.keras.layers.Dense(self.n_classes))
+        self.dense_block.add(tf.keras.layers.Softmax())
+        
+
+    def call(self, inputs, training=None):
+
+        output = self.convolutional_block(inputs, training=training)
+        output = self.flatten(output)
+        output = self.dense_block(output, training=training)
+
+        return output
 
 
 class CNNInterface(NNInterface):
