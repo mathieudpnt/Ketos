@@ -553,3 +553,174 @@ class CNNInterface(NNInterface):
         recipe['metrics'] = self._metrics_to_recipe(self.metrics)
         
         return recipe
+
+
+class CNN1DInterface(CNNInterface):
+        """ Create an 1D (temporal) CNN model with the standardized Ketos interface.
+
+        Args:
+             convolutional_layers: list
+                A list of dictionaries containing the detailed specification for the convolutional layers.
+                Each layer is specified as a dictionary with the following format:
+                >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
+
+            dense_layers: list
+                A list of dictionaries containing the detailed specification for the fully connected layers.
+                Each layer is specified as a dictionary with the following format:
+                >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
+
+            n_classes:int
+                The number of classes the network will be used to classify.
+                The output will be this number of values representing the scores for each class. 
+                Scores sum to 1.0.
+
+            optimizer: ketos.neural_networks.RecipeCompat object
+                A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            loss_function: ketos.neural_networks.RecipeCompat object
+                A recipe compatible loss_function (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
+
+            metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These metrics will be computed on each batch during training.
+
+            secondary_metrics: list of ketos.neural_networks.RecipeCompat objects
+                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
+                These can be used as additional metrics. Computed at each batch during training but only printed or
+                logged as the average at the end of the epoch
+
+        Examples:
+
+            >>> # Most users will create a model based on a Ketos recipe 
+            >>> # The one below, specifies a CNN with 3 convolutional layers and 2 dense layers
+            >>>
+            >>> recipe = {'conv_set':[[64, False], [128, True], [256, True]], # doctest: +SKIP
+            ...   'dense_set': [512, ],
+            ...   'n_classes':2,
+            ...   'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+            ...   'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+            ...   'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+            ... }
+            >>> # To create the CNN, simply  use the  'build_from_recipe' method:
+            >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False) # doctest: +SKIP
+                
+    """
+
+
+
+    @classmethod
+    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
+        """ Transforms a training batch into the format expected by the network.
+
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of input arrays and parsing or one hot encoding of the labels.
+
+            Args:
+                x:numpy.array
+                    The batch of inputs with shape (batch_size, width, height)
+                y:numpy.array
+                    The batch of labels.
+                    Each label must be represented as an integer, ranging from zero to n_classes
+                    The array is expected to have a field named 'label'.
+                n_classes:int
+                    The number of possible classes for one hot encoding.
+                    
+                
+
+            Returns:
+                X:numpy.array
+                    The transformed batch of inputs
+                Y:numpy.array
+                    The transformed batch of labels
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> inputs = np.random.rand(10,5,5)
+                >>> inputs.shape
+                (10, 5, 5)
+
+                    
+                >>> # Create a batch of 10 labels (0 or 1)
+                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
+                >>> labels.shape
+                (10,)
+
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_batch(inputs, labels, n_classes=2)
+                >>> transformed_inputs.shape
+                (10, 5, 5, 1)
+
+                >>> transformed_labels.shape
+                (10, 2)
+                
+        """
+
+        X = cls._transform_input(x)
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+
+        return (X,Y)
+
+    @classmethod
+    def _transform_input(cls,input):
+        """ Transforms a training input to the format expected by the network.
+
+            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of an input.
+
+            Args:
+                input:numpy.array
+                    An input instance. Must be of shape (n,m) or (k,n,m).
+
+            Raises:
+                ValueError if input does not have 2 or 3 dimensions.
+
+            Returns:
+                tranformed_input:numpy.array
+                    The transformed batch of inputs
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> batch_of_inputs = np.random.rand(10,5,5)
+                >>> selected_input = batch_of_inputs[0]
+                >>> selected_input.shape
+                (5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                # The input can also have shape=(1,n,m)
+                >>> selected_input = batch_of_inputs[0:1]
+                >>> selected_input.shape
+                (1, 5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                
+        """
+
+        if input.ndim == 1:
+            transformed_input = input.reshape(1,input.shape[0],1)
+        elif input.ndim == 2:
+            transformed_input = input.reshape(input.shape[0],input.shape[1],1)
+        else:
+            raise ValueError("Expected input to have 1 or 2 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+
+        return transformed_input
+
+    def __init__(self, convolutional_layers=default_cnn_1d_recipe['convolutional_layers'], dense_layers=default_cnn_1d_recipe['dense_layers'],
+                 n_classes=default_cnn_1d_recipe['n_classes'], optimizer=default_cnn_1d_recipe['optimizer'], loss_function=default_cnn_1d_recipe['loss_function'], 
+                 metrics=default_cnn_1d_recipe['metrics']):
+        super(CNN1DInterface, self).__init__(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        self.conv_set = None
+        self.dense_set = None
+        self.convolutional_layers = convolutional_layers
+        self.dense_layers = dense_layers
+        self.n_classes = n_classes
+       
+        self.model = CNN1DArch(convolutional_layers=self.convolutional_layers, dense_layers=self.dense_layers, n_classes=n_classes)
+       
