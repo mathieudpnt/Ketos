@@ -138,7 +138,9 @@ class CNNArch(tf.keras.Model):
                 self.convolutional_block.add(tf.keras.layers.MaxPooling2D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
             if conv_layer['batch_normalization'] == True:
                 self.convolutional_block.add(tf.keras.layers.BatchNormalization())
-            
+        
+        self.flatten = tf.keras.layers.Flatten()
+
         self.dense_block = tf.keras.models.Sequential(name="dense_block")
         for fc_layer in dense_layers:
             self.dense_block.add(tf.keras.layers.Dense(units=fc_layer['n_hidden'], activation=fc_layer['activation']))
@@ -149,13 +151,17 @@ class CNNArch(tf.keras.Model):
 
         
         self.dense_block.add(tf.keras.layers.Dense(n_classes))
-        self.dense_block.add(tf.keras.layers.Softmax(n_classes))
+        self.dense_block.add(tf.keras.layers.Softmax())
 
     def call(self, inputs, training=None):
         output = self.convolutional_block(inputs, training=training)
+        output = self.flatten(output)
         output = self.dense_block(output, training=training)
 
+        print("output shape: ", output.shape)
+
         return output
+
 
 
 class CNNInterface(NNInterface):
