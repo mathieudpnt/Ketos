@@ -1,6 +1,14 @@
-import pytest
 import numpy as np
+np.random.seed(1000)
+
 import tensorflow as tf
+tf.random.set_seed(2000)
+
+
+
+import pytest
+#import numpy as np
+#import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
 #from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
@@ -14,6 +22,16 @@ import json
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
+
+
+@pytest.fixture
+def batch_generator():
+    data = np.vstack([np.zeros((10,512)), np.ones((10,512))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    return generator
+
 
 @pytest.fixture
 def recipe_dict():
@@ -51,10 +69,37 @@ def MLPInterface_subclass():
     class MLPInterface(NNInterface):
 
         @classmethod
-        def transform_train_batch(cls, x, y, n_classes=2):
-            X = x
-            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
-            return (X, Y)
+        def _transform_input(cls, input):
+            if input.ndim == 1:
+                transformed_input = input.reshape(1,input.shape[0])
+            elif input.ndim == 2:
+                transformed_input = input.reshape(input.shape[0],input.shape[1])
+            else:
+                raise ValueError("Expected input to have 1 or 2 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+
+            return transformed_input
+
+        @classmethod
+        def _transform_output(cls,output):
+            max_class = np.argmax(output, axis=-1)
+            if output.shape[0] == 1:
+                max_class_conf = output[0][max_class]
+                transformed_output = (max_class[0], max_class_conf[0])
+            elif output.shape[0] > 1:
+                max_class_conf = np.array([output[i][c] for i, c in enumerate(max_class)])
+
+            transformed_output = (max_class, max_class_conf)
+            
+            return transformed_output
+
+
+        # @classmethod
+        # def transform_train_batch(cls, x, y, n_classes=2):
+        #     X = x
+        #     Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        #     return (X, Y)
+
+
 
         @classmethod
         def build_from_recipe(cls, recipe):
@@ -122,6 +167,8 @@ def MLPInterface_subclass():
 
 @pytest.fixture
 def instance_of_MLPInterface(MLPInterface_subclass):
+    np.random.seed(1000)
+    tf.random.set_seed(2000)
     path_to_file = os.path.join(path_to_assets, "recipes/basic_recipe.json")
     recipe = NNInterface._read_recipe_file(path_to_file)
 
@@ -130,9 +177,14 @@ def instance_of_MLPInterface(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    data = np.vstack([np.zeros((10,512)), np.ones((10,512))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    test_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    # train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    # val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    # test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
@@ -140,8 +192,8 @@ def instance_of_MLPInterface(MLPInterface_subclass):
 
     instance.train_generator = train_generator
     instance.val_generator = val_generator
+    instance.test_generator = test_generator
     
-
     return instance
 
 
@@ -380,7 +432,7 @@ def test_train_loop(instance_of_MLPInterface):
     instance_of_MLPInterface.train_loop(n_epochs=5)
 
 
-def test_train_loop_log_csv(MLPInterface_subclass):
+def test_train_loop_log_csv(MLPInterface_subclass, batch_generator):
 
 
     recipe = { 'n_neurons':64,
@@ -398,16 +450,16 @@ def test_train_loop_log_csv(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    # train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    # val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    # test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
                          loss_function=recipe['loss_function'], metrics=recipe['metrics']) 
 
-    instance.train_generator = train_generator 
-    instance.val_generator = val_generator
+    instance.train_generator = batch_generator
+    instance.val_generator = batch_generator
     instance.log_dir = os.path.join(path_to_tmp, "test_log_dir")
     instance.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_log_csv_checkpoints")
 
@@ -436,9 +488,11 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
     val_table = h5.get_node("/val")
     test_table = h5.get_node("/test")
 
-    train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
+    data = np.vstack([np.zeros((10,512)), np.ones((10,512))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    test_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
@@ -453,3 +507,121 @@ def test_train_loop_log_tensorboard(MLPInterface_subclass):
 
     assert os.path.isdir(os.path.join(instance.log_dir, "tensorboard_metrics"))
     shutil.rmtree(os.path.join(instance.log_dir, "tensorboard_metrics"))
+
+
+def test_run_on_batch(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    instance_of_MLPInterface.test_generator.batch_count = 0 #reset batch generator
+    X,y = next(instance_of_MLPInterface.test_generator)
+
+    print(y)
+    print(instance_of_MLPInterface.test_generator.batch_count)
+
+
+    pred, scores = instance_of_MLPInterface.run_on_batch(X, transform_input=True, return_raw_output=False)
+    
+    assert pred.shape == (5,)
+    assert np.array_equal(pred, np.array([0,1,1,0,0]))
+
+    assert scores.shape == (5,)
+    assert np.array_equal(scores, np.array([0.5086525,1.,1., 0.5086525, 0.5086525], dtype=scores.dtype))
+
+
+def test_run_on_batch_raw_output(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    X,_ = next(instance_of_MLPInterface.test_generator)
+
+    scores = instance_of_MLPInterface.run_on_batch(X, transform_input=True, return_raw_output=True)
+    print(scores)
+
+    assert scores.shape == (5,2)
+    assert np.array_equal(scores, np.array([[5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [5.0865251e-01, 4.9134743e-01]], dtype=scores.dtype))
+
+
+
+def test_run_on_instance(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    instance_of_MLPInterface.test_generator.batch_count = 0 #reset batch generator
+    X,_ = next(instance_of_MLPInterface.test_generator)
+    x = X[0:1]
+    
+    pred, scores = instance_of_MLPInterface.run_on_instance(x, return_raw_output=False)
+
+    assert pred.shape == (1,)
+    assert pred == 0
+    assert scores.shape == (1,)
+    assert np.array_equal(scores, np.array([0.5086525], dtype=scores.dtype))
+
+    
+        
+
+
+def test_run_on_instance_raw_output(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    instance_of_MLPInterface.test_generator.batch_count = 0 #reset batch generator
+    X,_ = next(instance_of_MLPInterface.test_generator)
+    x = X[0]
+    
+    scores = instance_of_MLPInterface.run_on_instance(x, return_raw_output=True)
+    assert scores.shape == (1,2)
+    assert np.array_equal(scores, np.array([[0.5086525 , 0.49134743]], dtype=scores.dtype))
+        
+
+
+
+def test_run_on_test_generator(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    pred, scores = instance_of_MLPInterface.run_on_test_generator(compute_val_metrics=True, return_raw_output=False)
+
+    assert pred.shape == (20,)
+    assert np.array_equal(pred, np.array([0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1]))
+    print(pred)
+    print(scores)
+    assert scores.shape == (20,)
+    assert np.array_equal(scores, np.array([0.5086525, 1.,1., 0.5086525, 0.5086525,
+                                          0.5086525, 1., 0.5086525, 1.,0.5086525,
+                                          0.5086525, 1., 0.5086525, 1., 1.,
+                                          1., 0.5086525, 1., 0.5086525, 1.], dtype=scores.dtype))
+
+
+
+def test_run_on_test_generator_raw_output(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    scores = instance_of_MLPInterface.run_on_test_generator(compute_val_metrics=True, return_raw_output=True)
+
+    
+    print(scores)
+    assert scores.shape == (4,5,2,)
+    assert np.array_equal(scores, np.array([[[5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [5.0865251e-01, 4.9134743e-01]],
+
+                                            [[5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01]],
+
+                                            [[5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [7.2768415e-12, 1.0000000e+00]],
+
+                                            [[7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00],
+                                            [5.0865251e-01, 4.9134743e-01],
+                                            [7.2768415e-12, 1.0000000e+00]]], dtype=scores.dtype))

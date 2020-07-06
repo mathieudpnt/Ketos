@@ -86,7 +86,7 @@ def test_CNNArch():
                                     ]
     
     cnn = CNNArch(convolutional_layers=conv_layers, dense_layers=dense_layers, n_classes=2)
-    assert len(cnn.layers) == 2
+    assert len(cnn.layers) == 3
 
     #convolutional block
     assert len(cnn.layers[0].layers) == 8
@@ -99,16 +99,18 @@ def test_CNNArch():
     assert isinstance(cnn.layers[0].layers[6], tf.keras.layers.MaxPooling2D)
     assert isinstance(cnn.layers[0].layers[7], tf.keras.layers.BatchNormalization)
 
+    #Flatten layer
+    assert isinstance(cnn.layers[1], tf.keras.layers.Flatten)
     #Dense block
-    assert len(cnn.layers[1].layers) == 8
-    assert isinstance(cnn.layers[1].layers[0], tf.keras.layers.Dense)
-    assert isinstance(cnn.layers[1].layers[1], tf.keras.layers.BatchNormalization)
-    assert isinstance(cnn.layers[1].layers[2], tf.keras.layers.Dropout)
-    assert isinstance(cnn.layers[1].layers[3], tf.keras.layers.Dense)
-    assert isinstance(cnn.layers[1].layers[4], tf.keras.layers.BatchNormalization)
-    assert isinstance(cnn.layers[1].layers[5], tf.keras.layers.Dropout)
-    assert isinstance(cnn.layers[1].layers[6], tf.keras.layers.Dense)
-    assert isinstance(cnn.layers[1].layers[7], tf.keras.layers.Softmax)
+    assert len(cnn.layers[2].layers) == 8
+    assert isinstance(cnn.layers[2].layers[0], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[2].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[2].layers[2], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[2].layers[3], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[2].layers[4], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[2].layers[5], tf.keras.layers.Dropout)
+    assert isinstance(cnn.layers[2].layers[6], tf.keras.layers.Dense)
+    assert isinstance(cnn.layers[2].layers[7], tf.keras.layers.Softmax)
    
 
 def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
