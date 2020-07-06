@@ -511,7 +511,7 @@ class ResNetInterface(NNInterface):
 
 
 
-   class ResNet1DInterface(ResNetInterface):
+class ResNet1DInterface(ResNetInterface): 
     @classmethod
     def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
