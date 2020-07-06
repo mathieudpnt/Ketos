@@ -117,6 +117,68 @@ class ResNetBlock(tf.keras.Model):
         return x
 
 
+class ResNet1DBlock(tf.keras.Model):
+    """ Residual block for 1D (temporal) ResNet architectures.
+
+        Args: 
+            filters: int
+                The number of filters in the block
+            strides: int
+                Strides used in convolutional layers within the block
+            residual_path: bool
+                Whether or not the block will contain a residual path
+
+        Returns:
+            A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
+    """
+    def __init__(self, filters, strides=1, residual_path=False):
+        super(ResNet1DBlock, self).__init__()
+
+        self.filters = filters
+        self.strides = strides
+        self.residual_path = residual_path
+        self.conv_1 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=self.strides,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
+        self.conv_2 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=1,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        if residual_path == True:
+            self.conv_down = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=1, strides=self.strides,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+        
+        self.dropout = tf.keras.layers.Dropout(0.0)
+
+    def call(self,inputs, training=None):
+        residual = inputs
+
+        x = self.batch_norm_1(inputs, training=training)
+        x = tf.nn.relu(x)
+        x = self.conv_1(x)
+        x = self.dropout(x)
+        x = self.batch_norm_2(x, training=training)
+        x = tf.nn.relu(x)
+        x = self.conv_2(x)
+        x = self.dropout(x)
+
+        if self.residual_path:
+            residual = self.batch_norm_down(inputs, training=training)
+            residual = tf.nn.relu(residual)
+            residual = self.conv_down(residual)
+            x = self.dropout(x)
+
+        x = x + residual
+        return x
+
+
+
+
+
 class ResNetArch(tf.keras.Model):
     """ Implements A ResNet architecture, building on top of ResNetBlocks.
 
