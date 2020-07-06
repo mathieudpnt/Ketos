@@ -58,6 +58,18 @@ default_resnet_recipe =  {'block_sets':[2,2,2],
                     }
 
 
+default_resnet_1d_recipe =  {'block_sets':[2,2,2],
+                    'n_classes':2,
+                    'initial_filters':2,        
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
+                    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),
+                                RecipeCompat('Precision',tf.keras.metrics.Precision, class_id=1),
+                                RecipeCompat('Recall',tf.keras.metrics.Recall, class_id=1)],
+                    }
+
+
+
 class ResNetBlock(tf.keras.Model):
     """ Residual block for ResNet architectures.
 
