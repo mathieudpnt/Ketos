@@ -102,6 +102,26 @@ default_cnn_recipe = {'convolutional_layers':  [{'n_filters':32, "filter_shape":
                     }
 
 
+default_cnn_1d_recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":128, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+                                    {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':32, "filter_shape":32, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':64, "filter_shape":16, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
+                                    {'n_filters':128, "filter_shape":8, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 4 , 'strides': 4}, 'batch_normalization':True, },
+                                    ],
+
+                  'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':128, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    ],
+
+                  'n_classes': 2 ,
+                  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, lr=0.01, beta_1=0.9, beta_2=0.999, decay=0.01),
+                  'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, from_logits=True),  
+                  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),   
+                              RecipeCompat('Precision',tf.keras.metrics.Precision, class_id=1),
+                              RecipeCompat('Recall',tf.keras.metrics.Recall, class_id=1)],  
+                    }
+
 
 class CNNArch(tf.keras.Model):
     """ Implement a Convolutional Neural Network
