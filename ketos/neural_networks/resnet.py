@@ -180,7 +180,7 @@ class ResNet1DBlock(tf.keras.Model):
 
 
 class ResNetArch(tf.keras.Model):
-    """ Implements A ResNet architecture, building on top of ResNetBlocks.
+    """ Implements a ResNet architecture, building on top of ResNetBlocks.
 
         Args:
             block_sets: list of ints
@@ -249,6 +249,79 @@ class ResNetArch(tf.keras.Model):
         output = self.softmax(output)
 
         return output
+
+
+class ResNet1DArch(tf.keras.Model):
+    """ Implements a 1D (temporal) ResNet architecture, building on top of ResNetBlocks.
+
+        Args:
+            block_sets: list of ints
+                A list specifying the block sets and how many blocks each  set contains.
+                Example: [2,2,2] will create a ResNet with 3 block sets, each containing
+                2 ResNetBlocks (i.e.: a total of 6 residual blocks)
+            
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+
+            initial_filters:int
+                The number of filters used in the first ResNetBlock. Subsequent blocks 
+                will have two times more filters than their previous block.
+
+        Returns:
+            A ResNetArch object, which is a tensorflow model.
+    """
+
+    def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
+        super(ResNet1DArch, self).__init__(**kwargs)
+
+        self.n_sets = len(block_sets)
+        self.n_classes = n_classes
+        self.block_sets = block_sets
+        self.input_filters = initial_filters
+        self.output_filters = initial_filters
+        self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=30, strides=1,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+
+        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
+
+        for set_id in range(self.n_sets):
+            for block_id in range(self.block_sets[set_id]):
+                #Frst layer of every block except the first
+                if set_id != 0 and block_id == 0:
+                    block = ResNet1DBlock(self.output_filters, strides=2, residual_path=True)
+                
+                else:
+                    if self.input_filters != self.output_filters:
+                        residual_path = True
+                    else:
+                        residual_path = False
+                    block = ResNet1DBlock(self.output_filters, residual_path=residual_path)
+
+                self.input_filters = self.output_filters
+
+                self.blocks.add(block)
+            
+            self.output_filters *= 2
+
+        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.average_pool = tf.keras.layers.GlobalAveragePooling1D()
+        self.fully_connected = tf.keras.layers.Dense(self.n_classes)
+        self.softmax = tf.keras.layers.Softmax()
+    
+    def call(self, inputs, training=None):
+        output = self.conv_initial(inputs)
+        output = self.blocks(output, training=training)
+        output = self.batch_norm_final(output, training=training)
+        output = tf.nn.relu(output)
+        output = self.average_pool(output)
+        output = self.fully_connected(output)
+        output = self.softmax(output)
+
+        return output
+
 
 
 
