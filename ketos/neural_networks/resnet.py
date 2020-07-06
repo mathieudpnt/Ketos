@@ -499,4 +499,117 @@ class ResNetInterface(NNInterface):
 
 
 
-   
+   class ResNet1DInterface(ResNetInterface):
+    @classmethod
+    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
+        """ Transforms a training batch into the format expected by the network.
+
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of input arrays and parsing or one hot encoding of the labels.
+
+            Args:
+                x:numpy.array
+                    The batch of inputs with shape (batch_size, width, height)
+                y:numpy.array
+                    The batch of labels.
+                    Each label must be represented as an integer, ranging from zero to n_classes
+                    The array is expected to have a field named 'label'.
+                n_classes:int
+                    The number of possible classes for one hot encoding.
+                    
+                
+
+            Returns:
+                X:numpy.array
+                    The transformed batch of inputs
+                Y:numpy.array
+                    The transformed batch of labels
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> inputs = np.random.rand(10,5,5)
+                >>> inputs.shape
+                (10, 5, 5)
+
+                    
+                >>> # Create a batch of 10 labels (0 or 1)
+                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
+                >>> labels.shape
+                (10,)
+
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_batch(inputs, labels, n_classes=2)
+                >>> transformed_inputs.shape
+                (10, 5, 5, 1)
+
+                >>> transformed_labels.shape
+                (10, 2)
+                
+        """
+
+        
+        X = cls._transform_input(x)
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        
+        return (X,Y)
+
+    @classmethod
+    def _transform_input(cls,input):
+        """ Transforms a training input to the format expected by the network.
+
+            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of an input.
+
+            Args:
+                input:numpy.array
+                    An input instance. Must be of shape (n,m) or (k,n,m).
+
+            Raises:
+                ValueError if input does not have 2 or 3 dimensions.
+
+            Returns:
+                tranformed_input:numpy.array
+                    The transformed batch of inputs
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> batch_of_inputs = np.random.rand(10,5,5)
+                >>> selected_input = batch_of_inputs[0]
+                >>> selected_input.shape
+                (5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                # The input can also have shape=(1,n,m)
+                >>> selected_input = batch_of_inputs[0:1]
+                >>> selected_input.shape
+                (1, 5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                
+        """
+        if input.ndim == 1:
+            transformed_input = input.reshape(1,input.shape[0],1)
+        elif input.ndim == 2:
+            transformed_input = input.reshape(input.shape[0],input.shape[1],1)
+        else:
+            raise ValueError("Expected input to have 1 or 2 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+
+        return transformed_input
+
+    def __init__(self, block_sets=default_resnet_1d_recipe['block_sets'], n_classes=default_resnet_1d_recipe['n_classes'], initial_filters=default_resnet_1d_recipe['initial_filters'],
+                       optimizer=default_resnet_1d_recipe['optimizer'], loss_function=default_resnet_1d_recipe['loss_function'], metrics=default_resnet_1d_recipe['metrics']):
+        super(ResNet1DInterface, self).__init__(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        self.block_sets = block_sets
+        self.n_classes = n_classes
+        self.initial_filters = initial_filters
+       
+        self.model=ResNet1DArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
+       
