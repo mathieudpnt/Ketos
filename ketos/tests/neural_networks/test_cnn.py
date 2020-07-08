@@ -447,24 +447,24 @@ def test_CNN1DInterface_build_from_recipe_simple(recipe_simple_1d, recipe_detail
     assert cnn.n_classes ==  recipe_simple_1d['n_classes']
 
 
-def test_CNNInterface_build_from_recipe_simple_dict(recipe_simple_dict, recipe_simple, recipe_detailed):
-    cnn = CNNInterface._build_from_recipe(recipe_simple_dict, recipe_compat=False)
+def test_CNN1DInterface_build_from_recipe_simple_dict(recipe_simple_dict_1d, recipe_simple_1d, recipe_detailed_1d):
+    cnn = CNN1DInterface._build_from_recipe(recipe_simple_dict_1d, recipe_compat=False)
 
-    assert cnn.optimizer.recipe_name == recipe_simple['optimizer'].recipe_name
-    assert cnn.optimizer.instance.__class__ == recipe_simple['optimizer'].instance.__class__
-    assert cnn.optimizer.args == recipe_simple['optimizer'].args
+    assert cnn.optimizer.recipe_name == recipe_simple_1d['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_simple_1d['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_simple_1d['optimizer'].args
 
-    assert cnn.loss_function.recipe_name == recipe_simple['loss_function'].recipe_name
-    assert cnn.loss_function.instance.__class__ == recipe_simple['loss_function'].instance.__class__
-    assert cnn.loss_function.args == recipe_simple['loss_function'].args
+    assert cnn.loss_function.recipe_name == recipe_simple_1d['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_simple_1d['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_simple_1d['loss_function'].args
 
-    assert cnn.metrics[0].recipe_name == recipe_simple['metrics'][0].recipe_name
-    assert cnn.metrics[0].instance.__class__ == recipe_simple['metrics'][0].instance.__class__
-    assert cnn.metrics[0].args == recipe_simple['metrics'][0].args
+    assert cnn.metrics[0].recipe_name == recipe_simple_1d['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_simple_1d['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_simple_1d['metrics'][0].args
 
-    assert cnn.conv_set == recipe_simple['conv_set']
-    assert cnn.dense_set == recipe_simple['dense_set']
-    assert cnn.n_classes ==  recipe_simple['n_classes']
+    assert cnn.conv_set == recipe_simple_1d['conv_set']
+    assert cnn.dense_set == recipe_simple_1d['dense_set']
+    assert cnn.n_classes ==  recipe_simple_1d['n_classes']
 
 
 def test_CNNInterface_build_from_recipe_detailed(recipe_detailed):
