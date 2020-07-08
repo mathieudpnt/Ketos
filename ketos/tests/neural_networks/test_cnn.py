@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
-from ketos.neural_networks.cnn import CNNArch, CNNInterface
+from ketos.neural_networks.cnn import CNNArch, CNN1DArch, CNNInterface, CNN1DInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
 import os
 import tables
@@ -293,12 +293,12 @@ def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
 
 
 @pytest.fixture
-def recipe_simple_dict():
-    recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+def recipe_simple_dict_1d():
+    recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
                'dense_set': [512, 256],
-               'n_classes':2,
-               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
-               'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+               'n_classes':2,        
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.01}},
+               'loss_function': {'recipe_name':'CategoricalCrossentropy', 'parameters':{'from_logits':True}},  
                'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
     }
@@ -308,12 +308,12 @@ def recipe_simple_dict():
 
 @pytest.fixture
 def recipe_simple_1d():
-    recipe = {'conv_set':[[8, False], [16, True], [32, True]],
+    recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
                'dense_set': [512, 256],
                'n_classes':2,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, lr=0.01, beta_1=0.9, beta_2=0.999, decay=0.01),
                'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, from_logits=True),  
-               'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),   
+               'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],   
         
     }
     return recipe
@@ -359,38 +359,48 @@ def recipe_detailed_1d():
                   'n_classes': 2 ,
                   'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, lr=0.01, beta_1=0.9, beta_2=0.999, decay=0.01),
                   'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, from_logits=True),  
-                  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),   
+                  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],   
                                
                     }
 
         
-    }
 
     return recipe
 
 
-def test_CNNArch():
-    conv_layers =  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                    {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
-                                    {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}]
+def test_CNN1DArch():
+    conv_layers =   [{'n_filters':8, "filter_shape":128, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+                                    {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':32, "filter_shape":32, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':64, "filter_shape":16, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
+                                    {'n_filters':128, "filter_shape":8, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 4 , 'strides': 4}, 'batch_normalization':True, },
+                                    ]
 
     dense_layers = [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                                    {'n_hidden':128, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     ]
     
-    cnn = CNNArch(convolutional_layers=conv_layers, dense_layers=dense_layers, n_classes=2)
+    cnn = CNN1DArch(convolutional_layers=conv_layers, dense_layers=dense_layers, n_classes=2)
     assert len(cnn.layers) == 3
 
     #convolutional block
-    assert len(cnn.layers[0].layers) == 8
-    assert isinstance(cnn.layers[0].layers[0], tf.keras.layers.Conv2D)
+    assert len(cnn.layers[0].layers) == 15
+    assert isinstance(cnn.layers[0].layers[0], tf.keras.layers.Conv1D)
     assert isinstance(cnn.layers[0].layers[1], tf.keras.layers.BatchNormalization)
-    assert isinstance(cnn.layers[0].layers[2], tf.keras.layers.Conv2D)
-    assert isinstance(cnn.layers[0].layers[3], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[2], tf.keras.layers.Conv1D)
+    assert isinstance(cnn.layers[0].layers[3], tf.keras.layers.MaxPooling1D)
     assert isinstance(cnn.layers[0].layers[4], tf.keras.layers.BatchNormalization)
-    assert isinstance(cnn.layers[0].layers[5], tf.keras.layers.Conv2D)
-    assert isinstance(cnn.layers[0].layers[6], tf.keras.layers.MaxPooling2D)
+    assert isinstance(cnn.layers[0].layers[5], tf.keras.layers.Conv1D)
+    assert isinstance(cnn.layers[0].layers[6], tf.keras.layers.MaxPooling1D)
     assert isinstance(cnn.layers[0].layers[7], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[8], tf.keras.layers.Conv1D)
+    assert isinstance(cnn.layers[0].layers[9], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[10], tf.keras.layers.Conv1D)
+    assert isinstance(cnn.layers[0].layers[11], tf.keras.layers.BatchNormalization)
+    assert isinstance(cnn.layers[0].layers[12], tf.keras.layers.Conv1D)
+    assert isinstance(cnn.layers[0].layers[13], tf.keras.layers.MaxPooling1D)
+    assert isinstance(cnn.layers[0].layers[14], tf.keras.layers.BatchNormalization)
 
     #Flatten layer
     assert isinstance(cnn.layers[1], tf.keras.layers.Flatten)
