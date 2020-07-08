@@ -297,7 +297,7 @@ def recipe_simple_dict_1d():
     recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
                'dense_set': [512, 128],
                'n_classes':2,        
-               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.01}},
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'beta_1': 0.9, 'beta_2': 0.999, 'decay': 0.01, 'lr': 0.01}},
                'loss_function': {'recipe_name':'CategoricalCrossentropy', 'parameters':{'from_logits':True}},  
                'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
