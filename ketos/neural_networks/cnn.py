@@ -211,23 +211,20 @@ class CNN1DArch(tf.keras.Model):
                 Scores sum to 1.0.
     """
 
-    def __init__(self, dense_layers, n_classes, convolutional_layers=None, pre_trained_base=None, **kwargs): 
+    def __init__(self, dense_layers, n_classes, convolutional_layers=None, **kwargs): 
 
         self.convolutional_layers = convolutional_layers
         self.dense_layers = dense_layers
         self.n_classes = n_classes
         super(CNN1DArch, self).__init__(**kwargs)
 
-        if pre_pre_trained_base:
-            self.convolutional_block = pre_trained_base
-        else:
-            self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
-            for conv_layer in self.convolutional_layers:
-                self.convolutional_block.add(tf.keras.layers.Conv1D(filters=conv_layer['n_filters'], kernel_size=conv_layer['filter_shape'], strides=conv_layer['strides'], activation=conv_layer['activation'], padding=conv_layer['padding']))
-                if conv_layer['max_pool'] is not None:
-                    self.convolutional_block.add(tf.keras.layers.MaxPooling1D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
-                if conv_layer['batch_normalization'] == True:
-                    self.convolutional_block.add(tf.keras.layers.BatchNormalization())
+        self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
+        for conv_layer in self.convolutional_layers:
+            self.convolutional_block.add(tf.keras.layers.Conv1D(filters=conv_layer['n_filters'], kernel_size=conv_layer['filter_shape'], strides=conv_layer['strides'], activation=conv_layer['activation'], padding=conv_layer['padding']))
+            if conv_layer['max_pool'] is not None:
+                self.convolutional_block.add(tf.keras.layers.MaxPooling1D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
+            if conv_layer['batch_normalization'] == True:
+                self.convolutional_block.add(tf.keras.layers.BatchNormalization())
 
         self.flatten = tf.keras.layers.Flatten()
         
