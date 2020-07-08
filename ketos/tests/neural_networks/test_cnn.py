@@ -295,7 +295,7 @@ def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
 @pytest.fixture
 def recipe_simple_dict_1d():
     recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
-               'dense_set': [512, 256],
+               'dense_set': [512, 128],
                'n_classes':2,        
                'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.01}},
                'loss_function': {'recipe_name':'CategoricalCrossentropy', 'parameters':{'from_logits':True}},  
@@ -309,7 +309,7 @@ def recipe_simple_dict_1d():
 @pytest.fixture
 def recipe_simple_1d():
     recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
-               'dense_set': [512, 256],
+               'dense_set': [512, 128],
                'n_classes':2,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, lr=0.01, beta_1=0.9, beta_2=0.999, decay=0.01),
                'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy, from_logits=True),  
@@ -421,9 +421,9 @@ def test_convolutional_layers_from_conv_set_1d(recipe_simple_1d, recipe_detailed
     assert detailed_layers == recipe_detailed_1d['convolutional_layers']
     
 
-def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
-    detailed_layers = CNNInterface._dense_layers_from_dense_set(recipe_simple['dense_set'])
-    assert detailed_layers == recipe_detailed['dense_layers']
+def test_dense_layers_from_dense_set_1d(recipe_simple_1d, recipe_detailed_1d):
+    detailed_layers = CNNInterface._dense_layers_from_dense_set(recipe_simple_1d['dense_set'])
+    assert detailed_layers == recipe_detailed_1d['dense_layers']
 
 
  
