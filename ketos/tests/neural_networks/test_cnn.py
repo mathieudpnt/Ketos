@@ -344,12 +344,12 @@ def recipe_detailed_dict_1d():
 
 @pytest.fixture
 def recipe_detailed_1d():
-    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":128, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
-                                    {'n_filters':32, "filter_shape":32, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
-                                    {'n_filters':64, "filter_shape":16, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
-                                    {'n_filters':128, "filter_shape":8, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 4 , 'strides': 4}, 'batch_normalization':True, },
+                                    {'n_filters':32, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':64, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
+                                    {'n_filters':128, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 8 , 'strides': 8}, 'batch_normalization':True, },
                                     ],
 
                   'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -374,7 +374,7 @@ def test_CNN1DArch():
                                     {'n_filters':32, "filter_shape":32, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
                                     {'n_filters':64, "filter_shape":16, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
                                     {'n_filters':128, "filter_shape":8, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 4 , 'strides': 4}, 'batch_normalization':True, },
+                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 8 , 'strides': 8}, 'batch_normalization':True, },
                                     ]
 
     dense_layers = [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -416,9 +416,9 @@ def test_CNN1DArch():
     assert isinstance(cnn.layers[2].layers[7], tf.keras.layers.Softmax)
    
 
-def test_convolutional_layers_from_conv_set(recipe_simple, recipe_detailed):
-    detailed_layers = CNNInterface._convolutional_layers_from_conv_set(recipe_simple['conv_set'])
-    assert detailed_layers == recipe_detailed['convolutional_layers']
+def test_convolutional_layers_from_conv_set_1d(recipe_simple_1d, recipe_detailed_1d):
+    detailed_layers = CNN1DInterface._convolutional_layers_from_conv_set(recipe_simple_1d['conv_set'])
+    assert detailed_layers == recipe_detailed_1d['convolutional_layers']
     
 
 def test_dense_layers_from_dense_set(recipe_simple, recipe_detailed):
