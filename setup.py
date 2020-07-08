@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 #   $ twine upload dist/*
 
 setup(name='ketos',
-      version='2.0.0',
+      version='2.0.1',
       description="MERIDIAN Python package for deep-learning based acoustic detector and classifiers",
       url='https://gitlab.meridian.cs.dal.ca/public_projects/ketos',
       author='Fabio Frazao, Oliver Kirsebom',
@@ -19,7 +19,6 @@ setup(name='ketos',
           'pandas',
           'setuptools>=41.0.0',
           'tensorflow==2.1',
-          'tensorflow-addons==0.8.3',
           'numba==0.48.0',
           'scikit-learn',
           'scikit-image',

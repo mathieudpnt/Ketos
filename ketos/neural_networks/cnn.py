@@ -50,14 +50,14 @@ vgg_like_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,
                                     {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True, },
                                     {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True, },
                                     {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True,},
-                                    {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
-                                    {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
-                                    {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
-                                    {'n_filters':256, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True,}],
+                                    {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
+                                    {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
+                                    {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True,},
+                                    {'n_filters':512, "filter_shape":(3,3), 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':(2,2) , 'strides':(2,2)}, 'batch_normalization':True,}],
                  
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},],
+                                    ],
                   'n_classes': 2 ,
                   'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                   'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
@@ -78,7 +78,7 @@ alexnet_like_recipe = {'convolutional_layers':  [{'n_filters':96, "filter_shape"
                   
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
-                                    {'n_hidden':1000, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5,}],
+                                    ],
 
                   'n_classes': 2 ,
                   'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
@@ -138,7 +138,9 @@ class CNNArch(tf.keras.Model):
                 self.convolutional_block.add(tf.keras.layers.MaxPooling2D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
             if conv_layer['batch_normalization'] == True:
                 self.convolutional_block.add(tf.keras.layers.BatchNormalization())
-            
+        
+        self.flatten = tf.keras.layers.Flatten()
+
         self.dense_block = tf.keras.models.Sequential(name="dense_block")
         for fc_layer in dense_layers:
             self.dense_block.add(tf.keras.layers.Dense(units=fc_layer['n_hidden'], activation=fc_layer['activation']))
@@ -149,13 +151,17 @@ class CNNArch(tf.keras.Model):
 
         
         self.dense_block.add(tf.keras.layers.Dense(n_classes))
-        self.dense_block.add(tf.keras.layers.Softmax(n_classes))
+        self.dense_block.add(tf.keras.layers.Softmax())
 
     def call(self, inputs, training=None):
         output = self.convolutional_block(inputs, training=training)
+        output = self.flatten(output)
         output = self.dense_block(output, training=training)
 
+        print("output shape: ", output.shape)
+
         return output
+
 
 
 class CNNInterface(NNInterface):
