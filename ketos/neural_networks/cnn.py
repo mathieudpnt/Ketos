@@ -627,6 +627,159 @@ class CNN1DInterface(CNNInterface):
     """
 
     @classmethod
+    def _convolutional_layers_from_conv_set(cls, conv_set):
+        """ Create a detailed description of the convolutional layers based on the simplified description in 'conv_set'
+
+            The resulting detailed description can then be used to build the convolutional layers in the model
+
+            Args:
+                conv_set:list
+                    A list describing the convolutional layers in a CNN.
+                    each layer is represented by a list of 2 elements: The number of filters (int) and
+                    whether or not that layer is followed by a max_pooling operation (boolean).
+                    Example:
+                   
+                    >>> [[64,False], [128, True]] # doctest: +SKIP
+                   
+                    This conv_set would describe two convolutional layers, with 64 and 128 filters, respectively.
+                    Only the second would have max_pooling.
+
+            Returns:
+                convolutional_layers: list
+                    A list of detailed layer description dictionaries.
+                    Example: 
+                   
+                    >>> [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True}, # doctest: +SKIP
+                    ...          {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                    ...          ]
+                              
+
+        """
+        
+        convolutional_layers = []
+        for layer_parameters in conv_set:
+            n_filters, max_pool = layer_parameters
+            
+            #default layer details
+            layer_details = {'n_filters':64, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size':8 , 'strides':8}, 'batch_normalization':True}
+            layer_details['n_filters'] = n_filters
+                       
+            if max_pool is False:
+                layer_details['max_pool'] = None
+            convolutional_layers.append(layer_details)
+            
+
+        return convolutional_layers
+
+
+    @classmethod
+    def _dense_layers_from_dense_set(cls, dense_set):
+        """ Create a detailed description of the dense layers based on the simplified description in 'dense_set'
+
+            The resulting detailed description can then be used to build the convolutional layers in the model.
+
+            Args:
+                dense_set:list
+                    A list describing the dense layers in a CNN.
+                    Each layer is represented by a one integer describing the number of output nodes in that layer.
+                    The number of input nodes is automatically determined from the previous layer.
+                    Example: [512, 256] 
+                    This cdense_set would describe two dense layers, with 512 and 256 nodes, respectively.
+                    Note that, the last layer of a CNN does not need to be especified in the dense_set, as the output layer
+                    is automatically created according with the number of classes to be classified.
+
+            Returns:
+                dense_layers: list
+                    A list of detailed layer description dictionaries.
+                    Example: 
+                    >>> [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}, # doctest: +SKIP
+                    ...       {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                    ...       ]  
+
+        """
+
+        dense_layers = []
+        for layer_parameters in dense_set:
+            n_hidden = layer_parameters
+            layer_details = {'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5}
+            layer_details['n_hidden'] = n_hidden
+
+            dense_layers.append(layer_details)
+        return dense_layers
+
+
+    @classmethod
+    def _build_from_recipe(cls, recipe, recipe_compat=True ):
+        """ Build a CNN model from a recipe.
+
+            Args:
+                recipe: dict
+                    A recipe dictionary. The optimizer, loss function
+                    and metrics must be instances of ketos.neural_networks.RecipeCompat.
+                    Example recipe:
+                        >>> {'conv_set':[[64, False], [128, True], [256, True]], # doctest: +SKIP
+                        ...  'dense_set': [512, ],
+                        ...  'n_classes':2,
+                        ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                        ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+                        ...  ]
+
+                        The only optional field is 'secondary_metrics'.
+
+                    Alternatively, the 'conv_set' and 'dense_set' can be replaced by detailed descriptions in
+                    'convolutional_layers' and 'dense_layers'.
+                    Note that these need to be provided in pairs ('conv_set' + 'dense_set' OR 'convolutional_layers' and 'dense_layers')
+                    Example:
+                        >>> {'conv_set': [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True}, # doctest: +SKIP
+                        ...              {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
+                        ...              ],
+                        ...  'dense_set': [{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                        ...                {'n_hidden':256, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+                        ...                ],
+                        ...  'n_classes':2,
+                        ...  'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
+                        ...  'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
+                        ...  'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}],
+                        ...  ]
+
+
+            Returns:
+                An instance of CNNInterface.
+        """
+
+        conv_set = None
+        dense_set = None        
+        if 'convolutional_layers' in recipe.keys() and 'dense_layers' in recipe.keys():
+            convolutional_layers = recipe['convolutional_layers']
+            dense_layers = recipe['dense_layers']
+        elif 'conv_set' in recipe.keys() and 'dense_set' in recipe.keys():
+            conv_set = recipe['conv_set']
+            dense_set = recipe['dense_set']
+            convolutional_layers = cls._convolutional_layers_from_conv_set(conv_set)
+            dense_layers = cls._dense_layers_from_dense_set(dense_set)
+            
+        n_classes = recipe['n_classes']
+        
+        if recipe_compat == True:
+            optimizer = recipe['optimizer']
+            loss_function = recipe['loss_function']
+            metrics = recipe['metrics']
+            
+        else:
+            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+            metrics = cls._metrics_from_recipe(recipe['metrics'])
+            
+        
+
+        instance = cls(convolutional_layers=convolutional_layers, dense_layers=dense_layers, n_classes=n_classes, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance.conv_set = conv_set
+        instance.dense_set = dense_set
+
+        return instance
+
+    @classmethod
     def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
