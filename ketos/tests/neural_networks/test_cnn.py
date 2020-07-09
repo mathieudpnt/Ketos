@@ -321,12 +321,12 @@ def recipe_simple_1d():
 
 @pytest.fixture
 def recipe_detailed_dict_1d():
-    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":128, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
-                                    {'n_filters':32, "filter_shape":32, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
-                                    {'n_filters':64, "filter_shape":16, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
-                                    {'n_filters':128, "filter_shape":8, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
-                                    {'n_filters':256, "filter_shape":4, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 4 , 'strides': 4}, 'batch_normalization':True, },
+                                    {'n_filters':32, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
+                                    {'n_filters':64, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
+                                    {'n_filters':128, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True},
+                                    {'n_filters':256, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool':{'pool_size': 8 , 'strides': 8}, 'batch_normalization':True, },
                                     ],
 
                 'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -334,7 +334,7 @@ def recipe_detailed_dict_1d():
                                     ],
 
                 'n_classes': 2 ,
-               'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.01}},
+               'optimizer': {'recipe_name':'Adam', 'parameters': {'beta_1': 0.9, 'beta_2': 0.999, 'decay': 0.01, 'lr': 0.01}},
                'loss_function': {'recipe_name':'CategoricalCrossentropy', 'parameters':{'from_logits':True}},  
                'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
@@ -486,24 +486,24 @@ def test_CNN1DInterface_build_from_recipe_detailed(recipe_detailed_1d):
     assert cnn.dense_layers == recipe_detailed_1d['dense_layers']
     assert cnn.n_classes ==  recipe_detailed_1d['n_classes']
 
-def test_CNNInterface_build_from_recipe_detailed_dict(recipe_detailed, recipe_detailed_dict):
-    cnn = CNNInterface._build_from_recipe(recipe_detailed_dict, recipe_compat=False)
+def test_CNN1DInterface_build_from_recipe_detailed_dict(recipe_detailed_1d, recipe_detailed_dict_1d):
+    cnn = CNN1DInterface._build_from_recipe(recipe_detailed_dict_1d, recipe_compat=False)
 
-    assert cnn.optimizer.recipe_name == recipe_detailed['optimizer'].recipe_name
-    assert cnn.optimizer.instance.__class__ == recipe_detailed['optimizer'].instance.__class__
-    assert cnn.optimizer.args == recipe_detailed['optimizer'].args
+    assert cnn.optimizer.recipe_name == recipe_detailed_1d['optimizer'].recipe_name
+    assert cnn.optimizer.instance.__class__ == recipe_detailed_1d['optimizer'].instance.__class__
+    assert cnn.optimizer.args == recipe_detailed_1d['optimizer'].args
 
-    assert cnn.loss_function.recipe_name == recipe_detailed['loss_function'].recipe_name
-    assert cnn.loss_function.instance.__class__ == recipe_detailed['loss_function'].instance.__class__
-    assert cnn.loss_function.args == recipe_detailed['loss_function'].args
+    assert cnn.loss_function.recipe_name == recipe_detailed_1d['loss_function'].recipe_name
+    assert cnn.loss_function.instance.__class__ == recipe_detailed_1d['loss_function'].instance.__class__
+    assert cnn.loss_function.args == recipe_detailed_1d['loss_function'].args
 
-    assert cnn.metrics[0].recipe_name == recipe_detailed['metrics'][0].recipe_name
-    assert cnn.metrics[0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
-    assert cnn.metrics[0].args == recipe_detailed['metrics'][0].args
+    assert cnn.metrics[0].recipe_name == recipe_detailed_1d['metrics'][0].recipe_name
+    assert cnn.metrics[0].instance.__class__ == recipe_detailed_1d['metrics'][0].instance.__class__
+    assert cnn.metrics[0].args == recipe_detailed_1d['metrics'][0].args
 
-    assert cnn.convolutional_layers == recipe_detailed['convolutional_layers']
-    assert cnn.dense_layers == recipe_detailed['dense_layers']
-    assert cnn.n_classes ==  recipe_detailed['n_classes']
+    assert cnn.convolutional_layers == recipe_detailed_1d['convolutional_layers']
+    assert cnn.dense_layers == recipe_detailed_1d['dense_layers']
+    assert cnn.n_classes ==  recipe_detailed_1d['n_classes']
 
 def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
     cnn = CNNInterface._build_from_recipe(recipe_simple)
