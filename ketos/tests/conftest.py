@@ -33,6 +33,7 @@ import soundfile as sf
 import pandas as pd
 import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
+from ketos.data_handling.data_feeding import BatchGenerator
 from ketos.audio.waveform import Waveform
 from ketos.audio.utils.axis import LinearAxis, Log2Axis
 import ketos.audio.base_audio as aba
@@ -469,3 +470,20 @@ def spectr_settings():
         "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
         "duration": "1.0s", "resample_method": "scipy"}}'
     return j
+
+
+@pytest.fixture
+def sample_data_batch_generator():
+    data = np.vstack([np.zeros((10,512,512)), np.ones((10,512,512))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    return generator
+
+@pytest.fixture
+def sample_data_batch_generator_1d():
+    data = np.vstack([np.zeros((10,512)), np.ones((10,512))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    return generator
