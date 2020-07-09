@@ -1162,7 +1162,7 @@ class NNInterface():
         
         if transform_input == True:
             input = self._transform_input(input)
-        output = self.model(input)
+        output = self.model.predict(input)
         output = output.numpy()
         
         if not return_raw_output:
@@ -1190,7 +1190,7 @@ class NNInterface():
 
         if transform_input == True:
             input_batch = self._transform_input(input_batch)
-        output = self.model(input_batch)
+        output = self.model.predict_on_batch(input_batch)
         output = output.numpy()
         
         if not return_raw_output:
