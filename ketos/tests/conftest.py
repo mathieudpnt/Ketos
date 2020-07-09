@@ -473,17 +473,16 @@ def spectr_settings():
 
 
 @pytest.fixture
-def sample_data_batch_generator():
-    data = np.vstack([np.zeros((10,512,512)), np.ones((10,512,512))])
+def sample_data():
+    data = np.vstack([np.zeros((10,512,512,1)), np.ones((10,512,512,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
-    generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
-
-    return generator
+    
+    return (data, labels)
 
 @pytest.fixture
-def sample_data_batch_generator_1d():
-    data = np.vstack([np.zeros((10,512)), np.ones((10,512))])
+def sample_data_1d():
+    data = np.vstack([np.zeros((10,20000,1)), np.ones((10,20000,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
-    generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    
 
-    return generator
+    return (data, labels)
