@@ -108,9 +108,9 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 tables==3.5.2
 tb-nightly==1.15.0a20190806
-tensorboard==2.1.1
-tensorflow==2.1.0
-tensorflow-estimator==2.1.0
+tensorboard>=2.1.1
+tensorflow>=2.1.0
+tensorflow-estimator>=2.1.0
 termcolor==1.1.0
 terminado==0.8.3
 testpath==0.4.4

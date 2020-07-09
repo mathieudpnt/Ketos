@@ -1,6 +1,16 @@
 Change log
 ==========
 
+**Version 2.0.2** (July 9, 2020)
+
+ *  tensorflow version requirement changed from ==2.1 to >=2.1, <=2.2
+
+**Version 2.0.1** (July 8, 2020)
+
+ * Removes tensorflow-addons dependency. As a consequence, the FScore metric is no longer available to be reported during training by the NNInterface, but Precision and Recall are. The FScoreLoss can still be used. 
+
+ * This merge also fixes a small bug in the run_on_test_generator method.
+
 **Version 2.0.0** (June 26, 2020)
 
  *  Added convenience method to the NNInterface class for model testing.
