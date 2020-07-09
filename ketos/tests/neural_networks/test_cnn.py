@@ -553,36 +553,36 @@ def test_read_recipe_simple_file_1d(recipe_simple_1d, recipe_simple_dict_1d, rec
     assert read_recipe['dense_layers'] == recipe_simple_1d['dense_layers']
 
 
-def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
-    path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed.json")
-    cnn = CNNInterface._build_from_recipe(recipe_detailed)
+def test_read_recipe_simple_detailed_1d(recipe_detailed_1d, recipe_detailed_dict_1d):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_cnn_recipe_detailed_1d.json")
+    cnn = CNN1DInterface._build_from_recipe(recipe_detailed_1d)
     #written_recipe = resnet.write_recipe()
     cnn.save_recipe_file(path_to_recipe_file)
 
     #Read recipe as a recipe dict
     read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
-    recipe_detailed_dict['conv_set'] = None
-    recipe_detailed_dict['dense_set'] = None
-    assert read_recipe == recipe_detailed_dict
+    recipe_detailed_dict_1d['conv_set'] = None
+    recipe_detailed_dict_1d['dense_set'] = None
+    assert read_recipe == recipe_detailed_dict_1d
     
     #Read recipe as a recipe dict with RecipeCompat objects
-    recipe_detailed['conv_set'] = None
-    recipe_detailed['dense_set'] = None
+    recipe_detailed_1d['conv_set'] = None
+    recipe_detailed_1d['dense_set'] = None
 
     read_recipe = cnn._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
-    assert read_recipe['optimizer'].recipe_name == recipe_detailed['optimizer'].recipe_name
-    assert read_recipe['optimizer'].instance.__class__ == recipe_detailed['optimizer'].instance.__class__
-    assert read_recipe['optimizer'].args == recipe_detailed['optimizer'].args
+    assert read_recipe['optimizer'].recipe_name == recipe_detailed_1d['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_detailed_1d['optimizer'].instance.__class__
+    assert read_recipe['optimizer'].args == recipe_detailed_1d['optimizer'].args
 
-    assert read_recipe['loss_function'].recipe_name == recipe_detailed['loss_function'].recipe_name
-    assert read_recipe['loss_function'].instance.__class__ == recipe_detailed['loss_function'].instance.__class__
-    assert read_recipe['loss_function'].args == recipe_detailed['loss_function'].args
+    assert read_recipe['loss_function'].recipe_name == recipe_detailed_1d['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_detailed_1d['loss_function'].instance.__class__
+    assert read_recipe['loss_function'].args == recipe_detailed_1d['loss_function'].args
     
-    assert read_recipe['metrics'][0].recipe_name == recipe_detailed['metrics'][0].recipe_name
-    assert read_recipe['metrics'][0].instance.__class__ == recipe_detailed['metrics'][0].instance.__class__
-    assert read_recipe['metrics'][0].args == recipe_detailed['metrics'][0].args
+    assert read_recipe['metrics'][0].recipe_name == recipe_detailed_1d['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_detailed_1d['metrics'][0].instance.__class__
+    assert read_recipe['metrics'][0].args == recipe_detailed_1d['metrics'][0].args
 
-    assert read_recipe['conv_set'] == recipe_detailed['conv_set']
-    assert read_recipe['dense_set'] == recipe_detailed['dense_set']
-    assert read_recipe['convolutional_layers'] == recipe_detailed['convolutional_layers']
-    assert read_recipe['dense_layers'] == recipe_detailed['dense_layers']
+    assert read_recipe['conv_set'] == recipe_detailed_1d['conv_set']
+    assert read_recipe['dense_set'] == recipe_detailed_1d['dense_set']
+    assert read_recipe['convolutional_layers'] == recipe_detailed_1d['convolutional_layers']
+    assert read_recipe['dense_layers'] == recipe_detailed_1d['dense_layers']
