@@ -505,16 +505,16 @@ def test_CNN1DInterface_build_from_recipe_detailed_dict(recipe_detailed_1d, reci
     assert cnn.dense_layers == recipe_detailed_1d['dense_layers']
     assert cnn.n_classes ==  recipe_detailed_1d['n_classes']
 
-def test_write_recipe_simple(recipe_simple, recipe_simple_dict, recipe_detailed):
-    cnn = CNNInterface._build_from_recipe(recipe_simple)
+def test_write_recipe_simple_1d(recipe_simple_1d, recipe_simple_dict_1d, recipe_detailed_1d):
+    cnn = CNN1DInterface._build_from_recipe(recipe_simple_1d)
     written_recipe = cnn._extract_recipe_dict()
 
     #Even when the model is built from a simplified recipe, the detailed form will be included when writing the recipe again
 
-    recipe_simple_dict['convolutional_layers'] = recipe_detailed['convolutional_layers']
-    recipe_simple_dict['dense_layers'] = recipe_detailed['dense_layers']
+    recipe_simple_dict_1d['convolutional_layers'] = recipe_detailed_1d['convolutional_layers']
+    recipe_simple_dict_1d['dense_layers'] = recipe_detailed_1d['dense_layers']
 
-    assert written_recipe == recipe_simple_dict
+    assert written_recipe == recipe_simple_dict_1d
     
 
 def test_read_recipe_simple_file(recipe_simple, recipe_simple_dict, recipe_detailed):
