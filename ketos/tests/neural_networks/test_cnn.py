@@ -1,9 +1,14 @@
-import pytest
 import numpy as np
+np.random.seed(1000)
+
 import tensorflow as tf
+tf.random.set_seed(2000)
+
+import pytest
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.cnn import CNNArch, CNN1DArch, CNNInterface, CNN1DInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
+from ketos.data_handling.data_feeding import BatchGenerator
 import os
 import tables
 import json
@@ -286,6 +291,22 @@ def test_read_recipe_simple_detailed(recipe_detailed, recipe_detailed_dict):
     assert read_recipe['dense_set'] == recipe_detailed['dense_set']
     assert read_recipe['convolutional_layers'] == recipe_detailed['convolutional_layers']
     assert read_recipe['dense_layers'] == recipe_detailed['dense_layers']
+
+
+def test_train_CNN(sample_data):
+    data, labels = sample_data
+    cnn = CNNInterface() #default cnn
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    cnn.train_generator = train_generator
+    cnn.val_generator = val_generator
+
+    cnn.train_loop(2)
+    assert cnn._val_loss.result().numpy() ==  pytest.approx(0.0012, rel=1e-2)
+
+
+
 
 
 
@@ -586,3 +607,20 @@ def test_read_recipe_simple_detailed_1d(recipe_detailed_1d, recipe_detailed_dict
     assert read_recipe['dense_set'] == recipe_detailed_1d['dense_set']
     assert read_recipe['convolutional_layers'] == recipe_detailed_1d['convolutional_layers']
     assert read_recipe['dense_layers'] == recipe_detailed_1d['dense_layers']
+
+
+def test_train_CNN1D(sample_data_1d):
+    data, labels = sample_data_1d
+    cnn = CNN1DInterface() #default cnn 1d
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    cnn.train_generator = train_generator
+    cnn.val_generator = val_generator
+
+    cnn.train_loop(2)
+    assert cnn._val_loss.result().numpy() ==  pytest.approx(0.813, rel=1e-2)
+
+
+
+
