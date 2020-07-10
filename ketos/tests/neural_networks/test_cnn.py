@@ -14,6 +14,9 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
+
+#Tests for CNN 2D
+
 @pytest.fixture
 def recipe_simple_dict():
     recipe = {'conv_set':[[64, False], [128, True], [256, True]],
