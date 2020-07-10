@@ -4,7 +4,7 @@ import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.resnet import ResNetBlock, ResNet1DBlock, ResNetArch, ResNet1DArch, ResNetInterface, ResNet1DInterface
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
-#from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
+from ketos.data_handling.data_feeding import BatchGenerator
 import os
 import tables
 import json
@@ -361,3 +361,14 @@ def test_read_recipe_file_1d(recipe_1d, recipe_dict_1d):
     assert read_recipe['block_sets'] == recipe_1d['block_sets']
     assert read_recipe['n_classes'] ==  recipe_1d['n_classes']
 
+
+def test_train_ResNet1D(sample_data_1d):
+    data, labels = sample_data_1d
+    resnet = ResNet1DInterface() #default resnet 1d
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    resnet.train_generator = train_generator
+    resnet.val_generator = val_generator
+
+    resnet.train_loop(2)
