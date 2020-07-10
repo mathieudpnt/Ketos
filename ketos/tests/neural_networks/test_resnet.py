@@ -188,6 +188,18 @@ def test_read_recipe_file(recipe, recipe_dict):
     assert read_recipe['n_classes'] ==  recipe['n_classes']
 
 
+def test_train_ResNet(sample_data):
+    data, labels = sample_data
+    resnet = ResNetInterface() #default resnet
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    resnet.train_generator = train_generator
+    resnet.val_generator = val_generator
+
+    resnet.train_loop(2)
+
+
 # ResNet 1D
 
 
