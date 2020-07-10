@@ -674,7 +674,7 @@ class NNInterface():
         return instance
 
     @classmethod
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True,  replace_top=False, diff_n_classes=None):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
@@ -684,8 +684,17 @@ class NNInterface():
                     Path to folder where files associated with the model will be stored.
                 overwrite: bool
                     If True, the 'new_model_folder' will be overwritten.
+                replace_top: bool
+                    If True, the classification top of the model will be replaced by a new, untrained one.
+                    What is actually replaced (i.e.: what exactly is the "top") is defined by the architecture.
+                    It is usually a block of dense layers with the appropriate activations. Default is False.
+                diff_n_classes: int
+                    Only relevant when 'replace_top' is True.
+                    If the new model should have a different number of classes it can be specified by this parameter.
+                    If left to none, the new model will have the same number of classes as the original.
+
             Raises:
-                FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
+                FileExistsError: If the 'new_model_folder' already exists and 'overwite' is False.
 
         """
 
@@ -703,7 +712,14 @@ class NNInterface():
         recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
         model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
 
-        
+        if replace_top == True:
+            new_n_classes = recipe['n_classes']
+            if diff_n_classes is not None:
+                new_n_classes = diff_n_classes
+            model_with_new_top = model_instance.model.clone_with_new_top(n_classes=new_n_classes)
+            model_instance.model = model_with_new_top
+
+               
         return model_instance
     
     @classmethod
