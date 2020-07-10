@@ -277,11 +277,7 @@ class CNNInterface(NNInterface):
                 A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
                 These metrics will be computed on each batch during training.
 
-            secondary_metrics: list of ketos.neural_networks.RecipeCompat objects
-                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
-                These can be used as additional metrics. Computed at each batch during training but only printed or
-                logged as the average at the end of the epoch
-
+           
         Examples:
 
             >>> # Most users will create a model based on a Ketos recipe 
@@ -601,11 +597,7 @@ class CNN1DInterface(CNNInterface):
                 A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
                 These metrics will be computed on each batch during training.
 
-            secondary_metrics: list of ketos.neural_networks.RecipeCompat objects
-                A list of recipe compatible metrics (i.e.: wrapped by the ketos.neural_networksRecipeCompat class).
-                These can be used as additional metrics. Computed at each batch during training but only printed or
-                logged as the average at the end of the epoch
-
+         
         Examples:
 
             >>> # Most users will create a model based on a Ketos recipe 
