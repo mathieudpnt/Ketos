@@ -306,24 +306,24 @@ def test_ResNetArch_1d():
     assert isinstance(resnet.layers[1].layers[5].layers[4], tf.keras.layers.Dropout)
 
 
-def test_ResNetInterface_build_from_recipe(recipe):
-    resnet = ResNetInterface._build_from_recipe(recipe)
+def test_ResNetInterface_build_from_recipe_1d(recipe_1d):
+    resnet = ResNet1DInterface._build_from_recipe(recipe_1d)
 
-    assert resnet.optimizer.recipe_name == recipe['optimizer'].recipe_name
-    assert resnet.optimizer.instance.__class__ == recipe['optimizer'].instance.__class__
-    assert resnet.optimizer.args == recipe['optimizer'].args
+    assert resnet.optimizer.recipe_name == recipe_1d['optimizer'].recipe_name
+    assert resnet.optimizer.instance.__class__ == recipe_1d['optimizer'].instance.__class__
+    assert resnet.optimizer.args == recipe_1d['optimizer'].args
 
-    assert resnet.loss_function.recipe_name == recipe['loss_function'].recipe_name
-    assert resnet.loss_function.instance.__class__ == recipe['loss_function'].instance.__class__
-    assert resnet.loss_function.args == recipe['loss_function'].args
+    assert resnet.loss_function.recipe_name == recipe_1d['loss_function'].recipe_name
+    assert resnet.loss_function.instance.__class__ == recipe_1d['loss_function'].instance.__class__
+    assert resnet.loss_function.args == recipe_1d['loss_function'].args
 
-    assert resnet.metrics[0].recipe_name == recipe['metrics'][0].recipe_name
-    assert resnet.metrics[0].instance.__class__ == recipe['metrics'][0].instance.__class__
-    assert resnet.metrics[0].args == recipe['metrics'][0].args
+    assert resnet.metrics[0].recipe_name == recipe_1d['metrics'][0].recipe_name
+    assert resnet.metrics[0].instance.__class__ == recipe_1d['metrics'][0].instance.__class__
+    assert resnet.metrics[0].args == recipe_1d['metrics'][0].args
 
-    assert resnet.initial_filters == recipe['initial_filters']
-    assert resnet.block_sets == recipe['block_sets']
-    assert resnet.n_classes ==  recipe['n_classes']
+    assert resnet.initial_filters == recipe_1d['initial_filters']
+    assert resnet.block_sets == recipe_1d['block_sets']
+    assert resnet.n_classes ==  recipe_1d['n_classes']
 
 
 def test_extract_recipe_dict(recipe, recipe_dict):
