@@ -312,8 +312,7 @@ class ResNet1DArch(tf.keras.Model):
 
     def __init__(self, n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, **kwargs):
         super(ResNet1DArch, self).__init__(**kwargs)
-
-       self.n_classes = n_classes
+        self.n_classes = n_classes
         if pre_trained_base:
             self.conv_initial = pre_trained_base[0]
             self.blocks = pre_trained_base[1]
@@ -411,6 +410,48 @@ class ResNetInterface(NNInterface):
                 logged as the average at the end of the epoch
                 
     """
+
+    @classmethod
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True, replace_top=False, diff_n_classes=None):
+        """ Load a model from a ketos (.kt) model file.
+
+            Args:
+                model_file:str
+                    Path to the ketos(.kt) file
+                new_model_folder:str
+                    Path to folder where files associated with the model will be stored.
+                overwrite: bool
+                    If True, the 'new_model_folder' will be overwritten.
+            Raises:
+                FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
+
+        """
+
+        try:
+            os.makedirs(new_model_folder)
+        except FileExistsError:
+            if overwrite == True:
+                rmtree(new_model_folder)
+                os.makedirs(new_model_folder)
+            else:
+                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
+
+        with ZipFile(model_file, 'r') as zip:
+            zip.extractall(path=new_model_folder)
+        recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
+        model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
+        print("\n Base model")
+        print(model_instance.model)
+
+        if replace_top == True:
+            model_with_new_top = model_instance.model.clone_with_new_top(n_classes=diff_n_classes)
+            model_instance.model = model_with_new_top
+        
+        print("\n new model")
+        print(model_instance.model)
+        return model_instance
+   
+
 
     @classmethod
     def _build_from_recipe(cls, recipe, recipe_compat=True):
