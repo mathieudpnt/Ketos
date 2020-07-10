@@ -333,31 +333,31 @@ def test_extract_recipe_dict_1d(recipe_1d, recipe_dict_1d):
     assert written_recipe == recipe_dict_1d
 
 
-def test_read_recipe_file(recipe, recipe_dict):
-    path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe.json")
-    resnet = ResNetInterface._build_from_recipe(recipe)
+def test_read_recipe_file_1d(recipe_1d, recipe_dict_1d):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe_1d.json")
+    resnet = ResNetInterface._build_from_recipe(recipe_1d)
     written_recipe = resnet._extract_recipe_dict()
     resnet.save_recipe_file(path_to_recipe_file)
 
     #Read recipe as a recipe dict
     read_recipe = resnet._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
-    assert read_recipe == recipe_dict
+    assert read_recipe == recipe_dict_1d
 
     #Read recipe as a recipe dict with RecipeCompat objects
     read_recipe = resnet._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
-    assert read_recipe['optimizer'].recipe_name ==recipe['optimizer'].recipe_name
-    assert read_recipe['optimizer'].instance.__class__ == recipe['optimizer'].instance.__class__
-    assert read_recipe['optimizer'].args == recipe['optimizer'].args
+    assert read_recipe['optimizer'].recipe_name ==recipe_1d['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe_1d['optimizer'].instance.__class__
+    assert read_recipe['optimizer'].args == recipe_1d['optimizer'].args
 
-    assert read_recipe['loss_function'].recipe_name == recipe['loss_function'].recipe_name
-    assert read_recipe['loss_function'].instance.__class__ == recipe['loss_function'].instance.__class__
-    assert read_recipe['loss_function'].args == recipe['loss_function'].args
+    assert read_recipe['loss_function'].recipe_name == recipe_1d['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe_1d['loss_function'].instance.__class__
+    assert read_recipe['loss_function'].args == recipe_1d['loss_function'].args
     
-    assert read_recipe['metrics'][0].recipe_name == recipe['metrics'][0].recipe_name
-    assert read_recipe['metrics'][0].instance.__class__ == recipe['metrics'][0].instance.__class__
-    assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
+    assert read_recipe['metrics'][0].recipe_name == recipe_1d['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe_1d['metrics'][0].instance.__class__
+    assert read_recipe['metrics'][0].args == recipe_1d['metrics'][0].args
 
-    assert read_recipe['initial_filters'] == recipe['initial_filters']
-    assert read_recipe['block_sets'] == recipe['block_sets']
-    assert read_recipe['n_classes'] ==  recipe['n_classes']
+    assert read_recipe['initial_filters'] == recipe_1d['initial_filters']
+    assert read_recipe['block_sets'] == recipe_1d['block_sets']
+    assert read_recipe['n_classes'] ==  recipe_1d['n_classes']
 
