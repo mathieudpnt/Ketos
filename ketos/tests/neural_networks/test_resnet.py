@@ -326,11 +326,11 @@ def test_ResNetInterface_build_from_recipe_1d(recipe_1d):
     assert resnet.n_classes ==  recipe_1d['n_classes']
 
 
-def test_extract_recipe_dict(recipe, recipe_dict):
-    resnet = ResNetInterface._build_from_recipe(recipe)
+def test_extract_recipe_dict_1d(recipe_1d, recipe_dict_1d):
+    resnet = ResNet1DInterface._build_from_recipe(recipe_1d)
     written_recipe = resnet._extract_recipe_dict()
 
-    assert written_recipe == recipe_dict
+    assert written_recipe == recipe_dict_1d
 
 
 def test_read_recipe_file(recipe, recipe_dict):
