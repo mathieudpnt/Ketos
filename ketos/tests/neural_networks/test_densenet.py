@@ -27,7 +27,7 @@ def recipe_dict():
         
     }
     return recipe
-    
+
 @pytest.fixture
 def recipe():
     recipe = {'dense_blocks':[ 6, 12, 24, 16],
@@ -41,3 +41,20 @@ def recipe():
                                 ],
                     }
     return recipe
+
+
+def test_ConvBlock():
+    block = ConvBlock(growth_rate=32)
+
+    assert len(block.layers) == 6
+
+    assert isinstance(block.layers[0], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[1], tf.keras.layers.Activation)
+    assert isinstance(block.layers[2], tf.keras.layers.Conv2D)
+
+    assert isinstance(block.layers[3], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[4], tf.keras.layers.Activation)
+    assert isinstance(block.layers[5], tf.keras.layers.Conv2D)
+
+
+
