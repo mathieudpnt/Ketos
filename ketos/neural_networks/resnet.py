@@ -212,17 +212,22 @@ class ResNetArch(tf.keras.Model):
             A ResNetArch object, which is a tensorflow model.
     """
 
-    def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
+    def __init__(self, block_sets, n_classes, pre_trained_base=None, initial_filters=16, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
 
-        self.n_sets = len(block_sets)
+        
         self.n_classes = n_classes
-        self.block_sets = block_sets
-        self.input_filters = initial_filters
-        self.output_filters = initial_filters
-        self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_filters, kernel_size=(3,3), strides=1,
-                                                padding="same", use_bias=False,
-                                                kernel_initializer=tf.random_normal_initializer())
+        if pre_trained_base:
+            self.conv_initial = pre_trained_base[0]
+            self.blocks = pre_trained_base[1]
+        else:
+            self.n_sets = len(block_sets)
+            self.block_sets = block_sets
+            self.input_filters = initial_filters
+            self.output_filters = initial_filters
+            self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_filters, kernel_size=(3,3), strides=1,
+                                                    padding="same", use_bias=False,
+                                                    kernel_initializer=tf.random_normal_initializer())
 
         self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
@@ -260,6 +265,19 @@ class ResNetArch(tf.keras.Model):
         output = self.softmax(output)
 
         return output
+    
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = [self.conv_initial, self.blocks]
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
+
 
 
 class ResNet1DArch(tf.keras.Model):
