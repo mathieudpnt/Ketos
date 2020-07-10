@@ -208,11 +208,15 @@ class ResNetArch(tf.keras.Model):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
+            pre_trained_base: instance of ResNetArch
+                A pre-trained resnet model from which the residual blocks will be taken. 
+                Use by the the clone_with_new_top method when creating a clone for transfer learning
+
         Returns:
             A ResNetArch object, which is a tensorflow model.
     """
 
-    def __init__(self, block_sets, n_classes, pre_trained_base=None, initial_filters=16, **kwargs):
+    def __init__(self,  n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
 
         
@@ -298,19 +302,27 @@ class ResNet1DArch(tf.keras.Model):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
+             pre_trained_base: instance of ResNet1DArch
+                A pre-trained resnet model from which the residual blocks will be taken. 
+                Use by the the clone_with_new_top method when creating a clone for transfer learning
+
         Returns:
-            A ResNetArch object, which is a tensorflow model.
+            A ResNet1DArch object, which is a tensorflow model.
     """
 
-    def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
+    def __init__(self, n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, **kwargs):
         super(ResNet1DArch, self).__init__(**kwargs)
 
-        self.n_sets = len(block_sets)
-        self.n_classes = n_classes
-        self.block_sets = block_sets
-        self.input_filters = initial_filters
-        self.output_filters = initial_filters
-        self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=30, strides=1,
+       self.n_classes = n_classes
+        if pre_trained_base:
+            self.conv_initial = pre_trained_base[0]
+            self.blocks = pre_trained_base[1]
+        else:
+            self.n_sets = len(block_sets)
+            self.block_sets = block_sets
+            self.input_filters = initial_filters
+            self.output_filters = initial_filters
+            self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=30, strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
 
@@ -351,6 +363,17 @@ class ResNet1DArch(tf.keras.Model):
 
         return output
 
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = [self.conv_initial, self.blocks]
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
 
 
 
