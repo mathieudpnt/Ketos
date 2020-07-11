@@ -109,7 +109,27 @@ def test_DenseNetArch(recipe):
 
 
     
-    
+def test_DenseNet_Interface_build_from_recipe(recipe):
+    densenet = DenseNetInterface._build_from_recipe(recipe)
+
+    assert densenet.optimizer.recipe_name == recipe['optimizer'].recipe_name
+    assert densenet.optimizer.instance.__class__ == recipe['optimizer'].instance.__class__
+    assert densenet.optimizer.args == recipe['optimizer'].args
+
+    assert densenet.loss_function.recipe_name == recipe['loss_function'].recipe_name
+    assert densenet.loss_function.instance.__class__ == recipe['loss_function'].instance.__class__
+    assert densenet.loss_function.args == recipe['loss_function'].args
+
+    assert densenet.metrics[0].recipe_name == recipe['metrics'][0].recipe_name
+    assert densenet.metrics[0].instance.__class__ == recipe['metrics'][0].instance.__class__
+    assert densenet.metrics[0].args == recipe['metrics'][0].args
+
+    assert densenet.dense_blocks == recipe['dense_blocks']
+    assert densenet.growth_rate == recipe['growth_rate']
+    assert densenet.compression_factor ==  recipe['compression_factor']    
+    assert densenet.dropout_rate ==  recipe['dropout_rate']    
+
+
 
 
 
