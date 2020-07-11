@@ -26,7 +26,7 @@
 
 """densenet sub-module within the ketos.neural_networks module
 
-    This module provides classes to implement Residual Networks (ResNets).
+    This module provides classes to implement Dense Networks (DenseNets).
 
     Contents: ConvBlock class
               DenseBlock class
@@ -34,7 +34,6 @@
               DenseNetArch class
               DenseNetInterface class
         
-
 """
 
 import os
