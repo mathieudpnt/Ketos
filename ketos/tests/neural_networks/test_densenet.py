@@ -57,4 +57,22 @@ def test_ConvBlock():
     assert isinstance(block.layers[5], tf.keras.layers.Conv2D)
 
 
+def test_DenseBlock():
+    block = DenseBlock(growth_rate=32, n_blocks=16)
+
+    assert len(block.layers) == 1
+    assert len(block.layers[0].layers) == 16
+    for i in range(16):
+        assert isinstance(block.layers[0].layers[i], ConvBlock)
+        assert len(block.layers[0].layers[i].layers) == 6
+        assert isinstance(block.layers[0].layers[i].layers[0], tf.keras.layers.BatchNormalization)
+        assert isinstance(block.layers[0].layers[i].layers[1], tf.keras.layers.Activation)
+        assert isinstance(block.layers[0].layers[i].layers[2], tf.keras.layers.Conv2D)
+
+        assert isinstance(block.layers[0].layers[i].layers[3], tf.keras.layers.BatchNormalization)
+        assert isinstance(block.layers[0].layers[i].layers[4], tf.keras.layers.Activation)
+        assert isinstance(block.layers[0].layers[i].layers[5], tf.keras.layers.Conv2D)
+        
+
+
 
