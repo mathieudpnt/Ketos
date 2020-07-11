@@ -169,7 +169,7 @@ def test_read_recipe_file(recipe, recipe_dict):
 
 def test_train_DenseNet(sample_data):
     data, labels = sample_data
-    densenet = DenseNetInterface() #default resnet
+    densenet = DenseNetInterface() #default densenet
     train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
     val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
 
@@ -177,6 +177,5 @@ def test_train_DenseNet(sample_data):
     densenet.val_generator = val_generator
 
     densenet.train_loop(2)
-
 
 
