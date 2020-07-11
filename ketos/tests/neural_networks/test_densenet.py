@@ -83,6 +83,32 @@ def test_TransitionBlock():
     assert isinstance(block.layers[2], tf.keras.layers.Dropout)
     assert isinstance(block.layers[3], tf.keras.layers.Activation)
     assert isinstance(block.layers[4], tf.keras.layers.AveragePooling2D)
+
+def test_DenseNetArch(recipe):
+    densenet = DenseNetArch(dense_blocks=recipe['dense_blocks'], growth_rate=recipe['growth_rate'],
+                            compression_factor=recipe['compression_factor'], n_classes=recipe['n_classes'],
+                            dropout_rate=recipe['dropout_rate'])
+
+    
+    assert len(densenet.layers) == 9
+
+    assert isinstance(densenet.layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(densenet.layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(densenet.layers[2], tf.keras.layers.Activation)
+    assert isinstance(densenet.layers[3], tf.keras.layers.MaxPool2D)
+
+    #Dense blocks
+    assert len(densenet.layers[4].layers) == (len(recipe['dense_blocks']) * 2)
+    print(densenet.layers[4].layers)
+    for block_id, block in enumerate(densenet.layers[4].layers):
+        if block_id % 2 == 0: #DenseBlock
+            assert isinstance(block, DenseBlock)
+            assert len(block.layers[0].layers) == recipe['dense_blocks'][int(block_id / 2)]
+        else: #TransitionBlock     
+            assert isinstance(block, TransitionBlock)
+
+
+    
     
 
 
