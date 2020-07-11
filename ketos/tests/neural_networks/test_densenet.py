@@ -22,7 +22,7 @@ def recipe_dict():
                     'n_classes':2,
                     'dropout_rate':0.2,
                     'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
-                    'loss_function': {'recipe_name':'CategoricalCrossEntropy', 'parameters':{}},  
+                    'loss_function': {'recipe_name':'CategoricalCrossentropy', 'parameters':{}},  
                     'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
         
     }
@@ -130,7 +130,11 @@ def test_DenseNet_Interface_build_from_recipe(recipe):
     assert densenet.dropout_rate ==  recipe['dropout_rate']    
 
 
+def test_extract_recipe_dict(recipe, recipe_dict):
+    densenet = DenseNetInterface._build_from_recipe(recipe)
+    written_recipe = densenet._extract_recipe_dict()
 
+    assert written_recipe == recipe_dict
 
 
 
