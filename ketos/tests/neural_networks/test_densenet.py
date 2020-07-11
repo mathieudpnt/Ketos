@@ -3,7 +3,8 @@ import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
 from ketos.neural_networks.densenet import ConvBlock, DenseBlock, TransitionBlock, DenseNetArch, DenseNetInterface
-from ketos.neural_networks.dev_utils.losses import FScoreLoss
+#from ketos.neural_networks.dev_utils.losses import FScoreLoss
+from ketos.data_handling.data_feeding import BatchGenerator
 #from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
 import os
 import tables
@@ -166,6 +167,16 @@ def test_read_recipe_file(recipe, recipe_dict):
     assert read_recipe['dropout_rate'] ==  recipe['dropout_rate']  
 
 
+def test_train_DenseNet(sample_data):
+    data, labels = sample_data
+    densenet = DenseNetInterface() #default resnet
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    densenet.train_generator = train_generator
+    densenet.val_generator = val_generator
+
+    densenet.train_loop(2)
 
 
 
