@@ -72,7 +72,20 @@ def test_DenseBlock():
         assert isinstance(block.layers[0].layers[i].layers[3], tf.keras.layers.BatchNormalization)
         assert isinstance(block.layers[0].layers[i].layers[4], tf.keras.layers.Activation)
         assert isinstance(block.layers[0].layers[i].layers[5], tf.keras.layers.Conv2D)
-        
+
+
+def test_TransitionBlock():
+    block = TransitionBlock(n_channels=64, compression_factor=0.5)
+
+    assert len(block.layers) == 5
+    assert isinstance(block.layers[0], tf.keras.layers.BatchNormalization)
+    assert isinstance(block.layers[1], tf.keras.layers.Conv2D)
+    assert isinstance(block.layers[2], tf.keras.layers.Dropout)
+    assert isinstance(block.layers[3], tf.keras.layers.Activation)
+    assert isinstance(block.layers[4], tf.keras.layers.AveragePooling2D)
+    
+
+
 
 
 
