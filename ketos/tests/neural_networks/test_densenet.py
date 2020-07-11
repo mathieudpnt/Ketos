@@ -136,6 +136,36 @@ def test_extract_recipe_dict(recipe, recipe_dict):
 
     assert written_recipe == recipe_dict
 
+def test_read_recipe_file(recipe, recipe_dict):
+    path_to_recipe_file = os.path.join(path_to_tmp, "test_densenet_recipe.json")
+    densenet = DenseNetInterface._build_from_recipe(recipe)
+    written_recipe = densenet._extract_recipe_dict()
+    densenet.save_recipe_file(path_to_recipe_file)
+
+    #Read recipe as a recipe dict
+    read_recipe = densenet._read_recipe_file(path_to_recipe_file,return_recipe_compat=False)
+    assert read_recipe == recipe_dict
+
+    #Read recipe as a recipe dict with RecipeCompat objects
+    read_recipe = densenet._read_recipe_file(path_to_recipe_file,return_recipe_compat=True)
+    assert read_recipe['optimizer'].recipe_name ==recipe['optimizer'].recipe_name
+    assert read_recipe['optimizer'].instance.__class__ == recipe['optimizer'].instance.__class__
+    assert read_recipe['optimizer'].args == recipe['optimizer'].args
+
+    assert read_recipe['loss_function'].recipe_name == recipe['loss_function'].recipe_name
+    assert read_recipe['loss_function'].instance.__class__ == recipe['loss_function'].instance.__class__
+    assert read_recipe['loss_function'].args == recipe['loss_function'].args
+    
+    assert read_recipe['metrics'][0].recipe_name == recipe['metrics'][0].recipe_name
+    assert read_recipe['metrics'][0].instance.__class__ == recipe['metrics'][0].instance.__class__
+    assert read_recipe['metrics'][0].args == recipe['metrics'][0].args
+
+    assert read_recipe['dense_blocks'] == recipe['dense_blocks']
+    assert read_recipe['growth_rate'] == recipe['growth_rate']
+    assert read_recipe['compression_factor'] ==  recipe['compression_factor']    
+    assert read_recipe['dropout_rate'] ==  recipe['dropout_rate']  
+
+
 
 
 
