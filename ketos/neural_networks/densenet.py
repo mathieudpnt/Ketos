@@ -357,13 +357,13 @@ class DenseNetInterface(NNInterface):
                     A dictionary containing the recipe fields necessary to build the same network architecture.
                     The output is equivalent to:
                        >>> {'dense_blocks': [6, 12, 24, 16], # doctest: +SKIP
-                        ...  'growth_rate':32,
-                        ...  'compression_factor':0.5,
-                        ...  'n_classes':2,
-                        ...  'dropout_rate':0.2,        
-                        ...  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
-                        ...  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
-                        ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                       ...  'growth_rate':32,
+                       ...  'compression_factor':0.5,
+                       ...  'n_classes':2,
+                       ...  'dropout_rate':0.2,        
+                       ...  'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                       ...  'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
+                       ...  'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
                         }
       
         """
