@@ -93,6 +93,12 @@ def test_InceptionInterface_build_from_recipe(recipe):
     assert inception.n_blocks == recipe['n_blocks']
     assert inception.initial_filters == recipe['initial_filters']
     assert inception.n_classes ==  recipe['n_classes']    
+
+def test_extract_recipe_dict(recipe, recipe_dict):
+    inception = InceptionInterface._build_from_recipe(recipe)
+    written_recipe = inception._extract_recipe_dict()
+
+    assert written_recipe == recipe_dict
     
 
 
