@@ -144,7 +144,7 @@ class InceptionArch(tf.keras.Model):
     """
 
     def __init__(self, n_blocks, n_classes, initial_filters=16, **kwargs):
-        super(Inception, self).__init__(**kwargs)
+        super(InceptionArch, self).__init__(**kwargs)
 
         self.input_channels = initial_filters
         self.output_channels = initial_filters
