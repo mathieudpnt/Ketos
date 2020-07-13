@@ -129,6 +129,16 @@ def test_read_recipe_file(recipe, recipe_dict):
     assert read_recipe['n_classes'] ==  recipe['n_classes']  
     
 
+def test_train_Inception(sample_data):
+    data, labels = sample_data
+    inception = InceptionInterface() #default densenet
+    train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+    val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
+
+    inception.train_generator = train_generator
+    inception.val_generator = val_generator
+
+    inception.train_loop(2)
 
 
 
