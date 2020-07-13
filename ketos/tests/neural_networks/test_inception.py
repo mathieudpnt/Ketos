@@ -43,9 +43,20 @@ def recipe():
 def test_ConvBatchNormRelu():
     layer = ConvBatchNormRelu(n_filters=16, filter_shape=3, strides=1, padding='same')
 
-    print(layer.layers)
+    
     assert len(layer.layers[0].layers) == 3
     assert isinstance(layer.layers[0].layers[0], tf.keras.layers.Conv2D)
     assert isinstance(layer.layers[0].layers[1], tf.keras.layers.BatchNormalization)
     assert isinstance(layer.layers[0].layers[2], tf.keras.layers.ReLU)
 
+
+def test_InceptionBlock():
+    block = InceptionBlock(n_filters=16, strides=1)
+
+    assert len(block.layers) == 6
+    assert isinstance(block.layers[0], ConvBatchNormRelu)
+    assert isinstance(block.layers[1], ConvBatchNormRelu)
+    assert isinstance(block.layers[2], ConvBatchNormRelu)
+    assert isinstance(block.layers[3], ConvBatchNormRelu)
+    assert isinstance(block.layers[4], tf.keras.layers.MaxPooling2D)
+    assert isinstance(block.layers[5], ConvBatchNormRelu)
