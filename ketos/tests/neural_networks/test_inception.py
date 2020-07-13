@@ -75,7 +75,7 @@ def test_InceptionArch():
     assert isinstance(inception.layers[4], tf.keras.layers.Softmax)
 
 
-def test_Inception_Interface_build_from_recipe(recipe):
+def test_InceptionInterface_build_from_recipe(recipe):
     inception = InceptionInterface._build_from_recipe(recipe)
 
     assert inception.optimizer.recipe_name == recipe['optimizer'].recipe_name
