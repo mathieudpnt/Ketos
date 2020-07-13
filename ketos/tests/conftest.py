@@ -33,6 +33,7 @@ import soundfile as sf
 import pandas as pd
 import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
+from ketos.data_handling.data_feeding import BatchGenerator
 from ketos.audio.waveform import Waveform
 from ketos.audio.utils.axis import LinearAxis, Log2Axis
 import ketos.audio.base_audio as aba
