@@ -131,7 +131,7 @@ def test_read_recipe_file(recipe, recipe_dict):
 
 def test_train_Inception(sample_data):
     data, labels = sample_data
-    inception = InceptionInterface() #default densenet
+    inception = InceptionInterface() #default inception network
     train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
     val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
 
