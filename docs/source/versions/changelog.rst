@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 2.0.3** (July 12, 2020)
+
+ *  tensorflow version requirement changed to >=2.1, <=2.2.1
+
 **Version 2.0.2** (July 9, 2020)
 
  *  tensorflow version requirement changed from ==2.1 to >=2.1, <=2.2
