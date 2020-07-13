@@ -249,7 +249,7 @@ class InceptionInterface(NNInterface):
             metrics = cls._metrics_from_recipe(recipe['metrics'])
             
 
-        instance = cls(n_blocks=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(n_blocks=n_blocks, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
 
@@ -311,12 +311,12 @@ class InceptionInterface(NNInterface):
 
     def __init__(self, n_blocks=default_inception_recipe['n_blocks'], n_classes=default_inception_recipe['n_classes'], initial_filters=default_inception_recipe['initial_filters'],
                        optimizer=default_inception_recipe['optimizer'], loss_function=default_inception_recipe['loss_function'], metrics=default_inception_recipe['metrics']):
-        super(ResNetInterface, self).__init__(optimizer, loss_function, metrics)
+        super(InceptionInterface, self).__init__(optimizer, loss_function, metrics)
         self.n_blocks = n_blocks
         self.n_classes = n_classes
         self.initial_filters = initial_filters
 
-        self.model=InceptionArch(block_sets=n_blocks, n_classes=n_classes, initial_filters=initial_filters)
+        self.model=InceptionArch(n_blocks=n_blocks, n_classes=n_classes, initial_filters=initial_filters)
 
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from an InceptionInterface instance.
