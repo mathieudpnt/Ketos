@@ -1198,9 +1198,3 @@ class NNInterface():
         else:
             return output
 
-
-            
-
-    
-    
-    
