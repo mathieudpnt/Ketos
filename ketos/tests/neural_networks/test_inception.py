@@ -75,6 +75,27 @@ def test_InceptionArch():
     assert isinstance(inception.layers[4], tf.keras.layers.Softmax)
 
 
+def test_Inception_Interface_build_from_recipe(recipe):
+    inception = InceptionInterface._build_from_recipe(recipe)
+
+    assert inception.optimizer.recipe_name == recipe['optimizer'].recipe_name
+    assert inception.optimizer.instance.__class__ == recipe['optimizer'].instance.__class__
+    assert inception.optimizer.args == recipe['optimizer'].args
+
+    assert inception.loss_function.recipe_name == recipe['loss_function'].recipe_name
+    assert inception.loss_function.instance.__class__ == recipe['loss_function'].instance.__class__
+    assert inception.loss_function.args == recipe['loss_function'].args
+
+    assert inception.metrics[0].recipe_name == recipe['metrics'][0].recipe_name
+    assert inception.metrics[0].instance.__class__ == recipe['metrics'][0].instance.__class__
+    assert inception.metrics[0].args == recipe['metrics'][0].args
+
+    assert inception.n_blocks == recipe['n_blocks']
+    assert inception.initial_filters == recipe['initial_filters']
+    assert inception.n_classes ==  recipe['n_classes']    
+    
+
+
 
     
 
