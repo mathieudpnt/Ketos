@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat
-from ketos.neural_networks.densenet import ConvBlock, DenseBlock, TransitionBlock, DenseNetArch, DenseNetInterface
+from ketos.neural_networks.inception import ConvBatchNormRelu, InceptionBlock, InceptionArch, InceptionInterface
 #from ketos.neural_networks.dev_utils.losses import FScoreLoss
 from ketos.data_handling.data_feeding import BatchGenerator
 #from ketos.neural_networks.dev_utils.metrics import Precision, Recall, Accuracy, FScore
@@ -31,14 +31,21 @@ def recipe_dict():
 def recipe():
     recipe = {'n_blocks':3,
                 'n_classes':2,
-                'initial_filters':16,,
+                'initial_filters':16,
                 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                 'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
                 'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),
                             ],
                 }
-                
+
     return recipe
 
+def test_ConvBatchNormRelu():
+    layer = ConvBatchNormRelu(n_filters=16, filter_shape=3, strides=1, padding='same')
 
+    print(layer.layers)
+    assert len(layer.layers[0].layers) == 3
+    assert isinstance(layer.layers[0].layers[0], tf.keras.layers.Conv2D)
+    assert isinstance(layer.layers[0].layers[1], tf.keras.layers.BatchNormalization)
+    assert isinstance(layer.layers[0].layers[2], tf.keras.layers.ReLU)
 
