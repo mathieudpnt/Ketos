@@ -60,3 +60,23 @@ def test_InceptionBlock():
     assert isinstance(block.layers[3], ConvBatchNormRelu)
     assert isinstance(block.layers[4], tf.keras.layers.MaxPooling2D)
     assert isinstance(block.layers[5], ConvBatchNormRelu)
+
+
+def test_InceptionArch():
+    inception = InceptionArch(n_blocks=3, n_classes=2, initial_filters=16)
+
+    assert len(inception.layers) == 5
+    assert isinstance(inception.layers[0], ConvBatchNormRelu)
+    assert len(inception.layers[1].layers) == 6
+    for block in inception.layers[1].layers:
+        assert isinstance(block, InceptionBlock)
+    assert isinstance(inception.layers[2], tf.keras.layers.GlobalAveragePooling2D)
+    assert isinstance(inception.layers[3], tf.keras.layers.Dense)
+    assert isinstance(inception.layers[4], tf.keras.layers.Softmax)
+
+
+
+    
+
+
+
