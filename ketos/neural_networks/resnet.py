@@ -233,26 +233,26 @@ class ResNetArch(tf.keras.Model):
                                                     padding="same", use_bias=False,
                                                     kernel_initializer=tf.random_normal_initializer())
 
-        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
+            self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
-        for set_id in range(self.n_sets):
-            for block_id in range(self.block_sets[set_id]):
-                #Frst layer of every block except the first
-                if set_id != 0 and block_id == 0:
-                    block = ResNetBlock(self.output_filters, strides=2, residual_path=True)
-                
-                else:
-                    if self.input_filters != self.output_filters:
-                        residual_path = True
+            for set_id in range(self.n_sets):
+                for block_id in range(self.block_sets[set_id]):
+                    #Frst layer of every block except the first
+                    if set_id != 0 and block_id == 0:
+                        block = ResNetBlock(self.output_filters, strides=2, residual_path=True)
+                    
                     else:
-                        residual_path = False
-                    block = ResNetBlock(self.output_filters, residual_path=residual_path)
+                        if self.input_filters != self.output_filters:
+                            residual_path = True
+                        else:
+                            residual_path = False
+                        block = ResNetBlock(self.output_filters, residual_path=residual_path)
 
-                self.input_filters = self.output_filters
+                    self.input_filters = self.output_filters
 
-                self.blocks.add(block)
-            
-            self.output_filters *= 2
+                    self.blocks.add(block)
+                
+                self.output_filters *= 2
 
         self.batch_norm_final = tf.keras.layers.BatchNormalization()
         self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
@@ -351,6 +351,29 @@ class ResNet1DArch(tf.keras.Model):
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
     
+    
+    def freeze_init_layer(self):
+        self.layers[0].trainable = False
+
+    def unfreeze_init_layer(self):
+        self.layers[0].trainable = True
+    
+    def freeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = False
+
+    def unfreeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = True
+    
+    def freeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = False
+    
+    def unfreeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = True
+
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
@@ -411,45 +434,45 @@ class ResNetInterface(NNInterface):
                 
     """
 
-    @classmethod
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True, replace_top=False, diff_n_classes=None):
-        """ Load a model from a ketos (.kt) model file.
+    # @classmethod
+    # def load_model_file(cls, model_file, new_model_folder, overwrite=True, replace_top=False, diff_n_classes=None):
+    #     """ Load a model from a ketos (.kt) model file.
 
-            Args:
-                model_file:str
-                    Path to the ketos(.kt) file
-                new_model_folder:str
-                    Path to folder where files associated with the model will be stored.
-                overwrite: bool
-                    If True, the 'new_model_folder' will be overwritten.
-            Raises:
-                FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
+    #         Args:
+    #             model_file:str
+    #                 Path to the ketos(.kt) file
+    #             new_model_folder:str
+    #                 Path to folder where files associated with the model will be stored.
+    #             overwrite: bool
+    #                 If True, the 'new_model_folder' will be overwritten.
+    #         Raises:
+    #             FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
 
-        """
+    #     """
 
-        try:
-            os.makedirs(new_model_folder)
-        except FileExistsError:
-            if overwrite == True:
-                rmtree(new_model_folder)
-                os.makedirs(new_model_folder)
-            else:
-                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
+    #     try:
+    #         os.makedirs(new_model_folder)
+    #     except FileExistsError:
+    #         if overwrite == True:
+    #             rmtree(new_model_folder)
+    #             os.makedirs(new_model_folder)
+    #         else:
+    #             raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
 
-        with ZipFile(model_file, 'r') as zip:
-            zip.extractall(path=new_model_folder)
-        recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
-        model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
-        print("\n Base model")
-        print(model_instance.model)
+    #     with ZipFile(model_file, 'r') as zip:
+    #         zip.extractall(path=new_model_folder)
+    #     recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
+    #     model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
+    #     print("\n Base model")
+    #     print(model_instance.model)
 
-        if replace_top == True:
-            model_with_new_top = model_instance.model.clone_with_new_top(n_classes=diff_n_classes)
-            model_instance.model = model_with_new_top
+    #     if replace_top == True:
+    #         model_with_new_top = model_instance.model.clone_with_new_top(n_classes=diff_n_classes)
+    #         model_instance.model = model_with_new_top
         
-        print("\n new model")
-        print(model_instance.model)
-        return model_instance
+    #     print("\n new model")
+    #     print(model_instance.model)
+    #     return model_instance
    
 
 
