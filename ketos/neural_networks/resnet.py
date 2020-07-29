@@ -259,6 +259,28 @@ class ResNetArch(tf.keras.Model):
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
     
+    def freeze_init_layer(self):
+        self.layers[0].trainable = False
+
+    def unfreeze_init_layer(self):
+        self.layers[0].trainable = True
+    
+    def freeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = False
+
+    def unfreeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = True
+    
+    def freeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = False
+    
+    def unfreeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = True
+        
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
