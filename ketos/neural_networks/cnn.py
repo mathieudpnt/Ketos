@@ -57,7 +57,11 @@ vgg_like_recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":(3,
                  
                   'dense_layers':[{'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
                                     {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
+<<<<<<< HEAD
                                     ],
+=======
+                                                                                                                    ],
+>>>>>>> enh/early_stopping
                   'n_classes': 2 ,
                   'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                   'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
@@ -177,6 +181,7 @@ class CNNArch(tf.keras.Model):
     def call(self, inputs, training=None):
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
+<<<<<<< HEAD
         output = self.dense_block(output, training=training)
 
         print("output shape: ", output.shape)
@@ -243,7 +248,11 @@ class CNN1DArch(tf.keras.Model):
 
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
+=======
+>>>>>>> enh/early_stopping
         output = self.dense_block(output, training=training)
+
+        print("output shape: ", output.shape)
 
         return output
 
