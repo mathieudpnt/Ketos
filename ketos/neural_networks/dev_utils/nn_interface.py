@@ -1180,11 +1180,12 @@ class NNInterface():
                     if self._early_stopping_monitor['decreasing'] == True:
                         if current_early_stopping_metric <= self._early_stopping_monitor['baseline']:
                             should_stop = True
+                            self.last_epoch_with_improvement = epoch
                         else:
                             current_delta = current_early_stopping_metric - best_metric_value
                             if current_delta < 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is decreasing = improvement
                                 epochs_without_improvement = 0
-                                last_epoch_with_improvement = epoch
+                                self.last_epoch_with_improvement = epoch
                                 best_metric_value = current_early_stopping_metric
                             else:                 # metric is not decreasing = no improvement
                                 epochs_without_improvement += 1
@@ -1193,13 +1194,14 @@ class NNInterface():
                     elif self._early_stopping_monitor['decreasing'] == False:
                         if current_early_stopping_metric >= self._early_stopping_monitor['baseline']:
                             should_stop = True
+                            self.last_epoch_with_improvement = epoch
                             print("\nhit baseline")
                         else:
                             current_delta = current_early_stopping_metric - best_metric_value
                             print("abs:", abs(current_delta))
                             if current_delta > 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is increasing = improvement
                                 epochs_without_improvement = 0
-                                last_epoch_with_improvement = epoch
+                                self.last_epoch_with_improvement = epoch
                                 best_metric_value = current_early_stopping_metric
                             else:                 # metric is not increasing = no improvement
                                 epochs_without_improvement += 1

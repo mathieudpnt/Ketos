@@ -33,6 +33,7 @@
         CNNInterface class:
 """
 import tensorflow as tf
+import numpy as np
 from .dev_utils.nn_interface import NNInterface, RecipeCompat
 import json
 
