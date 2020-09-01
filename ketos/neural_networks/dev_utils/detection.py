@@ -284,3 +284,44 @@ def transform_batch(x,y):
         
     return transformed_x, transformed_y
 
+
+def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, step=0.5, win_len=5):
+    """ Use a batch_generaotr object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
+
+        The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
+            filename: The name of the audio file where the detection was registered. 
+                      In case the detection starts in one file and ends in the next,
+                      the name of the first file is registered.
+            start:    Start of the detection (in seconds from the beginning of the file)
+            end:      End of the detection (in seconds from the beginning of the file)
+            score:    The sore given to the detection by the trained neural network ([0-1])
+
+
+        Args:
+            batch_generator: a ketos.data_handling.data_feeding.BatchGenerator object
+                A batch_generator that loads pre-computed spectrograms from the a HDF5 database files as requested
+            model: ketos model
+                The ketos trained classifier
+            threshold: float
+                Minimum score value for a time step to be considered as a detection.
+            buffer: float
+                Time (in seconds) to be added around the detection
+            step: float
+                The time interval(in seconds) between the starts of each contiguous input spectrogram.
+                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            win_len:int
+                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+
+        Returns:
+            detections: list
+                List of detections
+    """ 
+    detections = []   
+    for b in range(batch_generator.n_batches):
+        batch_data, batch_support_data = next(batch_generator)
+
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len)
+        if len(batch_detections) > 0: detections += batch_detections
+
+    return detections
+
