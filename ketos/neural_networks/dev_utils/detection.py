@@ -259,4 +259,28 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
     return detections
 
 
+def transform_batch(x,y):
+    """ Transform the data loaded from the database to the format expected by process_batch
+
+        Args:
+            x: numpy array
+                A batch of spectrograms of shape batch_size, time bins, frequency bins
+            y: numpy array
+                Suppporting information for the batch (the filename and offset fields from the hdf5 dataset)
+        
+        Returns:
+            tuple:
+                transformed_x:numpy array
+                    x, unmodified
+                transformed_y:numpy array
+                    y reshaped to shape batch_size, 2. type converted to str (from bytes string).
+         """
+  
+    transformed_x = x
+    filenames = y['filename']
+    timestamps = y['offset']
+    transformed_y = np.column_stack((filenames, timestamps))
+    transformed_y = transformed_y.astype(str)
+        
+    return transformed_x, transformed_y
 
