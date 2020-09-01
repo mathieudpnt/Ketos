@@ -146,3 +146,40 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
             det_timestamps.append((filename, time_start, duration, score))
 
     return det_timestamps
+
+def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, spec_dur=3.0, threshold=0.5, win_len=5):
+    """ Runs one batch of (overlapping) spectrograms through the classifier.
+
+        Args:
+            batch_data: numpy array
+                An array with shape n,f,t,  where n is the number of spectrograms in the batch, t is the number of time bins and f the number of frequency bins.
+            batch_support_data: numpy array
+                An array of shape n x 2, where n is the batch size. The second dimension contains the filename and the start timestamp for each input in the batch
+            model: ketos model
+                The ketos trained classifier
+            buffer: float
+                Time (in seconds) to be added around the detection
+            step: float
+                The time interval(in seconds) between the starts of each contiguous input spectrogram.
+                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            spec_dur: float
+                The duration of each input spectrogram in seconds
+            threshold: float
+                Minimum score value for a time step to be considered as a detection.
+            win_len:int
+                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+
+        Returns:
+            batch_detections: list
+                An array with all the detections in the batch. Each detection (first dimension) consists of the filename, start, duration and score.
+                The start is given in seconds from the beginning of the file and the duration in seconds. 
+
+    """
+    scores = model.run_on_batch(batch_data, return_raw_output=True)
+
+    avg_scores = compute_avg_score(scores[:,1], win_len=win_len)
+
+    batch_detections = group_detections(avg_scores, batch_support_data, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold) 
+
+    return batch_detections
+    
