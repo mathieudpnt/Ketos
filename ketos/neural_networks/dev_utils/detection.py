@@ -183,3 +183,80 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
 
     return batch_detections
     
+
+def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=1.0, step=0.5, win_len=5):
+    """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
+
+        The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
+            filename: The name of the audio file where the detection was registered. 
+                      In case the detection starts in one file and ends in the next,
+                      the name of the first file is registered.
+            start:    Start of the detection (in seconds from the beginning of the file)
+            end:      End of the detection (in seconds from the beginning of the file)
+            score:    The sore given to the detection by the trained neural network ([0-1])
+
+        Args:
+            audio_loader: a ketos.audio.audio_loader.AudioFrameLoader object
+                An audio loader that computes spectrograms from the audio audio files as requested
+            model: ketos model
+                The ketos trained classifier
+            batch_size:int
+                The number of spectrogram to process at a time.
+            threshold: float
+                Minimum score value for a time step to be considered as a detection.
+            buffer: float
+                Time (in seconds) to be added around the detection
+            step: float
+                The time interval(in seconds) between the starts of each contiguous input spectrogram.
+                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            win_len:int
+                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+
+        Returns:
+            detections: list
+                List of detections
+    """
+    assert isinstance(win_len, int) and win_len%2 == 1, 'win_len must be an odd integer'
+    n_extend = int((win_len - 1) / 2)
+
+    n_batches = audio_loader.num() // batch_size
+    last_batch_size = batch_size + (audio_loader.num() % batch_size)
+
+    if n_batches == 0: 
+        batch_sizes = [audio_loader.num()]
+    elif n_batches == 1:
+        batch_sizes = [last_batch_size]
+    else:
+        batch_sizes = [batch_size + n_extend] + [batch_size + 2 * n_extend for _ in range(n_batches - 2)] + [last_batch_size + n_extend]
+
+    detections = []
+    specs_prev_batch = []
+
+    for b,siz in enumerate(batch_sizes):
+        batch_data, batch_support_data = [], []
+
+        # first, collect data from the last specs from previous batch, if any            
+        for spec in specs_prev_batch: 
+            batch_data.append(spec.data)
+            support_data = (spec.filename, spec.offset)
+            batch_support_data.append(support_data)
+
+        # then, load specs from present batch
+        specs_prev_batch = []
+        while len(batch_data) < siz:
+            spec = next(audio_loader)
+            batch_data.append(spec.data)
+            support_data = (spec.filename, spec.offset)
+            batch_support_data.append(support_data)
+            if siz - len(batch_data) < 2 * n_extend: specs_prev_batch.append(spec) # store last few specs
+
+        batch_support_data = np.array(batch_support_data)
+        batch_data = np.array(batch_data)
+
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len)
+        if len(batch_detections) > 0: detections += batch_detections
+
+    return detections
+
+
+
