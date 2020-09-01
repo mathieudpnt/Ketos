@@ -79,6 +79,8 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
             step: float
                 The time interval(in seconds) between the starts of each contiguous input spectrogram.
                 For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            spec_dur: float
+                The duration of each spectrogram in seconds
             buffer: float
                 Time (in seconds) to be added around the detection.
 
@@ -92,3 +94,55 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
     time_start += batch_start_timestamp
     time_start = max(batch_start_timestamp, time_start)
     return time_start, duration
+    
+
+def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, spec_dur=3.0, threshold=0.5):
+    """ Groups time steps with a detection score above the specified threshold.
+
+        Consecutive detections are grouped into one single detection represented by the time interval (start-end, in seconds from beginning of the file).
+
+        Args:
+            scores_vector: numpy array
+                1d numpy array containing the target class classification score for each input
+            batch_support_data: numpy array
+                An array of shape n x 2, where n is the batch size. The second dimension contains the filename and the start timestamp for each input in the batch
+            buffer: float
+                Time (in seconds) to be added around the detection
+            step: float
+                The time interval(in seconds) between the starts of each contiguous input spectrogram.
+                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            spec_dur: float
+                The duration of each spectrogram in seconds
+            threshold: float
+                Minimum score value for a time step to be considered as a detection.
+
+        Returns:
+            det_timestamps:list of tuples
+            The detections time stamp. Each item in the list is a tuple with the start time, duration, score and filename for that detection.
+            The filename corresponds to the file where the detection started.          
+    """
+    det_vector = np.where(scores_vector >= threshold, 1.0, 0.0)
+    det_timestamps = []
+    within_det = False
+    filename_vector = batch_support_data[:,0]
+
+    for det_index,det_value in enumerate(det_vector):
+        if det_value == 1.0 and not within_det:
+            start = det_index
+            within_det = True
+        if det_value == 0 and within_det:
+            end = det_index - 1
+            within_det = False
+            filename = filename_vector[start]
+            # From all timestamps within the batch, select only the timestamps for the file containing the detection start
+            file_timestamps = batch_support_data[filename_vector==filename]
+            batch_start_timestamp = float(file_timestamps[0,1])
+            batch_end_timestamp = float(file_timestamps[-1,1])
+            time_start, duration = map_detection_to_time(start, end, step=step, spec_dur=spec_dur, batch_start_timestamp=batch_start_timestamp, batch_end_timestamp=batch_end_timestamp, buffer=buffer)
+            score = np.average(scores_vector[start:end+1])
+            if np.isnan(score) and end==start:
+                score = scores_vector[start]
+            
+            det_timestamps.append((filename, time_start, duration, score))
+
+    return det_timestamps
