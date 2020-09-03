@@ -359,3 +359,20 @@ def merge_overlapping_detections(detections):
 
     return merged
     
+def save_detections(detections, save_to):
+    """ Save the detections to a csv file
+
+        Args:
+            detections: numpy.array
+                List of detections
+            save_to:string
+                The path to the .csv file where the detections will be saved.
+                Example: "/home/user/detections.csv"
+    """
+    if len(detections) == 0: return
+
+    a = np.array(detections)
+    df = pd.DataFrame({'filename':a[:,0], 'start':a[:,1], 'duration':a[:,2], 'score':a[:,3]})
+    include_header = not os.path.exists(save_to)
+    df.to_csv(save_to, mode='a', index=False, header=include_header)
+
