@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .losses import FScoreLoss
-from ...data_handling.parsing import load_audio_representation
+from ...data_handling.parsing import parse_audio_representation
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
@@ -711,7 +711,11 @@ class NNInterface():
         recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
         model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
         if load_audio_repr is True:
-            audio_repr = load_audio_repr
+            audio_repr = []
+            f = open(os.path.join(new_model_folder,"audio_repr.json"), 'r')
+            json_content = json.load(f)
+            for section, rep in json_content.items():
+                audio_repr.append({section:parse_audio_representation(rep)})
             return model_instance, audio_repr
         
         return model_instance
