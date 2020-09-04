@@ -147,8 +147,8 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
 
     return det_timestamps
 
-def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, spec_dur=3.0, threshold=0.5, win_len=5):
-    """ Runs one batch of (overlapping) spectrograms through the classifier.
+def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, spec_dur=3.0, threshold=0.5, win_len=5, average_and_group=True):
+    """ Runs one batch of (overlapping) spectrogram throught the classifier.
 
         Args:
             batch_data: numpy array
@@ -167,7 +167,11 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
             threshold: float
                 Minimum score value for a time step to be considered as a detection.
             win_len:int
-                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+                The windown length for the moving average. Must be an odd integer. The default value is 5.
+            average_and_group:bool
+                If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
+                If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
+                average score of all spectrograms comprising the detection event.
 
         Returns:
             batch_detections: list
@@ -177,9 +181,19 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
     """
     scores = model.run_on_batch(batch_data, return_raw_output=True)
 
-    avg_scores = compute_avg_score(scores[:,1], win_len=win_len)
+    if average_and_group == True:
 
-    batch_detections = group_detections(avg_scores, batch_support_data, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold) 
+        avg_scores = compute_avg_score(scores[:,1], win_len=win_len)
+        batch_detections = group_detections(avg_scores, batch_support_data, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold) 
+
+    else:
+        
+        threshold_indices = scores[:,1] >= threshold
+        batch_detections = np.vstack([batch_support_data[threshold_indices,0], batch_support_data[threshold_indices,1], np.repeat(spec_dur, sum(threshold_indices)), scores[threshold_indices, 1]])
+        if batch_detections.shape[1] == 0:
+            batch_detections = []
+        else:
+            batch_detections = [(d[0], d[1], d[2], d[3]) for d in batch_detections.T]      
 
     return batch_detections
     
@@ -285,7 +299,7 @@ def transform_batch(x,y):
     return transformed_x, transformed_y
 
 
-def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, step=0.5, win_len=5):
+def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, step=0.5, win_len=5, average_and_group=True):
     """ Use a batch_generaotr object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
@@ -310,7 +324,11 @@ def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, s
                 The time interval(in seconds) between the starts of each contiguous input spectrogram.
                 For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
             win_len:int
-                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+                The windown length for the moving average. Must be an odd integer. The default value is 5.      
+            average_and_group:bool
+                If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
+                If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
+                average score of all spectrograms comprising the detection event.
 
         Returns:
             detections: list
@@ -320,7 +338,7 @@ def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, s
     for b in range(batch_generator.n_batches):
         batch_data, batch_support_data = next(batch_generator)
 
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len)
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
         if len(batch_detections) > 0: detections += batch_detections
 
     return detections
