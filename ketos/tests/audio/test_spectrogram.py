@@ -206,9 +206,9 @@ def test_mag_from_wav(sine_wave_file):
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01)
     assert spec.time_res() == pytest.approx(0.01, abs=0.001)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
-    # segment is empty raises assertion error
-    with pytest.raises(AssertionError):
-        spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
+    # segment is empty returns zeros
+#    with pytest.raises(AssertionError):
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
     # duration can be less than full length
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, duration=2.14)
     assert spec.time_res() == 0.02
@@ -221,8 +221,8 @@ def test_mag_from_wav(sine_wave_file):
     # check file name
     assert spec.filename == 'sine_wave.wav'
     # normalize waveform
-    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=False)
-    spec_norm = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=True)
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=False, offset=0.2, duration=0.6)
+    spec_norm = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=True, offset=0.2, duration=0.6)
     d1 = from_decibel(spec.get_data())
     d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
     assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))

@@ -254,10 +254,8 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     file_duration = librosa.get_duration(filename=path) #get file duration
     file_len = int(file_duration * rate) #file length (number of samples)
     
-    assert offset < file_duration, 'Offset exceeds file duration'
-    
     if duration is None:
-        duration = file_duration - offset #if not specified, use file duration minus offset
+        duration = file_duration - offset if offset < file_duration else file_duration #if not specified, use file duration minus offset
 
     # compute segmentation parameters
     seg_args = aum.segment_args(rate=rate, duration=duration,\
@@ -270,36 +268,40 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     com_len = int(num_segs * step_len + win_len) #combined length of frames
 
-    # convert back to seconds and compute required amount of zero padding
-    pad_left = max(0, -offset_len)
-    pad_right = max(0, (offset_len + com_len) - file_len)
-    load_offset = max(0, offset_len) / rate
-    audio_len = int(com_len - pad_left - pad_right)
-    duration = audio_len / rate
+    if offset >= file_duration:
+        x = np.zeros(com_len)
 
-    # load audio segment
-    x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
-        duration=duration, mono=False, res_type=resample_method)
+    else:
+        # convert back to seconds and compute required amount of zero padding
+        pad_left = max(0, -offset_len)
+        pad_right = max(0, (offset_len + com_len) - file_len)
+        load_offset = max(0, offset_len) / rate
+        audio_len = int(com_len - pad_left - pad_right)
+        duration = audio_len / rate
 
-    # select channel (for stereo only)
-    if np.ndim(x) == 2:
-        x = x[channel]
+        # load audio segment
+        x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
+            duration=duration, mono=False, res_type=resample_method)
 
-    # check that loaded audio segment has the expected length (give or take 1 sample).
-    # if this is not the case, load the entire audio file into memory, then cut out the 
-    # relevant section. 
-    if abs(len(x) - audio_len) > 1:
-        x, rate = librosa.core.load(path=path, sr=rate, mono=False)
+        # select channel (for stereo only)
         if np.ndim(x) == 2:
             x = x[channel]
 
-        a = max(0, offset_len)
-        b = a + audio_len
-        x = x[a:b]
+        # check that loaded audio segment has the expected length (give or take 1 sample).
+        # if this is not the case, load the entire audio file into memory, then cut out the 
+        # relevant section. 
+        if abs(len(x) - audio_len) > 1:
+            x, rate = librosa.core.load(path=path, sr=rate, mono=False)
+            if np.ndim(x) == 2:
+                x = x[channel]
 
-    # pad with own reflection
-    pad_right += max(0, len(x) - com_len)
-    x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
+            a = max(0, offset_len)
+            b = a + audio_len
+            x = x[a:b]
+
+        # pad with own reflection
+        pad_right += max(0, com_len - len(x))
+        x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
     # parse filename
     if id is None: id = os.path.basename(path)
@@ -1514,10 +1516,8 @@ class CQTSpectrogram(Spectrogram):
         file_duration = librosa.get_duration(filename=path) #get file duration
         file_len = int(file_duration * rate) #file length (number of samples)
         
-        assert offset < file_duration, 'Offset exceeds file duration'
-        
         if duration is None:
-            duration = file_duration - offset #if not specified, use file duration minus offset
+            duration = file_duration - offset if offset < file_duration else file_duration #if not specified, use file duration minus offset
 
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
