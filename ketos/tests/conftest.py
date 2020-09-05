@@ -486,5 +486,5 @@ def spectr_settings():
     j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
         "window": "0.1 s", "step": "0.025 s",\
         "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
-        "duration": "1.0s", "resample_method": "scipy"}}'
+        "duration": "1.0s", "resample_method": "scipy", "normalize_wav": "False"}}'
     return j
