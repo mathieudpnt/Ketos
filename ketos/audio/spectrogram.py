@@ -202,7 +202,7 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     return mel_spec, filter_banks
 
 def load_audio_for_spec(path, channel, rate, window, step,\
-            offset, duration, resample_method, id=None):
+            offset, duration, resample_method, id=None, normalize_wav=False):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -238,6 +238,9 @@ def load_audio_for_spec(path, channel, rate, window, step,\
                 for details on the individual methods.
             id: str
                 Unique identifier (optional). If None, the filename will be used.
+            normalize_wav: bool
+                Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                deviation of unity (std=1). Default is False.
 
         Returns:
             audio: Waveform
@@ -300,6 +303,11 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     # parse filename
     if id is None: id = os.path.basename(path)
+
+    # normalize
+    if normalize_wav: 
+        std = np.std(x)
+        if std > 0: x = (x - np.mean(x)) / std 
 
     # create Waveform object
     audio = Waveform(data=x, rate=rate, filename=id, offset=offset)
@@ -815,7 +823,7 @@ class MagSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):
+            id=None, normalize_wav=False):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -860,6 +868,9 @@ class MagSpectrogram(Spectrogram):
                     Upper frequency in Hz.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 : MagSpectrogram
@@ -880,7 +891,7 @@ class MagSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1036,7 +1047,7 @@ class PowerSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):            
+            id=None, normalize_wav=False):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1081,6 +1092,9 @@ class PowerSpectrogram(Spectrogram):
                     Upper frequency in Hz.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 spec: MagSpectrogram
@@ -1101,7 +1115,7 @@ class PowerSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1218,7 +1232,7 @@ class MelSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
             offset=0, duration=None, resample_method='scipy',
-            id=None):            
+            id=None, normalize_wav=False):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1265,6 +1279,9 @@ class MelSpectrogram(Spectrogram):
                     for details on the individual methods.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 spec: MelSpectrogram
@@ -1285,7 +1302,7 @@ class MelSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
         # compute spectrogram
         spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1426,7 +1443,7 @@ class CQTSpectrogram(Spectrogram):
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hann', offset=0, duration=None,
-        resample_method='scipy', id=None):
+        resample_method='scipy', id=None, normalize_wav=False):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -1472,6 +1489,9 @@ class CQTSpectrogram(Spectrogram):
                     for details on the individual methods.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 : CQTSpectrogram
@@ -1501,7 +1521,8 @@ class CQTSpectrogram(Spectrogram):
 
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, 
+            id=id, normalize_wav=normalize_wav)
 
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 

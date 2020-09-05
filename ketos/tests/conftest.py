@@ -94,6 +94,25 @@ def sine_wave_file(sine_wave):
     os.remove(wav_file)
 
 @pytest.fixture
+def sine_wave_file_half(sine_wave):
+    """Create a .wav with the 'sine_wave()' fixture, with an amplitude
+        of 0.5 instead of 1.
+
+       The file is saved as tests/assets/sine_wave_half.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file = os.path.join(path_to_assets, "sine_wave_half.wav")
+    rate, sig = sine_wave
+    sf.write(wav_file, 0.5*sig, rate)    
+    yield wav_file
+    os.remove(wav_file)
+
+@pytest.fixture
 def square_wave_file(square_wave):
     """Create a .wav with the 'square_wave()' fixture
     

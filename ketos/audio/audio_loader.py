@@ -268,11 +268,15 @@ class AudioLoader():
                     * CQTSpectrogram:
                         step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
 
+            normalize_wav: bool
+                Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                deviation of unity (std=1). Default is False.
+
         Examples:
             See child classes :class:`audio.audio_loader.AudioFrameLoader' and 
             :class:`audio.audio_loader.AudioSelectionLoader'.            
     """
-    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, normalize_wav=False):
 
         repres = copy.deepcopy(repres)
         self.channel = channel
@@ -281,6 +285,7 @@ class AudioLoader():
         self.cfg = repres
         self.sel_gen = selection_gen
         self.annot = annotations
+        self.normalize_wav = normalize_wav
 
     def __iter__(self):
         return self
@@ -328,7 +333,7 @@ class AudioLoader():
 
         # load audio
         seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
-            duration=duration, id=filename, **self.cfg)
+            duration=duration, id=filename, normalize_wav=self.normalize_wav, **self.cfg)
     
         # add annotations
         if label is not None:
@@ -366,7 +371,10 @@ class AudioFrameLoader(AudioLoader):
                 Annotation table
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.  
+                required to initialize the class using the from_wav method.
+            normalize_wav: bool
+                Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                deviation of unity (std=1). Default is False.
 
         Examples:
             >>> import librosa
@@ -394,13 +402,13 @@ class AudioFrameLoader(AudioLoader):
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, frame, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}):
+                    annotations=None, repres={'type': 'Waveform'}, normalize_wav=False):
 
         if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
 
         super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres)
+            channel=channel, annotations=annotations, repres=repres, normalize_wav=normalize_wav)
 
 class AudioSelectionLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 
@@ -419,11 +427,14 @@ class AudioSelectionLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+            normalize_wav: bool
+                Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                deviation of unity (std=1). Default is False.
     """
-    def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}, normalize_wav=False):
 
         if 'duration' in repres.keys(): duration = repres['duration']
         else: duration = None
 
         super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration), 
-            channel=channel, annotations=annotations, repres=repres)
+            channel=channel, annotations=annotations, repres=repres, normalize_wav=normalize_wav)
