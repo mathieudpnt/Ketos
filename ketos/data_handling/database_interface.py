@@ -585,7 +585,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
-    allow_resizing=1, include_source=True, include_label=True, normalize_wav=False):
+    allow_resizing=1, include_source=True, include_label=True):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -645,12 +645,9 @@ def create_database(output_file, data_dir, selections, channel=0,
                 saved to the table. Default is True.
             include_label: bool
                 Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
-            normalize_wav: bool
-                Normalize the waveform to have a mean of zero (mean=0) and a standard 
-                deviation of unity (std=1). Default is False.
     """
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
-        repres=audio_repres, annotations=annotations, normalize_wav=normalize_wav)
+        repres=audio_repres, annotations=annotations)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 

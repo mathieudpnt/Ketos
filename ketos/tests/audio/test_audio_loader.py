@@ -56,7 +56,7 @@ def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
 def test_init_audio_frame_loader_with_norm_wav_file(sine_wave_file_half):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single normalized wave file"""
-    loader = AudioFrameLoader(filename=sine_wave_file_half, frame=0.5, normalize_wav=True)
+    loader = AudioFrameLoader(filename=sine_wave_file_half, frame=0.5, repres={'type': 'Waveform', 'normalize_wav': True})
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
     wf = next(loader)
@@ -78,9 +78,10 @@ def test_audio_frame_loader_norm_mag(sine_wave_file):
     """ Test that we can initialize the AudioFrameLoader class to compute MagSpectrograms
         with the normalize_wav option set to True""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep, normalize_wav=False)
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
     spec1 = next(loader)
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep, normalize_wav=True)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'normalize_wav': True}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
     spec2 = next(loader)
     d1 = from_decibel(spec1.get_data())
     d2 = from_decibel(spec2.get_data()) / np.sqrt(2)
