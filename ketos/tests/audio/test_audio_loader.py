@@ -80,8 +80,10 @@ def test_audio_frame_loader_norm_mag(sine_wave_file):
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
     spec1 = next(loader)
+    spec1 = next(loader)
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'normalize_wav': True}
     loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec2 = next(loader)
     spec2 = next(loader)
     d1 = from_decibel(spec1.get_data())
     d2 = from_decibel(spec2.get_data()) / np.sqrt(2)
