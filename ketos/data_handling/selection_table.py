@@ -110,6 +110,29 @@ def rename_columns(table, mapper):
     """
     return table.rename(columns=mapper)
 
+def empty_annot_table():
+    """ Create an empty call-level annotation table
+
+        Returns:
+            df: pandas DataFrame
+                Empty annotation table
+    """
+    df = pd.DataFrame(columns=['filename','label','start','end'])
+    df = use_multi_indexing(df, 'annot_id')
+
+    return df
+
+def empty_selection_table():
+    """ Create an empty selection table
+
+        Returns:
+            df: pandas DataFrame
+                Empty selection table
+    """
+    df = pd.DataFrame(columns=['filename','label','start','end', 'annot_id'])
+    df = use_multi_indexing(df, 'sel_id')
+    return df
+
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
     backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
     return_label_dict=False):
@@ -551,6 +574,9 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
                       11          1  11.50  14.50         2
                       12          1  12.50  15.50         2
     """
+    if len(annotations) == 0:
+        return empty_selection_table()
+
     df = annotations.copy()
     df['annot_id'] = df.index.get_level_values(1)
 
@@ -822,6 +848,9 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
                       3        9.20  12.20      0
                       4       10.94  13.94      0
     """
+    if len(files) == 0:
+        return empty_selection_table()
+
     # compute lengths, and discard segments shorter than requested length
     c = files[['filename','duration']]
 

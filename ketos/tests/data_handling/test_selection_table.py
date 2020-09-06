@@ -68,6 +68,18 @@ def test_is_standardized():
     df = pd.DataFrame({'filename':'test.wav','label':[1]})
     assert st.is_standardized(df) == False
 
+def test_empty_annotation_table():
+    df = st.empty_annot_table()
+    assert len(df) == 0
+    assert np.all(df.columns == ['label', 'start', 'end'])
+    assert df.index.names == ['filename', 'annot_id']
+
+def test_empty_selection_table():
+    df = st.empty_selection_table()
+    assert len(df) == 0
+    assert np.all(df.columns == ['label', 'start', 'end', 'annot_id'])
+    assert df.index.names == ['filename', 'sel_id']
+
 def test_create_label_dict():
     l1 = [0, 'gg', -17, 'whale']
     l2 = [-33, 1, 'boat']
@@ -238,6 +250,30 @@ def test_create_rndm_backgr_selections(file_duration_table):
     assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 0)
+
+def test_create_rndm_backgr_selections_with_empty_annot(file_duration_table):
+    """ Test if can generate a random selection of background 
+        selections with an empty annotation table"""
+    np.random.seed(1)
+    dur = file_duration_table 
+    num = 5
+    df = st.empty_annot_table()
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    assert len(df_bgr) == num
+    # assert selections have uniform length
+    assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
+    # assert all selection have label = 0
+    assert np.all(df_bgr.label.values == 0)
+
+def test_create_rndm_backgr_selections_with_empty_file_duration_table(file_duration_table):
+    """ Test if can generate a random selection of background 
+        selections with an empty annotation table"""
+    np.random.seed(1)
+    num = 5
+    df = st.empty_annot_table()
+    dur = pd.DataFrame(columns=['filename','duration'])
+    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    assert len(df_bgr) == 0
 
 def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration_table):
     """ Test if can generate a random selection of background 
