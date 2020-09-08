@@ -91,7 +91,7 @@ class Waveform(BaseAudio):
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None):
+        id=None, normalize_wav=False):
         """ Load audio data from wave file.
 
             Args:
@@ -117,6 +117,9 @@ class Waveform(BaseAudio):
                     for details on the individual methods.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1). Default is False.
 
             Returns:
                 Instance of Waveform
@@ -155,6 +158,10 @@ class Waveform(BaseAudio):
 
         if id is None: id = os.path.basename(path)
             
+        if normalize_wav: 
+            std = np.std(data)
+            if std > 0: data = (data - np.mean(data)) / std
+
         return cls(rate=rate, data=data, filename=id, offset=offset)
 
     @classmethod

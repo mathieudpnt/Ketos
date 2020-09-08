@@ -92,7 +92,8 @@ def parse_audio_representation(s):
               ['freq_max',        float, 'Hz'],
               ['window_func',     str,   None],
               ['resample_method', str,   None],
-              ['duration',        float, 's']]
+              ['duration',        float, 's'],
+              ['normalize_wav',   bool,  None]]
 
     d = {}
     for p in params:
@@ -116,6 +117,8 @@ def parse_value(x, name, unit=None, typ='float'):
             v = float(v)
         elif typ in ['str', str]:
             v = str(v)
+        elif typ in ['bool', bool]:
+            v = (v.lower() == "true")
 
     return v
 

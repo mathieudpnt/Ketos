@@ -73,6 +73,13 @@ def test_from_wav_id(sine_wave_file, sine_wave):
     assert a.filename == id
     assert np.all(np.isclose(a.data, sig, atol=0.001))
 
+def test_from_wav_norm(sine_wave_file_half, sine_wave):
+    """ Test if an audio signal can be created from a wav file,
+        so that it has zero mean and unity standard deviation"""
+    a = Waveform.from_wav(sine_wave_file_half, normalize_wav=True)
+    assert np.isclose(np.mean(a.data), 0, atol=1e-12)
+    assert np.isclose(np.std(a.data), 1, atol=1e-12)
+
 def test_append_audio_signal(sine_audio):
     """Test if we can append an audio signal to itself"""
     audio_orig = sine_audio.deepcopy()

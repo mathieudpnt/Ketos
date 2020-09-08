@@ -226,7 +226,22 @@ def test_select_with_varying_overlap(annot_table_std):
 
     assert np.all(np.diff(num_sel) >= 0)
 
-def test_create_rndm_backgr_selections(annot_table_std, file_duration_table):
+def test_create_rndm_backgr_selections(file_duration_table):
+    """ Test if can generate a random selection of background 
+        selections"""
+    np.random.seed(1)
+    dur = file_duration_table 
+    num = 5
+    df_bgr = st.create_rndm_backgr_selections(files=dur, length=2.0, num=num)
+    assert len(df_bgr) == num
+    # assert selections have uniform length
+    assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
+    # assert all selection have label = 0
+    assert np.all(df_bgr.label.values == 0)
+
+def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration_table):
+    """ Test if can generate a random selection of background 
+        selections while avoiding annotated regions of the recording"""
     np.random.seed(1)
     df = st.standardize(annot_table_std)
     dur = file_duration_table 
