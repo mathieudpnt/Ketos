@@ -108,8 +108,24 @@ def test_normalize_stacked(base_audio_1d_stacked):
     d = np.concatenate([d,2*d])
     o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
     o.normalize()
+    assert np.all(np.mean(o.data, axis=0) == 0)
+    assert np.all(np.isclose(np.std(o.data, axis=0), 1, atol=1e-10))
+    o.normalize(mean=0.2, std=7.02)
+    assert np.all(np.mean(o.data, axis=0) == 0.2)
+    assert np.all(np.isclose(np.std(o.data, axis=0), 7.02, atol=1e-10))
+
+def test_adjust_range_stacked(base_audio_1d_stacked):
+    """Test that stacked object are properly transformed to the specified range"""
+    N = 10000
+    d = np.arange(N)
+    d = np.concatenate([d,2*d])
+    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
+    o.adjust_range()
     assert np.all(np.min(o.data, axis=0) == 0)
     assert np.all(np.max(o.data, axis=0) == 1)
+    o.adjust_range(range=(-1,3.5))
+    assert np.all(np.min(o.data, axis=0) == -1)
+    assert np.all(np.max(o.data, axis=0) == 3.5)
 
 def test_segment(base_audio_1d):
     """Test segment method on 1d object"""

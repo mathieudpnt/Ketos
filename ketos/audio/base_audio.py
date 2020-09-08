@@ -451,12 +451,34 @@ class BaseAudio():
         """   
         return np.median(self.data, axis=0)
 
-    def normalize(self):
-        """ Normalize the data array so that values range from 0 to 1
+    def normalize(self, mean=0, std=1):
+        """ Normalize the data array to specified mean and standard deviation.
+
+            For the data array to be normalizable, it must have non-zero standard 
+            deviation. If this is not the case, the array is unchanged by calling 
+            this method. 
+
+            Args:
+                mean: float
+                    Mean value of the normalized array. The default is 0.
+                std: float
+                    Standard deviation of the normalized array. The default is 1.
+        """
+        std_orig = np.std(self.data)
+        if std_orig > 0:
+            self.data = std * (self.data - np.mean(self.data)) / std_orig + mean
+
+    def adjust_range(self, range=(0,1)):
+        """ Applies a linear transformation to the data array that puts the values
+            within the specified range. 
+
+            Args:
+                range: tuple(float,float)
+                    Minimum and maximum value of the desired range. Default is (0,1)
         """
         x_min = self.min()
         x_max = self.max()
-        self.data = (self.data - x_min) / (x_max - x_min)
+        self.data = (range[1] - range[0]) * (self.data - x_min) / (x_max - x_min) + range[0]
 
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
