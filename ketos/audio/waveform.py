@@ -164,6 +164,14 @@ class Waveform(BaseAudio):
             warnings.warn("Offset exceeds file length. Empty waveform returned", RuntimeWarning)
             return cls(rate=rate, data=data, filename=id, offset=offset)
 
+        # if the duration is specified to 0, return an empty array
+        # and issue a warning
+        if duration is not None and duration == 0:
+            data = np.array([], dtype=np.float64)
+            if rate is None: rate = rate_orig
+            warnings.warn("Duration is zero. Empty waveform returned", RuntimeWarning)
+            return cls(rate=rate, data=data, filename=id, offset=offset)
+
         # if the offset is negative, pad with zeros on the left
         num_pad_left = 0
         if offset is not None and offset < 0:

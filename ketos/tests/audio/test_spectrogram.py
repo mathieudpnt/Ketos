@@ -27,6 +27,7 @@
 """ Unit tests for the 'audio.spectrogram' module within the ketos library
 """
 import pytest
+import warnings
 import numpy as np
 import copy
 import os
@@ -206,9 +207,19 @@ def test_mag_from_wav(sine_wave_file):
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01)
     assert spec.time_res() == pytest.approx(0.01, abs=0.001)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
-    # segment is empty returns zeros
-#    with pytest.raises(AssertionError):
-    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
+    # segment is empty returns empty spectrogram
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        # Trigger a warning.
+        spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
+        # Verify some things about the warning
+        assert len(w) == 2
+        assert issubclass(w[-1].category, RuntimeWarning)
+        assert "Empty spectrogram returned" in str(w[-1].message)
+        # Verify some things about the spectrogram
+        spec.get_data().shape == (0,0)
+
     # duration can be less than full length
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, duration=2.14)
     assert spec.time_res() == 0.02

@@ -53,6 +53,7 @@
 import os
 import copy
 import librosa
+import warnings
 import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
@@ -248,6 +249,9 @@ def load_audio_for_spec(path, channel, rate, window, step,\
             seg_args: tuple(int,int,int,int)
                 Input arguments for :func:`audio.utils.misc.segment`
     """
+    # parse filename
+    if id is None: id = os.path.basename(path)
+
     if rate is None:
         rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
 
@@ -255,7 +259,14 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     file_len = int(file_duration * rate) #file length (number of samples)
     
     if duration is None:
-        duration = file_duration - offset if offset < file_duration else file_duration #if not specified, use file duration minus offset
+        duration = max(0, file_duration - offset) #if not specified, use file duration minus offset
+
+    # if duration is 0, use the Waveform.from_wav method to load an empty array
+    if duration == 0:
+        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
+                offset=offset, duration=duration, resample_method=resample_method, 
+                id=id, normalize_wav=normalize_wav)
+        return audio, None
 
     # compute segmentation parameters
     seg_args = aum.segment_args(rate=rate, duration=duration,\
@@ -268,43 +279,36 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     com_len = int(num_segs * step_len + win_len) #combined length of frames
 
-    if offset >= file_duration:
-        x = np.zeros(com_len)
+    # convert back to seconds and compute required amount of zero padding
+    pad_left = max(0, -offset_len)
+    pad_right = max(0, (offset_len + com_len) - file_len)
+    load_offset = max(0, offset_len) / rate
+    audio_len = int(com_len - pad_left - pad_right)
+    duration = audio_len / rate
 
-    else:
-        # convert back to seconds and compute required amount of zero padding
-        pad_left = max(0, -offset_len)
-        pad_right = max(0, (offset_len + com_len) - file_len)
-        load_offset = max(0, offset_len) / rate
-        audio_len = int(com_len - pad_left - pad_right)
-        duration = audio_len / rate
+    # load audio segment
+    x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
+        duration=duration, mono=False, res_type=resample_method)
 
-        # load audio segment
-        x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
-            duration=duration, mono=False, res_type=resample_method)
+    # select channel (for stereo only)
+    if np.ndim(x) == 2:
+        x = x[channel]
 
-        # select channel (for stereo only)
+    # check that loaded audio segment has the expected length (give or take 1 sample).
+    # if this is not the case, load the entire audio file into memory, then cut out the 
+    # relevant section. 
+    if abs(len(x) - audio_len) > 1:
+        x, rate = librosa.core.load(path=path, sr=rate, mono=False)
         if np.ndim(x) == 2:
             x = x[channel]
 
-        # check that loaded audio segment has the expected length (give or take 1 sample).
-        # if this is not the case, load the entire audio file into memory, then cut out the 
-        # relevant section. 
-        if abs(len(x) - audio_len) > 1:
-            x, rate = librosa.core.load(path=path, sr=rate, mono=False)
-            if np.ndim(x) == 2:
-                x = x[channel]
+        a = max(0, offset_len)
+        b = a + audio_len
+        x = x[a:b]
 
-            a = max(0, offset_len)
-            b = a + audio_len
-            x = x[a:b]
-
-        # pad with own reflection
-        pad_right += max(0, com_len - len(x))
-        x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
-
-    # parse filename
-    if id is None: id = os.path.basename(path)
+    # pad with own reflection
+    pad_right += max(0, com_len - len(x))
+    x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
     # normalize
     if normalize_wav: 
@@ -379,7 +383,7 @@ class Spectrogram(BaseAudio):
     def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
         super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot)
 
-        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
+#        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
         self.freq_ax = freq_ax
         self.type = spec_type
 
@@ -764,8 +768,8 @@ class MagSpectrogram(Spectrogram):
         filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create frequency axis
-        freq_bins = data.shape[1]
-        freq_max  = freq_min + freq_bins * freq_res
+        freq_bins = max(1, data.shape[1])
+        freq_max  = freq_min + data.shape[1] * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
@@ -773,6 +777,12 @@ class MagSpectrogram(Spectrogram):
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
+
+    @classmethod
+    def empty(cls):
+        """ Creates an empty MagSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, freq_min=0, freq_res=0)
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
@@ -895,6 +905,10 @@ class MagSpectrogram(Spectrogram):
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
+
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
             freq_min=freq_min, freq_max=freq_max)
@@ -995,6 +1009,12 @@ class PowerSpectrogram(Spectrogram):
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
+
+    @classmethod
+    def empty(cls):
+        """ Creates an empty PowerSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, freq_min=0, freq_res=0)
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
@@ -1119,6 +1139,10 @@ class PowerSpectrogram(Spectrogram):
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
+
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
             freq_min=freq_min, freq_max=freq_max)
@@ -1181,6 +1205,12 @@ class MelSpectrogram(Spectrogram):
 
         self.window_func = window_func
         self.filter_banks = filter_banks
+
+    @classmethod
+    def empty(cls):
+        """ Creates an empty MelSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), filter_banks=None, time_res=0, freq_min=0, freq_max=0)
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming',
@@ -1306,6 +1336,10 @@ class MelSpectrogram(Spectrogram):
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
 
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
+
         # compute spectrogram
         spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
             num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter)
@@ -1392,6 +1426,12 @@ class CQTSpectrogram(Spectrogram):
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
+
+    @classmethod
+    def empty(cls):
+        """ Creates an empty CQTSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, bins_per_oct=0, freq_min=0)
 
     @classmethod
     def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hann'):
@@ -1517,12 +1557,16 @@ class CQTSpectrogram(Spectrogram):
         file_len = int(file_duration * rate) #file length (number of samples)
         
         if duration is None:
-            duration = file_duration - offset if offset < file_duration else file_duration #if not specified, use file duration minus offset
+            duration = max(0, file_duration - offset)
 
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
             offset=offset, duration=duration, resample_method=resample_method, 
             id=id, normalize_wav=normalize_wav)
+
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
 
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 
