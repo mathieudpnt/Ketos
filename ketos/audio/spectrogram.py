@@ -312,6 +312,9 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     # create Waveform object
     audio = Waveform(data=x, rate=rate, filename=id, offset=offset)
 
+    # normalize
+    if normalize_wav: audio.normalize()
+
     return audio, seg_args
 
 class Spectrogram(BaseAudio):
