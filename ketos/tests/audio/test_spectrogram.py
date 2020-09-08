@@ -33,6 +33,7 @@ import os
 from ketos.audio.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.audio.utils.axis import LinearAxis
+from ketos.audio.utils.misc import from_decibel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -219,6 +220,12 @@ def test_mag_from_wav(sine_wave_file):
     assert spec.offset == 0.13
     # check file name
     assert spec.filename == 'sine_wave.wav'
+    # normalize waveform
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=False)
+    spec_norm = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=True)
+    d1 = from_decibel(spec.get_data())
+    d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_mag_from_wav_id(sine_wave_file):
     """ Test that mag spectrogram created with from_wav method 
@@ -245,6 +252,12 @@ def test_cqt_from_wav(sine_wave_file):
     # step size is not divisor of duration
     spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
+    # normalize waveform
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, normalize_wav=False)
+    spec_norm = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, normalize_wav=True)
+    d1 = from_decibel(spec.get_data())
+    d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_cqt_from_wav_id(sine_wave_file):
     """ Test that cqt spectrogram created with from_wav method 

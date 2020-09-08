@@ -738,7 +738,7 @@ def file_duration_table(path, search_subdirs=False):
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
     return pd.DataFrame({'filename':paths, 'duration':durations})
 
-def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
+def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -752,8 +752,6 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
         lead to longer execution times.
 
         Args:
-            annotations: pandas DataFrame
-                Annotation table.
             files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
@@ -761,6 +759,8 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
+            annotations: pandas DataFrame
+                Annotation table. Optional.
             no_overlap: bool
                 If True, randomly selected segments will have no overlap.
             trim_table: bool
@@ -805,7 +805,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[18.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=12, trim_table=True) 
+            >>> df_bgr = create_rndm_backgr_selections(annotations=df, files=file_dur, length=3.0, num=12, trim_table=True) 
             >>> print(df_bgr.round(2))
                               start    end  label
             filename  sel_id                     
@@ -850,8 +850,9 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             start = t - cs[idx] + row['offset']
             end   = start + length
 
-            q = query(annotations, filename=fname, start=start, end=end)
-            if len(q) > 0: continue
+            if annotations is not None:
+                q = query(annotations, filename=fname, start=start, end=end)
+                if len(q) > 0: continue
 
             if no_overlap and len(df) > 0:
                 q = query(df.set_index(df.filename), filename=fname, start=start, end=end)

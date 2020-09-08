@@ -268,6 +268,9 @@ class AudioLoader():
                     * CQTSpectrogram:
                         step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
 
+                Optionally, may also contain the key 'normalize_wav' which can have value True or False. 
+                If True, the waveform is normalized zero mean (mean=0) and (std=1) unity standard deviation.
+
         Examples:
             See child classes :class:`audio.audio_loader.AudioFrameLoader' and 
             :class:`audio.audio_loader.AudioSelectionLoader'.            
@@ -366,7 +369,7 @@ class AudioFrameLoader(AudioLoader):
                 Annotation table
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.  
+                required to initialize the class using the from_wav method.
 
         Examples:
             >>> import librosa
