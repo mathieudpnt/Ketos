@@ -222,8 +222,9 @@ class BaseAudio():
     def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
         self.ndim = ndim
         self.data = data
+        bins = max(1, data.shape[0])
         length = data.shape[0] * time_res
-        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
+        self.time_ax = LinearAxis(bins=bins, extent=(0., length), label='Time (s)') #initialize time axis
 
         if isinstance(annot, pd.DataFrame): annot = AnnotationHandler(annot)
 

@@ -34,6 +34,7 @@
 import os
 import numpy as np
 import librosa
+import warnings
 import scipy.io.wavfile as wave
 from scipy import interpolate
 import matplotlib.pyplot as plt
@@ -94,6 +95,14 @@ class Waveform(BaseAudio):
         id=None, normalize_wav=False):
         """ Load audio data from wave file.
 
+            If `duration` (and `offset`) are specified and `offset + duration` exceeds the 
+            length of the wav file, the signal will be padded on the right to achieve the 
+            desired duration. Similarly, if `offset < 0`, the signal will be padded on the 
+            left. In both cases, a RuntimeWarning is issued.
+
+            If `offset` exceeds the file duration, an empty waveform is returned and a 
+            RuntimeWarning is issued.
+
             Args:
                 path: str
                     Path to input wave file
@@ -136,28 +145,73 @@ class Waveform(BaseAudio):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
+        assert duration is None or duration >= 0, 'duration must be non-negative'
+
+        # if 'id' is not specified, use the filename
+        if id is None: id = os.path.basename(path)
+
+        # original sampling rate in Hz
         rate_orig = librosa.get_samplerate(path)
-        start = aum.num_samples(offset, rate_orig)
-        if duration:
-            stop = aum.num_samples(offset + duration, rate_orig)
+
+        # file duration in seconds
+        file_duration = librosa.get_duration(filename=path)
+
+        # if the offset exceeds the file duration, return an empty array
+        # and issue a warning
+        if offset >= file_duration:
+            data = np.array([], dtype=np.float64)
+            if rate is None: rate = rate_orig
+            warnings.warn("Offset exceeds file length. Empty waveform returned", RuntimeWarning)
+            return cls(rate=rate, data=data, filename=id, offset=offset)
+
+        # if the duration is specified to 0, return an empty array
+        # and issue a warning
+        if duration is not None and duration == 0:
+            data = np.array([], dtype=np.float64)
+            if rate is None: rate = rate_orig
+            warnings.warn("Duration is zero. Empty waveform returned", RuntimeWarning)
+            return cls(rate=rate, data=data, filename=id, offset=offset)
+
+        # if the offset is negative, pad with zeros on the left
+        num_pad_left = 0
+        if offset is not None and offset < 0:
+            sr = rate_orig if rate is None else rate
+            if duration is None:
+                num_pad_left = int(-offset*sr)
+            else:
+                num_pad_left = int(min(-offset, duration)*sr)
+                duration += offset
+                duration = max(0, duration)
+
+        if duration is not None and duration == 0:
+            data = np.zeros(num_pad_left, dtype=np.float64)
+            if rate is None: rate = rate_orig
+            warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
+            return cls(rate=rate, data=data, filename=id, offset=offset)
+
+        # determine start and stop times for reading the wav files
+        start = aum.num_samples(max(0,offset), rate_orig)
+        if duration is not None:
+            stop = aum.num_samples(max(0,offset) + duration, rate_orig)
         else:
             stop = None
 
+        # read data and sampling rate
         rate_orig, data = read_wave(file=path, channel=channel, start=start, stop=stop)
 
-        if rate and rate != rate_orig:
+        # if necessary, re-sample
+        if rate is not None and rate != rate_orig:
             data = librosa.core.resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
         else:
             rate = rate_orig
 
-        # pad with zeros to achieve desired duration, if necessary
+        # pad with zeros on the right, to achieve desired duration, if necessary
         if duration is not None:
-            num_sampl = int(duration * rate - data.shape[0])
-            if num_sampl > 0:
-                data = np.pad(data, pad_width=((0,num_sampl)), mode='constant')
+            num_pad_right = int(duration * rate - data.shape[0])
+            if num_pad_right > 0 or num_pad_left > 0:
+                data = np.pad(data, pad_width=((num_pad_left,num_pad_right)), mode='constant')
+                warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
 
-        if id is None: id = os.path.basename(path)
-            
         if normalize_wav: 
             std = np.std(data)
             if std > 0: data = (data - np.mean(data)) / std

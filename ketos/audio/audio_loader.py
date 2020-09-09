@@ -37,6 +37,7 @@ import os
 import copy
 import numpy as np
 import librosa
+import warnings
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
@@ -196,8 +197,15 @@ class FrameStepper(SelectionGenerator):
                 self.dir = path
                 self.files = filename
 
+        # get file durations
+        file_durations = np.array([librosa.get_duration(filename=os.path.join(self.dir, f)) for f in self.files])
+
+        # discard any files with 0 second duration
+        self.files = np.array(self.files)[file_durations > 0].tolist()
+        file_durations = file_durations[file_durations > 0].tolist()
+
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((librosa.get_duration(filename=os.path.join(self.dir, f)) - self.frame) / self.step)) + 1 for f in self.files]
+        self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in file_durations]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
         self.file_id = -1
@@ -330,8 +338,11 @@ class AudioLoader():
         path = os.path.join(data_dir, filename)
 
         # load audio
-        seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
-            duration=duration, id=filename, **self.cfg)
+        # (ignore warnings from the from_wav method)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")        
+            seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
+                                                        duration=duration, id=filename, **self.cfg)
     
         # add annotations
         if label is not None:
