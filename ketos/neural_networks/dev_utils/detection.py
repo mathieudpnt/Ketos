@@ -33,6 +33,10 @@
 
 """
 
+import numpy as np
+import pandas as pd
+import os
+
 def compute_avg_score(score_vector, win_len):
     """ Compute a moving average of the score vector.
 
@@ -84,15 +88,28 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
             buffer: float
                 Time (in seconds) to be added around the detection.
 
-        Retuirns:
+        Raises:
+            ValueError: 
+                If det_end is lower than det_start
+
+        Returns:
             time_start, duration:float
                 The corresponding start (in seconds from the beggining of the file) and duration
 
+
     """
-    time_start =  det_start * step - buffer + 0.5 * spec_dur
-    duration = (det_end - det_start + 1) * step + 2 * buffer
+    if det_end < det_start:
+        raise ValueError("'det_end' cannot be lower than 'det_start'")
+    time_start =  det_start * step - buffer 
     time_start += batch_start_timestamp
     time_start = max(batch_start_timestamp, time_start)
+    
+    time_end =  det_end * step + buffer 
+    time_end += batch_start_timestamp
+    time_end = min(batch_end_timestamp, time_end)
+
+    duration = (time_end + step) - time_start
+    
     return time_start, duration
     
 
@@ -198,7 +215,7 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
     return batch_detections
     
 
-def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=1.0, step=0.5, win_len=5):
+def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=1.0, step=0.5, win_len=5, average_and_group=True):
     """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
@@ -224,7 +241,11 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
                 The time interval(in seconds) between the starts of each contiguous input spectrogram.
                 For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
             win_len:int
-                The windown length for the moving average. Must be an odd integer. The default value is 5.            
+                The windown length for the moving average. Must be an odd integer. The default value is 5.   
+            average_and_group:bool
+                If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
+                If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
+                average score of all spectrograms comprising the detection event.
 
         Returns:
             detections: list
@@ -267,7 +288,8 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
         batch_support_data = np.array(batch_support_data)
         batch_data = np.array(batch_data)
 
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len)
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
+        # import pdb; pdb.set_trace()
         if len(batch_detections) > 0: detections += batch_detections
 
     return detections
