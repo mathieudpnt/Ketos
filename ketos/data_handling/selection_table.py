@@ -110,6 +110,29 @@ def rename_columns(table, mapper):
     """
     return table.rename(columns=mapper)
 
+def empty_annot_table():
+    """ Create an empty call-level annotation table
+
+        Returns:
+            df: pandas DataFrame
+                Empty annotation table
+    """
+    df = pd.DataFrame(columns=['filename','label','start','end'])
+    df = use_multi_indexing(df, 'annot_id')
+
+    return df
+
+def empty_selection_table():
+    """ Create an empty selection table
+
+        Returns:
+            df: pandas DataFrame
+                Empty selection table
+    """
+    df = pd.DataFrame(columns=['filename','label','start','end', 'annot_id'])
+    df = use_multi_indexing(df, 'sel_id')
+    return df
+
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
     backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
     return_label_dict=False):
@@ -551,6 +574,9 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
                       11          1  11.50  14.50         2
                       12          1  12.50  15.50         2
     """
+    if len(annotations) == 0:
+        return empty_selection_table()
+
     df = annotations.copy()
     df['annot_id'] = df.index.get_level_values(1)
 
@@ -738,7 +764,7 @@ def file_duration_table(path, search_subdirs=False):
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
     return pd.DataFrame({'filename':paths, 'duration':durations})
 
-def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=False, trim_table=False):
+def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -752,8 +778,6 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
         lead to longer execution times.
 
         Args:
-            annotations: pandas DataFrame
-                Annotation table.
             files: pandas DataFrame
                 Table with file durations in seconds. 
                 Should contain columns named 'filename' and 'duration'.
@@ -761,6 +785,8 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
                 Selection length in seconds.
             num: int
                 Number of selections to be created.
+            annotations: pandas DataFrame
+                Annotation table. Optional.
             no_overlap: bool
                 If True, randomly selected segments will have no overlap.
             trim_table: bool
@@ -805,7 +831,7 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[18.,20.,15.]})
             >>> 
             >>> #Create randomly sampled background selection with fixed 3.0-s length.
-            >>> df_bgr = create_rndm_backgr_selections(df, files=file_dur, length=3.0, num=12, trim_table=True) 
+            >>> df_bgr = create_rndm_backgr_selections(annotations=df, files=file_dur, length=3.0, num=12, trim_table=True) 
             >>> print(df_bgr.round(2))
                               start    end  label
             filename  sel_id                     
@@ -822,6 +848,9 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
                       3        9.20  12.20      0
                       4       10.94  13.94      0
     """
+    if len(files) == 0:
+        return empty_selection_table()
+
     # compute lengths, and discard segments shorter than requested length
     c = files[['filename','duration']]
 
@@ -850,8 +879,9 @@ def create_rndm_backgr_selections(annotations, files, length, num, no_overlap=Fa
             start = t - cs[idx] + row['offset']
             end   = start + length
 
-            q = query(annotations, filename=fname, start=start, end=end)
-            if len(q) > 0: continue
+            if annotations is not None:
+                q = query(annotations, filename=fname, start=start, end=end)
+                if len(q) > 0: continue
 
             if no_overlap and len(df) > 0:
                 q = query(df.set_index(df.filename), filename=fname, start=start, end=end)

@@ -36,6 +36,7 @@ from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.parsing import parse_audio_representation
+from ketos.audio.utils.misc import from_decibel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -52,6 +53,15 @@ def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
+def test_init_audio_frame_loader_with_norm_wav_file(sine_wave_file_half):
+    """ Test that we can initialize an instance of the AudioFrameLoader class 
+        from a single normalized wave file"""
+    loader = AudioFrameLoader(filename=sine_wave_file_half, frame=0.5, repres={'type': 'Waveform', 'normalize_wav': True})
+    assert len(loader.sel_gen.files) == 1
+    assert loader.num() == 6
+    wf = next(loader)
+    assert np.isclose(np.std(wf.data), 1, atol=1e-9)
+
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
@@ -63,6 +73,21 @@ def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
+
+def test_audio_frame_loader_norm_mag(sine_wave_file):
+    """ Test that we can initialize the AudioFrameLoader class to compute MagSpectrograms
+        with the normalize_wav option set to True""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec1 = next(loader)
+    spec1 = next(loader)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'normalize_wav': True}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec2 = next(loader)
+    spec2 = next(loader)
+    d1 = from_decibel(spec1.get_data())
+    d2 = from_decibel(spec2.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms

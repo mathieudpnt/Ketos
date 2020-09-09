@@ -27,12 +27,14 @@
 """ Unit tests for the 'audio.spectrogram' module within the ketos library
 """
 import pytest
+import warnings
 import numpy as np
 import copy
 import os
 from ketos.audio.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.audio.utils.axis import LinearAxis
+from ketos.audio.utils.misc import from_decibel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -205,9 +207,19 @@ def test_mag_from_wav(sine_wave_file):
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01)
     assert spec.time_res() == pytest.approx(0.01, abs=0.001)
     assert spec.duration() == pytest.approx(3.0, abs=0.01)
-    # segment is empty raises assertion error
-    with pytest.raises(AssertionError):
+    # segment is empty returns empty spectrogram
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        # Trigger a warning.
         spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
+        # Verify some things about the warning
+        assert len(w) == 2
+        assert issubclass(w[-1].category, RuntimeWarning)
+        assert "Empty spectrogram returned" in str(w[-1].message)
+        # Verify some things about the spectrogram
+        spec.get_data().shape == (0,0)
+
     # duration can be less than full length
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, duration=2.14)
     assert spec.time_res() == 0.02
@@ -219,6 +231,12 @@ def test_mag_from_wav(sine_wave_file):
     assert spec.offset == 0.13
     # check file name
     assert spec.filename == 'sine_wave.wav'
+    # normalize waveform
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=False, offset=0.2, duration=0.6)
+    spec_norm = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02, normalize_wav=True, offset=0.2, duration=0.6)
+    d1 = from_decibel(spec.get_data())
+    d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_mag_from_wav_id(sine_wave_file):
     """ Test that mag spectrogram created with from_wav method 
@@ -245,6 +263,12 @@ def test_cqt_from_wav(sine_wave_file):
     # step size is not divisor of duration
     spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.017, freq_min=1, freq_max=300, bins_per_oct=32)
     assert spec.duration() == pytest.approx(3.0, abs=0.02)
+    # normalize waveform
+    spec = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, normalize_wav=False)
+    spec_norm = CQTSpectrogram.from_wav(sine_wave_file, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32, normalize_wav=True)
+    d1 = from_decibel(spec.get_data())
+    d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_cqt_from_wav_id(sine_wave_file):
     """ Test that cqt spectrogram created with from_wav method 
