@@ -13,6 +13,45 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
+
+@pytest.fixture
+def scores_and_support_1():
+    scores = np.array([0,0,0,0.1,0.3,0.4,0.52,0.89,0.78,0.6,0.4,0.3,0.4,0.2,0.1,0,0,0,0,0,0.7,0.4,0.5,0.8,0.7,0.4,0.3,0,0,0,0.3,0.4,0.3,0])
+    support = np.array([('file_1.wav', 0),
+                         ('file_1.wav', 0.5),
+                         ('file_1.wav', 1.0),
+                         ('file_1.wav', 1.5),
+                         ('file_1.wav', 2.0),
+                         ('file_1.wav', 2.5),
+                         ('file_1.wav', 3.0),
+                         ('file_1.wav', 3.5),
+                         ('file_1.wav', 4.0),
+                         ('file_1.wav', 4.5),
+                         ('file_2.wav', 0),
+                         ('file_2.wav', 0.5),
+                         ('file_2.wav', 1.0),
+                         ('file_2.wav', 1.5),
+                         ('file_2.wav', 2.0),
+                         ('file_2.wav', 2.5),
+                         ('file_2.wav', 3.0),
+                         ('file_2.wav', 3.5),
+                         ('file_2.wav', 4.0),
+                         ('file_2.wav', 4.5),
+                         ('file_3.wav', 0),
+                         ('file_3.wav', 0.5),
+                         ('file_3.wav', 1.0),
+                         ('file_3.wav', 1.5),
+                         ('file_3.wav', 2.0),
+                         ('file_3.wav', 2.5),
+                         ('file_3.wav', 3.0),
+                         ('file_3.wav', 3.5),
+                         ('file_3.wav', 4.0),
+                         ('file_3.wav', 4.5),
+   
+    ])
+    return scores, support
+
+
 @pytest.mark.parametrize("score_vector, win_len,  expected", [(np.array([1.,1.,1.,1.,1.,1.]), 3, np.array([0.,1.,1.,1.,1.,0.])),
                                                                 (np.array([0.,0.,0.,0.,0.,0.]), 3, np.array([0.,0.,0.,0.,0.,0.])),
                                                                 (np.array([1.,1.,1.,1.,1.,1.]), 5, np.array([0.,0.,1.,1.,0.,0.])),
@@ -54,8 +93,14 @@ def test_map_detection_to_time_det_end_exception():
 
 
 
-def test_group_detections():
-    pass
+@pytest.mark.parametrize("buffer, step, spec_dur, threshold, expected", 
+                        [(1.0, 0.5, 3.0, 0.5, [('file_1.wav',3.0, 3.5, 0.73),]),
+                        ])
+def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold, expected):
+    scores, support = scores_and_support_1
+    grp_det = group_detections(scores_vector=scores, batch_support_data=support, buffer=1.0,step=0.5, spec_dur=3.0, threshold=0.5)
+    assert grp_det == expected
+    
 
 def test_process_batch():
     pass
