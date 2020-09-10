@@ -16,7 +16,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def scores_and_support_1():
-    scores = np.array([0,0,0,0.1,0.3,0.4,0.52,0.89,0.78,0.6,0.4,0.3,0.4,0.2,0.1,0,0,0,0,0,0.7,0.4,0.5,0.8,0.7,0.4,0.3,0,0,0,0.3,0.4,0.3,0])
+    scores = np.array([0,0,0,0.1,0.3,0.4,0.52,0.89,0.78,0.6,0.4,0.3,0.4,0.2,0.1,0,0,0,0,0,0.7,0.4,0.5,0.8,0.7,0.4,0.3,0,0,0])
     support = np.array([('file_1.wav', 0),
                          ('file_1.wav', 0.5),
                          ('file_1.wav', 1.0),
@@ -27,26 +27,26 @@ def scores_and_support_1():
                          ('file_1.wav', 3.5),
                          ('file_1.wav', 4.0),
                          ('file_1.wav', 4.5),
-                         ('file_2.wav', 0),
-                         ('file_2.wav', 0.5),
-                         ('file_2.wav', 1.0),
-                         ('file_2.wav', 1.5),
-                         ('file_2.wav', 2.0),
-                         ('file_2.wav', 2.5),
-                         ('file_2.wav', 3.0),
-                         ('file_2.wav', 3.5),
-                         ('file_2.wav', 4.0),
-                         ('file_2.wav', 4.5),
-                         ('file_3.wav', 0),
-                         ('file_3.wav', 0.5),
-                         ('file_3.wav', 1.0),
-                         ('file_3.wav', 1.5),
-                         ('file_3.wav', 2.0),
-                         ('file_3.wav', 2.5),
-                         ('file_3.wav', 3.0),
-                         ('file_3.wav', 3.5),
-                         ('file_3.wav', 4.0),
-                         ('file_3.wav', 4.5),
+                         ('file_1.wav', 5.0),
+                         ('file_1.wav', 5.5),
+                         ('file_1.wav', 6.0),
+                         ('file_1.wav', 6.5),
+                         ('file_1.wav', 7.0),
+                         ('file_1.wav', 7.5),
+                         ('file_1.wav', 8.0),
+                         ('file_1.wav', 8.5),
+                         ('file_1.wav', 9.0),
+                         ('file_1.wav', 9.5),
+                         ('file_1.wav', 10),
+                         ('file_1.wav', 10.5),
+                         ('file_1.wav', 11.0),
+                         ('file_1.wav', 11.5),
+                         ('file_1.wav', 12.0),
+                         ('file_1.wav', 12.5),
+                         ('file_1.wav', 13.0),
+                         ('file_1.wav', 13.5),
+                         ('file_1.wav', 14.0),
+                         ('file_1.wav', 14.5),
    
     ])
     return scores, support
@@ -94,12 +94,24 @@ def test_map_detection_to_time_det_end_exception():
 
 
 @pytest.mark.parametrize("buffer, step, spec_dur, threshold, expected", 
-                        [(1.0, 0.5, 3.0, 0.5, [('file_1.wav',3.0, 3.5, 0.73),]),
+                        [(1.0, 0.5, 3.0, 0.5, [('file_1.wav',2.0, 4.0, 0.697),
+                                               ('file_1.wav',9, 2.5, 0.7),
+                                               ('file_1.wav',10, 3.5, 0.667),]),
+                        (0.0, 0.5, 3.0, 0.5, [('file_1.wav',3.0, 2.0, 0.697),
+                                               ('file_1.wav',10, 0.5, 0.7),
+                                               ('file_1.wav',11, 1.5, 0.667),]),
+                        (0.0, 0.5, 3.0, 0.7, [('file_1.wav',3.5, 1.0, 0.835),
+                                               ('file_1.wav',10, 0.5, 0.7),
+                                               ('file_1.wav',11.5, 1.0, 0.75),])
                         ])
 def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold, expected):
     scores, support = scores_and_support_1
-    grp_det = group_detections(scores_vector=scores, batch_support_data=support, buffer=1.0,step=0.5, spec_dur=3.0, threshold=0.5)
-    assert grp_det == expected
+    grp_det = group_detections(scores_vector=scores, batch_support_data=support, buffer=buffer,step=step, spec_dur=spec_dur, threshold=threshold)
+    for i,d in enumerate(grp_det):
+        assert d[0] == expected[i][0]
+        assert d[1] == expected[i][1]
+        assert d[2] == expected[i][2]
+        assert np.isclose(d[3], expected[i][3], rtol=1e-03)
     
 
 def test_process_batch():
