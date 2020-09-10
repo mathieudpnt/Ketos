@@ -12,6 +12,11 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
+@pytest.fixture
+def batch():
+    data = np.vstack([np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((4,100,100))])
+    support = np.array([('file_1.wav', i*0.5) for i in range(30)],dtype=[('filename', '|S10'), ('offset', '>f4')])
+    return data, support
 
 
 @pytest.fixture
@@ -117,8 +122,18 @@ def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold
 def test_process_batch():
     pass
 
-def transform_batch():
-    pass
+def transform_batch(batch):
+    data, support = batch
+    transformed_data, transformed_support = transform_batch(data,support)
+
+    expected_data = np.vstack([np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((4,100,100))])
+    expected_support = np.array([('file_1.wav', str(i*0.5)) for i in range(30)],dtype='<U32')
+
+    assert transformed_batch.shape = (30,100,100)
+    assert transformed_support.shape = (30,2)
+    assert transformed_support == expected_data
+    assert transformed_support == expected_support
+
 
 def test_process_audio_loader():
     pass
