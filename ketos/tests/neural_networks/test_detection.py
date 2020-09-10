@@ -122,17 +122,17 @@ def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold
 def test_process_batch():
     pass
 
-def transform_batch(batch):
+def test_transform_batch(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
 
     expected_data = np.vstack([np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((4,100,100))])
     expected_support = np.array([('file_1.wav', str(i*0.5)) for i in range(30)],dtype='<U32')
 
-    assert transformed_batch.shape = (30,100,100)
-    assert transformed_support.shape = (30,2)
-    assert transformed_support == expected_data
-    assert transformed_support == expected_support
+    assert transformed_data.shape == (30,100,100)
+    assert transformed_support.shape == (30,2)
+    assert np.array_equal(transformed_data, expected_data)
+    assert np.array_equal(transformed_support, expected_support)
 
 
 def test_process_audio_loader():
