@@ -73,7 +73,7 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
             det_start: int
                 The detection start expressed as an index in the scores vector.
             det_end: int
-                The detection end expressed as an index in the scores vector.
+                The detection end (the last score that is part of the detection) expressed as an index in the scores vector. 
             batch_start_timestap:float
                  The timestamp (in seconds from the beginning of the file) of the first score in the scores vector
                 (i.e.: the score of the first input spectrogram in that batch)
@@ -118,6 +118,8 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
 
         Consecutive detections are grouped into one single detection represented by the time interval (start-end, in seconds from beginning of the file).
 
+        Note: All instances in the batch must come from the same file.
+
         Args:
             scores_vector: numpy array
                 1d numpy array containing the target class classification score for each input
@@ -133,15 +135,21 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
             threshold: float
                 Minimum score value for a time step to be considered as a detection.
 
+        Raises:
+            ValueError: If the batch_support_data contains data different file names.
+                
         Returns:
             det_timestamps:list of tuples
-            The detections time stamp. Each item in the list is a tuple with the start time, duration, score and filename for that detection.
+            The detections time stamp. Each item in the list is a tuple with the filename, start time, duration and score for that detection.
             The filename corresponds to the file where the detection started.          
     """
+
     det_vector = np.where(scores_vector >= threshold, 1.0, 0.0)
     det_timestamps = []
     within_det = False
     filename_vector = batch_support_data[:,0]
+    if not all(filename_vector == filename_vector[0]):
+        raise ValueError("batches with inputs from multiple files are not supported")
 
     for det_index,det_value in enumerate(det_vector):
         if det_value == 1.0 and not within_det:
@@ -156,7 +164,7 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
             batch_start_timestamp = float(file_timestamps[0,1])
             batch_end_timestamp = float(file_timestamps[-1,1])
             time_start, duration = map_detection_to_time(start, end, step=step, spec_dur=spec_dur, batch_start_timestamp=batch_start_timestamp, batch_end_timestamp=batch_end_timestamp, buffer=buffer)
-            score = np.average(scores_vector[start:end+1])
+            score = np.average(scores_vector[start:(end + 1)])
             if np.isnan(score) and end==start:
                 score = scores_vector[start]
             
