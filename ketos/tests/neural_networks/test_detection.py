@@ -121,8 +121,13 @@ def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold
         assert np.isclose(d[3], expected[i][3], rtol=1e-03)
     
 
-def test_process_batch():
-    pass
+def test_process_batch(batch):
+    data, support = batch
+    transformed_data, transformed_support = transform_batch(data,support)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model_1_0.kt"), path_to_tmp)
+
+    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
+    
 
 def test_process_audio_loader():
     pass
@@ -134,14 +139,13 @@ def test_transform_batch(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
 
-    expected_data = np.vstack([np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((4,100,100))])
+    expected_data = np.vstack([np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((4,512,512))])
     expected_support = np.array([('file_1.wav', str(i*0.5)) for i in range(30)],dtype='<U32')
 
-    assert transformed_data.shape == (30,100,100)
+    assert transformed_data.shape == (30,512,512)
     assert transformed_support.shape == (30,2)
     assert np.array_equal(transformed_data, expected_data)
     assert np.array_equal(transformed_support, expected_support)
-
 
 
 @pytest.mark.parametrize("detections, expected", [(
