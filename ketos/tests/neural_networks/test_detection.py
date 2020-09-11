@@ -122,6 +122,12 @@ def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold
 def test_process_batch():
     pass
 
+def test_process_audio_loader():
+    pass
+
+def test_process_batch_generator():
+    pass
+
 def test_transform_batch(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
@@ -135,14 +141,30 @@ def test_transform_batch(batch):
     assert np.array_equal(transformed_support, expected_support)
 
 
-def test_process_audio_loader():
-    pass
 
-def test_process_batch_generator():
-    pass
+@pytest.mark.parametrize("detections, expected", [([('file_1.wav', 2.0, 4.0, 0.697),
+                                                     ('file_1.wav', 9.0, 2.5, 0.7),
+                                                     ('file_1.wav', 10.0, 3.5, 0.667)],
+                                                     
+                                                     [('file_1.wav', 2.0, 4.0, 0.697),
+                                                     ('file_1.wav', 9.0, 4.5, 0.6835),]),
+                                                     
+                                                     ([('file_1.wav', 2.0, 4.0, 0.8),
+                                                     ('file_1.wav', 3.0, 2.5, 0.9),
+                                                     ('file_1.wav', 10.0, 3.5, 0.667)],
+                                                     
+                                                     [('file_1.wav', 2.0, 4.0, 0.85),
+                                                     ('file_1.wav', 10.0, 3.5, 0.667)])   
+                                                      ])
+def test_merge_overlapping_detections(detections, expected):
+    merged_detections = merge_overlapping_detections(detections)
+    for i,d in enumerate(merged_detections):
+        assert d[0] == expected[i][0]
+        assert d[1] == expected[i][1]
+        assert d[2] == expected[i][2]
+        assert np.isclose(d[3], expected[i][3], rtol=1e-03)
+    
 
-def test_merge_overlapping_detections():
-    pass
 
 
 def test_save_detections():
