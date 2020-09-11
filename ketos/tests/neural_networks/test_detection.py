@@ -142,19 +142,40 @@ def test_transform_batch(batch):
 
 
 
-@pytest.mark.parametrize("detections, expected", [([('file_1.wav', 2.0, 4.0, 0.697),
+@pytest.mark.parametrize("detections, expected", [(
+
+                                                    #Parameter set 1
+                                                    #input
+                                                    [('file_1.wav', 1.0, 3.0, 1.0),
+                                                     ('file_1.wav', 2.0, 0.5, 0.5),
+                                                     ('file_1.wav', 10.0, 5, 0.8)],
+                                                     
+                                                     #expected output
+                                                     [('file_1.wav', 1.0, 3.0, 0.75),
+                                                     ('file_1.wav', 10.0, 5, 0.8),]),
+
+                                                    #Parameter set 1
+                                                    #input
+                                                    [('file_1.wav', 2.0, 4.0, 0.697),
                                                      ('file_1.wav', 9.0, 2.5, 0.7),
                                                      ('file_1.wav', 10.0, 3.5, 0.667)],
                                                      
+                                                     #expected output
                                                      [('file_1.wav', 2.0, 4.0, 0.697),
                                                      ('file_1.wav', 9.0, 4.5, 0.6835),]),
                                                      
+                                                     #Parameter set 2
+                                                     #input
                                                      ([('file_1.wav', 2.0, 4.0, 0.8),
                                                      ('file_1.wav', 3.0, 2.5, 0.9),
                                                      ('file_1.wav', 10.0, 3.5, 0.667)],
                                                      
+                                                     #expected output
                                                      [('file_1.wav', 2.0, 4.0, 0.85),
                                                      ('file_1.wav', 10.0, 3.5, 0.667)])   
+                                                      
+                                                      
+                                                      
                                                       ])
 def test_merge_overlapping_detections(detections, expected):
     merged_detections = merge_overlapping_detections(detections)
@@ -164,8 +185,6 @@ def test_merge_overlapping_detections(detections, expected):
         assert d[2] == expected[i][2]
         assert np.isclose(d[3], expected[i][3], rtol=1e-03)
     
-
-
 
 def test_save_detections():
     pass
