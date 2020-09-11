@@ -2,6 +2,7 @@
 import pytest
 from ketos.neural_networks.dev_utils.detection import *
 import numpy as np
+import pandas as pd
 import os
 import shutil
 import tables
@@ -186,8 +187,6 @@ def test_transform_batch(batch):
                                                      [('file_1.wav', 2.0, 4.0, 0.85),
                                                      ('file_1.wav', 10.0, 3.5, 0.667)])   
                                                       
-                                                      
-                                                      
                                                       ])
 def test_merge_overlapping_detections(detections, expected):
     merged_detections = merge_overlapping_detections(detections)
@@ -199,4 +198,39 @@ def test_merge_overlapping_detections(detections, expected):
     
 
 def test_save_detections():
-    pass
+    detections = [('file_1.wav', 2.0, 4.0, 0.85),
+                  ('file_1.wav', 10.0, 3.5, 0.667)]
+    
+    expected_df = pd.DataFrame(detections, columns=['filename', 'start', 'duration', 'score'])  
+
+    destination = os.path.join(path_to_tmp,"saved_detections.csv")
+    if os.path.exists(destination): os.remove(destination)
+    save_detections(detections, save_to=destination)
+
+    assert os.path.exists(destination)
+    det_df = pd.read_csv(destination)
+    assert det_df.equals(expected_df)
+    
+    os.remove(destination)
+
+
+
+def test_save_detections_add_to_existing_file():
+    detections = [('file_1.wav', 2.0, 4.0, 0.85),
+                  ('file_1.wav', 10.0, 3.5, 0.667)]
+    
+    destination = os.path.join(path_to_tmp,"saved_detections.csv")
+    if os.path.exists(destination): os.remove(destination)
+    #Save 3 times to the same file. Only the first should add headers
+    save_detections(detections, save_to=destination) 
+    save_detections(detections, save_to=destination)
+    save_detections(detections, save_to=destination)
+
+    expected_df = pd.DataFrame(detections*3, columns=['filename', 'start', 'duration', 'score'])  
+
+    assert os.path.exists(destination)
+    det_df = pd.read_csv(destination)
+    assert det_df.equals(expected_df)
+    
+    os.remove(destination)
+
