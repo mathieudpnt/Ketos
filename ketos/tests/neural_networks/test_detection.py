@@ -1,6 +1,7 @@
 
 import pytest
 from ketos.neural_networks.dev_utils.detection import *
+from ketos.neural_networks.cnn import CNNInterface
 import numpy as np
 import pandas as pd
 import os
@@ -121,13 +122,27 @@ def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold
         assert np.isclose(d[3], expected[i][3], rtol=1e-03)
     
 
-def test_process_batch(batch):
+def test_process_batch_without_avg_and_group(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model_1_0.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
+    expected_detections = [('file_1.wav', '5.0', '3.0', '1.0'), ('file_1.wav', '5.5', '3.0', '1.0'), ('file_1.wav', '6.0', '3.0', '1.0'), ('file_1.wav', '11.5', '3.0', '1.0'), ('file_1.wav', '12.0', '3.0', '1.0'), ('file_1.wav', '12.5', '3.0', '1.0')]
+    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=False)
+
+    assert detections == expected_detections
+
+
+def test_process_batch_with_avg_and_group(batch):
+    data, support = batch
+    transformed_data, transformed_support = transform_batch(data,support)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+
+    expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
     detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
-    
+
+    assert detections == expected_detections
+
 
 def test_process_audio_loader():
     pass
