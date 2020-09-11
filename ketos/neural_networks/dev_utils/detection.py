@@ -375,6 +375,9 @@ def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, s
 
 def merge_overlapping_detections(detections):
     """ Merge overlapping detection groups
+        
+        Note: The annotations for each file are assumed to be sorted by start time in increasing order.
+
 
         Args:
             detections: numpy.array
@@ -392,15 +395,18 @@ def merge_overlapping_detections(detections):
         filename = detections[i][0]
         start = detections[i][1]
         duration = detections[i][2]
+        end = start + duration
         score = detections[i][3]
         filename_prev = merged[-1][0]
         start_prev = merged[-1][1]
-        end_prev = merged[-1][1] + merged[-1][2]        
+        duration_prev = merged[-1][2]
+        end_prev = start_prev + duration_prev        
         score_prev = merged[-1][3]
+        
         if start > end_prev or filename != filename_prev:#do not overlap
             merged.append(detections[i])
         else:#do overlap
-            merged_dur = start + duration - start_prev
+            merged_dur = max(end, end_prev) - min(start,start_prev)
             avg_score = 0.5 * (score + score_prev) 
             merged_det = (filename, start_prev, merged_dur, avg_score)
             merged[-1] = merged_det #replace 
