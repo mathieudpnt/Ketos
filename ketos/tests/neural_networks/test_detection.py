@@ -15,9 +15,10 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def batch():
-    data = np.vstack([np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((10,100,100)), np.ones((3,100,100)),np.zeros((4,100,100))])
+    data = np.vstack([np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((4,512,512))])
     support = np.array([('file_1.wav', i*0.5) for i in range(30)],dtype=[('filename', '|S10'), ('offset', '>f4')])
     return data, support
+
 
 
 @pytest.fixture
