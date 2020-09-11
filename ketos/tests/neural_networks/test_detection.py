@@ -154,9 +154,21 @@ def test_transform_batch(batch):
                                                      [('file_1.wav', 1.0, 3.0, 0.75),
                                                      ('file_1.wav', 10.0, 5, 0.8),]),
 
-                                                    #Parameter set 1
+                                                    
+                                                    #Parameter set 2
                                                     #input
-                                                    [('file_1.wav', 2.0, 4.0, 0.697),
+                                                    ([('file_1.wav', 1.0, 3.0, 1.0),
+                                                     ('file_1.wav', 2.0, 4.0, 0.5),
+                                                     ('file_1.wav', 10.0, 5, 0.8)],
+                                                     
+                                                     #expected output
+                                                     [('file_1.wav', 1.0, 5.0, 0.75),
+                                                     ('file_1.wav', 10.0, 5, 0.8),]),
+                                               
+
+                                                    #Parameter set 3
+                                                    #input
+                                                    ([('file_1.wav', 2.0, 4.0, 0.697),
                                                      ('file_1.wav', 9.0, 2.5, 0.7),
                                                      ('file_1.wav', 10.0, 3.5, 0.667)],
                                                      
@@ -164,7 +176,7 @@ def test_transform_batch(batch):
                                                      [('file_1.wav', 2.0, 4.0, 0.697),
                                                      ('file_1.wav', 9.0, 4.5, 0.6835),]),
                                                      
-                                                     #Parameter set 2
+                                                     #Parameter set 4
                                                      #input
                                                      ([('file_1.wav', 2.0, 4.0, 0.8),
                                                      ('file_1.wav', 3.0, 2.5, 0.9),
