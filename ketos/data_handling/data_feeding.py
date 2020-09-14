@@ -189,7 +189,14 @@ class BatchGenerator():
         
 
         if self.from_memory:
-            check_data_sanity(x, y)
+            #TODO: Reinstate 'check_data_sanity' once it is more more flexible
+            # check data sanity currently has restrictive assumptions. 
+            # For example, that y is a nx1 array, which is usually true for labels,
+            # but prevents the use of the batch generator for some other purposes, 
+            # such as simply return multiple of support data columns with the training data
+            # for pre-processing purposes. 
+
+            #check_data_sanity(x, y) 
             self.x = x
             self.y = y
 
