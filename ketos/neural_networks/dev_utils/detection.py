@@ -330,7 +330,7 @@ def transform_batch(x,y):
 
 
 def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, step=0.5, win_len=5, average_and_group=True):
-    """ Use a batch_generaotr object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
+    """ Use a batch_generator object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
             filename: The name of the audio file where the detection was registered. 
@@ -370,6 +370,7 @@ def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, s
 
         batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
         if len(batch_detections) > 0: detections += batch_detections
+        #import pdb;pdb.set_trace()
 
     return detections
 
