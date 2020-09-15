@@ -173,11 +173,7 @@ def test_process_batch_with_avg_and_group(batch):
     assert detections == expected_detections
 
 
-def test_process_audio_loader(batch, mock_audio_loader):
-    data, support = batch
-
-    
-
+def test_process_audio_loader(mock_audio_loader):
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
     expected_detections = [(b'file_1.wav',  4.0, 3.5, 0.6), (b'file_1.wav', 10.5, 3.5, 0.6)]
