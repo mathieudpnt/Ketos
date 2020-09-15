@@ -22,6 +22,33 @@ def batch():
     support = np.array([('file_1.wav', i*0.5) for i in range(30)],dtype=[('filename', '|S10'), ('offset', '>f4')])
     return data, support
 
+@pytest.fixture
+def mock_audio_loader(batch):
+    data, support = batch
+    audio_loader = MagicMock()
+    audio_loader.current = 0
+
+    def mock_next(self):
+        if self.current == 30: 
+            self.current = 0
+        spec = Mock()
+        spec.data = data[self.current]
+        spec.filename = support[self.current][0]
+        spec.offset = support[self.current][1]
+
+        self.current += 1
+
+        return spec
+    
+    def mock_num():
+        return 30
+
+    audio_loader.num = mock_num
+    audio_loader.__next__ = mock_next
+    #AudioFrameLoader.__next__.return_value = (data[batch_1[0]:batch_1[1]], support[batch_1[0]:batch_1[1]]) 
+
+    return audio_loader
+
 
 
 @pytest.fixture
@@ -146,35 +173,15 @@ def test_process_batch_with_avg_and_group(batch):
     assert detections == expected_detections
 
 
-def test_process_audio_loader(batch):
+def test_process_audio_loader(batch, mock_audio_loader):
     data, support = batch
 
-    audio_loader = MagicMock()
-    audio_loader.current = 0
-
-    def mock_next(self):
-        if self.current == 30: 
-            self.current = 0
-        spec = Mock()
-        spec.data = data[self.current]
-        spec.filename = support[self.current][0]
-        spec.offset = support[self.current][1]
-
-        self.current += 1
-
-        return spec
     
-    def mock_num():
-        return 30
-
-    audio_loader.num = mock_num
-    audio_loader.__next__ = mock_next
-    #AudioFrameLoader.__next__.return_value = (data[batch_1[0]:batch_1[1]], support[batch_1[0]:batch_1[1]]) 
 
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
     expected_detections = [(b'file_1.wav',  4.0, 3.5, 0.6), (b'file_1.wav', 10.5, 3.5, 0.6)]
-    detections = process_audio_loader(audio_loader=audio_loader, batch_size=15, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
+    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
 
     assert detections == expected_detections
 
