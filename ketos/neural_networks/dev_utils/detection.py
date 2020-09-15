@@ -218,7 +218,7 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
         if batch_detections.shape[1] == 0:
             batch_detections = []
         else:
-            batch_detections = [(d[0], d[1], d[2], d[3]) for d in batch_detections.T]      
+            batch_detections = [(d[0], float(d[1]), float(d[2]), float(d[3])) for d in batch_detections.T]      
 
     return batch_detections
     
@@ -297,7 +297,6 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
         batch_data = np.array(batch_data)
 
         batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
-        # import pdb; pdb.set_trace()
         if len(batch_detections) > 0: detections += batch_detections
 
     return detections
@@ -370,7 +369,7 @@ def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, s
 
         batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
         if len(batch_detections) > 0: detections += batch_detections
-        #import pdb;pdb.set_trace()
+        
 
     return detections
 
