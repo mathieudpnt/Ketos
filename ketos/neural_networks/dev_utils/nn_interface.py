@@ -904,6 +904,41 @@ class NNInterface():
     
     @property
     def early_stopping_monitor(self):
+        """ Sets an early stopping monitor.
+
+            An early stopping monitor is a dictionary specifying
+            how a target metric should be monitored during training.
+            When the conditions are met, the training loop will be stopped
+            and the model will keep the set of weights that resulted in the
+            best value for the target metric.
+
+            The following parameters are expected:
+
+              "metric": str
+                    The name of the metric to be monitored. It must be one the metrics
+                    defined when creating a neural network interface, either through 
+                    the 'metrics' argument of the class constructor or the 'metrics' field in a recipe.
+                    The name must be prefixed by 'train_' or 'val_', indicating weather the training or
+                    validation metric should be monitored.
+              "decreasing": bool,
+                    If True, improvements will be indicated by a decrease in the metric value during training. 
+                    If False, improvements will be defined as an increase in the metric value.
+              "period": int
+                    The number of epochs the training loop will continue without any improvement before training is stopped.
+                    Example: If period is 5, training will stop if the target metric does not improve for 5 consecutive epochs.
+              "min_epochs": int
+                    The number of epochs to train for before starting to monitor.
+              "delta" : float
+                    The minimum difference between the current metric value and the best
+                    value recorded since the monitor started. An improvement is only considered if
+                     (current value - best value) <= delta (if decreasing is True) or 
+                     (current value - best value) >= delta (if decreasing is False)
+              "baseline":float or None
+                    If this value is reached, training will stop immediately.
+                    If None, this parameter is ignored.
+
+
+        """
         return self._early_stopping_monitor
 
 
@@ -1180,7 +1215,7 @@ class NNInterface():
                 if epoch >= self._early_stopping_monitor['min_epochs']:# and len(early_stopping_metric) > self._early_stopping_monitor.period:
                     
                     if self._early_stopping_monitor['decreasing'] == True:
-                        if current_early_stopping_metric <= self._early_stopping_monitor['baseline']:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric <= self._early_stopping_monitor['baseline']):
                             should_stop = True
                         else:
                             current_delta = current_early_stopping_metric - best_metric_value
@@ -1193,7 +1228,7 @@ class NNInterface():
                                 
                                 
                     elif self._early_stopping_monitor['decreasing'] == False:
-                        if current_early_stopping_metric >= self._early_stopping_monitor['baseline']:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric >= self._early_stopping_monitor['baseline']):
                             should_stop = True
                             print("\nhit baseline")
                         else:
