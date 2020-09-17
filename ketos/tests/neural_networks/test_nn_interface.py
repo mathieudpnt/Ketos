@@ -5,6 +5,7 @@ from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterfa
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
 #from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
 from ketos.data_handling.data_feeding import BatchGenerator
+from unittest.mock import Mock, patch
 import os
 import shutil
 import tables
@@ -376,8 +377,34 @@ def test_extract_recipe_dict(instance_of_MLPInterface):
 
 
 def test_train_loop(instance_of_MLPInterface):
+   
+    def mock_train_step(self, inputs, labels):
+       self._train_loss = Mock()
+       self._train_loss.result.return_value = 0.5
+
+    patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
+    patcher.start()
+    
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface._early_stopping_monitor = {"metric": 'train_loss',
+                                        "decreasing": True,
+                                        "period":10,
+                                        "min_epochs": 5,
+                                        "max_epochs": None,
+                                        "delta" : 0.1,
+                                        "baseline":0.5}
+    #instance_of_MLPInterface._train_step([1,0],[1,0])
+    #print(instance_of_MLPInterface._train_loss.result())
+    instance_of_MLPInterface.train_loop(n_epochs=100, early_stopping=True)
+    patcher.stop()
+    
+
+
+def test_train_loop_early_stop(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5)
+
+
 
 
 def test_train_loop_log_csv(MLPInterface_subclass):
