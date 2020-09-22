@@ -367,6 +367,11 @@ class AudioFrameLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+            batch_size: int or str
+                Load segments in batches rather than one at the time. 
+                Increasing the batch size can help reduce computational time.
+                The default batch size is 1. 
+                You can also specify batch_size='file' to load one wav file at the time.
 
         Examples:
             >>> import librosa
@@ -394,13 +399,69 @@ class AudioFrameLoader(AudioLoader):
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, frame, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}):
+                    annotations=None, repres={'type': 'Waveform'}, batch_size=1):
 
         if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
 
+        assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
+
         super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
             channel=channel, annotations=annotations, repres=repres)
+
+        if isinstance(batch_size, int):
+            self.max_batch_size = batch_size
+        else:
+            self.max_batch_size = np.inf
+
+        if self.max_batch_size > 1:
+            self.offset, _, self.data_dir, self.filename, _ = next(self.sel_gen)
+            self.load_next_batch()
+
+    def __next__(self):
+        """ Load next waveform segment or compute next spectrogram.
+
+            Returns: 
+                : Waveform or Spectrogram
+                    Next segment
+        """
+        if self.max_batch_size == 1:
+            return super().__next__()        
+        else:
+            return self.next_in_batch()
+
+    def load_next_batch(self):
+        """ Load the next batch of waveforms or spectrograms.
+        """
+        self.batch_size = 0
+        self.counter = 0
+        offset = np.inf
+        data_dir = self.data_dir
+        filename = self.filename
+        while data_dir == self.data_dir and filename == self.filename and offset > self.offset and self.batch_size < self.max_batch_size:
+            self.batch_size += 1
+            offset, _, data_dir, filename, _ = next(self.sel_gen)
+
+        duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
+        self.batch = self.load(self.offset, duration, self.data_dir, self.filename, label=None)
+        self.batch = self.batch.segment(window=self.sel_gen.frame, step=self.sel_gen.step)
+
+        self.offset = offset
+        self.data_dir = data_dir
+        self.filename = filename
+
+    def next_in_batch(self):
+        """ Load the next waveform or spectrogram in the batch.
+        
+            Returns: 
+                a: Waveform or Spectrogram
+                    Next segment
+        """
+        if self.counter >= self.batch.num_objects(): self.load_next_batch()
+        a = self.batch.get(self.counter)
+        self.counter += 1
+        return a
+
 
 class AudioSelectionLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 
