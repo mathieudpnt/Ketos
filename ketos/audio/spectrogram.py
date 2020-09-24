@@ -821,7 +821,7 @@ class MagSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):
+            id=None, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1042,7 +1042,7 @@ class PowerSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):            
+            id=None, **kwargs):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1224,7 +1224,7 @@ class MelSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
             offset=0, duration=None, resample_method='scipy',
-            id=None):            
+            id=None, **kwargs):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1432,7 +1432,7 @@ class CQTSpectrogram(Spectrogram):
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hann', offset=0, duration=None,
-        resample_method='scipy', id=None):
+        resample_method='scipy', id=None, **kwargs):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.

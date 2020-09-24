@@ -91,7 +91,7 @@ class Waveform(BaseAudio):
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None):
+        id=None, **kwargs):
         """ Load audio data from wave file.
 
             Args:
