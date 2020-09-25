@@ -151,6 +151,20 @@ def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     assert s.duration() == 0.2
     assert loader.sel_gen.file_id == 1
 
+def test_audio_frame_loader_frame_None(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
+        without specifying the frame argument""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.2}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, repres=rep)
+    assert len(loader.sel_gen.files) == 5
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    assert loader.sel_gen.file_id == 1
+
 def test_audio_frame_loader_overlap(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms""" 

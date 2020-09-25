@@ -352,7 +352,8 @@ class AudioFrameLoader(AudioLoader):
 
         Args:
             frame: float
-                Segment duration in seconds.
+                Segment duration in seconds. Can also be specified via the 'duration' 
+                item of the 'repres' dictionary.
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment duration.
@@ -398,8 +399,12 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, frame, step=None, path=None, filename=None, channel=0, 
+    def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
                     annotations=None, repres={'type': 'Waveform'}, batch_size=1):
+
+        assert 'duration' in repres.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
+
+        if frame is None: frame = repres['duration']
 
         if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
