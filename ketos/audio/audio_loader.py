@@ -95,6 +95,11 @@ class SelectionGenerator():
         """
         pass
 
+    def reset(self):
+        """ Resets the selection generator to the beginning.
+        """        
+        pass
+
 class SelectionTableIterator(SelectionGenerator):
     """ Iterates over entries in a selection table.
 
@@ -156,6 +161,11 @@ class SelectionTableIterator(SelectionGenerator):
         """
         return len(self.sel)
 
+    def reset(self):
+        """ Resets the selection generator to the beginning of the selection table.
+        """        
+        self.row_id = 0
+
 class FrameStepper(SelectionGenerator):
     """ Generates selections with uniform duration 'frame', with successive selections 
         displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
@@ -200,8 +210,7 @@ class FrameStepper(SelectionGenerator):
         self.num_segs = [int(np.ceil((librosa.get_duration(filename=os.path.join(self.dir, f)) - self.frame) / self.step)) + 1 for f in self.files]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
-        self.file_id = -1
-        self._next_file()
+        self.reset()
 
     def __next__(self):
         """ Returns offset, duration, and file path of the next audio selection.
@@ -240,6 +249,12 @@ class FrameStepper(SelectionGenerator):
         self.file_id = (self.file_id + 1) % len(self.files) #increment file ID
         self.seg_id = 0 #reset
         self.time = 0 #reset
+
+    def reset(self):
+        """ Resets the selection generator to the beginning of the first file.
+        """        
+        self.file_id = -1
+        self._next_file()
 
 class AudioLoader():
     """ Class for loading segments of audio data from *.wav files. 
@@ -342,6 +357,11 @@ class AudioLoader():
                 seg.annotate(df=q)             
 
         return seg
+
+    def reset(self):
+        """ Resets the audio loader to the beginning.
+        """        
+        self.sel_gen.reset()
 
 class AudioFrameLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 

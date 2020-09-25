@@ -93,6 +93,8 @@ def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
+    loader.reset()
+    assert loader.sel_gen.file_id == 0
 
 def test_audio_frame_loader_mag_in_batches(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
