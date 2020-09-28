@@ -36,6 +36,7 @@ def mock_audio_loader(batch):
         spec.filename = support[self.current][0]
         spec.filename = spec.filename.decode()
         spec.offset = support[self.current][1]
+        spec.duration = lambda: 3.0
 
         self.current += 1
 
@@ -119,8 +120,9 @@ def test_compute_avg_score_raise_exception():
                          (4,8,300,600,0.5,3.0, 1.0, (301,4.5)),
                          (1,2,300,600,0.5,3.0, 1.0, (300,2.5)),
                          (2,2,300,600,0.5,3.0, 1.0, (300.0,2.5)),
-                         (20,25,300,600,0.5,3.0, 1.0, (309.0,5.0)),
+                         (20,25,300,600,0.5,3.0, 1.0, (309,5.0)),
                          ])
+
 def test_map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_timestamp, step, spec_dur, buffer, expected):
     mapped_detection = map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_timestamp, step, spec_dur, buffer)
     assert mapped_detection == expected
@@ -132,19 +134,21 @@ def test_map_detection_to_time_det_end_exception():
 
 
 @pytest.mark.parametrize("buffer, step, spec_dur, threshold, expected", 
-                        [(1.0, 0.5, 3.0, 0.5, [('file_1.wav',2.0, 4.0, 0.697),
-                                               ('file_1.wav',9, 2.5, 0.7),
-                                               ('file_1.wav',10, 3.5, 0.667),]),
-                        (0.0, 0.5, 3.0, 0.5, [('file_1.wav',3.0, 2.0, 0.697),
-                                               ('file_1.wav',10, 0.5, 0.7),
-                                               ('file_1.wav',11, 1.5, 0.667),]),
-                        (0.0, 0.5, 3.0, 0.7, [('file_1.wav',3.5, 1.0, 0.835),
-                                               ('file_1.wav',10, 0.5, 0.7),
-                                               ('file_1.wav',11.5, 1.0, 0.75),])
+                        [(1.0, 0.5, 3.0, 0.5, [('file_1.wav',  2.0, 4.0, 0.697),
+                                               ('file_1.wav',  9.0, 2.5, 0.7),
+                                               ('file_1.wav', 10.0, 3.5, 0.667),]),
+                         (0.0, 0.5, 3.0, 0.5, [('file_1.wav',  3.0, 2.0, 0.697),
+                                               ('file_1.wav', 10.0, 0.5, 0.7),
+                                               ('file_1.wav', 11.0, 1.5, 0.667),]),
+                         (0.0, 0.5, 3.0, 0.7, [('file_1.wav',  3.5, 1.0, 0.835),
+                                               ('file_1.wav', 10.0, 0.5, 0.7),
+                                               ('file_1.wav', 11.5, 1.0, 0.75),])
                         ])
-def test_group_detections(scores_and_support_1,buffer, step, spec_dur, threshold, expected):
+
+
+def test_group_detections(scores_and_support_1, buffer, step, spec_dur, threshold, expected):
     scores, support = scores_and_support_1
-    grp_det = group_detections(scores_vector=scores, batch_support_data=support, buffer=buffer,step=step, spec_dur=spec_dur, threshold=threshold)
+    grp_det = group_detections(scores_vector=scores, batch_support_data=support, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold)
     for i,d in enumerate(grp_det):
         assert d[0] == expected[i][0]
         assert d[1] == expected[i][1]
@@ -158,7 +162,7 @@ def test_process_batch_without_avg_and_group(batch):
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
     expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
-    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=False)
+    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=1, group=False)
 
     assert detections == expected_detections
 
@@ -169,7 +173,7 @@ def test_process_batch_with_avg_and_group(batch):
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
     expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
-    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
+    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, group=True)
 
     assert detections == expected_detections
 
@@ -177,8 +181,8 @@ def test_process_batch_with_avg_and_group(batch):
 def test_process_audio_loader_with_avg_and_group(mock_audio_loader):
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
-    expected_detections = [('file_1.wav',  4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
-    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
+    expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
+    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, threshold=0.5, win_len=5, group=True)
 
     assert detections == expected_detections
 
@@ -186,22 +190,29 @@ def test_process_audio_loader_with_avg_and_group(mock_audio_loader):
 def test_process_audio_loader_without_avg_and_group(mock_audio_loader):
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
-    expected_detections = expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
-    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=False)
+    expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
+    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, threshold=0.5, win_len=1, group=False)
 
     assert detections == expected_detections
 
+
+def test_process_audio_loader_with_group(mock_audio_loader):
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+
+    expected_detections = [('file_1.wav',  5.0, 1.5, 1.0), ('file_1.wav', 11.5, 1.5, 1.0)]
+    detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=0, threshold=0.5, win_len=1, group=True)
+
+    assert detections == expected_detections
 
 
 def test_process_batch_generator_with_avg_and_group(batch):
     data, support = batch
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
-
     batch_generator =  BatchGenerator(batch_size=15, x=data, y=support,output_transform_func=transform_batch, shuffle=False)
     
-    expected_detections = [('file_1.wav',  4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
-    detections = process_batch_generator(batch_generator=batch_generator, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=True)
+    expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
+    detections = process_batch_generator(batch_generator=batch_generator, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, group=True)
 
     assert detections == expected_detections
 
@@ -209,15 +220,13 @@ def test_process_batch_generator_without_avg_and_group(batch):
     data, support = batch
     model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
 
-
     batch_generator =  BatchGenerator(batch_size=3, x=data, y=support,output_transform_func=transform_batch, shuffle=False)
     
     expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
-    detections = process_batch_generator(batch_generator=batch_generator, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, average_and_group=False)
+    detections = process_batch_generator(batch_generator=batch_generator, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=1, group=False)
 
     assert detections == expected_detections
 
-   
 
 def test_transform_batch(batch):
     data, support = batch
