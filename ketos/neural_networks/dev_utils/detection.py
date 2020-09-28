@@ -36,6 +36,9 @@
 import numpy as np
 import pandas as pd
 import os
+from tqdm import tqdm
+from ketos.audio.audio_loader import AudioLoader
+from ketos.data_handling.data_feeding import BatchGenerator
 
 def compute_avg_score(score_vector, win_len):
     """ Compute a moving average of the score vector.
@@ -100,6 +103,7 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
     """
     if det_end < det_start:
         raise ValueError("'det_end' cannot be lower than 'det_start'")
+
     time_start =  det_start * step - buffer 
     time_start += batch_start_timestamp
     time_start = max(batch_start_timestamp, time_start)
@@ -113,12 +117,10 @@ def map_detection_to_time(det_start, det_end, batch_start_timestamp, batch_end_t
     return time_start, duration
     
 
-def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, spec_dur=3.0, threshold=0.5):
+def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, spec_dur=3.0, threshold=0.5):
     """ Groups time steps with a detection score above the specified threshold.
 
         Consecutive detections are grouped into one single detection represented by the time interval (start-end, in seconds from beginning of the file).
-
-        Note: All instances in the batch must come from the same file.
 
         Args:
             scores_vector: numpy array
@@ -134,28 +136,25 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
                 The duration of each spectrogram in seconds
             threshold: float
                 Minimum score value for a time step to be considered as a detection.
-
-        Raises:
-            ValueError: If the batch_support_data contains data different file names.
                 
         Returns:
             det_timestamps:list of tuples
-            The detections time stamp. Each item in the list is a tuple with the filename, start time, duration and score for that detection.
-            The filename corresponds to the file where the detection started.          
+                The detections time stamp. Each item in the list is a tuple with the filename, start time, duration and score for that detection.
+                The filename corresponds to the file where the detection started.          
     """
 
     det_vector = np.where(scores_vector >= threshold, 1.0, 0.0)
     det_timestamps = []
     within_det = False
     filename_vector = batch_support_data[:,0]
-    if not all(filename_vector == filename_vector[0]):
-        raise ValueError("batches with inputs from multiple files are not supported")
 
     for det_index,det_value in enumerate(det_vector):
-        if det_value == 1.0 and not within_det:
+
+        if det_value == 1.0 and not within_det: #start new detection
             start = det_index
             within_det = True
-        if det_value == 0 and within_det:
+
+        if (det_value == 0 or filename_vector[det_index] != filename_vector[max(0,det_index-1)]) and within_det: #end current detection
             end = det_index - 1
             within_det = False
             filename = filename_vector[start]
@@ -172,7 +171,7 @@ def group_detections(scores_vector, batch_support_data,  buffer=0.0, step=0.5, s
 
     return det_timestamps
 
-def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, spec_dur=3.0, threshold=0.5, win_len=5, average_and_group=True):
+def process_batch(batch_data, batch_support_data, model, buffer=0, step=0.5, spec_dur=3.0, threshold=0.5, win_len=1, group=False):
     """ Runs one batch of (overlapping) spectrogram throught the classifier.
 
         Args:
@@ -193,7 +192,7 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
                 Minimum score value for a time step to be considered as a detection.
             win_len:int
                 The windown length for the moving average. Must be an odd integer. The default value is 5.
-            average_and_group:bool
+            group:bool
                 If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
                 If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
                 average score of all spectrograms comprising the detection event.
@@ -206,24 +205,44 @@ def process_batch(batch_data, batch_support_data, model, buffer=1.0, step=0.5, s
     """
     scores = model.run_on_batch(batch_data, return_raw_output=True)
 
-    if average_and_group == True:
-
-        avg_scores = compute_avg_score(scores[:,1], win_len=win_len)
-        batch_detections = group_detections(avg_scores, batch_support_data, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold) 
+    if win_len == 1:
+        scores = scores[:,1]
+    else:
+        scores = compute_avg_score(scores[:,1], win_len=win_len)
+        
+    if group == True:
+        batch_detections = group_detections(scores, batch_support_data, buffer=buffer, step=step, spec_dur=spec_dur, threshold=threshold) 
 
     else:
-        
-        threshold_indices = scores[:,1] >= threshold
-        batch_detections = np.vstack([batch_support_data[threshold_indices,0], batch_support_data[threshold_indices,1], np.repeat(spec_dur, sum(threshold_indices)), scores[threshold_indices, 1]])
+        threshold_indices = scores >= threshold
+        batch_detections = np.vstack([batch_support_data[threshold_indices,0], batch_support_data[threshold_indices,1], np.repeat(spec_dur, sum(threshold_indices)), scores[threshold_indices]])
         if batch_detections.shape[1] == 0:
             batch_detections = []
         else:
             batch_detections = [(d[0], float(d[1]), float(d[2]), float(d[3])) for d in batch_detections.T]      
 
     return batch_detections
-    
 
-def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=1.0, step=0.5, win_len=5, average_and_group=True):
+
+def process(provider, **kwargs):
+    """ Use classifier to process audio clips (waveform or spectrogram).
+
+        Delegates to :func:`detection.process_audio_loader` or :func:`detection.process_batch_generator`
+        depending on the type of the `provider` argument.
+
+        See these functions for a description of the required input arguments.
+
+        Args:
+            provider: instance of ketos.audio.audio_loader.AudioFrameLoader or ketos.data_handling.data_feeding.BatchGenerator
+    """
+    if isinstance(provider, AudioLoader):
+        return process_audio_loader(provider, **kwargs)
+
+    elif isinstance(provider, BatchGenerator):
+        return process_batch_generator(provider, **kwargs)
+
+
+def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=0, win_len=1, group=False, progress_bar=False):
     """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
@@ -245,15 +264,14 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
                 Minimum score value for a time step to be considered as a detection.
             buffer: float
                 Time (in seconds) to be added around the detection
-            step: float
-                The time interval(in seconds) between the starts of each contiguous input spectrogram.
-                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
             win_len:int
                 The windown length for the moving average. Must be an odd integer. The default value is 5.   
-            average_and_group:bool
+            group:bool
                 If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
                 If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
                 average score of all spectrograms comprising the detection event.
+            progress_bar: bool
+                Show progress bar.  
 
         Returns:
             detections: list
@@ -274,8 +292,10 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
 
     detections = []
     specs_prev_batch = []
+    duration = None
+    step = 0
 
-    for b,siz in enumerate(batch_sizes):
+    for siz in tqdm(batch_sizes, disable = not progress_bar): 
         batch_data, batch_support_data = [], []
 
         # first, collect data from the last specs from previous batch, if any            
@@ -283,6 +303,7 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
             batch_data.append(spec.data)
             support_data = (spec.filename, spec.offset)
             batch_support_data.append(support_data)
+            duration = spec.duration()
 
         # then, load specs from present batch
         specs_prev_batch = []
@@ -292,12 +313,66 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
             support_data = (spec.filename, spec.offset)
             batch_support_data.append(support_data)
             if siz - len(batch_data) < 2 * n_extend: specs_prev_batch.append(spec) # store last few specs
+            duration = spec.duration()
+
+        if len(batch_support_data) >= 2:
+            step = batch_support_data[1][1] - batch_support_data[0][1]
+
+        if step <= 0: step = duration
 
         batch_support_data = np.array(batch_support_data)
         batch_data = np.array(batch_data)
 
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, spec_dur=duration, win_len=win_len, group=group)
         if len(batch_detections) > 0: detections += batch_detections
+
+    return detections
+
+
+def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, threshold=0.5, buffer=0, win_len=1, group=False):
+    """ Use a batch_generator object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
+
+        The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
+            filename: The name of the audio file where the detection was registered. 
+                      In case the detection starts in one file and ends in the next,
+                      the name of the first file is registered.
+            start:    Start of the detection (in seconds from the beginning of the file)
+            end:      End of the detection (in seconds from the beginning of the file)
+            score:    The sore given to the detection by the trained neural network ([0-1])
+
+
+        Args:
+            batch_generator: a ketos.data_handling.data_feeding.BatchGenerator object
+                A batch_generator that loads pre-computed spectrograms from the a HDF5 database files as requested
+            model: ketos model
+                The ketos trained classifier
+            duration: float
+                The duration of each input spectrogram in seconds
+            step: float
+                The time interval(in seconds) between the starts of each contiguous input spectrogram.
+                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
+            threshold: float
+                Minimum score value for a time step to be considered as a detection.
+            buffer: float
+                Time (in seconds) to be added around the detection
+            win_len:int
+                The windown length for the moving average. Must be an odd integer. The default value is 5.      
+            group:bool
+                If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
+                If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
+                average score of all spectrograms comprising the detection event.
+
+        Returns:
+            detections: list
+                List of detections
+    """ 
+    detections = []   
+    for b in range(batch_generator.n_batches):
+        batch_data, batch_support_data = next(batch_generator)
+
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, spec_dur=duration, step=step, win_len=win_len, group=group)
+        if len(batch_detections) > 0: detections += batch_detections
+        
 
     return detections
 
@@ -327,51 +402,6 @@ def transform_batch(x,y):
         
     return transformed_x, transformed_y
 
-
-def process_batch_generator(batch_generator, model, threshold=0.5, buffer=1.0, step=0.5, win_len=5, average_and_group=True):
-    """ Use a batch_generator object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
-
-        The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
-            filename: The name of the audio file where the detection was registered. 
-                      In case the detection starts in one file and ends in the next,
-                      the name of the first file is registered.
-            start:    Start of the detection (in seconds from the beginning of the file)
-            end:      End of the detection (in seconds from the beginning of the file)
-            score:    The sore given to the detection by the trained neural network ([0-1])
-
-
-        Args:
-            batch_generator: a ketos.data_handling.data_feeding.BatchGenerator object
-                A batch_generator that loads pre-computed spectrograms from the a HDF5 database files as requested
-            model: ketos model
-                The ketos trained classifier
-            threshold: float
-                Minimum score value for a time step to be considered as a detection.
-            buffer: float
-                Time (in seconds) to be added around the detection
-            step: float
-                The time interval(in seconds) between the starts of each contiguous input spectrogram.
-                For example, a step=0.5 indicates that the first spectrogram starts at time 0.0s (from the beginning of the audio file), the second at 0.5s, etc.
-            win_len:int
-                The windown length for the moving average. Must be an odd integer. The default value is 5.      
-            average_and_group:bool
-                If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
-                If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
-                average score of all spectrograms comprising the detection event.
-
-        Returns:
-            detections: list
-                List of detections
-    """ 
-    detections = []   
-    for b in range(batch_generator.n_batches):
-        batch_data, batch_support_data = next(batch_generator)
-
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, win_len=win_len, average_and_group=average_and_group)
-        if len(batch_detections) > 0: detections += batch_detections
-        
-
-    return detections
 
 def merge_overlapping_detections(detections):
     """ Merge overlapping detection groups
