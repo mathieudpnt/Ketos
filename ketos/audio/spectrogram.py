@@ -506,9 +506,12 @@ class Spectrogram(BaseAudio):
         """
         segs, filename, offset, label, annot = segment_data(self, window, step)
 
+        # add global offset
+        if np.ndim(self.offset) == 0: offset += self.offset
+        else: offset += self.offset[:,np.newaxis]
+
         ax = copy.deepcopy(self.freq_ax)
-        specs = self.__class__(data=segs, time_res=self.time_res(), spec_type=self.type, freq_ax=ax,\
-            filename=filename, offset=offset, label=label, annot=annot)
+        specs = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
         
         return specs
                 

@@ -281,19 +281,21 @@ class BaseAudio():
 
         return cls(data=data, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
 
-    @classmethod
-    def get(cls, id):
-        return cls(data=self.get_data(id), filename=self.get_filename(id), 
-            offset=self.get_offset(id), label=get_label(id), annot=get_annotations(id), **self.get_attrs())
+    def get(self, id):
+        """ Get a given data object stored in this instance """ 
+        return self.__class__(data=self.get_data(id), filename=self.get_filename(id), 
+            offset=self.get_offset(id), label=self.get_label(id), annot=self.get_annotations(id), **self.get_attrs())
 
     def get_attrs(self):
+        """ Get scalar attributes """ 
         return {'time_res':self.time_res(), 'ndim':self.ndim}
 
     def num_objects(self):
+        """ Get number of data objects stored in this instance """ 
         num = 1
         n = np.ndim(self.data) - self.ndim
         if n > 0:
-            dims = self.data.shape[n:]
+            dims = self.data.shape[-n:]
             for d in dims: num *= d
         
         return num
@@ -536,9 +538,12 @@ class BaseAudio():
         """   
         segs, filename, offset, label, annot = segment_data(self, window, step)
 
+        # add global offset
+        if np.ndim(self.offset) == 0: offset += self.offset
+        else: offset += self.offset[:,np.newaxis]
+
         # create stacked object
-        d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=filename,\
-            offset=offset, label=label, annot=annot)
+        d = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
 
         return d
 

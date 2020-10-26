@@ -238,6 +238,14 @@ def test_mag_from_wav(sine_wave_file):
     d2 = from_decibel(spec_norm.get_data()) / np.sqrt(2)
     assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
+def test_mag_from_wav_time_shift():
+    """ Check that spectrogram transforms properly under time translation """
+    fname = os.path.join(path_to_assets, 'grunt1.wav')
+    spec0 = MagSpectrogram.from_wav(fname, window=0.1, step=0.02, offset=0.00, duration=0.4, freq_max=800)
+    spec1 = MagSpectrogram.from_wav(fname, window=0.1, step=0.02, offset=0.12, duration=0.4, freq_max=800)
+    n_shift = int(0.12 / 0.02)
+    assert np.all(np.isclose(spec0.data[n_shift:], spec1.data[:-n_shift], rtol=1e-6))
+
 def test_mag_from_wav_id(sine_wave_file):
     """ Test that mag spectrogram created with from_wav method 
         has expected filename attribute"""

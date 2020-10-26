@@ -134,12 +134,12 @@ def test_segment(base_audio_1d):
     assert s.ndim == o.ndim
     assert s.data.shape == (2000,9)
     assert np.all(s.label == 13)
-    assert np.all(s.offset == np.linspace(0.,8.,9))
+    assert np.all(s.offset == o.offset + np.linspace(0.,8.,9))
     s = o.segment(window=2, step=1.1) #non-integer number of steps
     assert s.ndim == o.ndim
     assert s.data.shape == (2000,9)
     assert np.all(s.data[1200:,-1] == 0) #last frame was padded with zeros
-    assert np.all(s.offset == np.linspace(0.0,8.8,9))
+    assert np.all(s.offset == o.offset + np.linspace(0.0,8.8,9))
 
 def test_segment_stacked(base_audio_1d_stacked):
     """Test segment method on stacked 1d object"""
@@ -154,7 +154,7 @@ def test_segment_stacked(base_audio_1d_stacked):
     assert np.all(s.filename[1] == 'yy')
     assert np.all(s.filename[2] == 'z')
     for i in range(3):
-        assert np.all(s.offset[i] == np.linspace(0.,8.,9))
+        assert np.all(s.offset[i] == o.offset[i] + np.linspace(0.,8.,9))
         assert np.all(s.label[i] == 13)
 
 def test_annotate(base_audio_1d):

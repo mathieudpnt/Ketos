@@ -96,6 +96,11 @@ class SelectionGenerator():
         """
         pass
 
+    def reset(self):
+        """ Resets the selection generator to the beginning.
+        """        
+        pass
+
 class SelectionTableIterator(SelectionGenerator):
     """ Iterates over entries in a selection table.
 
@@ -157,6 +162,11 @@ class SelectionTableIterator(SelectionGenerator):
         """
         return len(self.sel)
 
+    def reset(self):
+        """ Resets the selection generator to the beginning of the selection table.
+        """        
+        self.row_id = 0
+
 class FrameStepper(SelectionGenerator):
     """ Generates selections with uniform duration 'frame', with successive selections 
         displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
@@ -208,8 +218,7 @@ class FrameStepper(SelectionGenerator):
         self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in file_durations]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
-        self.file_id = -1
-        self._next_file()
+        self.reset()
 
     def __next__(self):
         """ Returns offset, duration, and file path of the next audio selection.
@@ -248,6 +257,12 @@ class FrameStepper(SelectionGenerator):
         self.file_id = (self.file_id + 1) % len(self.files) #increment file ID
         self.seg_id = 0 #reset
         self.time = 0 #reset
+
+    def reset(self):
+        """ Resets the selection generator to the beginning of the first file.
+        """        
+        self.file_id = -1
+        self._next_file()
 
 class AudioLoader():
     """ Class for loading segments of audio data from *.wav files. 
@@ -357,6 +372,11 @@ class AudioLoader():
 
         return seg
 
+    def reset(self):
+        """ Resets the audio loader to the beginning.
+        """        
+        self.sel_gen.reset()
+
 class AudioFrameLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 
 
@@ -366,7 +386,8 @@ class AudioFrameLoader(AudioLoader):
 
         Args:
             frame: float
-                Segment duration in seconds.
+                Segment duration in seconds. Can also be specified via the 'duration' 
+                item of the 'repres' dictionary.
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment duration.
@@ -407,14 +428,74 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, frame, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
+                    annotations=None, repres={'type': 'Waveform'}, batch_size=1):
+
+        assert 'duration' in repres.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
+
+        if frame is None: frame = repres['duration']
 
         if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
 
+        assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
+
         super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
             channel=channel, annotations=annotations, repres=repres)
+
+        if isinstance(batch_size, int):
+            self.max_batch_size = batch_size
+        else:
+            self.max_batch_size = np.inf
+
+        if self.max_batch_size > 1:
+            self.offset, _, self.data_dir, self.filename, _ = next(self.sel_gen)
+            self.load_next_batch()
+
+    def __next__(self):
+        """ Load next waveform segment or compute next spectrogram.
+
+            Returns: 
+                : Waveform or Spectrogram
+                    Next segment
+        """
+        if self.max_batch_size == 1:
+            return super().__next__()        
+        else:
+            return self.next_in_batch()
+
+    def load_next_batch(self):
+        """ Load the next batch of waveforms or spectrograms.
+        """
+        self.batch_size = 0
+        self.counter = 0
+        offset = np.inf
+        data_dir = self.data_dir
+        filename = self.filename
+        while data_dir == self.data_dir and filename == self.filename and offset > self.offset and self.batch_size < self.max_batch_size:
+            self.batch_size += 1
+            offset, _, data_dir, filename, _ = next(self.sel_gen)
+
+        duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
+        self.batch = self.load(self.offset, duration, self.data_dir, self.filename, label=None)
+        self.batch = self.batch.segment(window=self.sel_gen.frame, step=self.sel_gen.step)
+
+        self.offset = offset
+        self.data_dir = data_dir
+        self.filename = filename
+
+    def next_in_batch(self):
+        """ Load the next waveform or spectrogram in the batch.
+        
+            Returns: 
+                a: Waveform or Spectrogram
+                    Next segment
+        """
+        if self.counter >= self.batch.num_objects(): self.load_next_batch()
+        a = self.batch.get(self.counter)
+        self.counter += 1
+        return a
+
 
 class AudioSelectionLoader(AudioLoader):
     """ Load segments of audio data from *.wav files. 

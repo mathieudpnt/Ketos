@@ -1,5 +1,6 @@
 import tensorflow as tf
 from .losses import FScoreLoss
+from ...data_handling.parsing import parse_audio_representation
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
@@ -674,7 +675,7 @@ class NNInterface():
         return instance
 
     @classmethod
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
@@ -684,8 +685,15 @@ class NNInterface():
                     Path to folder where files associated with the model will be stored.
                 overwrite: bool
                     If True, the 'new_model_folder' will be overwritten.
+                load_audio_repr: bool
+                    If True, look for an audio representation included with the model. 
+                    
             Raises:
-                FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
+                FileExistsError: If the 'new_model_folder' already exists and 'overwite' is False.
+
+            Returns:
+                model_instance: The loaded model
+                audio_repr: If load_audio_repr is True, also return a dictionary with the loaded audio representation.
 
         """
 
@@ -702,7 +710,13 @@ class NNInterface():
             zip.extractall(path=new_model_folder)
         recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
         model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
-
+        if load_audio_repr is True:
+            audio_repr = []
+            f = open(os.path.join(new_model_folder,"audio_repr.json"), 'r')
+            json_content = json.load(f)
+            for section, rep in json_content.items():
+                audio_repr.append({section:parse_audio_representation(rep)})
+            return model_instance, audio_repr
         
         return model_instance
     
@@ -807,7 +821,7 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-    def save_model(self, model_file, checkpoint_name=None):
+    def save_model(self, model_file, checkpoint_name=None, audio_repr_file=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
             The file includes the recipe necessary to build the network architecture and the parameter weights.
@@ -815,6 +829,12 @@ class NNInterface():
             Args:
                 model_file: str
                     Path to the .kt file. 
+                checkpoint_name: str
+                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    If None, will use the latest checkpoints
+                audio_repr_file: str
+                    Optional path to an audio representation .json file. 
+                    If passed, it will be added to the .kt file.
 
                 checkpoint_name: str
                     The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
@@ -834,6 +854,8 @@ class NNInterface():
                 raise ValueError("Could not find valid checkpoints.")
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
+            if audio_repr_file is not None:
+                zip.write(audio_repr_file, "audio_repr.json")
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
             for c in checkpoints:
                  zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
