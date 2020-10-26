@@ -813,7 +813,7 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-    def save_model(self, model_file, audio_repr_file=None):
+    def save_model(self, model_file, checkpoint_name=None, audio_repr_file=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
             The file includes the recipe necessary to build the network architecture and the current parameter weights.
@@ -821,6 +821,9 @@ class NNInterface():
             Args:
                 model_file: str
                     Path to the .kt file. 
+                checkpoint_name: str
+                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    If None, will use the latest checkpoints
                 audio_repr_file: str
                     Optional path to an audio representation .json file. 
                     If passed, it will be added to the .kt file.
@@ -829,8 +832,14 @@ class NNInterface():
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
-            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-            checkpoints = glob(latest + '*')                                                                                                                 
+            if checkpoint_name is None:
+                checkpoint_base = tf.train.latest_checkpoint(self.checkpoint_dir)
+            else:
+                checkpoint_base = os.path.join(self.checkpoint_dir, checkpoint_name)
+            
+            checkpoints = glob(checkpoint_base + '*')
+            if len(checkpoints) == 0:
+                raise ValueError("Could not find valid checkpoints.")
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             if audio_repr_file is not None:
