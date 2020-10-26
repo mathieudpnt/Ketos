@@ -57,6 +57,18 @@ default_resnet_recipe =  {'block_sets':[2,2,2],
                     }
 
 
+default_resnet_1d_recipe =  {'block_sets':[2,2,2],
+                    'n_classes':2,
+                    'initial_filters':2,        
+                    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
+                    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),
+                                RecipeCompat('Precision',tf.keras.metrics.Precision, class_id=1),
+                                RecipeCompat('Recall',tf.keras.metrics.Recall, class_id=1)],
+                    }
+
+
+
 class ResNetBlock(tf.keras.Model):
     """ Residual block for ResNet architectures.
 
@@ -116,8 +128,70 @@ class ResNetBlock(tf.keras.Model):
         return x
 
 
+class ResNet1DBlock(tf.keras.Model):
+    """ Residual block for 1D (temporal) ResNet architectures.
+
+        Args: 
+            filters: int
+                The number of filters in the block
+            strides: int
+                Strides used in convolutional layers within the block
+            residual_path: bool
+                Whether or not the block will contain a residual path
+
+        Returns:
+            A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
+    """
+    def __init__(self, filters, strides=1, residual_path=False):
+        super(ResNet1DBlock, self).__init__()
+
+        self.filters = filters
+        self.strides = strides
+        self.residual_path = residual_path
+        self.conv_1 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=self.strides,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
+        self.conv_2 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=1,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        if residual_path == True:
+            self.conv_down = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=1, strides=self.strides,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+        
+        self.dropout = tf.keras.layers.Dropout(0.0)
+
+    def call(self,inputs, training=None):
+        residual = inputs
+
+        x = self.batch_norm_1(inputs, training=training)
+        x = tf.nn.relu(x)
+        x = self.conv_1(x)
+        x = self.dropout(x)
+        x = self.batch_norm_2(x, training=training)
+        x = tf.nn.relu(x)
+        x = self.conv_2(x)
+        x = self.dropout(x)
+
+        if self.residual_path:
+            residual = self.batch_norm_down(inputs, training=training)
+            residual = tf.nn.relu(residual)
+            residual = self.conv_down(residual)
+            x = self.dropout(x)
+
+        x = x + residual
+        return x
+
+
+
+
+
 class ResNetArch(tf.keras.Model):
-    """ Implements A ResNet architecture, building on top of ResNetBlocks.
+    """ Implements a ResNet architecture, building on top of ResNetBlocks.
 
         Args:
             block_sets: list of ints
@@ -186,6 +260,79 @@ class ResNetArch(tf.keras.Model):
         output = self.softmax(output)
 
         return output
+
+
+class ResNet1DArch(tf.keras.Model):
+    """ Implements a 1D (temporal) ResNet architecture, building on top of ResNetBlocks.
+
+        Args:
+            block_sets: list of ints
+                A list specifying the block sets and how many blocks each  set contains.
+                Example: [2,2,2] will create a ResNet with 3 block sets, each containing
+                2 ResNetBlocks (i.e.: a total of 6 residual blocks)
+            
+            n_classes:int
+                The number of classes. The output layer uses a Softmax activation and
+                will contain this number of nodes, resulting in model outputs with this
+                many values summing to 1.0.
+
+            initial_filters:int
+                The number of filters used in the first ResNetBlock. Subsequent blocks 
+                will have two times more filters than their previous block.
+
+        Returns:
+            A ResNetArch object, which is a tensorflow model.
+    """
+
+    def __init__(self, block_sets, n_classes, initial_filters=16, **kwargs):
+        super(ResNet1DArch, self).__init__(**kwargs)
+
+        self.n_sets = len(block_sets)
+        self.n_classes = n_classes
+        self.block_sets = block_sets
+        self.input_filters = initial_filters
+        self.output_filters = initial_filters
+        self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=30, strides=1,
+                                                padding="same", use_bias=False,
+                                                kernel_initializer=tf.random_normal_initializer())
+
+        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
+
+        for set_id in range(self.n_sets):
+            for block_id in range(self.block_sets[set_id]):
+                #Frst layer of every block except the first
+                if set_id != 0 and block_id == 0:
+                    block = ResNet1DBlock(self.output_filters, strides=2, residual_path=True)
+                
+                else:
+                    if self.input_filters != self.output_filters:
+                        residual_path = True
+                    else:
+                        residual_path = False
+                    block = ResNet1DBlock(self.output_filters, residual_path=residual_path)
+
+                self.input_filters = self.output_filters
+
+                self.blocks.add(block)
+            
+            self.output_filters *= 2
+
+        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.average_pool = tf.keras.layers.GlobalAveragePooling1D()
+        self.fully_connected = tf.keras.layers.Dense(self.n_classes)
+        self.softmax = tf.keras.layers.Softmax()
+    
+    def call(self, inputs, training=None):
+        output = self.conv_initial(inputs)
+        output = self.blocks(output, training=training)
+        output = self.batch_norm_final(output, training=training)
+        output = tf.nn.relu(output)
+        output = self.average_pool(output)
+        output = self.fully_connected(output)
+        output = self.softmax(output)
+
+        return output
+
 
 
 
@@ -363,4 +510,117 @@ class ResNetInterface(NNInterface):
 
 
 
-   
+class ResNet1DInterface(ResNetInterface): 
+    @classmethod
+    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
+        """ Transforms a training batch into the format expected by the network.
+
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of input arrays and parsing or one hot encoding of the labels.
+
+            Args:
+                x:numpy.array
+                    The batch of inputs with shape (batch_size, width, height)
+                y:numpy.array
+                    The batch of labels.
+                    Each label must be represented as an integer, ranging from zero to n_classes
+                    The array is expected to have a field named 'label'.
+                n_classes:int
+                    The number of possible classes for one hot encoding.
+                    
+                
+
+            Returns:
+                X:numpy.array
+                    The transformed batch of inputs
+                Y:numpy.array
+                    The transformed batch of labels
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> inputs = np.random.rand(10,5,5)
+                >>> inputs.shape
+                (10, 5, 5)
+
+                    
+                >>> # Create a batch of 10 labels (0 or 1)
+                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
+                >>> labels.shape
+                (10,)
+
+                >>> transformed_inputs, transformed_labels = NNInterface.transform_batch(inputs, labels, n_classes=2)
+                >>> transformed_inputs.shape
+                (10, 5, 5, 1)
+
+                >>> transformed_labels.shape
+                (10, 2)
+                
+        """
+
+        
+        X = cls._transform_input(x)
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        
+        return (X,Y)
+
+    @classmethod
+    def _transform_input(cls,input):
+        """ Transforms a training input to the format expected by the network.
+
+            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
+            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
+            accomodate any transformations required. Common operations are reshaping of an input.
+
+            Args:
+                input:numpy.array
+                    An input instance. Must be of shape (n,m) or (k,n,m).
+
+            Raises:
+                ValueError if input does not have 2 or 3 dimensions.
+
+            Returns:
+                tranformed_input:numpy.array
+                    The transformed batch of inputs
+
+            Examples:
+                >>> import numpy as np
+                >>> # Create a batch of 10 5x5 arrays
+                >>> batch_of_inputs = np.random.rand(10,5,5)
+                >>> selected_input = batch_of_inputs[0]
+                >>> selected_input.shape
+                (5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                # The input can also have shape=(1,n,m)
+                >>> selected_input = batch_of_inputs[0:1]
+                >>> selected_input.shape
+                (1, 5, 5)
+                 
+                >>> transformed_input = NNInterface._transform_input(selected_input)
+                >>> transformed_input.shape
+                (1, 5, 5, 1)
+
+                
+        """
+        if input.ndim == 1:
+            transformed_input = input.reshape(1,input.shape[0],1)
+        elif input.ndim == 2:
+            transformed_input = input.reshape(input.shape[0],input.shape[1],1)
+        else:
+            raise ValueError("Expected input to have 1 or 2 dimensions, got {}({}) instead".format(input.ndims, input.shape))
+
+        return transformed_input
+
+    def __init__(self, block_sets=default_resnet_1d_recipe['block_sets'], n_classes=default_resnet_1d_recipe['n_classes'], initial_filters=default_resnet_1d_recipe['initial_filters'],
+                       optimizer=default_resnet_1d_recipe['optimizer'], loss_function=default_resnet_1d_recipe['loss_function'], metrics=default_resnet_1d_recipe['metrics']):
+        super(ResNet1DInterface, self).__init__(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        self.block_sets = block_sets
+        self.n_classes = n_classes
+        self.initial_filters = initial_filters
+       
+        self.model=ResNet1DArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
+       

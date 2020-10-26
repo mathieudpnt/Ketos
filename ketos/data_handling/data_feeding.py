@@ -362,3 +362,68 @@ class BatchGenerator():
         else:
             return (X, Y)
 
+
+class JointBatchGen():
+    """ Join two or more batch generators.
+
+        A joint batch generator is composed by multiple BatchGenerator objects.
+        It offers a flexible way of composing custom batches for training neural networks.
+        Each batch is composed by joining the batches of all generators in the 'batch_generators' list.
+
+    Args:
+        batch_generators: list of BatchGenerator objects
+            A list of 2 or more BatchGenerator instances
+        n_batches: str or int (default:'min')
+            The number of batches for the joint generator. It can be an integer number, 'min',
+            which will use the lowest n_batches among the batch generators, or 'max, which will use the highest value
+        shuffle:bool (default:False)
+            If True, shuffle the joint batch before returning it. Note that this only concerns the joint batches and is independent of wheter the joined generators
+            shuffle or not.
+        reset_generators:bool (default:False)
+            If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value
+
+    """
+
+    def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False):
+        self.batch_generators = batch_generators
+        self.reset_generators = reset_generators
+        self.shuffle = shuffle
+        
+        assert n_batches in ("min", "max") or isinstance(n_batches, int), "n_batches must be 'min', 'max' or an integer"
+        if n_batches == "min":
+            self.n_batches = min([gen.n_batches for gen in self.batch_generators]) - 1
+        elif n_batches == "max":
+            self.n_batches = max([gen.n_batches for gen in self.batch_generators]) - 1
+        else:
+            self.n_batches=n_batches
+        
+        self.batch_count = 0
+
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+
+        X = []
+        Y = []
+        for gen in self.batch_generators:
+            x,y = next(gen)
+            X.append(x)
+            Y.append(y)
+        X = np.vstack(X)
+        Y = np.vstack(Y)
+
+        if self.shuffle == True:
+            indices = np.arange(len(X))
+            np.random.shuffle(indices)
+            X = X[indices]
+            Y = Y[indices]
+        self.batch_count += 1
+        if self.batch_count > (self.n_batches - 1):
+            self.batch_count = 0
+            if self.reset_generators ==  True:
+                for gen in self.batch_generators:
+                    gen.batch_count = 0 # gen.n_batches -1 
+                
+        return (X,Y)
