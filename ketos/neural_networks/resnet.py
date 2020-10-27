@@ -396,6 +396,22 @@ class ResNet1DArch(tf.keras.Model):
         for layer in self.layers[2:]:
             layer.trainable = True
 
+
+    def get_feature_extraction_base(self):
+        return [self.conv_initial, self.blocks]
+
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base =self.get_feature_extraction_base()
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
+
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
@@ -407,17 +423,6 @@ class ResNet1DArch(tf.keras.Model):
 
         return output
 
-    def clone_with_new_top(self, n_classes=None, freeze_base=True):
-        if freeze_base == True:
-            self.trainable = False
-
-        if n_classes is None:
-            n_classes = self.n_classes
-
-        pre_trained_base = [self.conv_initial, self.blocks]
-        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
-
-        return cloned_model
 
 
 
@@ -455,48 +460,6 @@ class ResNetInterface(NNInterface):
                 logged as the average at the end of the epoch
                 
     """
-
-    # @classmethod
-    # def load_model_file(cls, model_file, new_model_folder, overwrite=True, replace_top=False, diff_n_classes=None):
-    #     """ Load a model from a ketos (.kt) model file.
-
-    #         Args:
-    #             model_file:str
-    #                 Path to the ketos(.kt) file
-    #             new_model_folder:str
-    #                 Path to folder where files associated with the model will be stored.
-    #             overwrite: bool
-    #                 If True, the 'new_model_folder' will be overwritten.
-    #         Raises:
-    #             FileExistsErros: If the 'new_model_folder' already exists and 'overwite' is False.
-
-    #     """
-
-    #     try:
-    #         os.makedirs(new_model_folder)
-    #     except FileExistsError:
-    #         if overwrite == True:
-    #             rmtree(new_model_folder)
-    #             os.makedirs(new_model_folder)
-    #         else:
-    #             raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
-
-    #     with ZipFile(model_file, 'r') as zip:
-    #         zip.extractall(path=new_model_folder)
-    #     recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
-    #     model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
-    #     print("\n Base model")
-    #     print(model_instance.model)
-
-    #     if replace_top == True:
-    #         model_with_new_top = model_instance.model.clone_with_new_top(n_classes=diff_n_classes)
-    #         model_instance.model = model_with_new_top
-        
-    #     print("\n new model")
-    #     print(model_instance.model)
-    #     return model_instance
-   
-
 
     @classmethod
     def _build_from_recipe(cls, recipe, recipe_compat=True):
@@ -626,6 +589,7 @@ class ResNetInterface(NNInterface):
         """
 
         recipe = {}
+        recipe['interface'] = type(self).__name__
         recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
         recipe['initial_filters'] = self.initial_filters
