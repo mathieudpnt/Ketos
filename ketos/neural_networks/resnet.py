@@ -407,7 +407,7 @@ class ResNet1DArch(tf.keras.Model):
         if n_classes is None:
             n_classes = self.n_classes
 
-        pre_trained_base =self.get_feature_extraction_base()
+        pre_trained_base = self.get_feature_extraction_base()
         cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
 
         return cloned_model
