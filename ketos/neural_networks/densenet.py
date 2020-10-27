@@ -174,10 +174,14 @@ class DenseNetArch(tf.keras.Model):
                 The number of classes. The output layer uses a Softmax activation and
                 will contain this number of nodes, resulting in model outputs with this
                 many values summing to 1.0.
-            
-    """
+            pre_trained_base: instance of ResNet1DArch
+                A pre-trained resnet model from which the residual blocks will be taken. 
+                Use by the the clone_with_new_top method when creating a clone for transfer learning
+        """
 
-    def __init__(self, dense_blocks, growth_rate, compression_factor, n_classes, dropout_rate):
+        
+
+    def __init__(self, dense_blocks, growth_rate, pre_trained_base=None, compression_factor, n_classes, dropout_rate):
         super(DenseNetArch, self).__init__()
 
         self.dense_blocks = dense_blocks
@@ -186,17 +190,26 @@ class DenseNetArch(tf.keras.Model):
         self.n_classes = n_classes
         self.dropout_rate = dropout_rate
 
-        self.initial_conv = tf.keras.layers.Conv2D(2 * self.growth_rate, kernel_size=7, strides=2, padding="same")
-        self.initial_batch_norm = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
-        self.initial_relu = tf.keras.layers.Activation('relu')
-        self.initial_pool = tf.keras.layers.MaxPool2D((2,2), strides=2)
+        if pre_trained_base:
+            self.initial_conv = pre_trained_base[0]
+            self.initial_batch_norm = pre_trained_base[1]
+            self.initial_relu = pre_trained_base[2]
+            self.initial_pool = pre_trained_base[3]
 
-        self.n_channels = 2 * self.growth_rate
-        self.dense_blocks_seq = tf.keras.Sequential()
-        for n_layers in self.dense_blocks:
-            self.dense_blocks_seq.add(DenseBlock(growth_rate=self.growth_rate, n_blocks=n_layers))
-            self.n_channels += n_layers * self.growth_rate
-            self.dense_blocks_seq.add(TransitionBlock(n_channels=self.n_channels, compression_factor=self.compression_factor, dropout_rate=self.dropout_rate))
+            self.dense_blocks_seq = pre_trained_base[4]
+
+        else:
+            self.initial_conv = tf.keras.layers.Conv2D(2 * self.growth_rate, kernel_size=7, strides=2, padding="same")
+            self.initial_batch_norm = tf.keras.layers.BatchNormalization(epsilon=1.001e-5)
+            self.initial_relu = tf.keras.layers.Activation('relu')
+            self.initial_pool = tf.keras.layers.MaxPool2D((2,2), strides=2)
+
+            self.n_channels = 2 * self.growth_rate
+            self.dense_blocks_seq = tf.keras.Sequential()
+            for n_layers in self.dense_blocks:
+                self.dense_blocks_seq.add(DenseBlock(growth_rate=self.growth_rate, n_blocks=n_layers))
+                self.n_channels += n_layers * self.growth_rate
+                self.dense_blocks_seq.add(TransitionBlock(n_channels=self.n_channels, compression_factor=self.compression_factor, dropout_rate=self.dropout_rate))
 
         self.global_avg_pool = tf.keras.layers.GlobalAveragePooling2D()
         self.flatten = tf.keras.layers.Flatten()
@@ -220,7 +233,47 @@ class DenseNetArch(tf.keras.Model):
         return outputs
 
 
+    def freeze_init_layer(self):
+        self.layers[0].trainable = False
 
+    def unfreeze_init_layer(self):
+        self.layers[0].trainable = True
+    
+    def freeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[4].layers[block_id].trainable = False
+
+    def unfreeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[4].layers[block_id].trainable = True
+    
+    def freeze_top(self):
+        for layer in self.layers[5:]:
+            layer.trainable = False
+    
+    def unfreeze_top(self):
+        for layer in self.layers[5:]:
+            layer.trainable = True
+
+
+    def get_feature_extraction_base(self):
+        return [ self.initial_conv,
+                self.initial_batch_norm,
+                self.initial_relu,
+                self.initial_pool,
+                self.dense_blocks_seq]
+
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = self.get_feature_extraction_base()
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
 
 
 class DenseNetInterface(NNInterface):
