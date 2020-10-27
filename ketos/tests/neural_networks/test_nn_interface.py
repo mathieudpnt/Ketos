@@ -430,20 +430,20 @@ def test_extract_recipe_dict(instance_of_MLPInterface):
 
 def test_train_loop_early_stop_metric_decrease(instance_of_MLPInterface):
    
-    train_loss_values = iter([0.9,0.9,0.9,0.9,0.9,0.9,
-                              0.8,0.8,0.8,0.8,0.8,0.8,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.6,0.6,0.6,0.6,0.6,0.6,
-                              0.5,0.5,0.5,0.5,0.5,0.5,
-                              0.4,0.4,0.4,0.4,0.4,0.4,
-                              0.3,0.3,0.3,0.3,0.3,0.3,
-                              0.2,0.2,0.2,0.2,0.2,0.2,
-                              0.1,0.1,0.1,0.1,0.1,0.1,])
+    train_loss_values = iter([0.9,0.9,0.9,0.9,
+                              0.8,0.8,0.8,0.8,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.6,0.6,0.6,0.6,
+                              0.5,0.5,0.5,0.5,
+                              0.4,0.4,0.4,0.4,
+                              0.3,0.3,0.3,0.3,
+                              0.2,0.2,0.2,0.2,
+                              0.1,0.1,0.1,0.1,])
 
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
@@ -474,15 +474,15 @@ def test_train_loop_early_stop_metric_decrease(instance_of_MLPInterface):
 
 def test_train_loop_early_stop_metric_decrease_baseline(instance_of_MLPInterface):
    
-    train_loss_values = iter([0.9,0.9,0.9,0.9,0.9,0.9,
-                              0.8,0.8,0.8,0.8,0.8,0.8,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.7,0.7,0.7,0.7,0.7,0.7,
-                              0.5,0.5,0.5,0.5,0.5,0.5,
-                              0.4,0.4,0.4,0.4,0.4,0.4,
-                              0.3,0.3,0.3,0.3,0.3,0.3,
-                              0.2,0.2,0.2,0.2,0.2,0.2,
-                              0.1,0.1,0.1,0.1,0.1,0.1,])
+    train_loss_values = iter([0.9,0.9,0.9,0.9,
+                              0.8,0.8,0.8,0.8,
+                              0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,
+                              0.5,0.5,0.5,0.5,
+                              0.4,0.4,0.4,0.4,
+                              0.3,0.3,0.3,0.3,
+                              0.2,0.2,0.2,0.2,
+                              0.1,0.1,0.1,0.1,])
 
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
@@ -514,23 +514,21 @@ def test_train_loop_early_stop_metric_decrease_baseline(instance_of_MLPInterface
 
 def test_train_loop_early_stop_metric_increase(instance_of_MLPInterface):
    
-    train_loss_values = iter([0.1,0.1,0.1,0.1,0.1,0.1,
-                             0.2,0.2,0.2,0.2,0.2,0.2,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.3,0.3,0.3,0.3,0.3,0.3,
-                             0.4,0.4,0.4,0.4,0.4,0.4,
-                             0.4,0.4,0.4,0.4,0.4,0.4,
-                             0.5,0.5,0.5,0.5,0.5,0.5,
-                             0.6,0.6,0.6,0.6,0.6,0.6,
+    train_loss_values = iter([0.1,0.1,0.1,0.1,
+                             0.2,0.2,0.2,0.2,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,
+                             0.4,0.4,0.4,0.4,
+                             0.4,0.4,0.4,0.4,
+                             0.5,0.5,0.5,0.5,
+                             0.6,0.6,0.6,0.6,
                                                         ])
-
-
 
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
@@ -567,7 +565,7 @@ def test_train_loop(instance_of_MLPInterface):
 
 
 
-def test_train_loop_log_csv(MLPInterface_subclass):
+def test_train_loop_log_csv(MLPInterface_subclass,batch_generator):
 
 
     recipe = { 'n_neurons':64,
