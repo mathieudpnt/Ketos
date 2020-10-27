@@ -139,11 +139,14 @@ class InceptionArch(tf.keras.Model):
                 Number of possible classes 
             initial_filters:int
                 Number of filters (i.e.: channels) in the first block
+            pre_trained_base: instance of ResNet1DArch
+                A pre-trained inception model from which the residual blocks will be taken. 
+                Use by the the clone_with_new_top method when creating a clone for transfer learning
    
     
     """
 
-    def __init__(self, n_blocks, n_classes, initial_filters=16, **kwargs):
+    def __init__(self, n_blocks, n_classes, pre_trained_base=None, initial_filters=16, **kwargs):
         super(InceptionArch, self).__init__(**kwargs)
 
         self.input_channels = initial_filters
@@ -152,21 +155,26 @@ class InceptionArch(tf.keras.Model):
         self.n_classes = n_classes
         self.initial_filters = initial_filters
 
-        self.conv1 = ConvBatchNormRelu(self.initial_filters)
+        if pre_trained_base:
+            self.conv1 = pre_trained_base[0]
+            self.blocks = pre_trained_base[1]
+        else:
 
-        self.blocks = tf.keras.models.Sequential(name='dynamic-blocks')
+            self.conv1 = ConvBatchNormRelu(self.initial_filters)
 
-        for block_id in range(self.n_blocks):
-            for layer_id in range(2):
+            self.blocks = tf.keras.models.Sequential(name='dynamic-blocks')
 
-                if layer_id == 0:
-                    block = InceptionBlock(self.output_channels, strides=2)
-                else:
-                    block = InceptionBlock(self.output_channels, strides=1)
+            for block_id in range(self.n_blocks):
+                for layer_id in range(2):
 
-                self.blocks.add(block)
+                    if layer_id == 0:
+                        block = InceptionBlock(self.output_channels, strides=2)
+                    else:
+                        block = InceptionBlock(self.output_channels, strides=1)
 
-            self.output_channels *= 2
+                    self.blocks.add(block)
+
+                self.output_channels *= 2
 
         self.avg_pool = tf.keras.layers.GlobalAveragePooling2D()
         self.dense = tf.keras.layers.Dense(self.n_classes)
@@ -180,6 +188,45 @@ class InceptionArch(tf.keras.Model):
         output = self.softmax(output)
 
         return output
+
+    def freeze_init_layer(self):
+        self.layers[0].trainable = False
+
+    def unfreeze_init_layer(self):
+        self.layers[0].trainable = True
+    
+    def freeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = False
+
+    def unfreeze_block(self, block_ids):
+        for block_id in block_ids:
+            self.layers[1].layers[block_id].trainable = True
+    
+    def freeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = False
+    
+    def unfreeze_top(self):
+        for layer in self.layers[2:]:
+            layer.trainable = True
+
+
+    def get_feature_extraction_base(self):
+        return [self.conv1, self.blocks]
+
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = self.get_feature_extraction_base()
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
+    
         
 class InceptionInterface(NNInterface):
     """ Creates an Inception model with the standardized Ketos interface.
