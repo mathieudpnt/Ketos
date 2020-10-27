@@ -1249,10 +1249,6 @@ class NNInterface():
                         if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric >= self._early_stopping_monitor['baseline']):
                             should_stop = True
                             self.last_epoch_with_improvement = epoch
-<<<<<<< HEAD
-                            print("\nhit baseline")
-=======
->>>>>>> enh/early_stopping
                         else:
                             current_delta = current_early_stopping_metric - best_metric_value
                             print("abs:", abs(current_delta))
