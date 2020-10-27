@@ -422,6 +422,7 @@ class DenseNetInterface(NNInterface):
         """
 
         recipe = {}
+        recipe['interface'] = type(self).__name__
         recipe['dense_blocks'] = self.dense_blocks
         recipe['growth_rate'] = self.growth_rate
         recipe['compression_factor'] = self.compression_factor
