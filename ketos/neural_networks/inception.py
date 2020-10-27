@@ -349,10 +349,6 @@ class InceptionInterface(NNInterface):
             recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
             recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
             recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
-        
-        # recipe_dict['n_blocks'] = recipe_dict['n_blocks']
-        # recipe_dict['n_classes'] = recipe_dict['n_classes']
-        # recipe_dict['initial_filters'] = recipe_dict['initial_filters']
 
         return recipe_dict
 
@@ -383,6 +379,7 @@ class InceptionInterface(NNInterface):
         """
 
         recipe = {}
+        recipe['interface'] = type(self).__name__
         recipe['n_blocks'] = self.n_blocks
         recipe['n_classes'] = self.n_classes
         recipe['initial_filters'] = self.initial_filters
