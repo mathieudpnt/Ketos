@@ -1,5 +1,6 @@
 import tensorflow as tf
 from .losses import FScoreLoss
+from ...data_handling.parsing import parse_audio_representation
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
@@ -674,7 +675,8 @@ class NNInterface():
         return instance
 
     @classmethod
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True,  replace_top=False, diff_n_classes=None):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False,  replace_top=False, diff_n_classes=None):
+    def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
@@ -692,9 +694,15 @@ class NNInterface():
                     Only relevant when 'replace_top' is True.
                     If the new model should have a different number of classes it can be specified by this parameter.
                     If left to none, the new model will have the same number of classes as the original.
-
+                load_audio_repr: bool
+                    If True, look for an audio representation included with the model. 
+                    
             Raises:
                 FileExistsError: If the 'new_model_folder' already exists and 'overwite' is False.
+
+            Returns:
+                model_instance: The loaded model
+                audio_repr: If load_audio_repr is True, also return a dictionary with the loaded audio representation.
 
         """
 
@@ -720,6 +728,14 @@ class NNInterface():
             model_instance.model = model_with_new_top
 
                
+        if load_audio_repr is True:
+            audio_repr = []
+            f = open(os.path.join(new_model_folder,"audio_repr.json"), 'r')
+            json_content = json.load(f)
+            for section, rep in json_content.items():
+                audio_repr.append({section:parse_audio_representation(rep)})
+            return model_instance, audio_repr
+        
         return model_instance
     
     @classmethod
@@ -778,12 +794,20 @@ class NNInterface():
         self._test_generator = None
 
         self._train_loss = tf.keras.metrics.Mean(name='train_loss')
-        self._val_loss = tf.keras.metrics.Mean(name='train_loss')
+        self._val_loss = tf.keras.metrics.Mean(name='val_loss')
         self._train_metrics = []
         self._val_metrics = []
         for m in self.metrics:
             self._train_metrics.append(m.instantiate_template(name='train_' + m.recipe_name))
             self._val_metrics.append(m.instantiate_template(name='val_' + m.recipe_name))
+
+        self._early_stopping_monitor = {"metric": 'val_loss',
+                                        "decreasing": True,
+                                        "period":10,
+                                        "min_epochs": 5,
+                                        "max_epochs": None,
+                                        "delta" : 0.1,
+                                        "baseline":0.5}
 
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a neural network instance.
@@ -815,23 +839,41 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-    def save_model(self, model_file):
+    def save_model(self, model_file, checkpoint_name=None, audio_repr_file=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
-            The file includes the recipe necessary to build the network architecture and the current parameter weights.
+            The file includes the recipe necessary to build the network architecture and the parameter weights.
 
             Args:
                 model_file: str
                     Path to the .kt file. 
+                checkpoint_name: str
+                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    If None, will use the latest checkpoints
+                audio_repr_file: str
+                    Optional path to an audio representation .json file. 
+                    If passed, it will be added to the .kt file.
+
+                checkpoint_name: str
+                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    If None, will use the latest checkpoints
 
         """
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
-            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-            checkpoints = glob(latest + '*')                                                                                                                 
+            if checkpoint_name is None:
+                checkpoint_base = tf.train.latest_checkpoint(self.checkpoint_dir)
+            else:
+                checkpoint_base = os.path.join(self.checkpoint_dir, checkpoint_name)
+            
+            checkpoints = glob(checkpoint_base + '*')
+            if len(checkpoints) == 0:
+                raise ValueError("Could not find valid checkpoints.")
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
+            if audio_repr_file is not None:
+                zip.write(audio_repr_file, "audio_repr.json")
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
             for c in checkpoints:
                  zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
@@ -897,7 +939,55 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
-        
+    
+    @property
+    def early_stopping_monitor(self):
+        """ Sets an early stopping monitor.
+
+            An early stopping monitor is a dictionary specifying
+            how a target metric should be monitored during training.
+            When the conditions are met, the training loop will be stopped
+            and the model will keep the set of weights that resulted in the
+            best value for the target metric.
+
+            The following parameters are expected:
+
+              "metric": str
+                    The name of the metric to be monitored. It must be one the metrics
+                    defined when creating a neural network interface, either through 
+                    the 'metrics' argument of the class constructor or the 'metrics' field in a recipe.
+                    The name must be prefixed by 'train_' or 'val_', indicating weather the training or
+                    validation metric should be monitored.
+              "decreasing": bool,
+                    If True, improvements will be indicated by a decrease in the metric value during training. 
+                    If False, improvements will be defined as an increase in the metric value.
+              "period": int
+                    The number of epochs the training loop will continue without any improvement before training is stopped.
+                    Example: If period is 5, training will stop if the target metric does not improve for 5 consecutive epochs.
+              "min_epochs": int
+                    The number of epochs to train for before starting to monitor.
+              "delta" : float
+                    The minimum difference between the current metric value and the best
+                    value recorded since the monitor started. An improvement is only considered if
+                     (current value - best value) <= delta (if decreasing is True) or 
+                     (current value - best value) >= delta (if decreasing is False)
+              "baseline":float or None
+                    If this value is reached, training will stop immediately.
+                    If None, this parameter is ignored.
+
+
+        """
+        return self._early_stopping_monitor
+
+
+    @early_stopping_monitor.setter
+    def early_stopping_monitor(self, parameters):
+        valid_metrics = [m.name for m in self._train_metrics] + [m.name for m in self._val_metrics] + [self._train_loss.name] + [self._val_loss.name]
+        assert parameters['metric'] in  valid_metrics, "Invalid metric. Must be one of {}".format(str(valid_metrics)) 
+
+
+        self._early_stopping_monitor = parameters
+
     @property
     def checkpoint_dir(self):
         return self._checkpoint_dir
@@ -981,7 +1071,22 @@ class NNInterface():
             val_metric(labels, predictions)
             
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5):
+    def _get_metric_value(self, metric_name):
+        if metric_name == 'train_loss':
+            return self._train_loss.result()
+        elif metric_name == "val_loss":
+            return self._val_loss.result()
+        elif metric_name.startswith("train_"):
+            for m in self._train_metrics:
+                if m.name == metric_name:
+                    return m.result()
+        elif metric_name.startswith("val_"):
+            for m in self._val_metrics:
+                if m.name == metric_name:
+                    return m.result()
+
+
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5, early_stopping=False):
         """ Train the model
 
 
@@ -1032,6 +1137,16 @@ class NNInterface():
 
                 checkpoint_freq:int
                     The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
+
+                early_stopping: bool
+                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reached (or n_epochs is reached, whichever happens first).
+                    When training is stopped by the early stopping monitor, an attribute 'last_epoch_with_improvement' will be added to the object.
+                    This attribute holds the epoch number (starting from zero) that had the best metric value based on the conditions set by the early_stopping_monitor.
+                    The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
+
+                    
+                    
+
                 
 
         """
@@ -1044,6 +1159,14 @@ class NNInterface():
             tensorboard_writer = tf.summary.create_file_writer(os.path.join(self._log_dir, tensorboard_metrics_name))
             tensorboard_writer.set_as_default()
 
+        if early_stopping == True:
+            early_stopping_metric = []
+            best_metric_value = None
+            last_epoch_with_improvement = 0
+            epochs_without_improvement = 0
+            should_stop = False
+            checkpoint_freq = 1
+        
 
         for epoch in range(n_epochs):
             #Reset the metric accumulators
@@ -1104,16 +1227,95 @@ class NNInterface():
                     for m in self._val_metrics:
                         tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
 
+            
+            
+
+            
+
             if verbose == True:
                 print("\n====================================================================================")
-
 
             if (epoch + 1)  % checkpoint_freq == 0:
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
+            
+            
+            if early_stopping == True:
+               
+                print("\nFocus metric", self._early_stopping_monitor['metric'])
+                current_early_stopping_metric = (self._get_metric_value(self._early_stopping_monitor['metric']))
+                if best_metric_value is None:
+                    best_metric_value = current_early_stopping_metric
+
+                if epoch >= self._early_stopping_monitor['min_epochs']:
                     
+                    if self._early_stopping_monitor['decreasing'] == True:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric <= self._early_stopping_monitor['baseline']):
+                            should_stop = True
+                            self.last_epoch_with_improvement = epoch
+                        else:
+                            current_delta = current_early_stopping_metric - best_metric_value
+                            if current_delta < 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is decreasing = improvement
+                                epochs_without_improvement = 0
+                                self.last_epoch_with_improvement = epoch
+                                best_metric_value = current_early_stopping_metric
+                            else:                 # metric is not decreasing = no improvement
+                                epochs_without_improvement += 1
+                                
+                                
+                    elif self._early_stopping_monitor['decreasing'] == False:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric >= self._early_stopping_monitor['baseline']):
+                            should_stop = True
+                            self.last_epoch_with_improvement = epoch
+                        else:
+                            current_delta = current_early_stopping_metric - best_metric_value
+                            print("abs:", abs(current_delta))
+                            if current_delta > 0 and (abs(current_delta) > self._early_stopping_monitor['delta']): #metric is increasing = improvement
+                                epochs_without_improvement = 0
+                                self.last_epoch_with_improvement = epoch
+                                best_metric_value = current_early_stopping_metric
+                            else:                 # metric is not increasing = no improvement
+                                epochs_without_improvement += 1
+
+                    print("\nEpochs without improvement:", epochs_without_improvement)  
+                    print("\nCurrent value:", current_early_stopping_metric)
+                    print("\nBest value:", best_metric_value)
+
+                    if epochs_without_improvement > self._early_stopping_monitor['period']:
+                        should_stop = True
+                    
+                    if should_stop == True:
+                        break
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
+        
+        if early_stopping:
+            last_checkpoint_with_improvement = "cp-{:04d}.ckpt".format(self.last_epoch_with_improvement + 1)
+            self.model.load_weights(os.path.join(self.checkpoint_dir, last_checkpoint_with_improvement))
+            return {'checkpoint_name':last_checkpoint_with_improvement}
+
+    def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):
+        if compute_val_metrics:
+            self._val_loss.reset_states()
+            for val_metric in self._val_metrics:
+                val_metric.reset_states()
+
+        predictions = []
+        for batch_id in range(self._test_generator.n_batches):
+                    X, Y = next(self._test_generator)
+                    if compute_val_metrics: self._val_step(X, Y)
+                    predictions.append(self.model(X, training=False))
+                                           
+                                    
+        if verbose == True and compute_val_metrics == True:
+            print("loss: {}".format(self._val_loss.result()))
+            print("".join([m.name.split('_val')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
+
+        predictions = np.array(predictions)
+
+        return predictions
+
+        
 
 
     def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):

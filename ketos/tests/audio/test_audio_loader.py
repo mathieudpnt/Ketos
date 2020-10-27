@@ -36,6 +36,7 @@ from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.parsing import parse_audio_representation
+from ketos.audio.utils.misc import from_decibel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -52,6 +53,15 @@ def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
+def test_init_audio_frame_loader_with_norm_wav_file(sine_wave_file_half):
+    """ Test that we can initialize an instance of the AudioFrameLoader class 
+        from a single normalized wave file"""
+    loader = AudioFrameLoader(filename=sine_wave_file_half, frame=0.5, repres={'type': 'Waveform', 'normalize_wav': True})
+    assert len(loader.sel_gen.files) == 1
+    assert loader.num() == 6
+    wf = next(loader)
+    assert np.isclose(np.std(wf.data), 1, atol=1e-9)
+
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
@@ -63,12 +73,86 @@ def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == 0.5
     assert loader.sel_gen.file_id == 2
+    loader.reset()
+    assert loader.sel_gen.file_id == 0
+
+def test_audio_frame_loader_mag_in_batches(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
+        in batches""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.26, repres=rep, batch_size=3)
+    assert len(loader.sel_gen.files) == 5
+    assert loader.num() == 10
+    s = next(loader) 
+    assert loader.sel_gen.file_id == 1
+    assert s.duration() == 0.26
+    assert s.offset == 0
+    s = next(loader)
+    assert loader.sel_gen.file_id == 1
+    assert s.duration() == 0.26
+    assert s.offset == 0.26
+    s = next(loader)
+    assert loader.sel_gen.file_id == 2
+    assert s.duration() == 0.26
+    assert s.offset == 0
+
+def test_audio_frame_loader_mag_in_batches_1_file(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
+        in batches of 1 file per batch""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.12, repres=rep, batch_size='file')
+    assert len(loader.sel_gen.files) == 5
+    assert loader.num() == 25
+    assert loader.sel_gen.file_id == 1
+    s = next(loader) 
+    assert loader.sel_gen.file_id == 1
+    assert s.duration() == 0.12
+    assert s.offset == 0
+    s = next(loader)
+    assert loader.sel_gen.file_id == 1
+    assert s.duration() == 0.12
+    assert s.offset == 0.12
+    s = next(loader)
+    s = next(loader)
+    s = next(loader)
+    assert loader.sel_gen.file_id == 1
+    s = next(loader)
+    assert loader.sel_gen.file_id == 2
+
+def test_audio_frame_loader_norm_mag(sine_wave_file):
+    """ Test that we can initialize the AudioFrameLoader class to compute MagSpectrograms
+        with the normalize_wav option set to True""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec1 = next(loader)
+    spec1 = next(loader)
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'normalize_wav': True}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec2 = next(loader)
+    spec2 = next(loader)
+    d1 = from_decibel(spec1.get_data())
+    d2 = from_decibel(spec2.get_data()) / np.sqrt(2)
+    assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
 
 def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
         with durations shorter than file durations""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
+    assert len(loader.sel_gen.files) == 5
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    assert loader.sel_gen.file_id == 1
+
+def test_audio_frame_loader_frame_None(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
+        without specifying the frame argument""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.2}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, repres=rep)
     assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
@@ -91,6 +175,21 @@ def test_audio_frame_loader_overlap(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == 0.2
     assert loader.sel_gen.time == pytest.approx(3*0.06, abs=1e-6)
+    assert loader.sel_gen.file_id == 0
+
+def test_audio_frame_loader_overlap_batches(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to compute overlapping 
+        MagSpectrograms in batches""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, step=0.06, repres=rep, batch_size=2)
+    assert len(loader.sel_gen.files) == 5
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    s = next(loader)
+    assert s.duration() == 0.2
+    assert loader.sel_gen.time == pytest.approx(5*0.06, abs=1e-6)
     assert loader.sel_gen.file_id == 0
 
 def test_audio_frame_loader_uniform_length(five_time_stamped_wave_files):

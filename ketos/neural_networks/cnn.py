@@ -33,6 +33,7 @@
         CNNInterface class:
 """
 import tensorflow as tf
+import numpy as np
 from .dev_utils.nn_interface import NNInterface, RecipeCompat
 import json
 
@@ -244,6 +245,8 @@ class CNN1DArch(tf.keras.Model):
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
+
+        print("output shape: ", output.shape)
 
         return output
 
