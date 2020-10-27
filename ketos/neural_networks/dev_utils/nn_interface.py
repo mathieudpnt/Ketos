@@ -924,6 +924,41 @@ class NNInterface():
     
     @property
     def early_stopping_monitor(self):
+        """ Sets an early stopping monitor.
+
+            An early stopping monitor is a dictionary specifying
+            how a target metric should be monitored during training.
+            When the conditions are met, the training loop will be stopped
+            and the model will keep the set of weights that resulted in the
+            best value for the target metric.
+
+            The following parameters are expected:
+
+              "metric": str
+                    The name of the metric to be monitored. It must be one the metrics
+                    defined when creating a neural network interface, either through 
+                    the 'metrics' argument of the class constructor or the 'metrics' field in a recipe.
+                    The name must be prefixed by 'train_' or 'val_', indicating weather the training or
+                    validation metric should be monitored.
+              "decreasing": bool,
+                    If True, improvements will be indicated by a decrease in the metric value during training. 
+                    If False, improvements will be defined as an increase in the metric value.
+              "period": int
+                    The number of epochs the training loop will continue without any improvement before training is stopped.
+                    Example: If period is 5, training will stop if the target metric does not improve for 5 consecutive epochs.
+              "min_epochs": int
+                    The number of epochs to train for before starting to monitor.
+              "delta" : float
+                    The minimum difference between the current metric value and the best
+                    value recorded since the monitor started. An improvement is only considered if
+                     (current value - best value) <= delta (if decreasing is True) or 
+                     (current value - best value) >= delta (if decreasing is False)
+              "baseline":float or None
+                    If this value is reached, training will stop immediately.
+                    If None, this parameter is ignored.
+
+
+        """
         return self._early_stopping_monitor
 
 
@@ -932,14 +967,6 @@ class NNInterface():
         valid_metrics = [m.name for m in self._train_metrics] + [m.name for m in self._val_metrics] + [self._train_loss.name] + [self._val_loss.name]
         assert parameters['metric'] in  valid_metrics, "Invalid metric. Must be one of {}".format(str(valid_metrics)) 
 
-
-        # parameters = {"metric": metric,
-        #               "decreasing": decreasing,
-        #               "period": period,
-        #               "min_epochs": min_epochs,
-        #               "max_epochs": max_epochs,
-        #               "delta" : delta,
-        #               "baseline":baseline}
 
         self._early_stopping_monitor = parameters
 
@@ -1094,7 +1121,14 @@ class NNInterface():
                     The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
 
                 early_stopping: bool
-                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reaches (or n_epochs is reached, whichever happens first).
+                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reached (or n_epochs is reached, whichever happens first).
+                    When training is stopped by the early stopping monitor, an attribute 'last_epoch_with_improvement' will be added to the object.
+                    This attribute holds the epoch number (starting from zero) that had the best metric value based on the conditions set by the early_stopping_monitor.
+                    The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
+
+                    
+                    
+
                 
 
         """
@@ -1194,13 +1228,11 @@ class NNInterface():
                 current_early_stopping_metric = (self._get_metric_value(self._early_stopping_monitor['metric']))
                 if best_metric_value is None:
                     best_metric_value = current_early_stopping_metric
-                # if len(early_stopping) > self._early_stopping_monitor.period:
-                #     early_stopping.pop(0)
 
-                if epoch >= self._early_stopping_monitor['min_epochs']:# and len(early_stopping_metric) > self._early_stopping_monitor.period:
+                if epoch >= self._early_stopping_monitor['min_epochs']:
                     
                     if self._early_stopping_monitor['decreasing'] == True:
-                        if current_early_stopping_metric <= self._early_stopping_monitor['baseline']:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric <= self._early_stopping_monitor['baseline']):
                             should_stop = True
                             self.last_epoch_with_improvement = epoch
                         else:
@@ -1214,10 +1246,13 @@ class NNInterface():
                                 
                                 
                     elif self._early_stopping_monitor['decreasing'] == False:
-                        if current_early_stopping_metric >= self._early_stopping_monitor['baseline']:
+                        if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric >= self._early_stopping_monitor['baseline']):
                             should_stop = True
                             self.last_epoch_with_improvement = epoch
+<<<<<<< HEAD
                             print("\nhit baseline")
+=======
+>>>>>>> enh/early_stopping
                         else:
                             current_delta = current_early_stopping_metric - best_metric_value
                             print("abs:", abs(current_delta))
@@ -1237,12 +1272,11 @@ class NNInterface():
                     
                     if should_stop == True:
                         break
-
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
         
         if early_stopping:
-            last_checkpoint_with_improvement = "cp-{:04d}.ckpt".format(last_epoch_with_improvement + 1)
+            last_checkpoint_with_improvement = "cp-{:04d}.ckpt".format(self.last_epoch_with_improvement + 1)
             self.model.load_weights(os.path.join(self.checkpoint_dir, last_checkpoint_with_improvement))
             return {'checkpoint_name':last_checkpoint_with_improvement}
 
