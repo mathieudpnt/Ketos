@@ -376,31 +376,139 @@ def test_extract_recipe_dict(instance_of_MLPInterface):
     assert recipe['metrics'] == [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
 
 
-def test_train_loop(instance_of_MLPInterface):
+def test_train_loop_early_stop_metric_decrease(instance_of_MLPInterface):
    
+    train_loss_values = iter([0.9,0.9,0.9,0.9,0.9,0.9,
+                              0.8,0.8,0.8,0.8,0.8,0.8,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.6,0.6,0.6,0.6,0.6,0.6,
+                              0.5,0.5,0.5,0.5,0.5,0.5,
+                              0.4,0.4,0.4,0.4,0.4,0.4,
+                              0.3,0.3,0.3,0.3,0.3,0.3,
+                              0.2,0.2,0.2,0.2,0.2,0.2,
+                              0.1,0.1,0.1,0.1,0.1,0.1,])
+
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
-       self._train_loss.result.return_value = 0.5
+       loss = next(train_loss_values)
+       print(loss)
+       self._train_loss.result.return_value = loss#next(train_loss_values)
 
     patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
     patcher.start()
     
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    
+
     instance_of_MLPInterface._early_stopping_monitor = {"metric": 'train_loss',
                                         "decreasing": True,
-                                        "period":10,
-                                        "min_epochs": 5,
+                                        "period":3,
+                                        "min_epochs": 3,
                                         "max_epochs": None,
                                         "delta" : 0.1,
                                         "baseline":0.5}
-    #instance_of_MLPInterface._train_step([1,0],[1,0])
-    #print(instance_of_MLPInterface._train_loss.result())
-    instance_of_MLPInterface.train_loop(n_epochs=100, early_stopping=True)
+    
+    instance_of_MLPInterface.train_loop(n_epochs=8, early_stopping=True)
+    assert instance_of_MLPInterface.last_epoch_with_improvement == 3
+ 
     patcher.stop()
     
 
 
-def test_train_loop_early_stop(instance_of_MLPInterface):
+def test_train_loop_early_stop_metric_decrease_baseline(instance_of_MLPInterface):
+   
+    train_loss_values = iter([0.9,0.9,0.9,0.9,0.9,0.9,
+                              0.8,0.8,0.8,0.8,0.8,0.8,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.7,0.7,0.7,0.7,0.7,0.7,
+                              0.5,0.5,0.5,0.5,0.5,0.5,
+                              0.4,0.4,0.4,0.4,0.4,0.4,
+                              0.3,0.3,0.3,0.3,0.3,0.3,
+                              0.2,0.2,0.2,0.2,0.2,0.2,
+                              0.1,0.1,0.1,0.1,0.1,0.1,])
+
+    def mock_train_step(self, inputs, labels):
+       self._train_loss = Mock()
+       loss = next(train_loss_values)
+       print(loss)
+       self._train_loss.result.return_value = loss#next(train_loss_values)
+
+    patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
+    patcher.start()
+    
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    
+
+    instance_of_MLPInterface._early_stopping_monitor = {"metric": 'train_loss',
+                                        "decreasing": True,
+                                        "period":3,
+                                        "min_epochs": 3,
+                                        "max_epochs": None,
+                                        "delta" : 0.1,
+                                        "baseline":0.5}
+    
+    instance_of_MLPInterface.train_loop(n_epochs=8, early_stopping=True)
+    assert instance_of_MLPInterface.last_epoch_with_improvement == 4
+ 
+    patcher.stop()
+    
+
+
+
+def test_train_loop_early_stop_metric_increase(instance_of_MLPInterface):
+   
+    train_loss_values = iter([0.1,0.1,0.1,0.1,0.1,0.1,
+                             0.2,0.2,0.2,0.2,0.2,0.2,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.3,0.3,0.3,0.3,0.3,0.3,
+                             0.4,0.4,0.4,0.4,0.4,0.4,
+                             0.4,0.4,0.4,0.4,0.4,0.4,
+                             0.5,0.5,0.5,0.5,0.5,0.5,
+                             0.6,0.6,0.6,0.6,0.6,0.6,
+                                                        ])
+
+
+
+    def mock_train_step(self, inputs, labels):
+       self._train_loss = Mock()
+       loss = next(train_loss_values)
+       print(loss)
+       self._train_loss.result.return_value = loss#next(train_loss_values)
+
+    patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
+    patcher.start()
+    
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    
+
+    instance_of_MLPInterface._early_stopping_monitor = {"metric": 'train_loss',
+                                        "decreasing": True,
+                                        "period":3,
+                                        "min_epochs": 3,
+                                        "max_epochs": None,
+                                        "delta" : 0.1,
+                                        "baseline":1.0}
+    
+    instance_of_MLPInterface.train_loop(n_epochs=8, early_stopping=True)
+    assert instance_of_MLPInterface.last_epoch_with_improvement == 3
+ 
+    patcher.stop()
+    
+
+
+
+def test_train_loop(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5)
 
