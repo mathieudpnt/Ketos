@@ -139,7 +139,7 @@ class InceptionArch(tf.keras.Model):
                 Number of possible classes 
             initial_filters:int
                 Number of filters (i.e.: channels) in the first block
-            pre_trained_base: instance of ResNet1DArch
+            pre_trained_base: instance of InceptionArch
                 A pre-trained inception model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
    

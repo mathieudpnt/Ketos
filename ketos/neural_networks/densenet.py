@@ -174,8 +174,8 @@ class DenseNetArch(tf.keras.Model):
                 The number of classes. The output layer uses a Softmax activation and
                 will contain this number of nodes, resulting in model outputs with this
                 many values summing to 1.0.
-            pre_trained_base: instance of ResNet1DArch
-                A pre-trained resnet model from which the residual blocks will be taken. 
+            pre_trained_base: instance of DenseNetArch
+                A pre-trained densenet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
         """
 

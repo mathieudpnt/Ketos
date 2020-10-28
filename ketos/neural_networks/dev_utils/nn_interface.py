@@ -676,7 +676,6 @@ class NNInterface():
 
     @classmethod
     def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False,  replace_top=False, diff_n_classes=None):
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False):
         """ Load a model from a ketos (.kt) model file.
 
             Args:

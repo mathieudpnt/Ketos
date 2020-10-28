@@ -280,6 +280,21 @@ class ResNetArch(tf.keras.Model):
     def unfreeze_top(self):
         for layer in self.layers[2:]:
             layer.trainable = True
+
+    def get_feature_extraction_base(self):
+        return [self.conv_initial, self.blocks]
+
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = self.get_feature_extraction_base()
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
         
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
@@ -292,17 +307,7 @@ class ResNetArch(tf.keras.Model):
 
         return output
     
-    def clone_with_new_top(self, n_classes=None, freeze_base=True):
-        if freeze_base == True:
-            self.trainable = False
 
-        if n_classes is None:
-            n_classes = self.n_classes
-
-        pre_trained_base = [self.conv_initial, self.blocks]
-        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
-
-        return cloned_model
 
 
 
@@ -324,7 +329,7 @@ class ResNet1DArch(tf.keras.Model):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
-             pre_trained_base: instance of ResNet1DArch
+            pre_trained_base: instance of ResNet1DArch
                 A pre-trained resnet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
 
@@ -347,26 +352,26 @@ class ResNet1DArch(tf.keras.Model):
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
 
-        self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
+            self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
-        for set_id in range(self.n_sets):
-            for block_id in range(self.block_sets[set_id]):
-                #Frst layer of every block except the first
-                if set_id != 0 and block_id == 0:
-                    block = ResNet1DBlock(self.output_filters, strides=2, residual_path=True)
-                
-                else:
-                    if self.input_filters != self.output_filters:
-                        residual_path = True
+            for set_id in range(self.n_sets):
+                for block_id in range(self.block_sets[set_id]):
+                    #Frst layer of every block except the first
+                    if set_id != 0 and block_id == 0:
+                        block = ResNet1DBlock(self.output_filters, strides=2, residual_path=True)
+                    
                     else:
-                        residual_path = False
-                    block = ResNet1DBlock(self.output_filters, residual_path=residual_path)
+                        if self.input_filters != self.output_filters:
+                            residual_path = True
+                        else:
+                            residual_path = False
+                        block = ResNet1DBlock(self.output_filters, residual_path=residual_path)
 
-                self.input_filters = self.output_filters
+                    self.input_filters = self.output_filters
 
-                self.blocks.add(block)
-            
-            self.output_filters *= 2
+                    self.blocks.add(block)
+                
+                self.output_filters *= 2
 
         self.batch_norm_final = tf.keras.layers.BatchNormalization()
         self.average_pool = tf.keras.layers.GlobalAveragePooling1D()
