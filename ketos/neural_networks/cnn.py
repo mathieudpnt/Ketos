@@ -143,6 +143,10 @@ class CNNArch(tf.keras.Model):
                 >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
                 This list should not include the output layr, which will be automatically added based on the 'n_classes' parameter.
 
+             pre_trained_base: instance of CNNArch
+                A pre-trained CNN model from which the residual blocks will be taken. 
+                Use by the the clone_with_new_top method when creating a clone for transfer learning
+
             n_classes:int
                 The number of classes the network will be used to classify.
                 The output will be this number of values representing the scores for each class. 
@@ -150,16 +154,20 @@ class CNNArch(tf.keras.Model):
     """
 
 
-    def __init__(self, convolutional_layers, dense_layers, n_classes, **kwargs):
+    def __init__(self, convolutional_layers, dense_layers, pre_trained_base=None, n_classes, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
 
-        self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
-        for conv_layer in convolutional_layers:
-            self.convolutional_block.add(tf.keras.layers.Conv2D(filters=conv_layer['n_filters'], kernel_size=conv_layer['filter_shape'], strides=conv_layer['strides'], activation=conv_layer['activation'], padding=conv_layer['padding']))
-            if conv_layer['max_pool'] is not None:
-                self.convolutional_block.add(tf.keras.layers.MaxPooling2D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
-            if conv_layer['batch_normalization'] == True:
-                self.convolutional_block.add(tf.keras.layers.BatchNormalization())
+        if pre_trained_base:
+            self.convolutional_block = pre_trained_base[0]
+        else:
+
+            self.convolutional_block = tf.keras.models.Sequential(name="convolutional_block")
+            for conv_layer in convolutional_layers:
+                self.convolutional_block.add(tf.keras.layers.Conv2D(filters=conv_layer['n_filters'], kernel_size=conv_layer['filter_shape'], strides=conv_layer['strides'], activation=conv_layer['activation'], padding=conv_layer['padding']))
+                if conv_layer['max_pool'] is not None:
+                    self.convolutional_block.add(tf.keras.layers.MaxPooling2D(pool_size=conv_layer['max_pool']['pool_size'], strides=conv_layer['max_pool']['strides'] ))
+                if conv_layer['batch_normalization'] == True:
+                    self.convolutional_block.add(tf.keras.layers.BatchNormalization())
         
         self.flatten = tf.keras.layers.Flatten()
 
@@ -174,6 +182,36 @@ class CNNArch(tf.keras.Model):
         
         self.dense_block.add(tf.keras.layers.Dense(n_classes))
         self.dense_block.add(tf.keras.layers.Softmax())
+
+    
+    def freeze_conv_block(self):
+        self.layers[0].trainable = False
+
+    def unfreeze_conv_block(self):
+        self.layers[0].trainable = True
+    
+    def freeze_top(self):
+        for layer in self.layers[1:]:
+            layer.trainable = False
+    
+    def unfreeze_top(self):
+        for layer in self.layers[1:]:
+            layer.trainable = True
+
+    def get_feature_extraction_base(self):
+        return [self.convolutional_block]
+
+    def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        if freeze_base == True:
+            self.trainable = False
+
+        if n_classes is None:
+            n_classes = self.n_classes
+
+        pre_trained_base = self.get_feature_extraction_base()
+        cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
+
+        return cloned_model
 
     def call(self, inputs, training=None):
         output = self.convolutional_block(inputs, training=training)
