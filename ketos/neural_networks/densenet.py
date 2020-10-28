@@ -234,29 +234,51 @@ class DenseNetArch(tf.keras.Model):
 
 
     def freeze_init_layer(self):
+        """Freeze the initial convolutional layer"""
         self.layers[0].trainable = False
 
     def unfreeze_init_layer(self):
+        """Unfreeze the initial convolutional layer"""
         self.layers[0].trainable = True
     
     def freeze_block(self, block_ids):
+        """ Freeze specific dense blocks
+
+            Args:
+                blocks_ids: list of ints
+                    The block numbers to be freezed (starting from zero)
+        """
+
         for block_id in block_ids:
             self.layers[4].layers[block_id].trainable = False
 
     def unfreeze_block(self, block_ids):
+        """ Unfreeze specific dense blocks
+
+             Args:
+                blocks_ids: list of ints
+                    The block numbers to be freezed (starting from zero)
+        """
         for block_id in block_ids:
             self.layers[4].layers[block_id].trainable = True
     
     def freeze_top(self):
+        """Freeze the classification block"""
         for layer in self.layers[5:]:
             layer.trainable = False
     
     def unfreeze_top(self):
+        """Unfreeze the classification block"""
         for layer in self.layers[5:]:
             layer.trainable = True
 
 
     def get_feature_extraction_base(self):
+        """ Retrive the feature extraction base (initial convolutional layer + dense blocks)
+        
+            Returns:
+                list containing the feature extraction layers
+        """
         return [ self.initial_conv,
                 self.initial_batch_norm,
                 self.initial_relu,
@@ -264,6 +286,19 @@ class DenseNetArch(tf.keras.Model):
                 self.dense_blocks_seq]
 
     def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        """ Clone this instance but replace the original classification top with a new (untrained) one
+        
+            Args:
+                n_classes:int
+                    The number of classes the new classification top should output.
+                    If None(default), the original number of classes will be used.
+                freeze_base:bool
+                    If True, the weights of the feature extraction base will be froze (untrainable) in the new model.
+                
+            Returns:
+                cloned_model: instance of DenseNetArch
+                    The new model with the old feature extraction base and new classification top.
+         """
         if freeze_base == True:
             self.trainable = False
 

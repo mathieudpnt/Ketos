@@ -185,23 +185,45 @@ class CNNArch(tf.keras.Model):
 
     
     def freeze_conv_block(self):
+        """Freeze the convolutional block"""
         self.layers[0].trainable = False
 
     def unfreeze_conv_block(self):
+        """Unfreeze the convolutional block"""
         self.layers[0].trainable = True
     
     def freeze_top(self):
+        """Freeze the classification (dense) block"""
         for layer in self.layers[1:]:
             layer.trainable = False
     
     def unfreeze_top(self):
+        """Unfreeze the classification (dense) block"""
         for layer in self.layers[1:]:
             layer.trainable = True
 
     def get_feature_extraction_base(self):
+        """ Retrive the feature extraction base (initial convolutional layer + residual blocks)
+        
+            Returns:
+                list containing the feature extraction layers
+        """
         return [self.convolutional_block]
 
     def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        """ Clone this instance but replace the original classification top with a new (untrained) one
+        
+            Args:
+                n_classes:int
+                    The number of classes the new classification top should output.
+                    If None(default), the original number of classes will be used.
+                freeze_base:bool
+                    If True, the weights of the feature extraction base will be froze (untrainable) in the new model.
+                
+            Returns:
+                cloned_model: instance of CNNArch
+                    The new model with the old feature extraction base and new classification top.
+         """
         if freeze_base == True:
             self.trainable = False
 
@@ -285,23 +307,45 @@ class CNN1DArch(tf.keras.Model):
         self.dense_block.add(tf.keras.layers.Softmax())
         
     def freeze_conv_block(self):
+        """Freeze the convolutional block"""
         self.layers[0].trainable = False
 
     def unfreeze_conv_block(self):
+        """Unfreeze the convolutional block"""
         self.layers[0].trainable = True
     
     def freeze_top(self):
+        """Freeze the classification (dense) block"""
         for layer in self.layers[1:]:
             layer.trainable = False
     
     def unfreeze_top(self):
+        """Unfreeze the classification (dense) block"""
         for layer in self.layers[1:]:
             layer.trainable = True
 
     def get_feature_extraction_base(self):
+        """ Retrive the feature extraction base (initial convolutional layer + residual blocks)
+        
+            Returns:
+                list containing the feature extraction layers
+        """
         return [self.convolutional_block]
 
     def clone_with_new_top(self, n_classes=None, freeze_base=True):
+        """ Clone this instance but replace the original classification top with a new (untrained) one
+        
+            Args:
+                n_classes:int
+                    The number of classes the new classification top should output.
+                    If None(default), the original number of classes will be used.
+                freeze_base:bool
+                    If True, the weights of the feature extraction base will be froze (untrainable) in the new model.
+                
+            Returns:
+                cloned_model: instance of CNN1DArch
+                    The new model with the old feature extraction base and new classification top.
+         """
         if freeze_base == True:
             self.trainable = False
 
@@ -312,6 +356,7 @@ class CNN1DArch(tf.keras.Model):
         cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
 
         return cloned_model
+
 
     def call(self, inputs, training=None):
 
