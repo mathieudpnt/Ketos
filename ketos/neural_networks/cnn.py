@@ -154,7 +154,7 @@ class CNNArch(tf.keras.Model):
     """
 
 
-    def __init__(self, convolutional_layers, dense_layers, n_classes, pre_trained_base=None **kwargs):
+    def __init__(self, convolutional_layers, dense_layers, n_classes, pre_trained_base=None, **kwargs):
         super(CNNArch, self).__init__(**kwargs)
 
         if pre_trained_base:
