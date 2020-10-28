@@ -632,6 +632,7 @@ class CNNInterface(NNInterface):
         """
 
         recipe = {}
+        recipe['interface'] = type(self).__name__
         recipe['conv_set'] = self.conv_set
         recipe['dense_set'] = self.dense_set
         recipe['convolutional_layers'] = self.convolutional_layers
