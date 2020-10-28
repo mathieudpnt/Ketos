@@ -181,7 +181,7 @@ class DenseNetArch(tf.keras.Model):
 
         
 
-    def __init__(self, dense_blocks, growth_rate, pre_trained_base=None, compression_factor, n_classes, dropout_rate):
+    def __init__(self, dense_blocks, growth_rate, compression_factor, n_classes, dropout_rate, pre_trained_base=None):
         super(DenseNetArch, self).__init__()
 
         self.dense_blocks = dense_blocks
