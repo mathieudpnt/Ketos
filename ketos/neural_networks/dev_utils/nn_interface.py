@@ -11,6 +11,7 @@ import os
 
 
 
+
 class RecipeCompat():
     """ Makes a loss function, metric or optimizer compatible with the Ketos recipe format.
 
