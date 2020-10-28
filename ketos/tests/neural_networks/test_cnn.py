@@ -24,7 +24,8 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_simple_dict():
-    recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+    recipe = {'interface': 'CNNInterface',
+               'conv_set':[[64, False], [128, True], [256, True]],
                'dense_set': [512, 256],
                'n_classes':2,
                'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
@@ -38,7 +39,8 @@ def recipe_simple_dict():
 
 @pytest.fixture
 def recipe_simple():
-    recipe = {'conv_set':[[64, False], [128, True], [256, True]],
+    recipe = {'interface': 'CNNInterface',
+               'conv_set':[[64, False], [128, True], [256, True]],
                'dense_set': [512, 256],
                'n_classes':2,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
@@ -51,7 +53,8 @@ def recipe_simple():
 
 @pytest.fixture
 def recipe_detailed_dict():
-    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+    recipe = {'interface': 'CNNInterface',
+              'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
                                     {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
                                     {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
               'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -68,7 +71,8 @@ def recipe_detailed_dict():
 
 @pytest.fixture
 def recipe_detailed():
-    recipe = {'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
+    recipe = {'interface': 'CNNInterface',
+              'convolutional_layers':  [{'n_filters':64, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':None, 'batch_normalization':True},
                                     {'n_filters':128, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True},
                                     {'n_filters':256, "filter_shape":[3,3], 'strides':1, 'padding':'valid', 'activation':'relu', 'max_pool':{'pool_size':[2,2] , 'strides':[2,2]}, 'batch_normalization':True}],
               'dense_layers':[{'n_hidden':512, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5},
@@ -314,7 +318,8 @@ def test_train_CNN(sample_data):
 
 @pytest.fixture
 def recipe_simple_dict_1d():
-    recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
+    recipe = {'interface': 'CNN1DInterface',
+               'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
                'dense_set': [512, 128],
                'n_classes':2,        
                'optimizer': {'recipe_name':'Adam', 'parameters': {'beta_1': 0.9, 'beta_2': 0.999, 'decay': 0.01, 'lr': 0.01}},
@@ -328,7 +333,8 @@ def recipe_simple_dict_1d():
 
 @pytest.fixture
 def recipe_simple_1d():
-    recipe = {'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
+    recipe = {'interface': 'CNN1DInterface',
+               'conv_set':[[8, False], [16, True], [32, True], [64, False], [128, False], [256, True]],
                'dense_set': [512, 128],
                'n_classes':2,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, lr=0.01, beta_1=0.9, beta_2=0.999, decay=0.01),
@@ -341,7 +347,8 @@ def recipe_simple_1d():
 
 @pytest.fixture
 def recipe_detailed_dict_1d():
-    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+    recipe = {'interface': 'CNN1DInterface',
+              'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
                                     {'n_filters':32, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
                                     {'n_filters':64, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },
@@ -364,7 +371,8 @@ def recipe_detailed_dict_1d():
 
 @pytest.fixture
 def recipe_detailed_1d():
-    recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
+    recipe = {'interface': 'CNN1DInterface',
+               'convolutional_layers':  [{'n_filters':8, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': None, 'batch_normalization':True},
                                     {'n_filters':16, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
                                     {'n_filters':32, "filter_shape":64, 'strides':2, 'padding':'causal', 'activation':'relu', 'max_pool': {'pool_size': 8 , 'strides':8}, 'batch_normalization':True},
                                     {'n_filters':64, "filter_shape":64, 'strides':2, 'padding':'causal','activation':'relu', 'max_pool':None, 'batch_normalization':True, },

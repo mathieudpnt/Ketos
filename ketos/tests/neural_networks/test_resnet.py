@@ -19,7 +19,8 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_dict():
-    recipe = {'block_sets':[2,2,2],
+    recipe = {'interface': 'ResNetInterface',
+               'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':16,        
                'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
@@ -30,7 +31,8 @@ def recipe_dict():
     return recipe
 @pytest.fixture
 def recipe():
-    recipe = {'block_sets':[2,2,2],
+    recipe = {'interface': 'ResNetInterface',
+               'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':16,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
@@ -205,7 +207,8 @@ def test_train_ResNet(sample_data):
 
 @pytest.fixture
 def recipe_dict_1d():
-    recipe = {'block_sets':[2,2,2],
+    recipe = {'interface': 'ResNet1DInterface',
+               'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':2,        
                'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
@@ -216,7 +219,8 @@ def recipe_dict_1d():
     return recipe
 @pytest.fixture
 def recipe_1d():
-    recipe = {'block_sets':[2,2,2],
+    recipe = {'interface': 'ResNet1DInterface',
+               'block_sets':[2,2,2],
                'n_classes':2,
                'initial_filters':2,        
                'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
@@ -347,7 +351,7 @@ def test_extract_recipe_dict_1d(recipe_1d, recipe_dict_1d):
 
 def test_read_recipe_file_1d(recipe_1d, recipe_dict_1d):
     path_to_recipe_file = os.path.join(path_to_tmp, "test_resnet_recipe_1d.json")
-    resnet = ResNetInterface._build_from_recipe(recipe_1d)
+    resnet = ResNet1DInterface._build_from_recipe(recipe_1d)
     written_recipe = resnet._extract_recipe_dict()
     resnet.save_recipe_file(path_to_recipe_file)
 

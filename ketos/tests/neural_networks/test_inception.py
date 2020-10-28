@@ -16,7 +16,8 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_dict():
-    recipe = {'n_blocks':3,
+    recipe = {'interface': 'InceptionInterface',
+                'n_blocks':3,
                 'n_classes':2,
                 'initial_filters':16,
                 'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
@@ -29,7 +30,8 @@ def recipe_dict():
 
 @pytest.fixture
 def recipe():
-    recipe = {'n_blocks':3,
+    recipe = {'interface': 'InceptionInterface',
+                'n_blocks':3,
                 'n_classes':2,
                 'initial_filters':16,
                 'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),

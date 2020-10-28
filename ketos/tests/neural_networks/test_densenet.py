@@ -17,7 +17,8 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def recipe_dict():
-    recipe = {'dense_blocks':[ 6, 12, 24, 16],
+    recipe = {'interface': 'DenseNetInterface',
+                    'dense_blocks':[ 6, 12, 24, 16],
                     'growth_rate':32,
                     'compression_factor':0.5,
                     'n_classes':2,
@@ -31,7 +32,8 @@ def recipe_dict():
 
 @pytest.fixture
 def recipe():
-    recipe = {'dense_blocks':[ 6, 12, 24, 16],
+    recipe = {'interface': 'DenseNetInterface',
+                    'dense_blocks':[ 6, 12, 24, 16],
                     'growth_rate':32,
                     'compression_factor':0.5,
                     'n_classes':2,
