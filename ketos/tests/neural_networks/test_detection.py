@@ -159,7 +159,7 @@ def test_group_detections(scores_and_support_1, buffer, step, spec_dur, threshol
 def test_process_batch_without_avg_and_group(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
     detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=1, group=False)
@@ -170,7 +170,7 @@ def test_process_batch_without_avg_and_group(batch):
 def test_process_batch_with_avg_and_group(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
     detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=0.5, win_len=5, group=True)
@@ -179,7 +179,7 @@ def test_process_batch_with_avg_and_group(batch):
 
 
 def test_process_audio_loader_with_avg_and_group(mock_audio_loader):
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     expected_detections = [('file_1.wav', 4.0, 3.5, 0.6), ('file_1.wav', 10.5, 3.5, 0.6)]
     detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, threshold=0.5, win_len=5, group=True)
@@ -188,8 +188,7 @@ def test_process_audio_loader_with_avg_and_group(mock_audio_loader):
 
 
 def test_process_audio_loader_without_avg_and_group(mock_audio_loader):
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
-
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
     expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
     detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=1.0, threshold=0.5, win_len=1, group=False)
 
@@ -197,7 +196,7 @@ def test_process_audio_loader_without_avg_and_group(mock_audio_loader):
 
 
 def test_process_audio_loader_with_group(mock_audio_loader):
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     expected_detections = [('file_1.wav',  5.0, 1.5, 1.0), ('file_1.wav', 11.5, 1.5, 1.0)]
     detections = process_audio_loader(audio_loader=mock_audio_loader, batch_size=15, model=model, buffer=0, threshold=0.5, win_len=1, group=True)
@@ -207,7 +206,7 @@ def test_process_audio_loader_with_group(mock_audio_loader):
 
 def test_process_batch_generator_with_avg_and_group(batch):
     data, support = batch
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     batch_generator =  BatchGenerator(batch_size=15, x=data, y=support,output_transform_func=transform_batch, shuffle=False)
     
@@ -218,7 +217,7 @@ def test_process_batch_generator_with_avg_and_group(batch):
 
 def test_process_batch_generator_without_avg_and_group(batch):
     data, support = batch
-    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), path_to_tmp)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
 
     batch_generator =  BatchGenerator(batch_size=3, x=data, y=support,output_transform_func=transform_batch, shuffle=False)
     
