@@ -53,14 +53,35 @@ def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
-def test_init_audio_frame_loader_with_norm_wav_file(sine_wave_file_half):
+def test_init_audio_frame_loader_with_batches(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
-        from a single normalized wave file"""
-    loader = AudioFrameLoader(filename=sine_wave_file_half, frame=0.5, repres={'type': 'Waveform', 'normalize_wav': True})
+        from a single wav file with a batch size greater than 1"""
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, batch_size=2)
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
-    wf = next(loader)
-    assert np.isclose(np.std(wf.data), 1, atol=1e-9)
+
+def test_init_audio_frame_loader_with_batch_size_one_file(sine_wave_file):
+    """ Test that we can initialize an instance of the AudioFrameLoader class 
+        from a single wav file with a batch size equal to 1 file"""
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, batch_size='FILE')
+    assert len(loader.sel_gen.files) == 1
+    assert loader.num() == 6
+
+def test_audio_frame_loader_gives_same_output_with_batches(sine_wave_file):
+    """ Test that segments returned by the AudioFrameLoader class are independent of batch size"""
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'freq_max':800}
+    fname = os.path.join(path_to_assets, 'grunt1.wav')
+    loader1 = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size=1)
+    loader3 = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size=3)
+    loaderf = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size='file')
+    for i in range(loader1.num()):
+        x1 = next(loader1)
+        x3 = next(loader3)
+        xf = next(loaderf)
+        dx = x1.data - x3.data
+        assert np.mean(np.abs(dx)) < 0.1
+        dx = x1.data - xf.data
+        assert np.mean(np.abs(dx)) < 0.1
 
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 

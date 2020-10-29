@@ -401,7 +401,12 @@ class AudioFrameLoader(AudioLoader):
                 Annotation table
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.
+                required to initialize the class using the from_wav method.  
+            batch_size: int or str
+                Load segments in batches rather than one at the time. 
+                Increasing the batch size can help reduce computational time.
+                The default batch size is 1. 
+                You can also specify batch_size='file' to load one wav file at the time.
 
         Examples:
             >>> import librosa

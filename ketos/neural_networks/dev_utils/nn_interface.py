@@ -853,23 +853,12 @@ class NNInterface():
                 audio_repr_file: str
                     Optional path to an audio representation .json file. 
                     If passed, it will be added to the .kt file.
-
-                checkpoint_name: str
-                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
-                    If None, will use the latest checkpoints
-
         """
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
-            if checkpoint_name is None:
-                checkpoint_base = tf.train.latest_checkpoint(self.checkpoint_dir)
-            else:
-                checkpoint_base = os.path.join(self.checkpoint_dir, checkpoint_name)
-            
-            checkpoints = glob(checkpoint_base + '*')
-            if len(checkpoints) == 0:
-                raise ValueError("Could not find valid checkpoints.")
+            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
+            checkpoints = glob(latest + '*')                                                                                                                 
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             if audio_repr_file is not None:
@@ -1415,4 +1404,3 @@ class NNInterface():
             return self._transform_output(output)
         else:
             return output
-
