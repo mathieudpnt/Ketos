@@ -5,9 +5,12 @@ Overview
 Ketos provides interfaces that can be used to build and interact with a variety of neural network architectures.
 Currently, the following interfaces are available:
 
-* CNN (:class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc)
-* ResNet (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNetInterface>`): used to build and interact with typical 2D Residual Networks
-
+* CNN (:class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc) that use spectrograms as inputs.
+* CNN 1D (:class:`CNN1DInterface <ketos.neural_networks.cnn.CNN1DInterface>`): used to build and interact with 1D versions of CNN architectures that use waveforms as inputs. 
+* ResNet (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNetInterface>`): used to build and interact with typical 2D Residual Networks that use spectrograms as inputs.
+* ResNet 1D (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNet1DInterface>`): used to build and interact with 1D versions of Residual Networks that use waveforms as inputs.
+* DenseNet (:class:`DenseNetInterface <ketos.neural_networks.densenet.DenseNetInterface>`): used to build and interact with Dense Networks that use spectrograms as inputs.
+* Inception (:class:`InceptionInterface <ketos.neural_networks.inception.InceptionInterface>`): used to build and interact with Inception Networks that use spectrograms as inputs.
 
 The interfaces have common methods, which will be all that most users will need to create neural networks, train on their own data, load pre-trained models, etc.
 
@@ -23,14 +26,22 @@ When you load a saved model, ketos will build the same network architecture used
 
 
 .. code-block:: python
-    
-        
+            
 
     from ketos.neural_networks.resnet import ResNetInterface
 
     path_to_pre_trained_model = "my_model/killer_whale.kt"
 
     killer_whale_classifier = ResNetInterface.load_model_file(path_to_pre_trained_model)
+
+
+In order to load the model like above, one needs to use the corresponding interface.
+But version 2.1 introduced a more general function, which can load a model without specifying what kind of network it uses.
+
+.. code-block:: python
+
+    from ketos.neural_networks import load_model_file
+    killer_whale_classifier = ResNetInterface.load_model_file("my_model/killer_whale.kt")
 
 
 We will see how to save a network after training it, but first let's see how to create one.
