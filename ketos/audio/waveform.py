@@ -122,6 +122,7 @@ class Waveform(BaseAudio):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+                        
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str

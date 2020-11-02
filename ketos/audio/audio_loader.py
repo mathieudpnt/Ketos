@@ -179,9 +179,9 @@ class FrameStepper(SelectionGenerator):
                 Separation between consecutive frames in seconds. If None, the step size 
                 equals the frame length.
             path: str
-                Path to folder containing *.wav files. If None is specified, the current directory will be used.
+                Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
-                Relative path to a single *.wav file or a list of *.wav files. Optional.
+                Relative path to a single .wav file or a list of .wav files. Optional.
     """
     def __init__(self, frame, step=None, path=None, filename=None):
         self.frame = frame
@@ -265,7 +265,7 @@ class FrameStepper(SelectionGenerator):
         self._next_file()
 
 class AudioLoader():
-    """ Class for loading segments of audio data from *.wav files. 
+    """ Class for loading segments of audio data from .wav files. 
 
         Several representations of the audio data are possible, including 
         waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
@@ -295,8 +295,8 @@ class AudioLoader():
                 If True, the waveform is normalized zero mean (mean=0) and (std=1) unity standard deviation.
 
         Examples:
-            See child classes :class:`audio.audio_loader.AudioFrameLoader' and 
-            :class:`audio.audio_loader.AudioSelectionLoader'.            
+            See child classes :class:`audio.audio_loader.AudioFrameLoader` and 
+            :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
@@ -378,7 +378,7 @@ class AudioLoader():
         self.sel_gen.reset()
 
 class AudioFrameLoader(AudioLoader):
-    """ Load segments of audio data from *.wav files. 
+    """ Load segments of audio data from .wav files. 
 
         Loads segments of uniform duration 'frame', with successive segments
         displaced by an amount 'step'. (If 'step' is not specified, it is 
@@ -392,9 +392,9 @@ class AudioFrameLoader(AudioLoader):
                 Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment duration.
             path: str
-                Path to folder containing *.wav files. If None is specified, the current directory will be used.
+                Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
-                relative path to a single *.wav file or a list of *.wav files. Optional
+                relative path to a single .wav file or a list of .wav files. Optional
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
@@ -503,7 +503,7 @@ class AudioFrameLoader(AudioLoader):
 
 
 class AudioSelectionLoader(AudioLoader):
-    """ Load segments of audio data from *.wav files. 
+    """ Load segments of audio data from .wav files. 
 
         The segments to be loaded are specified via a selection table.
 
@@ -511,9 +511,9 @@ class AudioSelectionLoader(AudioLoader):
             selections: pandas DataFrame
                 Selection table
             path: str
-                Path to folder containing *.wav files
+                Path to folder containing .wav files
             filename: str or list(str)
-                relative path to a single *.wav file or a list of *.wav files. Optional
+                relative path to a single .wav file or a list of .wav files. Optional
             annotations: pandas DataFrame
                 Annotation table
             repres: dict

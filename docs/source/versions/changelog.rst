@@ -1,6 +1,18 @@
 Change log
 ==========
 
+**Version 2.1.0** (November 3, 2020)
+
+ *  New neural network architectures: densenet, inception, resnet-1D, cnn-1D
+ *  Early stopping: All neural network interfaces can now use an early stopping monitor, to halt training if a condition is met.
+ *  General load model function: a load_model_file function was added to the ketos.neural_networks namespace, which can rebuild a 
+    model from a .kt file without the user having to know which architecture the model has. Before, you had to know which interface 
+    to use (i.e.: which kind of network that was). In order for this to work, all model architectures add a field 'interface' to the 
+    recipes. If a recipe does not have this field (e.g.: from a model created with an older ketos version), an exception will be raised. 
+    All models can still be loaded as before, through their interface classes.
+ *  Detection module: A new module ketos.neural_networks.dev_utils.detection was created to aid developers who want to use snapshot 
+    classifiers as detectors in longer files. A tutorial was also added to the docs.
+
 **Version 2.0.3** (July 12, 2020)
 
  *  tensorflow version requirement changed to >=2.1, <=2.2.1

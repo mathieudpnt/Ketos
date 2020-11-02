@@ -181,11 +181,11 @@ def segment_args(rate, duration, offset, window, step):
 
         Returns:
             : dict
-            Dictionary with following keys and values:
-                * win_len: Window size in number of samples (int)
-                * step_len: Step size in number of samples (int)
-                * num_segs: Number of steps (int)
-                * offset_len: Offset in number of samples (int)
+                Dictionary with following keys and values:
+                    * win_len: Window size in number of samples (int)
+                    * step_len: Step size in number of samples (int)
+                    * num_segs: Number of steps (int)
+                    * offset_len: Offset in number of samples (int)
 
         Example: 
             >>> from ketos.audio.utils.misc import segment_args

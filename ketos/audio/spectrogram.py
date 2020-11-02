@@ -235,6 +235,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
                     * kaiser_fast
                     * scipy (default)
                     * polyphase
+
                 See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                 for details on the individual methods.
             id: str
@@ -348,6 +349,7 @@ class Spectrogram(BaseAudio):
                     * 'Pow': Power spectrogram
                     * 'Mel': Mel spectrogram
                     * 'CQT': CQT spectrogram
+
             freq_ax: LinearAxis or Log2Axis
                 Axis object for the frequency dimension
             filename: str or list(str)
@@ -373,6 +375,7 @@ class Spectrogram(BaseAudio):
                     * 'Pow': Power spectrogram
                     * 'Mel': Mel spectrogram
                     * 'CQT': CQT spectrogram
+
             filename: str or list(str)
                 Name of the source audio file.   
             offset: float or array-like
@@ -812,6 +815,7 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 freq_min: float
                     Lower frequency in Hz.
                 freq_max: str or float
@@ -868,6 +872,7 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -878,6 +883,7 @@ class MagSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 freq_min: float
@@ -1044,6 +1050,7 @@ class PowerSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 freq_min: float
                     Lower frequency in Hz.
                 freq_max: str or float
@@ -1102,6 +1109,7 @@ class PowerSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -1112,6 +1120,7 @@ class PowerSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 freq_min: float
@@ -1239,6 +1248,7 @@ class MelSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 num_filters: int
                     The number of filters in the filter bank.
                 num_ceps: int
@@ -1297,6 +1307,7 @@ class MelSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 num_filters: int
                     The number of filters in the filter bank.
                 num_ceps: int
@@ -1313,6 +1324,7 @@ class MelSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+                        
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str
@@ -1523,6 +1535,7 @@ class CQTSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -1533,6 +1546,7 @@ class CQTSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+      
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str
