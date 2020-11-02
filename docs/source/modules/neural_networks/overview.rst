@@ -8,7 +8,7 @@ Currently, the following interfaces are available:
 * CNN (:class:`CNNInterface <ketos.neural_networks.cnn.CNNInterface>`): used to build and interact with typical 2D CNNs (e.g.: AlexNet, VGG, etc) that use spectrograms as inputs.
 * CNN 1D (:class:`CNN1DInterface <ketos.neural_networks.cnn.CNN1DInterface>`): used to build and interact with 1D versions of CNN architectures that use waveforms as inputs. 
 * ResNet (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNetInterface>`): used to build and interact with typical 2D Residual Networks that use spectrograms as inputs.
-* ResNet 1D (:class:`ResNetInterface <ketos.neural_networks.resnet.ResNet1DInterface>`): used to build and interact with 1D versions of Residual Networks that use waveforms as inputs.
+* ResNet 1D (:class:`ResNet1DInterface <ketos.neural_networks.resnet.ResNet1DInterface>`): used to build and interact with 1D versions of Residual Networks that use waveforms as inputs.
 * DenseNet (:class:`DenseNetInterface <ketos.neural_networks.densenet.DenseNetInterface>`): used to build and interact with Dense Networks that use spectrograms as inputs.
 * Inception (:class:`InceptionInterface <ketos.neural_networks.inception.InceptionInterface>`): used to build and interact with Inception Networks that use spectrograms as inputs.
 
