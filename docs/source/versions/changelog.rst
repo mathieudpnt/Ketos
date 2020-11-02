@@ -12,6 +12,7 @@ Change log
     All models can still be loaded as before, through their interface classes.
  *  Detection module: A new module ketos.neural_networks.dev_utils.detection was created to aid developers who want to use snapshot 
     classifiers as detectors in longer files. A tutorial was also added to the docs.
+ *  tensorflow version requirement changed to >=2.2
 
 **Version 2.0.3** (July 12, 2020)
 
