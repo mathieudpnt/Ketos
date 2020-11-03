@@ -928,6 +928,18 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
+
+    def add_learning_rate_scheduler(self, scheduler_type="PiecewiseConstantDecay",**kwargs):
+        scheduler_types = {"PiecewiseConstantDecay":tf.keras.optimizers.schedules.PiecewiseConstantDecay,
+                            "ExponentialDecay":tf.keras.optimizers.schedules.ExponentialDecay,
+                            "InverseTimeDecay":tf.keras.optimizers.schedules.InverseTimeDecay,
+                            "PolynomialDecay":tf.keras.optimizers.schedules.PolynomialDecay}
+
+        assert scheduler_type in scheduler_types.keys(), ValueError("{0} is not a valid scheduler type. Accepted values are: {1}".format(scheduler_type, list(scheduler_types.keys())))  
+        scheduler = scheduler_types[scheduler_type](**kwargs)
+
+        self.optimizer.instance = self.optimizer.instantiate_template(learning_rate = scheduler)
+
     
     @property
     def early_stopping_monitor(self):
