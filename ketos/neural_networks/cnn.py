@@ -135,12 +135,15 @@ class CNNArch(tf.keras.Model):
             convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
                 Each layer is specified as a dictionary with the following format:
+
                 >>> {'n_filters':96, "filter_shape":(11,11), 'strides':4, 'padding':'valid', activation':'relu', 'max_pool': {'pool_size':(3,3) , 'strides':(2,2)}, 'batch_normalization':True} # doctest: +SKIP
 
             dense_layers: list
                 A list of dictionaries containing the detailed specification for the fully connected layers.
                 Each layer is specified as a dictionary with the following format:
+                
                 >>> {'n_hidden':4096, 'activation':'relu', 'batch_normalization':True, 'dropout':0.5} # doctest: +SKIP
+                
                 This list should not include the output layr, which will be automatically added based on the 'n_classes' parameter.
 
              pre_trained_base: instance of CNNArch
@@ -239,9 +242,7 @@ class CNNArch(tf.keras.Model):
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
-
-        print("output shape: ", output.shape)
-
+        
         return output
 
 
