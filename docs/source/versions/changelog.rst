@@ -5,6 +5,8 @@ Change log
 
  *  New neural network architectures: densenet, inception, resnet-1D, cnn-1D
  *  Early stopping: All neural network interfaces can now use an early stopping monitor, to halt training if a condition is met.
+ *  Learning rate scheduler: All neural network interfaces can now use a scheduler through the 'add_learning_rate_scheduler' method.
+    Availeble schedulers include 'PiecewiseConstantDecay', 'ExponentialDecay', 'InverseTimeDecay' and 'PolynomialDecay'
  *  General load model function: a load_model_file function was added to the ketos.neural_networks namespace, which can rebuild a 
     model from a .kt file without the user having to know which architecture the model has. Before, you had to know which interface 
     to use (i.e.: which kind of network that was). In order for this to work, all model architectures add a field 'interface' to the 
