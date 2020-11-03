@@ -928,6 +928,71 @@ class NNInterface():
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
     
+
+    def add_learning_rate_scheduler(self, scheduler_type="PiecewiseConstantDecay",**kwargs):
+        """ Add a learning rate scheduler to the current neural network interface.
+
+                        
+            Notes: - This method must be called before training and after an optimizer has been defined.
+                   - Keep in mind that in the schedulers a 'step' corresponds to each time the optmization algorithm is called. 
+                     Normally this means that each batch is a step (i.e.: each epoch has several steps). 
+                     
+
+            Args:
+                scheduler_type:str
+                    One of four scheduler types: 'PiecewiseConstantDecay', 'ExponentialDecay', 'InverseTimeDecay' or 'PolynomialDecay'.
+
+                    Each type also requires additional arguments:
+
+                    'PiecewiseConstantDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay <>`_ 
+                        boundaries:list
+                            A list of Tensors or ints or floats with strictly increasing entries, and with all elements having the same type as the optimizer step.
+                        values:list
+                        	A list of Tensors or floats or ints that specifies the values for the intervals defined by boundaries. It should have one more element than boundaries, and all elements should have the same type.
+
+                    'ExponentialDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/ExponentialDecay <>`_ 
+                        initial_learning_rate:float
+                        	The initial learning rate.
+                        decay_steps: int
+                            The decay steps (must be positive). In each step, the learning rate is calculated as initial_learning_rate * decay_rate ^ (step / decay_steps)
+                        decay_rate:float
+                            The decay rate.
+                        staircase:bool
+                        	If True decay the learning rate at discrete intervals
+
+                    'InverseTimeDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay <>`_ 
+                        initial_learning_rate:float
+                        	The initial learning rate.
+                        decay_steps:int
+                        	How often to apply decay.
+                        decay_rate:float
+                        	 The decay rate.
+                        staircase:bool
+                        	Whether to apply decay in a discrete staircase, as opposed to continuous, fashion.
+
+                    'PolynomialDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay <>`_ 
+                        initial_learning_rate:float
+                            The initial learning rate.
+                        decay_steps:int
+                        	Must be positive. The number of steps in which the end_learning_rate should be reached.
+                        end_learning_rate:float
+                        	The minimal end learning rate.
+                        power:float
+                        	The power of the polynomial. Defaults to linear, 1.0.
+                        cycle:bool
+                        	Whether or not it should cycle beyond decay_steps.
+
+        """
+        scheduler_types = {"PiecewiseConstantDecay":tf.keras.optimizers.schedules.PiecewiseConstantDecay,
+                            "ExponentialDecay":tf.keras.optimizers.schedules.ExponentialDecay,
+                            "InverseTimeDecay":tf.keras.optimizers.schedules.InverseTimeDecay,
+                            "PolynomialDecay":tf.keras.optimizers.schedules.PolynomialDecay}
+
+        assert scheduler_type in scheduler_types.keys(), ValueError("{0} is not a valid scheduler type. Accepted values are: {1}".format(scheduler_type, list(scheduler_types.keys())))  
+        scheduler = scheduler_types[scheduler_type](**kwargs)
+
+        self.optimizer.instance = self.optimizer.instantiate_template(learning_rate = scheduler)
+
     
     @property
     def early_stopping_monitor(self):
@@ -1132,11 +1197,6 @@ class NNInterface():
                     When training is stopped by the early stopping monitor, an attribute 'last_epoch_with_improvement' will be added to the object.
                     This attribute holds the epoch number (starting from zero) that had the best metric value based on the conditions set by the early_stopping_monitor.
                     The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
-
-                    
-                    
-
-                
 
         """
 
