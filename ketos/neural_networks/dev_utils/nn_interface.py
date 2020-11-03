@@ -944,13 +944,13 @@ class NNInterface():
 
                     Each type also requires additional arguments:
 
-                    'PiecewiseConstantDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay <>`_ 
+                    'PiecewiseConstantDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay>`_ 
                         boundaries:list
                             A list of Tensors or ints or floats with strictly increasing entries, and with all elements having the same type as the optimizer step.
                         values:list
                         	A list of Tensors or floats or ints that specifies the values for the intervals defined by boundaries. It should have one more element than boundaries, and all elements should have the same type.
 
-                    'ExponentialDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/ExponentialDecay <>`_ 
+                    'ExponentialDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/ExponentialDecay>`_ 
                         initial_learning_rate:float
                         	The initial learning rate.
                         decay_steps: int
@@ -960,7 +960,7 @@ class NNInterface():
                         staircase:bool
                         	If True decay the learning rate at discrete intervals
 
-                    'InverseTimeDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay <>`_ 
+                    'InverseTimeDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay>`_ 
                         initial_learning_rate:float
                         	The initial learning rate.
                         decay_steps:int
@@ -970,7 +970,7 @@ class NNInterface():
                         staircase:bool
                         	Whether to apply decay in a discrete staircase, as opposed to continuous, fashion.
 
-                    'PolynomialDecay' (`See the tensorflow documentation)https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay <>`_ 
+                    'PolynomialDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay>`_ 
                         initial_learning_rate:float
                             The initial learning rate.
                         decay_steps:int
