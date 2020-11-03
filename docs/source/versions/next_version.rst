@@ -1,7 +1,7 @@
 Next version
 ============
 
-We plan to include to make the following changes to future versions:  
+We plan to include the following changes to future versions:  
   
 **Version 3.0.0**
     * Add Neural Architecture Search capabilities, which would allow it to recommend the optimal architecture to be used in a given task.
