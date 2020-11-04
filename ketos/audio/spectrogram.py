@@ -53,6 +53,7 @@
 import os
 import copy
 import librosa
+import warnings
 import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
@@ -202,7 +203,7 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     return mel_spec, filter_banks
 
 def load_audio_for_spec(path, channel, rate, window, step,\
-            offset, duration, resample_method, id=None):
+            offset, duration, resample_method, id=None, normalize_wav=False):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -234,10 +235,14 @@ def load_audio_for_spec(path, channel, rate, window, step,\
                     * kaiser_fast
                     * scipy (default)
                     * polyphase
+
                 See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                 for details on the individual methods.
             id: str
                 Unique identifier (optional). If None, the filename will be used.
+            normalize_wav: bool
+                Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                deviation of unity (std=1). Default is False.
 
         Returns:
             audio: Waveform
@@ -245,16 +250,24 @@ def load_audio_for_spec(path, channel, rate, window, step,\
             seg_args: tuple(int,int,int,int)
                 Input arguments for :func:`audio.utils.misc.segment`
     """
+    # parse filename
+    if id is None: id = os.path.basename(path)
+
     if rate is None:
         rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
 
     file_duration = librosa.get_duration(filename=path) #get file duration
     file_len = int(file_duration * rate) #file length (number of samples)
     
-    assert offset < file_duration, 'Offset exceeds file duration'
-    
     if duration is None:
-        duration = file_duration - offset #if not specified, use file duration minus offset
+        duration = max(0, file_duration - offset) #if not specified, use file duration minus offset
+
+    # if duration is 0, use the Waveform.from_wav method to load an empty array
+    if duration == 0:
+        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
+                offset=offset, duration=duration, resample_method=resample_method, 
+                id=id, normalize_wav=normalize_wav)
+        return audio, None
 
     # compute segmentation parameters
     seg_args = aum.segment_args(rate=rate, duration=duration,\
@@ -295,14 +308,19 @@ def load_audio_for_spec(path, channel, rate, window, step,\
         x = x[a:b]
 
     # pad with own reflection
-    pad_right += max(0, len(x) - com_len)
+    pad_right += max(0, com_len - len(x))
     x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
 
-    # parse filename
-    if id is None: id = os.path.basename(path)
+    # normalize
+    if normalize_wav: 
+        std = np.std(x)
+        if std > 0: x = (x - np.mean(x)) / std 
 
     # create Waveform object
     audio = Waveform(data=x, rate=rate, filename=id, offset=offset)
+
+    # to avoid padding twice, set offset to 0
+    seg_args['offset_len'] = 0
 
     return audio, seg_args
 
@@ -331,6 +349,7 @@ class Spectrogram(BaseAudio):
                     * 'Pow': Power spectrogram
                     * 'Mel': Mel spectrogram
                     * 'CQT': CQT spectrogram
+
             freq_ax: LinearAxis or Log2Axis
                 Axis object for the frequency dimension
             filename: str or list(str)
@@ -356,6 +375,7 @@ class Spectrogram(BaseAudio):
                     * 'Pow': Power spectrogram
                     * 'Mel': Mel spectrogram
                     * 'CQT': CQT spectrogram
+
             filename: str or list(str)
                 Name of the source audio file.   
             offset: float or array-like
@@ -369,7 +389,7 @@ class Spectrogram(BaseAudio):
     def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
         super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot)
 
-        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
+#        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
         self.freq_ax = freq_ax
         self.type = spec_type
 
@@ -484,9 +504,12 @@ class Spectrogram(BaseAudio):
         """
         segs, filename, offset, label, annot = segment_data(self, window, step)
 
+        # add global offset
+        if np.ndim(self.offset) == 0: offset += self.offset
+        else: offset += self.offset[:,np.newaxis]
+
         ax = copy.deepcopy(self.freq_ax)
-        specs = self.__class__(data=segs, time_res=self.time_res(), spec_type=self.type, freq_ax=ax,\
-            filename=filename, offset=offset, label=label, annot=annot)
+        specs = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
         
         return specs
                 
@@ -754,8 +777,8 @@ class MagSpectrogram(Spectrogram):
         filename=None, offset=0, label=None, annot=None, **kwargs):
 
         # create frequency axis
-        freq_bins = data.shape[1]
-        freq_max  = freq_min + freq_bins * freq_res
+        freq_bins = max(1, data.shape[1])
+        freq_max  = freq_min + data.shape[1] * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
@@ -763,6 +786,12 @@ class MagSpectrogram(Spectrogram):
             filename=filename, offset=offset, label=label, annot=annot)
 
         self.window_func = window_func
+
+    @classmethod
+    def empty(cls):
+        """ Creates an empty MagSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, freq_min=0, freq_res=0)
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
@@ -786,6 +815,7 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 freq_min: float
                     Lower frequency in Hz.
                 freq_max: str or float
@@ -815,7 +845,7 @@ class MagSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):
+            id=None, normalize_wav=False, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -842,6 +872,7 @@ class MagSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -852,6 +883,7 @@ class MagSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 freq_min: float
@@ -860,6 +892,9 @@ class MagSpectrogram(Spectrogram):
                     Upper frequency in Hz.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 : MagSpectrogram
@@ -880,7 +915,11 @@ class MagSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -984,6 +1023,12 @@ class PowerSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
+    def empty(cls):
+        """ Creates an empty PowerSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, freq_min=0, freq_res=0)
+
+    @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
         freq_min=None, freq_max=None):
         """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
@@ -1005,6 +1050,7 @@ class PowerSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 freq_min: float
                     Lower frequency in Hz.
                 freq_max: str or float
@@ -1036,7 +1082,7 @@ class PowerSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None):            
+            id=None, normalize_wav=False, **kwargs):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1063,6 +1109,7 @@ class PowerSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -1073,6 +1120,7 @@ class PowerSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 freq_min: float
@@ -1081,6 +1129,9 @@ class PowerSpectrogram(Spectrogram):
                     Upper frequency in Hz.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 spec: MagSpectrogram
@@ -1101,7 +1152,11 @@ class PowerSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1167,6 +1222,12 @@ class MelSpectrogram(Spectrogram):
         self.filter_banks = filter_banks
 
     @classmethod
+    def empty(cls):
+        """ Creates an empty MelSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), filter_banks=None, time_res=0, freq_min=0, freq_max=0)
+
+    @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming',
         num_filters=40, num_ceps=20, cep_lifter=20):
         """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
@@ -1187,6 +1248,7 @@ class MelSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 num_filters: int
                     The number of filters in the filter bank.
                 num_ceps: int
@@ -1218,7 +1280,7 @@ class MelSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
             offset=0, duration=None, resample_method='scipy',
-            id=None):            
+            id=None, normalize_wav=False, **kwargs):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1245,6 +1307,7 @@ class MelSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 num_filters: int
                     The number of filters in the filter bank.
                 num_ceps: int
@@ -1261,10 +1324,14 @@ class MelSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+                        
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 spec: MelSpectrogram
@@ -1285,7 +1352,11 @@ class MelSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
 
         # compute spectrogram
         spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
@@ -1375,6 +1446,12 @@ class CQTSpectrogram(Spectrogram):
         self.window_func = window_func
 
     @classmethod
+    def empty(cls):
+        """ Creates an empty CQTSpectrogram object
+        """
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, bins_per_oct=0, freq_min=0)
+
+    @classmethod
     def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hann'):
         """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
@@ -1426,7 +1503,7 @@ class CQTSpectrogram(Spectrogram):
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hann', offset=0, duration=None,
-        resample_method='scipy', id=None):
+        resample_method='scipy', id=None, normalize_wav=False, **kwargs):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -1458,6 +1535,7 @@ class CQTSpectrogram(Spectrogram):
                         * blackman
                         * hamming (default)
                         * hanning
+
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -1468,10 +1546,14 @@ class CQTSpectrogram(Spectrogram):
                         * kaiser_fast
                         * scipy (default)
                         * polyphase
+      
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str
                     Unique identifier (optional). If None, the filename will be used.
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1) before computing the spectrogram. Default is False.
 
             Returns:
                 : CQTSpectrogram
@@ -1494,14 +1576,17 @@ class CQTSpectrogram(Spectrogram):
         file_duration = librosa.get_duration(filename=path) #get file duration
         file_len = int(file_duration * rate) #file length (number of samples)
         
-        assert offset < file_duration, 'Offset exceeds file duration'
-        
         if duration is None:
-            duration = file_duration - offset #if not specified, use file duration minus offset
+            duration = max(0, file_duration - offset)
 
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
-            offset=offset, duration=duration, resample_method=resample_method, id=id)
+            offset=offset, duration=duration, resample_method=resample_method, 
+            id=id, normalize_wav=normalize_wav)
+
+        if len(audio.get_data()) == 0:
+            warnings.warn("Empty spectrogram returned", RuntimeWarning)
+            return cls.empty()
 
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 

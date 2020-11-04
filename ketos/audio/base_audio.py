@@ -222,8 +222,9 @@ class BaseAudio():
     def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
         self.ndim = ndim
         self.data = data
+        bins = max(1, data.shape[0])
         length = data.shape[0] * time_res
-        self.time_ax = LinearAxis(bins=data.shape[0], extent=(0., length), label='Time (s)') #initialize time axis
+        self.time_ax = LinearAxis(bins=bins, extent=(0., length), label='Time (s)') #initialize time axis
 
         if isinstance(annot, pd.DataFrame): annot = AnnotationHandler(annot)
 
@@ -280,19 +281,21 @@ class BaseAudio():
 
         return cls(data=data, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
 
-    @classmethod
-    def get(cls, id):
-        return cls(data=self.get_data(id), filename=self.get_filename(id), 
-            offset=self.get_offset(id), label=get_label(id), annot=get_annotations(id), **self.get_attrs())
+    def get(self, id):
+        """ Get a given data object stored in this instance """ 
+        return self.__class__(data=self.get_data(id), filename=self.get_filename(id), 
+            offset=self.get_offset(id), label=self.get_label(id), annot=self.get_annotations(id), **self.get_attrs())
 
     def get_attrs(self):
+        """ Get scalar attributes """ 
         return {'time_res':self.time_res(), 'ndim':self.ndim}
 
     def num_objects(self):
+        """ Get number of data objects stored in this instance """ 
         num = 1
         n = np.ndim(self.data) - self.ndim
         if n > 0:
-            dims = self.data.shape[n:]
+            dims = self.data.shape[-n:]
             for d in dims: num *= d
         
         return num
@@ -451,12 +454,34 @@ class BaseAudio():
         """   
         return np.median(self.data, axis=0)
 
-    def normalize(self):
-        """ Normalize the data array so that values range from 0 to 1
+    def normalize(self, mean=0, std=1):
+        """ Normalize the data array to specified mean and standard deviation.
+
+            For the data array to be normalizable, it must have non-zero standard 
+            deviation. If this is not the case, the array is unchanged by calling 
+            this method. 
+
+            Args:
+                mean: float
+                    Mean value of the normalized array. The default is 0.
+                std: float
+                    Standard deviation of the normalized array. The default is 1.
+        """
+        std_orig = np.std(self.data)
+        if std_orig > 0:
+            self.data = std * (self.data - np.mean(self.data)) / std_orig + mean
+
+    def adjust_range(self, range=(0,1)):
+        """ Applies a linear transformation to the data array that puts the values
+            within the specified range. 
+
+            Args:
+                range: tuple(float,float)
+                    Minimum and maximum value of the desired range. Default is (0,1)
         """
         x_min = self.min()
         x_max = self.max()
-        self.data = (self.data - x_min) / (x_max - x_min)
+        self.data = (range[1] - range[0]) * (self.data - x_min) / (x_max - x_min) + range[0]
 
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
@@ -513,9 +538,12 @@ class BaseAudio():
         """   
         segs, filename, offset, label, annot = segment_data(self, window, step)
 
+        # add global offset
+        if np.ndim(self.offset) == 0: offset += self.offset
+        else: offset += self.offset[:,np.newaxis]
+
         # create stacked object
-        d = self.__class__(data=segs, time_res=self.time_res(), ndim=self.ndim, filename=filename,\
-            offset=offset, label=label, annot=annot)
+        d = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
 
         return d
 

@@ -42,3 +42,4 @@ def test_parse_audio_representation(spectr_settings):
     assert d['duration'] == 1.0
     assert d['resample_method'] == 'scipy'
     assert d['type'] == 'MagSpectrogram'
+    assert not d['normalize_wav']

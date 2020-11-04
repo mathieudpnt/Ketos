@@ -33,6 +33,7 @@ import soundfile as sf
 import pandas as pd
 import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
+from ketos.data_handling.data_feeding import BatchGenerator
 from ketos.audio.waveform import Waveform
 from ketos.audio.utils.axis import LinearAxis, Log2Axis
 import ketos.audio.base_audio as aba
@@ -90,6 +91,25 @@ def sine_wave_file(sine_wave):
     wav_file = os.path.join(path_to_assets, "sine_wave.wav")
     rate, sig = sine_wave
     sf.write(wav_file, sig, rate)    
+    yield wav_file
+    os.remove(wav_file)
+
+@pytest.fixture
+def sine_wave_file_half(sine_wave):
+    """Create a .wav with the 'sine_wave()' fixture, with an amplitude
+        of 0.5 instead of 1.
+
+       The file is saved as tests/assets/sine_wave_half.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file = os.path.join(path_to_assets, "sine_wave_half.wav")
+    rate, sig = sine_wave
+    sf.write(wav_file, 0.5*sig, rate)    
     yield wav_file
     os.remove(wav_file)
 
@@ -467,5 +487,21 @@ def spectr_settings():
     j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
         "window": "0.1 s", "step": "0.025 s",\
         "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
-        "duration": "1.0s", "resample_method": "scipy"}}'
+        "duration": "1.0s", "resample_method": "scipy", "normalize_wav": "False"}}'
     return j
+
+
+@pytest.fixture
+def sample_data():
+    data = np.vstack([np.zeros((10,512,512,1)), np.ones((10,512,512,1))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    
+    return (data, labels)
+
+@pytest.fixture
+def sample_data_1d():
+    data = np.vstack([np.zeros((10,20000,1)), np.ones((10,20000,1))])
+    labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
+    
+
+    return (data, labels)
