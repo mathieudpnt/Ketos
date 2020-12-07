@@ -7,4 +7,6 @@ Neural Networks
    overview
    cnn
    resnet
+   densenet
+   inception
    Developer utilities <dev_utils/index>
