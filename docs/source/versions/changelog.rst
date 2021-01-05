@@ -1,6 +1,11 @@
 Change log
 ==========
 
+**Version 2.1.1** (january 05, 2021)
+
+ * Fix bug in the inception.py module. It had a tensorflow-addons import, but since that's no longer installed with ketos a dependency error could be thrown when importing inception.py.
+ * Update the 'train a narw classifier' tutorial to save the audio specifications with the model, as this is expected in the following tutorial
+
 **Version 2.1.0** (November 3, 2020)
 
  *  New neural network architectures: densenet, inception, resnet-1D, cnn-1D
