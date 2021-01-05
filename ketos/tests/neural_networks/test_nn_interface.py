@@ -670,11 +670,11 @@ def test_run_on_batch_raw_output(instance_of_MLPInterface):
     print(scores)
 
     assert scores.shape == (5,2)
-    assert np.array_equal(scores, np.array([[5.0865251e-01, 4.9134743e-01],
+    assert np.allclose(scores, np.array([[5.0865251e-01, 4.9134743e-01],
                                             [7.2768415e-12, 1.0000000e+00],
                                             [7.2768415e-12, 1.0000000e+00],
                                             [5.0865251e-01, 4.9134743e-01],
-                                            [5.0865251e-01, 4.9134743e-01]], dtype=scores.dtype))
+                                            [5.0865251e-01, 4.9134743e-01]], dtype=scores.dtype), atol=1e-08)
 
 
 
@@ -735,7 +735,7 @@ def test_run_on_test_generator_raw_output(instance_of_MLPInterface):
     
     print(scores)
     assert scores.shape == (4,5,2,)
-    assert np.array_equal(scores, np.array([[[5.0865251e-01, 4.9134743e-01],
+    assert np.allclose(scores, np.array([[[5.0865251e-01, 4.9134743e-01],
                                             [7.2768415e-12, 1.0000000e+00],
                                             [7.2768415e-12, 1.0000000e+00],
                                             [5.0865251e-01, 4.9134743e-01],
@@ -757,4 +757,4 @@ def test_run_on_test_generator_raw_output(instance_of_MLPInterface):
                                             [5.0865251e-01, 4.9134743e-01],
                                             [7.2768415e-12, 1.0000000e+00],
                                             [5.0865251e-01, 4.9134743e-01],
-                                            [7.2768415e-12, 1.0000000e+00]]], dtype=scores.dtype))
+                                            [7.2768415e-12, 1.0000000e+00]]], dtype=scores.dtype), atol=1e-08)
