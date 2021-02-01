@@ -1,6 +1,9 @@
 Change log
 ==========
 
+**Version 2.1.2** (february 01, 2021)
+ * Fix bug in the detection.py module. When transitioning from a file to another and a detection occurred at the very beginning of the next file, the group_detections function was not working properly, resulting in an error.
+
 **Version 2.1.1** (january 05, 2021)
 
  * Fix bug in the inception.py module. It had a tensorflow-addons import, but since that's no longer installed with ketos a dependency error could be thrown when importing inception.py.
