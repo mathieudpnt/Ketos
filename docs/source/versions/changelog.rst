@@ -1,13 +1,10 @@
 Change log
 ==========
 
-<<<<<<< HEAD
-=======
 **Version 2.1.3** (february 17, 2021)
  * Addfeatures that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).
  * Add features to reproduce audio transforms (e.g.: normalization, tonal noise removal, etc) from configurations recorded in 'audio representations' (as dictionaries or .json files).
 
->>>>>>> 9611c9d658e85680b4ccf2fb663cbc0b0a472498
 **Version 2.1.2** (february 01, 2021)
  * Fix bug in the detection.py module. When transitioning from a file to another and a detection occurred at the very beginning of the next file, the group_detections function was not working properly, resulting in an error.
 
