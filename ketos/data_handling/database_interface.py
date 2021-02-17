@@ -42,6 +42,7 @@ import pandas as pd
 from tqdm import tqdm
 from skimage.transform import resize
 from ketos.utils import tostring
+from ketos.audio.base_audio import BaseAudio
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
 import ketos.audio.audio_loader as al
@@ -107,7 +108,7 @@ def open_table(h5file, table_path):
 
     return table
 
-def create_table(h5file, path, name, description, chunkshape=None, verbose=False):
+def create_table(h5file, path, name, description, data_name='data', chunkshape=None, verbose=False):
     """ Create a new table.
         
         If the table already exists, open it.
@@ -120,7 +121,9 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
             name: str
                 The name of the table.
             table_description: class (tables.IsDescription)
-                The class describing the table structure.            
+                The class describing the table structure.  
+            data_name: str or list(str)
+                Name(s) of the table column(s) used to store the data array(s).          
             chunkshape: tuple
                 The chunk shape to be used for compression
 
@@ -174,18 +177,25 @@ def create_table(h5file, path, name, description, chunkshape=None, verbose=False
     except tables.NoSuchNodeError:    
         filters = tables.Filters(complevel=1, fletcher32=True)
         table = h5file.create_table(group, "{0}".format(name), description, filters=filters, chunkshape=chunkshape)
+        
+        if not isinstance(data_name, list): data_name = [data_name]
+        table.attrs.data_name = data_name
 
     return table
 
-def table_description(data_shape, include_label=True, include_source=True, filename_len=100):
+def table_description(data_shape, data_name=None, include_label=True, include_source=True, filename_len=100, return_data_name=False):
     """ Description of table structure for storing audio signals or spectrograms.
 
         Args:
-            data_shape: tuple (ints) or numpy array or :class:`audio.base_audio.BaseAudio' 
+            data_shape: tuple (ints) or numpy array or :class:`audio.base_audio.BaseAudio' or list
                 The shape of the waveform or spectrogram to be stored in the table. 
                 If a numpy array is provided, the shape is deduced from this array.
                 If an instance of BaseAudio is provided, the shape is deduced from 
-                the data attribute.
+                the data attribute. It is also possible to specify a list of data shapes, 
+                in which case the table will have multiple data columns.
+            data_name: str or list(str) 
+                Name(s) of the data columns. If None is specified, the data column is named 'data', 
+                or 'data0', 'data1', ... if the table contains multiple data columns.
             include_label: bool
                 Include integer label column. Default is True.
             include_source: bool
@@ -194,10 +204,15 @@ def table_description(data_shape, include_label=True, include_source=True, filen
                 saved to the table. Default is True.
             filename_len: int
                 Maximum allowed length of filename. Only used if include_source is True.
+            return_data_name: bool
+                Return the names of the columns used to store the data arrays. 
 
         Returns:
             TableDescription: class (tables.IsDescription)
                 The class describing the table structure.
+            data_name: list(str)
+                The names of the columns used to store the data arrays.
+                Only returned if return_data_name=True.
 
         Examples:
             >>> import numpy as np
@@ -231,19 +246,48 @@ def table_description(data_shape, include_label=True, include_source=True, filen
             label: UInt8Col(shape=(), dflt=0, pos=None)
             start: Float64Col(shape=(), dflt=0.0, pos=None)
     """
-    if isinstance(data_shape, np.ndarray): data_shape = data_shape.shape
-    elif isinstance(data_shape, Spectrogram): data_shape = data_shape.data.shape
+    if isinstance(data_shape, list): data_shape_list = data_shape
+    else: data_shape_list = [data_shape]
+
+    # set/create name list
+    if data_name is None:
+        data_name_list = [f'data{i}' for i in range(len(data_shape_list))]
+        if len(data_name_list) == 1:
+            data_name_list = ['data']
+    
+    elif isinstance(data_name, list): data_name_list = data_name
+    else: data_name_list = [data_name]
+
+    assert len(data_shape_list) == len(data_name_list), f'data_shape and data_name have mismatched lengths ({len(data_shape_list)} and {len(data_name_list)})'
+
+    # deduce shape from class objects
+    _data_shape_list = []
+    for i in range(len(data_shape_list)):
+        ds = data_shape_list[i]
+        if isinstance(ds, np.ndarray): _data_shape_list.append(ds.shape)
+        elif isinstance(ds, BaseAudio): _data_shape_list.append(ds.data.shape)
+        elif isinstance(ds, tuple): _data_shape_list.append(ds)
 
     class TableDescription(tables.IsDescription):
         id = tables.UInt32Col()
-        data = tables.Float32Col(data_shape)
+        
+        for ds,dn in zip(_data_shape_list, data_name_list):
+            vars()[dn] = tables.Float32Col(ds) #data columns
+    
+        del ds, dn #delete loop variables or else they will be interpreted as table columns
+
         if include_source:
             filename = tables.StringCol(filename_len)
             offset = tables.Float64Col()
+
         if include_label:
             label = tables.UInt8Col()
 
-    return TableDescription
+    if return_data_name:
+        return TableDescription, data_name_list
+    else:
+        return TableDescription
+
 
 def table_description_annot(freq_range=False):
     """ Table descriptions for strong annotations.
@@ -283,17 +327,27 @@ def write_attrs(table, x):
             table: tables.Table
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
-            spec: instance of :class:`spectrogram.MagSpectrogram', \
+            x: instance of :class:`spectrogram.MagSpectrogram', \
                 :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
-                :class:`spectrogram.CQTSpectrogram'    
-                The spectrogram object to be stored in the table.
+                :class:`spectrogram.CQTSpectrogram', numpy.array    
+                The audio object to be stored in the table.
 
         Returns:
             None.
     """
-    for key, value in x.get_attrs().items():
-        table.attrs.tmp = value
-        table.attrs._f_rename('tmp',key)
+    if not isinstance(x, list): x = [x]
+
+    attrs = []
+    for xx in x:
+        if isinstance(xx, BaseAudio): attrs.append(xx.get_attrs())
+        elif isinstance(xx, np.ndarray): attrs.append({'type': 'numpy.ndarray'})
+        else:
+            print('Warning: Unknown format. Data could not be written to disk.')
+            return
+
+    if len(attrs) == 1: attrs = attrs[0]
+
+    table.attrs.audio_repres = attrs
 
 def write_annot(table, data_index, annots):
     """ Write annotations to a HDF5 table.
@@ -325,14 +379,15 @@ def write_annot(table, data_index, annots):
         table.flush()
 
 def write_audio(table, data, filename=None, offset=0, label=None, id=None):
-    """ Write waveform or spectrogram to a HDF5 table.
+    """ Write an audio object, typically a waveform or spectrogram, to a HDF5 table.
 
         Args:
             table: tables.Table
-                Table in which the spectrogram will be stored.
+                Table in which the audio data will be stored.
                 (described by table_description()).
-            data: numpy array
-                Waveform or spectrogram data array 
+            data: numpy.array or list(numpy.array)
+                Audio data array(s). The number of data arrays must match 
+                the number of data columns in the table.
             filename: str
                 Filename
             offset: float
@@ -340,7 +395,7 @@ def write_audio(table, data, filename=None, offset=0, label=None, id=None):
             label: int
                 Integer valued label. Optional
             id: int
-                Spectrogram unique identifier. Optional
+                Unique identifier. Optional
 
         Returns:
             index: int
@@ -354,15 +409,20 @@ def write_audio(table, data, filename=None, offset=0, label=None, id=None):
 
     if id is None: id = index
 
-    row['id'] = id   
-    row['data'] = data
+    row['id'] = id  #pass id to table
+
+    if not isinstance(data, list): data = [data]
+
+    assert len(data) == len(table.attrs.data_name), f'mismatch between lengths of data and table.attrs.data_name ({len(data)} and {len(table.attrs.data_name)})'
+    
+    for d,n in zip(data, table.attrs.data_name): row[n] = d #pass data array(s) to table
 
     if write_source:
-        if filename is not None: row['filename'] = filename
-        if offset is not None:   row['offset'] = offset
+        if filename is not None: row['filename'] = filename  #pass filename to table
+        if offset is not None:   row['offset'] = offset  #pass offset to table
 
     if write_label:
-        if label is not None: row['label'] = label
+        if label is not None: row['label'] = label  #pass label to table
 
     row.append()
     table.flush()
@@ -375,13 +435,19 @@ def write(x, table, table_annot=None, id=None):
         Note: If the id argument is not specified, the row number will 
         will be used as a unique identifier for the spectrogram.
 
+        When multiple audio objects are provided, only the filename, offset, 
+        label, and annotations of the first object is written to the table.
+
         Args:
             x: instance of :class:`audio.waveform.Waveform',
                 :class:`audio.spectrogram.MagSpectrogram', 
                 :class:`audio.spectrogram.PowerSpectrogram',
                 :class:`audio.spectrogram.MelSpectrogram', 
-                :class:`audio.spectrogram.CQTSpectrogram'    
+                :class:`audio.spectrogram.CQTSpectrogram',
+                numpy.ndarray 
                 The audio object to be stored in the table.
+                It is also possible to specify a list of audio objects.
+                The number of objects must match the number of data columns in the table.
             table: tables.Table
                 Table in which the audio data will be stored.
                 (described by table_description()).
@@ -390,9 +456,6 @@ def write(x, table, table_annot=None, id=None):
                 (described by table_description_weak_annot() or table_description_strong_annot()).
             id: int
                 Audio object unique identifier. Optional.
-
-        Raises:
-            TypeError: if spec is not an audio object    
 
         Returns:
             None.
@@ -441,13 +504,23 @@ def write(x, table, table_annot=None, id=None):
             '2min.wav'
             >>> h5file.close()
     """
+    if not isinstance(x, list): x = [x]
+
     if table.nrows == 0: write_attrs(table, x)
 
-    data_index = write_audio(table=table, data=x.get_data(), filename=x.get_filename(), 
-        offset=x.get_offset(), label=x.get_label(), id=id)
+    data = []
+    for xx in x:
+        if isinstance(xx, BaseAudio): data.append(xx.get_data())
+        elif isinstance(xx, np.ndarray): data.append(xx)
+        else:
+            print('Warning: Unknown format. Data could not be written to disk.')
+            return
+
+    data_index = write_audio(table=table, data=data, filename=x[0].get_filename(), 
+        offset=x[0].get_offset(), label=x[0].get_label(), id=id)
 
     if table_annot is not None:
-        write_annot(table=table_annot, data_index=data_index, annots=x.get_annotations())
+        write_annot(table=table_annot, data_index=data_index, annots=x[0].get_annotations())
 
 def filter_by_label(table, label):
     """ Find all audio objects in the table with the specified label.
@@ -521,7 +594,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 
         Returns:
             audio_objs: list or instance of Waveform, MagSpectrogram, PowerSpectrogram, MelSpectrogram, CQTSpectrogram
-                Audio objects
+                Audio objects, or numpy array
 
         Examples:
             >>> from ketos.data_handling.database_interface import open_file, open_table, load_audio
@@ -550,18 +623,6 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
         #current item
         it = table[idx] 
 
-        # keyword arguments needed for initializing object
-        kwargs = {}
-        for name in table._v_attrs._f_list():
-            kwargs[name] = table._v_attrs[name]
-
-        # add filename, offset, and label, if available
-        for col_name in ['filename','offset','label']:
-            if col_name in table.colnames: 
-                val = it[col_name]
-                if col_name == 'filename': val = val.decode()
-                kwargs[col_name] = val
-
         # annotations, if any
         if table_annot is None: 
             annot = None
@@ -572,9 +633,37 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
                 for col_name in ['label','start','end','freq_min','freq_max']:
                     if col_name in table_annot.colnames: annot[col_name] = annot_data[col_name] 
 
-        # initialize audio object
-        audio_class = al.audio_repres_dict[table.attrs.type]
-        audio_objs.append(audio_class(data=it['data'], annot=annot, **kwargs))
+        # keyword arguments needed for initializing object
+        if 'audio_repres' in table._v_attrs._f_list():
+            data_name = table.attrs.data_name
+            kwargs = table.attrs.audio_repres
+        else: #include this option for backward compatability (OK 2021-01-12)
+            data_name = ['data']
+            kwargs = {}
+            for name in table._v_attrs._f_list():
+                kwargs[name] = table._v_attrs[name]
+
+        if not isinstance(kwargs, list): kwargs = [kwargs]
+
+        obj = []
+        for kwa, dn in zip(kwargs, data_name):
+            # add filename, offset, and label, if available
+            for col_name in ['filename','offset','label']:
+                if col_name in table.colnames: 
+                    val = it[col_name]
+                    if col_name == 'filename': val = val.decode()
+                    kwa[col_name] = val
+
+            # initialize audio object
+            if kwa['type'] == 'numpy.ndarray':
+                obj.append(it[dn])
+            else:
+                audio_class = al.audio_repres_dict[kwa['type']]
+                obj.append(audio_class(data=it[dn], annot=annot, **kwa))
+
+        if len(obj) == 1: obj = obj[0]
+
+        audio_objs.append(obj)
 
     if stack:
         audio_objs = audio_class.stack(audio_objs)
@@ -585,7 +674,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
-    allow_resizing=1, include_source=True, include_label=True):
+    allow_resizing=1, include_source=True, include_label=True, data_name=None):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -611,10 +700,11 @@ def create_database(output_file, data_dir, selections, channel=0,
                 Selection table
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
-            audio_repres: dict
+            audio_repres: dict or list(dict)
                 A dictionary containing the parameters used to generate the spectrogram or waveform
                 segments. See :class:~ketos.audio.auio_loader.AudioLoader for details on the 
-                required and optional fields for each type of signal.
+                required and optional fields for each type of signal. It is also possible to specify 
+                multiple audio representations as a list.
             annotations: pandas DataFrame
                 Annotation table. Optional.
             dataset_name:str
@@ -645,13 +735,16 @@ def create_database(output_file, data_dir, selections, channel=0,
                 saved to the table. Default is True.
             include_label: bool
                 Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
+            data_name: str or list(str) 
+                Name(s) of the data columns. If None is specified, the data column is named 'data', 
+                or 'data0', 'data1', ... if the table contains multiple data columns.
     """
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
-        include_source=include_source, include_label=include_label)
+        include_source=include_source, include_label=include_label, data_name=data_name)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -692,6 +785,9 @@ class AudioWriter():
                 saved to the table. Default is True.
             max_filename_len: int
                 Maximum allowed length of filename. Only used if include_source is True.
+            data_name: str or list(str) 
+                Name(s) of the data columns. If None is specified, the data column is named 'data', 
+                or 'data0', 'data1', ... if the table contains multiple data columns.
 
         Attributes:
             base: str
@@ -740,9 +836,12 @@ class AudioWriter():
                 Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
             filename_len: int
                 Maximum allowed length of filename. Only used if include_source is True.
+            data_name: str or list(str) 
+                Name(s) of the data columns. If None is specified, the data column is named 'data', 
+                or 'data0', 'data1', ... if the table contains multiple data columns.
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
-        allow_resizing=1, include_source=True, include_label=True, max_filename_len=100):
+        allow_resizing=1, include_source=True, include_label=True, max_filename_len=100, data_name=None):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -762,6 +861,7 @@ class AudioWriter():
         self.include_source = include_source
         self.include_label = include_label
         self.filename_len = max_filename_len
+        self.data_name = data_name
 
     def set_table(self, path, name):
         """ Change the current table
@@ -782,13 +882,15 @@ class AudioWriter():
             saved to the current directory (as set with the cd() method).
 
             Args:
-                x: Waveform or Spectrogram
-                    Object to be saved
+                x: instance of BaseAudio or list
+                    Object(s) to be saved
                 path: str
                     Path to the group containing the table
                 name: str
                     Name of the table
         """
+        if not isinstance(x, list): x = [x]
+
         if path is None: path = self.path
         if name is None: name = self.name
         self.set_table(path, name)
@@ -797,19 +899,23 @@ class AudioWriter():
         self._open_file() 
 
         # record shape of first audio object
-        if self.item_counter == 0:
-            self.data_shape = x.data.shape
+        if self.item_counter == 0: self._save_shape(x)
 
         # open tables, create if they do not already exist
         tbl_dict = self._open_tables(path=path, name=name, x=x) 
 
-        # write spectrogram to table
-        shape_diff = np.abs(np.subtract(x.data.shape, self.data_shape))
-        if np.sum(shape_diff) > 0 and np.all(shape_diff <= self.allow_resizing): # resize, if necessary and allowed
-            x.data = resize(x.data, self.data_shape, anti_aliasing=True)
-            self.num_resized += 1
+        # resize, if needed and allowed
+        do_write = 1
+        for i in range(len(x)):
+            shape_diff = np.abs(np.subtract(x[i].data.shape, self.data_shape[i]))
+            if np.sum(shape_diff) > 0 and np.all(shape_diff <= self.allow_resizing): 
+                x[i].data = resize(x[i].data, self.data_shape[i], anti_aliasing=True)
+                self.num_resized += 1
 
-        if x.data.shape == self.data_shape or not self.discard_wrong_shape:
+            if x[i].data.shape != self.data_shape[i] and self.discard_wrong_shape: do_write = False
+
+        # write spectrogram to table
+        if do_write:
             write(x=x, **tbl_dict)
             self.item_counter += 1
 
@@ -820,6 +926,18 @@ class AudioWriter():
 
         else:
             self.num_discarded += 1
+
+    def _save_shape(self, x):
+        """ Record the shape of the data
+
+            Args:
+                x: list of BaseAudio objects and numpy arrays
+                    Object(s) to be saved
+        """
+        self.data_shape = []
+        for xx in x:
+            if isinstance(xx, BaseAudio): self.data_shape.append(xx.get_data().shape)
+            elif isinstance(xx, np.ndarray): self.data_shape.append(xx.shape)
 
     def close(self, final=True):
         """ Close the currently open database file, if any
@@ -866,8 +984,8 @@ class AudioWriter():
                     Path to the group containing the table
                 name: str
                     Name of the table
-                x: Waveform or Spectrogram
-                    Object to be saved
+                x: list of BaseAudio objects and numpy arrays
+                    Object(s) to be saved
 
             Returns:
                 tbl_dict: dict
@@ -889,12 +1007,14 @@ class AudioWriter():
         elif x is not None:
             annot_type, freq_range = self._detect_annot_type(x)
             include_label = self.include_label and (annot_type == 'weak')
-            descr = table_description(data_shape=x.data.shape, 
+            descr, self.data_name = table_description(data_shape=x, 
                                       include_label=include_label, 
                                       include_source=self.include_source, 
-                                      filename_len=self.filename_len)
+                                      filename_len=self.filename_len,
+                                      data_name=self.data_name,
+                                      return_data_name=True)
 
-            tbl = create_table(h5file=self.file, path=path, name=name, description=descr)
+            tbl = create_table(h5file=self.file, path=path, name=name, description=descr, data_name=self.data_name)
             tbl_dict = {'table': tbl}
 
             if annot_type is 'strong': 
@@ -922,11 +1042,11 @@ class AudioWriter():
     def _detect_annot_type(self, x):
         """ Detect the annotation type (weak or strong)
         """                
-        if x.get_annotations() is None: 
+        if x[0].get_annotations() is None: 
             annot_type = 'weak'
             freq_range = False
         else:
             annot_type = 'strong'
-            freq_range = ('freq_min' in x.get_annotations().columns)
+            freq_range = ('freq_min' in x[0].get_annotations().columns)
 
         return annot_type, freq_range
