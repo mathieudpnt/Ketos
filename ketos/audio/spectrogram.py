@@ -203,7 +203,8 @@ def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
     return mel_spec, filter_banks
 
 def load_audio_for_spec(path, channel, rate, window, step,\
-            offset, duration, resample_method, id=None, normalize_wav=False):
+            offset, duration, resample_method, id=None, normalize_wav=False,
+            transforms=None):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -250,6 +251,8 @@ def load_audio_for_spec(path, channel, rate, window, step,\
             seg_args: tuple(int,int,int,int)
                 Input arguments for :func:`audio.utils.misc.segment`
     """
+    if transforms is None: transforms = []
+
     # parse filename
     if id is None: id = os.path.basename(path)
 
@@ -266,7 +269,7 @@ def load_audio_for_spec(path, channel, rate, window, step,\
     if duration == 0:
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
                 offset=offset, duration=duration, resample_method=resample_method, 
-                id=id, normalize_wav=normalize_wav)
+                id=id, normalize_wav=normalize_wav, transforms=transforms)
         return audio, None
 
     # compute segmentation parameters
@@ -313,11 +316,10 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     # normalize
     if normalize_wav: 
-        std = np.std(x)
-        if std > 0: x = (x - np.mean(x)) / std 
+        transforms.append({'name':'normalize','mean':0.0,'std':1.0})
 
     # create Waveform object
-    audio = Waveform(data=x, rate=rate, filename=id, offset=offset)
+    audio = Waveform(data=x, rate=rate, filename=id, offset=offset, transforms=transforms)
 
     # to avoid padding twice, set offset to 0
     seg_args['offset_len'] = 0
@@ -361,6 +363,15 @@ class Spectrogram(BaseAudio):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to the spectrogram. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
             
         Attributes:
             image: 2d or 3d numpy array
@@ -385,16 +396,34 @@ class Spectrogram(BaseAudio):
                 Spectrogram label.
             annot: AnnotationHandler
                 AnnotationHandler object.
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
 """
-    def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None):
-        super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot)
+    def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None, transforms=None, 
+        transform_log=None, waveform_transform_log=None, **kwargs):
 
-#        assert freq_ax.bins == data.shape[1], 'data and freq_ax have incompatible shapes'
+        super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot, 
+            transform_log=transform_log, **kwargs)
+
+        if waveform_transform_log is None: waveform_transform_log = []
+
         self.freq_ax = freq_ax
         self.type = spec_type
 
+        self.allowed_transforms.update({'blur': self.blur, 
+                                        'enhance_signal': self.enhance_signal,
+                                        'reduce_tonal_noise': self.reduce_tonal_noise})
+        
+        self.apply_transforms(transforms)
+
+        self.waveform_transform_log = waveform_transform_log
+
     def get_attrs(self):
-        return {'time_res':self.time_res(), 'spec_type':self.type, 'freq_ax':self.freq_ax}
+        return {'time_res':self.time_res(), 'spec_type':self.type, 'freq_ax':self.freq_ax, 'transform_log':self.transform_log,
+            'waveform_transform_log': self.waveform_transform_log}
 
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
@@ -599,6 +628,7 @@ class Spectrogram(BaseAudio):
             sig_f = 0
 
         self.data = ndimage.gaussian_filter(input=self.data, sigma=(sig_t, sig_f))
+        self.transform_log.append({'name':'blur', 'sigma_time':sigma_time, 'sigma_freq':sigma_freq})
 
     def enhance_signal(self, enhancement=1.):
         """ Enhance the contrast between regions of high and low intensity.
@@ -610,6 +640,7 @@ class Spectrogram(BaseAudio):
                     Parameter determining the amount of enhancement.
         """
         self.data = enhance_signal(self.data, enhancement=enhancement)
+        self.transform_log.append({'name':'enhance_signal', 'enhancement':enhancement})
 
     def reduce_tonal_noise(self, method='MEDIAN', **kwargs):
         """ Reduce continuous tonal noise produced by e.g. ships and slowly varying 
@@ -666,6 +697,7 @@ class Spectrogram(BaseAudio):
             time_const_len = None
 
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
+        self.transform_log.append({'name':'reduce_tonal_noise', 'method':method}.update(**kwargs))
 
     def plot(self, id=0, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -768,13 +800,23 @@ class MagSpectrogram(Spectrogram):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to the spectrogram. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
 
         Attrs:
             window_func: str
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
-        filename=None, offset=0, label=None, annot=None, **kwargs):
+        filename=None, offset=0, label=None, annot=None, transforms=None, 
+        transform_log=None, waveform_transform_log=None, **kwargs):
 
         # create frequency axis
         freq_bins = max(1, data.shape[1])
@@ -783,7 +825,8 @@ class MagSpectrogram(Spectrogram):
 
         # create spectrogram
         super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
-            filename=filename, offset=offset, label=label, annot=annot)
+            filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
+            transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
 
@@ -795,7 +838,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None):
+        freq_min=None, freq_max=None, transforms=None, **kwargs):
         """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -820,6 +863,10 @@ class MagSpectrogram(Spectrogram):
                     Lower frequency in Hz.
                 freq_max: str or float
                     Upper frequency in Hz.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
 
             Returns:
                 spec: MagSpectrogram
@@ -835,9 +882,11 @@ class MagSpectrogram(Spectrogram):
         freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
-            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
+            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
-        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
+        if freq_min is not None or freq_max is not None:
+            spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
@@ -845,7 +894,8 @@ class MagSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None, normalize_wav=False, **kwargs):
+            id=None, normalize_wav=False, transforms=None, 
+            waveform_transforms=None, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -895,6 +945,15 @@ class MagSpectrogram(Spectrogram):
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1) before computing the spectrogram. Default is False.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+                waveform_transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the waveform before generating 
+                    the spectrogram. For example,
+                    {"name":"add_gaussian_noise", "sigma":0.5}
 
             Returns:
                 : MagSpectrogram
@@ -915,7 +974,8 @@ class MagSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
+            transforms=waveform_transforms)
 
         if len(audio.get_data()) == 0:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -923,11 +983,12 @@ class MagSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max)
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__}
+            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log, 
+            'waveform_transform_log': self.waveform_transform_log}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1003,13 +1064,23 @@ class PowerSpectrogram(Spectrogram):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to the spectrogram. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
 
         Attrs:
             window_func: str
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
-        filename=None, offset=0, label=None, annot=None, **kwargs):
+        filename=None, offset=0, label=None, annot=None, transforms=None, 
+        transform_log=None, waveform_transform_log=None, **kwargs):
 
         # create frequency axis
         freq_bins = data.shape[1]
@@ -1018,7 +1089,8 @@ class PowerSpectrogram(Spectrogram):
 
         # create spectrogram
         super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
-            filename=filename, offset=offset, label=label, annot=annot)
+            filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
+            transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
 
@@ -1030,7 +1102,7 @@ class PowerSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None):
+        freq_min=None, freq_max=None, transforms=None, **kwargs):
         """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -1055,6 +1127,10 @@ class PowerSpectrogram(Spectrogram):
                     Lower frequency in Hz.
                 freq_max: str or float
                     Upper frequency in Hz.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
 
             Returns:
                 : MagSpectrogram
@@ -1072,9 +1148,11 @@ class PowerSpectrogram(Spectrogram):
         freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
-            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
+            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
-        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
+        if freq_min is not None or freq_max is not None:
+            spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
@@ -1082,7 +1160,8 @@ class PowerSpectrogram(Spectrogram):
     def from_wav(cls, path, window, step, channel=0, rate=None,
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
-            id=None, normalize_wav=False, **kwargs):            
+            id=None, normalize_wav=False, transforms=None, waveform_transforms=None, 
+            **kwargs):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1132,6 +1211,15 @@ class PowerSpectrogram(Spectrogram):
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1) before computing the spectrogram. Default is False.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+                waveform_transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the waveform before generating 
+                    the spectrogram. For example,
+                    {"name":"add_gaussian_noise", "sigma":0.5}
 
             Returns:
                 spec: MagSpectrogram
@@ -1152,7 +1240,8 @@ class PowerSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
+            transforms=waveform_transforms)
 
         if len(audio.get_data()) == 0:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -1160,11 +1249,12 @@ class PowerSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max)
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__}
+            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
+            'waveform_transform_log': self.waveform_transform_log}
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1200,6 +1290,15 @@ class MelSpectrogram(Spectrogram):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to the spectrogram. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
 
         Attrs:
             window_func: str
@@ -1208,7 +1307,8 @@ class MelSpectrogram(Spectrogram):
                 Filter banks
     """
     def __init__(self, data, filter_banks, time_res, freq_min, freq_max, 
-        window_func=None, filename=None, offset=0, label=None, annot=None, **kwargs):
+        window_func=None, filename=None, offset=0, label=None, annot=None, transforms=None, 
+        transform_log=None, waveform_transform_log=None, **kwargs):
 
         # create frequency axis
         # TODO: this needs to be modified as the Mel frequency axis is not linear
@@ -1216,7 +1316,8 @@ class MelSpectrogram(Spectrogram):
 
         # create spectrogram
         super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
-            filename=filename, offset=offset, label=label, annot=annot)
+            filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
+            transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
         self.filter_banks = filter_banks
@@ -1229,7 +1330,7 @@ class MelSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming',
-        num_filters=40, num_ceps=20, cep_lifter=20):
+        num_filters=40, num_ceps=20, cep_lifter=20, transforms=None, **kwargs):
         """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
         
             Args:
@@ -1255,6 +1356,10 @@ class MelSpectrogram(Spectrogram):
                     The number of Mel-frequency cepstrums.
                 cep_lifters: int
                     The number of cepstum filters.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
 
             Returns:
                 : MelSpectrogram
@@ -1274,13 +1379,15 @@ class MelSpectrogram(Spectrogram):
 
         return cls(data=img, filter_banks=filter_banks, time_res=time_res, 
             freq_min=0, freq_max=freq_nyquist, window_func=window_func, 
-            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot)
+            filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
+            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None,\
             window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
             offset=0, duration=None, resample_method='scipy',
-            id=None, normalize_wav=False, **kwargs):            
+            id=None, normalize_wav=False, transforms=None, waveform_transforms=None, 
+            **kwargs):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1332,6 +1439,15 @@ class MelSpectrogram(Spectrogram):
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1) before computing the spectrogram. Default is False.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+                waveform_transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the waveform before generating 
+                    the spectrogram. For example,
+                    {"name":"add_gaussian_noise", "sigma":0.5}
 
             Returns:
                 spec: MelSpectrogram
@@ -1352,7 +1468,8 @@ class MelSpectrogram(Spectrogram):
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
-            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav)
+            offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
+            transforms=waveform_transforms)
 
         if len(audio.get_data()) == 0:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -1360,13 +1477,14 @@ class MelSpectrogram(Spectrogram):
 
         # compute spectrogram
         spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter)
+            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter, transforms=transforms, **kwargs)
 
         return spec
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 
-            'filter_banks':self.filter_banks, 'type':self.__class__.__name__}
+            'filter_banks':self.filter_banks, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
+            'waveform_transform_log': self.waveform_transform_log}
 
     def plot(self, filter_bank=False, figsize=(5,4), cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
@@ -1427,13 +1545,23 @@ class CQTSpectrogram(Spectrogram):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to the spectrogram. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this spectrogram
+            waveform_transform_log: list(dict)
+                List of transforms that have been applied to the waveform before 
+                generating this spectrogram
 
         Attrs:
             window_func: str
                 Window function.
     """
     def __init__(self, data, time_res, bins_per_oct, freq_min, 
-        window_func=None, filename=None, offset=0, label=None, annot=None, **kwargs):
+        window_func=None, filename=None, offset=0, label=None, annot=None, transforms=None, 
+        transform_log=None, waveform_transform_log=None, **kwargs):
 
         # create logarithmic frequency axis
         ax = Log2Axis(bins=data.shape[1], bins_per_oct=bins_per_oct,\
@@ -1441,7 +1569,8 @@ class CQTSpectrogram(Spectrogram):
 
         # create spectrogram
         super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
-            filename=filename, offset=offset, label=label, annot=annot)
+            filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
+            transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
 
@@ -1452,7 +1581,8 @@ class CQTSpectrogram(Spectrogram):
         return cls(data=np.empty(shape=(0,0), dtype=np.float64), time_res=0, bins_per_oct=0, freq_min=0)
 
     @classmethod
-    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, window_func='hann'):
+    def from_waveform(cls, audio, step, bins_per_oct, freq_min=1, freq_max=None, 
+                        window_func='hann', transforms=None, **kwargs):
         """ Magnitude Spectrogram computed from Constant Q Transform (CQT) using the librosa implementation:
 
             https://librosa.github.io/librosa/generated/librosa.core.cqt.html
@@ -1480,6 +1610,10 @@ class CQTSpectrogram(Spectrogram):
                         * blackman
                         * hamming
                         * hanning (default)
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
 
             Returns:
                 spec: CQTSpectrogram
@@ -1494,16 +1628,19 @@ class CQTSpectrogram(Spectrogram):
 
         spec = cls(data=img, time_res=step, freq_min=freq_min, bins_per_oct=bins_per_oct, 
             window_func=window_func, filename=audio.filename, 
-            offset=audio.offset, label=audio.label, annot=audio.annot)
+            offset=audio.offset, label=audio.label, annot=audio.annot, 
+            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
-        spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
+        if freq_min is not None or freq_max is not None:
+            spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
 
     @classmethod
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hann', offset=0, duration=None,
-        resample_method='scipy', id=None, normalize_wav=False, **kwargs):
+        resample_method='scipy', id=None, normalize_wav=False, transforms=None,
+        waveform_transforms=None, **kwargs):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -1554,7 +1691,16 @@ class CQTSpectrogram(Spectrogram):
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1) before computing the spectrogram. Default is False.
-
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the spectrogram. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+                waveform_transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to the waveform before generating 
+                    the spectrogram. For example,
+                    {"name":"add_gaussian_noise", "sigma":0.5}
+                    
             Returns:
                 : CQTSpectrogram
                     CQT spectrogram
@@ -1582,7 +1728,7 @@ class CQTSpectrogram(Spectrogram):
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
             offset=offset, duration=duration, resample_method=resample_method, 
-            id=id, normalize_wav=normalize_wav)
+            id=id, normalize_wav=normalize_wav, transforms=waveform_transforms)
 
         if len(audio.get_data()) == 0:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -1590,11 +1736,12 @@ class CQTSpectrogram(Spectrogram):
 
         # create CQT spectrogram
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 
-            freq_min=freq_min, freq_max=freq_max, window_func=window_func)
+            freq_min=freq_min, freq_max=freq_max, window_func=window_func, transforms=transforms, **kwargs)
 
     def get_attrs(self):
         return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__}
+            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
+            'waveform_transform_log': self.waveform_transform_log}
 
     def bins_per_octave(self):
         """ Get no. bins per octave.

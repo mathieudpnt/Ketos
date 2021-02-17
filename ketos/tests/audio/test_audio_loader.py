@@ -32,6 +32,8 @@ import os
 import numpy as np
 import pandas as pd
 from io import StringIO
+from ketos.audio.waveform import Waveform
+from ketos.audio.spectrogram import MagSpectrogram
 from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
@@ -97,6 +99,24 @@ def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     loader.reset()
     assert loader.sel_gen.file_id == 0
 
+def test_audio_frame_loader_multiple_representations(five_time_stamped_wave_files):
+    """ Test that we can use the AudioFrameLoader class to load multiple audio representations""" 
+    rep1 = {'type':'Waveform'}
+    rep2 = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=[rep1, rep2])
+    assert len(loader.sel_gen.files) == 5
+    assert loader.num() == 5
+    s = next(loader)
+    assert len(s) == 2
+    assert type(s[0]) == Waveform
+    assert type(s[1]) == MagSpectrogram
+    assert s[0].duration() == 0.5
+    s = next(loader)
+    assert s[1].duration() == 0.5
+    assert loader.sel_gen.file_id == 2
+    loader.reset()
+    assert loader.sel_gen.file_id == 0
+
 def test_audio_frame_loader_mag_in_batches(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
         in batches""" 
@@ -154,6 +174,21 @@ def test_audio_frame_loader_norm_mag(sine_wave_file):
     d1 = from_decibel(spec1.get_data())
     d2 = from_decibel(spec2.get_data()) / np.sqrt(2)
     assert np.all(np.isclose(np.mean(d1), np.mean(d2), rtol=2e-2))
+
+def test_audio_frame_loader_mag_transforms(sine_wave_file):
+    """ Test that we can initialize the AudioFrameLoader class to compute MagSpectrograms
+        with various transformations applied""" 
+    range_trans = {'name':'adjust_range', 'range':(0,1)}
+    enh_trans = {'name':'enhance_signal','enhancement':2.3}
+    transforms = [range_trans, enh_trans]
+    norm_trans = {'name':'normalize','mean':0.5,'std':2.0}
+    noise_trans = {'name':'add_gaussian_noise', 'sigma':2.0}
+    wf_transforms = [norm_trans, noise_trans]
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'transforms':transforms, 'waveform_transforms':wf_transforms}
+    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    spec1 = next(loader)
+    assert spec1.transform_log == transforms
+    assert spec1.waveform_transform_log == wf_transforms
 
 def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms

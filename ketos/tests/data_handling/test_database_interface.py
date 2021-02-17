@@ -68,6 +68,49 @@ def test_open_existing_table():
     # clean
     h5file.close()
 
+def test_table_descr_weak():
+    """ Test that we can create a table description for weakly annotated data"""
+    img = np.random.random_sample((64,20))#Create a 64 x 20 image
+    descr = di.table_description(img)#Create a table description for weakly labeled spectrograms of this shape
+    cols = descr.columns
+    keys = sorted(cols.keys())
+    assert keys[0] == 'data'
+    assert cols[keys[0]] == tables.Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+    assert keys[1] == 'filename'
+    assert cols[keys[1]] == tables.StringCol(itemsize=100, shape=(), dflt=b'', pos=None)
+    assert keys[2] == 'id'
+    assert cols[keys[2]] == tables.UInt32Col(shape=(), dflt=0, pos=None)
+    assert keys[3] == 'label'
+    assert cols[keys[3]] == tables.UInt8Col(shape=(), dflt=0, pos=None)
+    assert keys[4] == 'offset'
+    assert cols[keys[4]] == tables.Float64Col(shape=(), dflt=0.0, pos=None)  
+
+def test_table_descr_mult_data():
+    """ Test that we can create a table description with multiple data fields"""
+    img1 = np.random.random_sample((64,20))#Create a 64 x 20 image
+    img2 = np.random.random_sample((32,32))#Create a 32 x 32 image
+    descr = di.table_description([img1,img2])#Create a table description
+    cols = descr.columns
+    keys = sorted(cols.keys())
+    assert keys[0] == 'data0'
+    assert cols[keys[0]] == tables.Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+    assert keys[1] == 'data1'
+    assert cols[keys[1]] == tables.Float32Col(shape=(32, 32), dflt=0.0, pos=None)
+
+def test_table_descr_mult_data_named():
+    """ Test that we can create a table description with multiple data fields
+        and user specified names"""
+    img1 = np.random.random_sample((64,20))#Create a 64 x 20 image
+    img2 = (32,32)#32 x 32 shape
+    descr, names = di.table_description([img1,img2], data_name=['a_large_img', 'a_small_img'], return_data_name=True)#Create a table description
+    cols = descr.columns
+    keys = sorted(cols.keys())
+    assert keys[0] == 'a_large_img'
+    assert cols[keys[0]] == tables.Float32Col(shape=(64, 20), dflt=0.0, pos=None)
+    assert keys[1] == 'a_small_img'
+    assert cols[keys[1]] == tables.Float32Col(shape=(32, 32), dflt=0.0, pos=None)
+    assert names == ['a_large_img', 'a_small_img']
+
 def test_create_table():
     """Test if a table and its group are created"""
     # open h5 file
@@ -133,7 +176,9 @@ def test_create_table_existing():
 def test_write_mag_spec(sine_audio):
     """Test if spectrograms are written and have the expected ids"""
     # create spectrogram    
-    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    range_trans = {'name':'adjust_range', 'range':(0,1)}
+    transforms = [range_trans]
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1, transforms=transforms)
     spec.filename = 'file.wav'
     spec.offset = 0.1
     # add annotation
@@ -181,11 +226,12 @@ def test_write_mag_spec(sine_audio):
     assert tbl_data[1]['id'] == 1
     assert tbl_data[2]['id'] == 7
     # check that attributes have been properly saved
-    assert tbl_data.attrs.time_res == 0.1
-    assert tbl_data.attrs.freq_min == 0
-    assert tbl_data.attrs.freq_res == 0.5 * sine_audio.rate / spec.data.shape[1]
-    assert tbl_data.attrs.type == 'MagSpectrogram'
-    assert tbl_data.attrs.window_func == 'hamming'
+    assert tbl_data.attrs.audio_repres['time_res'] == 0.1
+    assert tbl_data.attrs.audio_repres['freq_min'] == 0
+    assert tbl_data.attrs.audio_repres['freq_res'] == 0.5 * sine_audio.rate / spec.data.shape[1]
+    assert tbl_data.attrs.audio_repres['type'] == 'MagSpectrogram'
+    assert tbl_data.attrs.audio_repres['window_func'] == 'hamming'
+    assert tbl_data.attrs.audio_repres['transform_log'] == transforms   
     # clean up
     h5file.close()
     os.remove(fpath)
@@ -225,12 +271,99 @@ def test_write_cqt_spec(sine_audio):
         assert tbl_a[i]['freq_min'] == df['freq_min'][i]
         assert tbl_a[i]['freq_max'] == df['freq_max'][i]
     # check that attributes have been properly saved
-    assert tbl_d.attrs.time_res > 0.
-    assert tbl_d.attrs.freq_min == 1
-    assert tbl_d.attrs.bins_per_oct == 32
-    assert tbl_d.attrs.type == 'CQTSpectrogram'
-    assert tbl_d.attrs.window_func == 'hann'
+    assert tbl_d.attrs.audio_repres['time_res'] > 0.
+    assert tbl_d.attrs.audio_repres['freq_min'] == 1
+    assert tbl_d.attrs.audio_repres['bins_per_oct'] == 32
+    assert tbl_d.attrs.audio_repres['type'] == 'CQTSpectrogram'
+    assert tbl_d.attrs.audio_repres['window_func'] == 'hann'
     # clean
+    h5file.close()
+    os.remove(fpath)
+
+def test_write_multiple_audio_objects(sine_audio):
+    """Test if multiple audio objects can be written to an HDF5 table"""
+    # create spectrogram    
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    spec.filename = 'file.wav'
+    spec.offset = 0.1
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp33_db.h5')
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for storing the spectrogram and waveform data
+    descr, data_name = di.table_description([spec, sine_audio], data_name=['spec','waveform'], return_data_name=True)
+    # Create tables
+    tbl = di.create_table(h5file, "/group1/", "table_data", description=descr, data_name=data_name) 
+    # write spectrogram and waveforms to table twice
+    di.write(x=[spec, sine_audio], table=tbl) 
+    di.write(x=[spec, sine_audio], table=tbl) 
+    # write spectrogram and waveform to table with id
+    di.write(x=[spec, sine_audio], table=tbl, id=7)
+    tbl.flush()
+    # check spectrogram 
+    x = tbl[0]
+    assert x['filename'].decode() == 'file.wav'
+    assert x['offset'] == 0.1
+    assert tbl[0]['id'] == 0
+    assert tbl[1]['id'] == 1
+    assert tbl[2]['id'] == 7
+    # check that spectrogram representation has been properly saved
+    assert tbl.attrs.audio_repres[0]['time_res'] == 0.1
+    assert tbl.attrs.audio_repres[0]['freq_min'] == 0
+    assert tbl.attrs.audio_repres[0]['freq_res'] == 0.5 * sine_audio.rate / spec.data.shape[1]
+    assert tbl.attrs.audio_repres[0]['type'] == 'MagSpectrogram'
+    assert tbl.attrs.audio_repres[0]['window_func'] == 'hamming'
+    # check that waveform representation has been properly saved
+    assert tbl.attrs.audio_repres[1]['rate'] == sine_audio.rate
+    assert tbl.attrs.audio_repres[1]['type'] == 'Waveform'
+    # test load audio
+    selected_obj = di.load_audio(table=tbl)
+    assert len(selected_obj) == 3
+    assert len(selected_obj[0]) == 2
+    assert isinstance(selected_obj[0][0], MagSpectrogram)
+    assert isinstance(selected_obj[0][1], Waveform)
+    # clean up
+    h5file.close()
+    os.remove(fpath)
+
+def test_write_spectrogram_and_numpy_array(sine_audio):
+    """Test if multiple audio objects can be written to an HDF5 table where one 
+        of the objects is a numpy array"""
+    # create spectrogram    
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    spec.filename = 'file.wav'
+    spec.offset = 0.1
+    # open h5 file
+    fpath = os.path.join(path_to_tmp, 'tmp33_db.h5')
+    h5file = di.open_file(fpath, 'w')
+    # Create table descriptions for storing the spectrogram and waveform data
+    descr, data_name = di.table_description([spec, (6,12)], data_name=['spec','features'], return_data_name=True)
+    # Create tables
+    tbl = di.create_table(h5file, "/group1/", "table_data", description=descr, data_name=data_name) 
+    # write spectrogram and numpy arrays to table twice
+    di.write(x=[spec, np.ones(shape=(6,12))], table=tbl) 
+    di.write(x=[spec, np.ones(shape=(6,12))], table=tbl) 
+    tbl.flush()
+    # check spectrogram 
+    x = tbl[0]
+    assert x['filename'].decode() == 'file.wav'
+    assert x['offset'] == 0.1
+    assert tbl[0]['id'] == 0
+    assert tbl[1]['id'] == 1
+    # check that spectrogram representation has been properly saved
+    assert tbl.attrs.audio_repres[0]['time_res'] == 0.1
+    assert tbl.attrs.audio_repres[0]['freq_min'] == 0
+    assert tbl.attrs.audio_repres[0]['freq_res'] == 0.5 * sine_audio.rate / spec.data.shape[1]
+    assert tbl.attrs.audio_repres[0]['type'] == 'MagSpectrogram'
+    assert tbl.attrs.audio_repres[0]['window_func'] == 'hamming'
+    # check that waveform representation has been properly saved
+    assert tbl.attrs.audio_repres[1]['type'] == 'numpy.ndarray'
+    # test load audio
+    selected_obj = di.load_audio(table=tbl)
+    assert len(selected_obj) == 2
+    assert len(selected_obj[0]) == 2
+    assert isinstance(selected_obj[0][0], MagSpectrogram)
+    assert isinstance(selected_obj[0][1], np.ndarray)
+    # clean up
     h5file.close()
     os.remove(fpath)
 
@@ -346,10 +479,15 @@ def test_init_audio_writer():
     out = os.path.join(path_to_assets, 'tmp/db4.h5')
     di.AudioWriter(output_file=out)
 
-def test_audio_writer_can_write_one_spec(sine_audio):
+def test_audio_writer_can_write_one_spec(sine_wave_file):
+    range_trans = {'name':'adjust_range', 'range':(0,1)}
+    transforms = [range_trans]
+    noise_trans = {'name':'add_gaussian_noise', 'sigma':2.0}
+    wf_transforms = [noise_trans]
+    sine_audio = Waveform.from_wav(sine_wave_file, transforms=wf_transforms)
     out = os.path.join(path_to_assets, 'tmp/db5.h5')
     writer = di.AudioWriter(output_file=out)
-    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1)
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1, transforms=transforms)
     writer.write(spec)
     writer.close()
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
@@ -357,6 +495,8 @@ def test_audio_writer_can_write_one_spec(sine_audio):
     assert '/audio' in fil
     specs = di.load_audio(fil.root.audio)
     assert len(specs) == 1
+    assert specs[0].transform_log == transforms
+    assert specs[0].waveform_transform_log == wf_transforms
     fil.close()
 
 def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
@@ -497,4 +637,23 @@ def test_create_database_ids(sine_wave_file):
     data_table = db.get_node("/test/data")
     np.testing.assert_array_equal(data_table[:]['id'],[0,1,2,3])
     db.close()
+    os.remove(out)
+
+def test_create_database_with_single_wav_file_mult_repres(sine_wave_file):
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    rep1 = {'type': 'Waveform'}
+    rep2 = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=[rep1,rep2], verbose=False, progress_bar=False, data_name=['wf','spec'])
+    # check database contents
+    fil = di.open_file(out, 'r')
+    assert '/assets/data' in fil
+    specs = di.load_audio(table=fil.root.assets.data)
+    assert len(specs) == 2
+    assert type(specs[0][0]) == Waveform
+    assert type(specs[0][1]) == MagSpectrogram
+    assert fil.root.assets.data.attrs.data_name == ['wf','spec']
+    fil.close()
     os.remove(out)

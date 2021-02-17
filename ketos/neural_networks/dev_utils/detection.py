@@ -148,14 +148,18 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
     within_det = False
     filename_vector = batch_support_data[:,0]
 
+    prev_det_index = 0
     for det_index,det_value in enumerate(det_vector):
+
+        is_new_file = (filename_vector[det_index] != filename_vector[max(0,prev_det_index)])
 
         if det_value == 1.0 and not within_det: #start new detection
             start = det_index
             within_det = True
+        
 
-        if (det_value == 0 or filename_vector[det_index] != filename_vector[max(0,det_index-1)]) and within_det: #end current detection
-            end = det_index - 1
+        elif (det_value == 0 or is_new_file) and within_det: #end current detection
+            end = prev_det_index
             within_det = False
             filename = filename_vector[start]
             # From all timestamps within the batch, select only the timestamps for the file containing the detection start
@@ -168,6 +172,9 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
                 score = scores_vector[start]
             
             det_timestamps.append((filename, time_start, duration, score))
+
+        prev_det_index = det_index #update index of previous instance
+
 
     return det_timestamps
 
@@ -323,7 +330,8 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
         batch_support_data = np.array(batch_support_data)
         batch_data = np.array(batch_data)
 
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, step=step, spec_dur=duration, win_len=win_len, group=group)
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, 
+                                        buffer=buffer, step=step, spec_dur=duration, win_len=win_len, group=group)
         if len(batch_detections) > 0: detections += batch_detections
 
     return detections
@@ -370,7 +378,8 @@ def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, thre
     for b in range(batch_generator.n_batches):
         batch_data, batch_support_data = next(batch_generator)
 
-        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, buffer=buffer, spec_dur=duration, step=step, win_len=win_len, group=group)
+        batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, 
+                                        buffer=buffer, spec_dur=duration, step=step, win_len=win_len, group=group)
         if len(batch_detections) > 0: detections += batch_detections
         
 

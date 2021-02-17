@@ -293,7 +293,7 @@ class AudioLoader():
 
                 Optionally, may also contain the key 'normalize_wav' which can have value True or False. 
                 If True, the waveform is normalized zero mean (mean=0) and (std=1) unity standard deviation.
-
+                It is also possible to specify multiple audio presentations as a list.
         Examples:
             See child classes :class:`audio.audio_loader.AudioFrameLoader` and 
             :class:`audio.audio_loader.AudioSelectionLoader`.            
@@ -301,10 +301,14 @@ class AudioLoader():
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
         repres = copy.deepcopy(repres)
+        if not isinstance(repres, list): repres = [repres]
+        self.typ, self.cfg = [], []
+        for r in repres:
+            self.typ.append(r.pop('type'))
+            if 'duration' in r.keys(): r.pop('duration')
+            self.cfg.append(r)
+
         self.channel = channel
-        self.typ = repres.pop('type')
-        if 'duration' in repres.keys(): repres.pop('duration')
-        self.cfg = repres
         self.sel_gen = selection_gen
         self.annot = annotations
 
@@ -354,23 +358,30 @@ class AudioLoader():
 
         # load audio
         # (ignore warnings from the from_wav method)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")        
-            seg = audio_repres_dict[self.typ].from_wav(path=path, channel=self.channel, offset=offset, 
-                                                        duration=duration, id=filename, **self.cfg)
-    
-        # add annotations
-        if label is not None:
-            seg.label = label
+        segs = []
+        for typ,cfg in zip(self.typ, self.cfg):
 
-        if self.annot is not None:
-            q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
-            if len(q) > 0:
-                q['start'] = np.maximum(0, q['start'].values - offset)
-                q['end']   = np.minimum(q['end'].values - offset, seg.duration())
-                seg.annotate(df=q)             
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")        
+                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, 
+                                                            duration=duration, id=filename, **cfg)
+        
+            # add annotations
+            if label is not None:
+                seg.label = label
 
-        return seg
+            if self.annot is not None:
+                q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
+                if len(q) > 0:
+                    q['start'] = np.maximum(0, q['start'].values - offset)
+                    q['end']   = np.minimum(q['end'].values - offset, seg.duration())
+                    seg.annotate(df=q)  
+
+            segs.append(seg)           
+
+        if len(segs)==1: segs=segs[0]
+
+        return segs
 
     def reset(self):
         """ Resets the audio loader to the beginning.
@@ -402,6 +413,8 @@ class AudioFrameLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+                It is also possible to specify multiple audio presentations as a list. These 
+                presentations must have the same duration.
             batch_size: int or str
                 Load segments in batches rather than one at the time. 
                 Increasing the batch size can help reduce computational time.
@@ -436,11 +449,14 @@ class AudioFrameLoader(AudioLoader):
     def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
                     annotations=None, repres={'type': 'Waveform'}, batch_size=1):
 
-        assert 'duration' in repres.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
+        if isinstance(repres, list): r0 = repres[0]
+        else: r0 = repres
 
-        if frame is None: frame = repres['duration']
+        assert 'duration' in r0.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
 
-        if 'duration' in repres.keys() and repres['duration'] is not None and repres['duration'] != frame:
+        if frame is None: frame = r0['duration']
+
+        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != frame:
             print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
 
         assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
@@ -519,10 +535,14 @@ class AudioSelectionLoader(AudioLoader):
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+                It is also possible to specify multiple audio presentations as a list. 
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}):
 
-        if 'duration' in repres.keys(): duration = repres['duration']
+        if isinstance(repres, list): r0 = repres[0]
+        else: r0 = repres
+
+        if 'duration' in r0.keys(): duration = r0['duration']
         else: duration = None
 
         super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration), 

@@ -83,17 +83,19 @@ def parse_audio_representation(s):
             d: dict
                 Dictionary with the settings
     """
-    params = [['type',            str,   None],  # name, type, unit
-              ['rate',            float, 'Hz'],
-              ['window',          float, 's'],
-              ['step',            float, 's'],
-              ['bins_per_oct',    int,   None],
-              ['freq_min',        float, 'Hz'],
-              ['freq_max',        float, 'Hz'],
-              ['window_func',     str,   None],
-              ['resample_method', str,   None],
-              ['duration',        float, 's'],
-              ['normalize_wav',   bool,  None]]
+    params = [['type',                str,   None],  # name, type, unit
+              ['rate',                float, 'Hz'],
+              ['window',              float, 's'],
+              ['step',                float, 's'],
+              ['bins_per_oct',        int,   None],
+              ['freq_min',            float, 'Hz'],
+              ['freq_max',            float, 'Hz'],
+              ['window_func',         str,   None],
+              ['resample_method',     str,   None],
+              ['duration',            float, 's'],
+              ['normalize_wav',       bool,  None],
+              ['transforms',          list,  None],
+              ['waveform_transforms', list,  None]]
 
     d = {}
     for p in params:
@@ -103,6 +105,22 @@ def parse_audio_representation(s):
     return d
 
 def parse_value(x, name, unit=None, typ='float'):
+    """ Parse data fields in dictionary.
+
+        Args:
+            x: dict
+                Dictionary containing the data
+            name: str
+                Name of field to be parsed
+            unit: str
+                Physical unit to be used for the parsed quantity, e.g., Hz
+            typ: str
+                Variable type
+            
+        Returns:
+            v: same type as typ
+                Parsed data
+    """
     Q = ureg.Quantity
     v = None
     if x.get(name) is not None:
@@ -119,6 +137,13 @@ def parse_value(x, name, unit=None, typ='float'):
             v = str(v)
         elif typ in ['bool', bool]:
             v = (v.lower() == "true")
+
+        # convert range argument for adjust_range transform from str to tuple
+        if name == 'transforms':
+            for tr in v:
+                if tr['name'] == 'adjust_range':
+                    s = tr['range'][1:-1]
+                    tr['range'] = tuple(map(int, s.split(',')))
 
     return v
 
