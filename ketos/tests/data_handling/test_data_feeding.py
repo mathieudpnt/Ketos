@@ -64,6 +64,36 @@ def test_one_batch():
 
     h5.close()
 
+def test_multiple_data_fields():
+    """ Test if one batch has the expected shape and contents when loading multiple data fields 
+        from the same table
+    """
+    h5 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    train_data = open_table(h5, "/train/data")
+
+    five_specs = train_data[:5]['spec']
+    five_gammas = train_data[:5]['gamma']
+    five_labels = train_data[:5]['label']
+    
+    five_labels = [np.array(l) for l in five_labels]
+
+    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True) #create a batch generator 
+    ids, X, Y = next(train_generator)
+    
+    np.testing.assert_array_equal(ids,[0,1,2,3,4])
+    assert len(X) == 5
+    assert len(X[0]) == 2
+    assert X[0][0].shape == (94, 129)
+    assert X[0][1].shape == (3000, 20)
+    specs = [x[0] for x in X]
+    gammas = [x[1] for x in X]
+    np.testing.assert_array_equal(specs, five_specs)
+    np.testing.assert_array_equal(gammas, five_gammas)
+    assert Y.shape == (5,)
+    np.testing.assert_array_equal(Y['label'], five_labels)
+
+    h5.close()
+
 def test_output_for_strong_annotations():
     """ Test if batch generator returns multiple labels for strongly annotated instances
     """

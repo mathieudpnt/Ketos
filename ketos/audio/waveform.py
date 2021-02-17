@@ -62,6 +62,12 @@ class Waveform(BaseAudio):
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation to be applied to this instance. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+            transform_log: list(dict)
+                List of transforms that have been applied to this instance
 
         Attributes:
             rate: float
@@ -79,8 +85,12 @@ class Waveform(BaseAudio):
                 Spectrogram label.
             annot: AnnotationHandler
                 AnnotationHandler object.
+            transform_log: list(dict)
+                List of transforms that have been applied to this instance
     """
-    def __init__(self, data, time_res=None, filename='', offset=0, label=None, annot=None, **kwargs):
+    def __init__(self, data, time_res=None, filename='', offset=0, label=None, annot=None, transforms=None,
+                    transform_log=None, **kwargs):
+
         assert time_res is not None or 'rate' in kwargs, "either time_res or rate must be specified"
 
         if time_res is None:
@@ -88,11 +98,16 @@ class Waveform(BaseAudio):
         else:
             self.rate = 1. / time_res
 
-        super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot)
+        super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot, 
+                            transform_log=transform_log, **kwargs)
+
+        self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise})
+        
+        self.apply_transforms(transforms)
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None, normalize_wav=False, **kwargs):
+        id=None, normalize_wav=False, transforms=None, **kwargs):
         """ Load audio data from wave file.
 
             If `duration` (and `offset`) are specified and `offset + duration` exceeds the 
@@ -130,6 +145,10 @@ class Waveform(BaseAudio):
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1). Default is False.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to this instance. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
 
             Returns:
                 Instance of Waveform
@@ -146,6 +165,8 @@ class Waveform(BaseAudio):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
+        if transforms is None: transforms = []
+
         assert duration is None or duration >= 0, 'duration must be non-negative'
 
         # if 'id' is not specified, use the filename
@@ -184,6 +205,8 @@ class Waveform(BaseAudio):
                 duration += offset
                 duration = max(0, duration)
 
+        num_pad_left = max(0, num_pad_left)
+
         if duration is not None and duration == 0:
             data = np.zeros(num_pad_left, dtype=np.float64)
             if rate is None: rate = rate_orig
@@ -208,16 +231,15 @@ class Waveform(BaseAudio):
 
         # pad with zeros on the right, to achieve desired duration, if necessary
         if duration is not None:
-            num_pad_right = int(duration * rate - data.shape[0])
+            num_pad_right = max(0, int(duration * rate - data.shape[0]))
             if num_pad_right > 0 or num_pad_left > 0:
                 data = np.pad(data, pad_width=((num_pad_left,num_pad_right)), mode='constant')
                 warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
 
         if normalize_wav: 
-            std = np.std(data)
-            if std > 0: data = (data - np.mean(data)) / std
+            transforms.append({'name':'normalize','mean':0.0,'std':1.0})
 
-        return cls(rate=rate, data=data, filename=id, offset=offset)
+        return cls(rate=rate, data=data, filename=id, offset=offset, transforms=transforms, **kwargs)
 
     @classmethod
     def gaussian_noise(cls, rate, sigma, samples, filename="gaussian_noise"):
@@ -365,7 +387,7 @@ class Waveform(BaseAudio):
         return cls(rate=rate, data=np.array(y), filename=filename)
 
     def get_attrs(self):
-        return {'rate':self.rate, 'type':self.__class__.__name__}
+        return {'rate':self.rate, 'type':self.__class__.__name__, 'transform_log':self.transform_log}
 
     def get_data(self, id=0):
         """ Get the underlying data numpy array.
@@ -609,6 +631,7 @@ class Waveform(BaseAudio):
         """
         noise = Waveform.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
+        self.transform_log.append({'name':'add_gaussian_noise', 'sigma':sigma})
 
     def add(self, signal, offset=0, scale=1):
         """ Add the amplitudes of the two audio signals.

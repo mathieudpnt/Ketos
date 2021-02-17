@@ -201,6 +201,10 @@ class BaseAudio():
                 Spectrogram label. Optional
             annot: AnnotationHandler
                 AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation and its arguments, if any. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
 
         Attributes:
             data: numpy array
@@ -218,8 +222,16 @@ class BaseAudio():
                 Data label.
             annot: AnnotationHandler or pandas DataFrame
                 AnnotationHandler object.
+            allowed_transforms: dict
+                Transforms that can be applied via the apply_transform method
+            transform_log: list
+                List of transforms that have been applied to this object
     """
-    def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None):
+    def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None, 
+                    transforms=None, transform_log=None, **kwargs):
+
+        if transform_log is None: transform_log = []
+
         self.ndim = ndim
         self.data = data
         bins = max(1, data.shape[0])
@@ -239,6 +251,13 @@ class BaseAudio():
         self.annot = annot
 
         self.counter = 0
+
+        self.allowed_transforms = {'normalize': self.normalize, 
+                                   'adjust_range': self.adjust_range,
+                                   'crop': self.crop}
+
+        self.transform_log = transform_log        
+        self.apply_transforms(transforms)
 
     def __iter__(self):
         return self
@@ -288,7 +307,7 @@ class BaseAudio():
 
     def get_attrs(self):
         """ Get scalar attributes """ 
-        return {'time_res':self.time_res(), 'ndim':self.ndim}
+        return {'time_res':self.time_res(), 'ndim':self.ndim, 'transform_log':self.transform_log}
 
     def num_objects(self):
         """ Get number of data objects stored in this instance """ 
@@ -470,6 +489,7 @@ class BaseAudio():
         std_orig = np.std(self.data)
         if std_orig > 0:
             self.data = std * (self.data - np.mean(self.data)) / std_orig + mean
+            self.transform_log.append({'name':'normalize', 'mean':mean, 'std':std})
 
     def adjust_range(self, range=(0,1)):
         """ Applies a linear transformation to the data array that puts the values
@@ -482,6 +502,50 @@ class BaseAudio():
         x_min = self.min()
         x_max = self.max()
         self.data = (range[1] - range[0]) * (self.data - x_min) / (x_max - x_min) + range[0]
+        self.transform_log.append({'name':'adjust_range', 'range':range})
+
+    def view_allowed_transforms(self):
+        """ View allowed transformations for this audio object.
+
+            Returns:
+                : list
+                    List of allowed transformations
+        """
+        return list(self.allowed_transforms.keys())
+
+    def apply_transforms(self, transforms):
+        """ Apply specified transforms to the audio object.
+
+            Args:
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation and its arguments, if any. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+
+            Returns:
+                None
+
+            Example:
+                >>> from ketos.audio.waveform import Waveform
+                >>> # read audio signal from wav file
+                >>> wf = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # print allowed transforms
+                >>> wf.view_allowed_transforms()
+                ['normalize', 'adjust_range', 'crop', 'add_gaussian_noise']
+                >>> # apply gaussian normalization followed by cropping
+                >>> transforms = [{'name':'normalize','mean':0.5,'std':1.0},{'name':'crop','start':0.2,'end':0.7}]
+                >>> wf.apply_transforms(transforms)
+                >>> # inspect record of applied transforms 
+                >>> wf.transform_log
+                [{'name': 'normalize', 'mean': 0.5, 'std': 1.0}, {'name': 'crop', 'start': 0.2, 'end': 0.7, 'length': None}]
+        """
+        if transforms is None: return
+
+        t = copy.deepcopy(transforms)
+        for kwargs in t:
+            name = kwargs.pop('name')
+            if name in self.view_allowed_transforms():
+                self.allowed_transforms[name](**kwargs)
 
     def annotate(self, **kwargs):
         """ Add an annotation or a collection of annotations.
@@ -583,6 +647,9 @@ class BaseAudio():
 
         d.offset += d.time_ax.low_edge(0) #update time offset
         d.time_ax.zero_offset() #shift time axis to start at t=0 
+
+        if make_copy is False:
+            self.transform_log.append({'name':'crop', 'start':start, 'end':end, 'length':length})
 
         return d
 

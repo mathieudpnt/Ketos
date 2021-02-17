@@ -1,6 +1,18 @@
 Change log
 ==========
 
+**Version 2.1.3** (february 17, 2021)
+ * Addfeatures that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).
+ * Add features to reproduce audio transforms (e.g.: normalization, tonal noise removal, etc) from configurations recorded in 'audio representations' (as dictionaries or .json files).
+
+**Version 2.1.2** (february 01, 2021)
+ * Fix bug in the detection.py module. When transitioning from a file to another and a detection occurred at the very beginning of the next file, the group_detections function was not working properly, resulting in an error.
+
+**Version 2.1.1** (january 05, 2021)
+
+ * Fix bug in the inception.py module. It had a tensorflow-addons import, but since that's no longer installed with ketos a dependency error could be thrown when importing inception.py.
+ * Update the 'train a narw classifier' tutorial to save the audio specifications with the model, as this is expected in the following tutorial
+
 **Version 2.1.0** (November 3, 2020)
 
  *  New neural network architectures: densenet, inception, resnet-1D, cnn-1D

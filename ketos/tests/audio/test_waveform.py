@@ -138,6 +138,7 @@ def test_from_wav_norm(sine_wave_file_half, sine_wave):
     a = Waveform.from_wav(sine_wave_file_half, normalize_wav=True)
     assert np.isclose(np.mean(a.data), 0, atol=1e-12)
     assert np.isclose(np.std(a.data), 1, atol=1e-12)
+    assert a.transform_log == [{'name':'normalize','mean':0,'std':1}]
 
 def test_append_audio_signal(sine_audio):
     """Test if we can append an audio signal to itself"""

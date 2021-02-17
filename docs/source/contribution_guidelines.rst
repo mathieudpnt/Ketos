@@ -1,31 +1,37 @@
 How to contribute
 =================
 
-We welcome contributions!
+We welcome contributions and questions!
 
 You can help by:
 
 * Reporting/fixing bugs
 * Suggesting new features
 * Adding features to the codebase
-* Expanding the testing suit
+* Expanding the testing suite
 * Improving the documentation
+* Asking a question. 
+
+
+How to Report Issues and Ask Questions
+---------------------------------------
+
+We use GitLab as a repository, so the best way to submit issues and questions is through the `issues system <https://gitlab.meridian.cs.dal.ca/public_projects/ketos/issues>`_.
 
 
 
-How to Report Issues
----------------------
 
-When reporting issues, please include as many of the the following details as possible:
+When reporting issues or posting questions, please include as many of the following details as possible:
 
 * Which version of Ketos you are using
 * The source code that generated the problem (if applicable)
-* Which platform you are using (Operating system and version)
+* Which platform you are using (operating system and version)
 * A minimum example that reproduces the issue
 * What result you got
 * What you were expecting
 
-We use GitLab as a repository, so the best way to submit issues is through the `issues system <https://gitlab.meridian.cs.dal.ca/public_projects/ketos/issues>`_.
+Please choose the label(s) that best describe your issue ('Question', 'Bug', etc)
+
 
 Workflow for Merge Requests
 ----------------------------
