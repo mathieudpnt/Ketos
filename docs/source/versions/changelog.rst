@@ -2,10 +2,12 @@ Change log
 ==========
 
 **Version 2.1.3** (february 17, 2021)
- * Addfeatures that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).
- * Add features to reproduce audio transforms (e.g.: normalization, tonal noise removal, etc) from configurations recorded in 'audio representations' (as dictionaries or .json files).
+
+ * Add features that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).
+ * Add features to reproduce audio transforms (e.g. normalization, tonal noise removal, etc) from configurations recorded in 'audio representations' (as dictionaries or .json files).
 
 **Version 2.1.2** (february 01, 2021)
+
  * Fix bug in the detection.py module. When transitioning from a file to another and a detection occurred at the very beginning of the next file, the group_detections function was not working properly, resulting in an error.
 
 **Version 2.1.1** (january 05, 2021)
@@ -98,7 +100,7 @@ Change log
 
 **Version 1.0.8** (July 24, 2019)
 
- * New method for generating CQT spectrograms directly from audio file (*.wav) input.
+ * New method for generating CQT spectrograms directly from audio file (.wav) input.
  * Spectrogram plot method provides correct labels for CQT spectrogram.
  * If necessary, maximum frequency of CQT spectrogram is automatically reduced to ensure that it is below the Nyquist frequency. 
  * Minor bug fix in _crop_image method in Spectrogram class
@@ -112,7 +114,7 @@ Change log
 
 **Version 1.0.6** (July 23, 2019)
 
- * New method for generating magnitude spectrograms directly from audio file (*.wav) input.
+ * New method for generating magnitude spectrograms directly from audio file (.wav) input.
 
 
 **Version 1.0.5** (July 19, 2019)
