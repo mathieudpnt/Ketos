@@ -424,6 +424,9 @@ class JointBatchGen():
             self.batch_count = 0
             if self.reset_generators ==  True:
                 for gen in self.batch_generators:
-                    gen.batch_count = 0 # gen.n_batches -1 
+                    gen.batch_count = 0 
+                    gen.entry_indices = gen.__update_indices__()
+                    gen.batch_indices_data, gen.batch_indices_annot = gen.__get_batch_indices__()
+                    
                 
         return (X,Y)
