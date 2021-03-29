@@ -1,6 +1,13 @@
 Change log
 ==========
 
+**Version 2.1.4** (March 29, 2021)
+
+ * The create_database function can now include extra columns specified in the selection tables into the database. 
+ * 
+ 
+
+
 **Version 2.1.3** (february 17, 2021)
 
  * Add features that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).
