@@ -42,10 +42,10 @@ from ketos.utils import ensure_dir, morlet_func
 from ketos.data_handling.data_handling import read_wave
 from ketos.audio.annotation import AnnotationHandler
 from ketos.audio.utils.axis import LinearAxis
-from ketos.audio.base_audio import BaseAudio, segment_data
+from ketos.audio.base_audio import BaseAudioTime, segment_data
 import ketos.audio.utils.misc as aum
 
-class Waveform(BaseAudio):
+class Waveform(BaseAudioTime):
     """ Audio signal
 
         Args:
@@ -98,12 +98,18 @@ class Waveform(BaseAudio):
         else:
             self.rate = 1. / time_res
 
-        super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot, 
+        super().__init__(data=data, time_res=1./self.rate, filename=filename, offset=offset, label=label, annot=annot, 
                             transform_log=transform_log, **kwargs)
 
         self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise})
         
         self.apply_transforms(transforms)
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'rate':self.rate, 'type':self.__class__.__name__})
+        return attrs
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
@@ -386,28 +392,6 @@ class Waveform(BaseAudio):
         
         return cls(rate=rate, data=np.array(y), filename=filename)
 
-    def get_attrs(self):
-        return {'rate':self.rate, 'type':self.__class__.__name__, 'transform_log':self.transform_log}
-
-    def get_data(self, id=0):
-        """ Get the underlying data numpy array.
-
-            Args:
-                id: int
-                    Audio signal ID. Only relevant if the Waveform object 
-                    contains multiple, stacked audio signals.
-
-            Returns:
-                d: numpy array
-                    Data
-        """
-        if id is None or np.ndim(self.data) == 1:
-            d = self.data
-        else:
-            d = self.data[:,id]
-
-        return d
-
     def segment(self, window, step=None):
         """ Divide the time axis into segments of uniform length, which may or may 
             not be overlapping.
@@ -425,8 +409,8 @@ class Waveform(BaseAudio):
                     Step size in seconds.
 
             Returns:
-                segs: Waveform
-                    Stacked audio signals
+                segs: list(Waveform)
+                    Audio signals
 
             Example:
                 >>> from ketos.audio.waveform import Waveform
@@ -437,9 +421,9 @@ class Waveform(BaseAudio):
                 >>> # segment into 2-s wide frames, using a step size of 1 s
                 >>> segs = mor.segment(window=2., step=1.)
                 >>> # show the segments
-                >>> fig0 = segs.plot(0)
+                >>> fig0 = segs[0].plot()
                 >>> fig0.savefig("ketos/tests/assets/tmp/morlet_segmented_0.png")
-                >>> fig1 = segs.plot(1)
+                >>> fig1 = segs[1].plot()
                 >>> fig1.savefig("ketos/tests/assets/tmp/morlet_segmented_1.png")
                 >>> plt.close(fig0)
                 >>> plt.close(fig1)
@@ -448,12 +432,7 @@ class Waveform(BaseAudio):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_1.png
         """              
-        segs, filename, offset, label, annot = segment_data(self, window, step)
-
-        d = self.__class__(data=segs, rate=self.rate, filename=filename,\
-            offset=offset, label=label, annot=annot)
-
-        return d
+        return segment_data(self, window, step)
 
     def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
@@ -476,7 +455,7 @@ class Waveform(BaseAudio):
 
         wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
-    def plot(self, id=0, show_annot=False):
+    def plot(self, show_annot=False):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -485,9 +464,6 @@ class Waveform(BaseAudio):
             or saved (fig.savefig(file_name))
 
             Args:
-                id: int
-                    ID of data array to be plotted. Only relevant if the object 
-                    contains multiple, stacked data arrays.
                 show_annot: bool
                     Display annotations
             
@@ -505,30 +481,28 @@ class Waveform(BaseAudio):
 
                 .. image:: ../../_static/morlet.png
         """
-        fig, ax = super().plot(id=id)
+        fig, ax = super().plot()
 
-        y = self.get_data(id)
+        y = self.get_data()
 
         x = np.linspace(start=0, stop=self.duration(), num=self.data.shape[0])
         ax.plot(x, y)
         ax.set_ylabel('Amplitude')
 
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax,id)
+        if show_annot: self._draw_annot_boxes(ax)
 
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax, id=0):
+    def _draw_annot_boxes(self, ax):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
-                id: int
-                    Object ID
         """
-        annots = self.get_annotations(id=id)
+        annots = self.get_annotations()
         if annots is None: return
         y1, y2 = ax.get_ylim()
         for idx,annot in annots.iterrows():

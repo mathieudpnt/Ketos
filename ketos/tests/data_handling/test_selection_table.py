@@ -181,6 +181,14 @@ def test_select_removes_discarded_annotations(annot_table_std):
     res = st.select(df, length=1, center=True)
     assert len(res[res.label==-1]) == 0
 
+def test_select_keeps_extra_attrs(annot_table_std):
+    annot_table = annot_table_std.copy()
+    annot_table['comment'] = ['good', 'tall', 'thin', 'bad', 'hopeless', 'green'] #add extra column
+    df = annot_table
+    df = st.standardize(df)
+    res = st.select(df, length=1, center=True)
+    assert 'comment' in res.columns.values
+
 def test_select_enforces_overlap(annot_table_std):
     np.random.seed(3)
     df = annot_table_std
