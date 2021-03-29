@@ -44,7 +44,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 def test_init_spec(spec_image_with_attrs):
     """Test that we can initialize an instance of the Spectrogram class"""
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(data=img, time_res=dt, spec_type='MagSpectrogram', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=dt, type='MagSpectrogram', freq_ax=ax)
     assert np.all(spec.data == img)
     assert spec.type == 'MagSpectrogram'
 
@@ -59,7 +59,7 @@ def test_init_mag_spec():
 def test_copy_spec(spec_image_with_attrs):
     """Test that we can make a copy of spectrogram"""
     img, dt, ax = spec_image_with_attrs
-    spec = Spectrogram(data=img, time_res=dt, spec_type='MagSpectrogram', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=dt, type='MagSpectrogram', freq_ax=ax)
     spec2 = spec.deepcopy()
     assert np.all(spec.data == spec2.data)
     spec2.data += 1.5 #modify copied image
@@ -143,7 +143,7 @@ def test_blur_time_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
-    spec = Spectrogram(data=img, time_res=1, spec_type='MagSpectrogram', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=1, type='MagSpectrogram', freq_ax=ax)
     sig = 2.0
     spec.blur(sigma_time=sig, sigma_freq=0.01)
     xy = spec.data / np.max(spec.data)
@@ -158,7 +158,7 @@ def test_blur_freq_axis():
     img = np.zeros((21,21))
     img[10,10] = 1
     ax = ax = LinearAxis(bins=img.shape[1], extent=(0., 21.), label='Frequency (Hz)')
-    spec = Spectrogram(data=img, time_res=1, spec_type='MagSpectrogram', freq_ax=ax)
+    spec = Spectrogram(data=img, time_res=1, type='MagSpectrogram', freq_ax=ax)
     sig = 4.2
     spec.blur(sigma_time=0.01, sigma_freq=sig)
     xy = spec.data / np.max(spec.data)
@@ -290,17 +290,3 @@ def test_cqt_from_wav_id(sine_wave_file):
 def test_mel_from_wav(sine_wave_file):
     spec = MelSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
     assert spec.time_res() == 0.02
-
-def test_stack_mag_specs():
-    img = np.ones((20,10))
-    s = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4, window_func='hamming')
-    s.annotate(label=1, start=0.2, end=1.3)
-    s.annotate(label=2, start=1.8, end=2.2)
-    stacked = MagSpectrogram.stack([s, s])
-    assert stacked.ndim == 2
-    assert np.ndim(stacked.get_data()) == 3
-    for i in range(2):
-        assert np.all(np.abs(stacked.get_data(i) - img) < 1e-6)
-        assert len(stacked.get_annotations(i)) == 2
-        assert stacked.window_func == 'hamming'
-

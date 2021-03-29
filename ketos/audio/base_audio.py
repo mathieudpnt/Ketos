@@ -29,7 +29,8 @@
     This module contains the base class for the Waveform and Spectrogram classes.
 
     Contents:
-        BaseAudio class
+        BaseAudio class;
+        BaseAudioTimeAxis class
 """
 import os
 import copy
@@ -40,39 +41,6 @@ import ketos.audio.utils.misc as aum
 from ketos.audio.annotation import AnnotationHandler, stack_annotations
 from ketos.audio.utils.axis import LinearAxis
 
-def stack_attr(value, shape, dtype):
-    """ Ensure that data attribute has the requested shape.
-
-        Args:
-            value: array-like
-                Attribute values.
-            shape: tuple
-                Requested shape.
-            dtype: str
-                Type
-
-        Returns:
-            value_stacked: numpy array
-                Array containing the stacked attribute values
-    """
-    if value is None:
-        return None
-
-    value_stacked = value
-
-    if isinstance(value_stacked, list):
-        value_stacked = np.array(value, dtype=dtype)
-    
-    if np.ndim(value_stacked) == 0:
-        if dtype is str or dtype is 'str':
-            dtype = 'S{0}'.format(len(value))
-
-        value_stacked = np.empty(shape=shape, dtype=dtype)
-        value_stacked[:] = value
-
-    assert value_stacked.shape == shape, 'Attribute value shape ({0}) does not match requested shape ({1})'.format(value_stacked.shape, shape)
-
-    return value_stacked
 
 def segment_data(x, window, step=None):
     """ Divide the time axis into segments of uniform length, which may or may 
@@ -85,7 +53,7 @@ def segment_data(x, window, step=None):
         ensure that all segments have an equal number of samples. 
 
         Args:
-            x: BaseAudio
+            x: BaseAudioTime
                 Data to be segmented
             window: float
                 Length of each segment in seconds.
@@ -93,19 +61,10 @@ def segment_data(x, window, step=None):
                 Step size in seconds.
 
         Returns:
-            segs: BaseAudio
-                Stacked data segments
-            filename: array-like
-                Filenames
-            offset: array-like
-                Offsets in seconds
-            label: array-like
-                Labels
-            annot: AnnotationHandler
-                Stacked annotation handlers, if any
+            audio_objects: list(BaseAudioTime)
+                Data segments
     """              
-    if step is None:
-        step = window
+    if step is None: step = window
 
     time_res = x.time_res()
     win_len = aum.num_samples(window, 1. / time_res)
@@ -119,84 +78,40 @@ def segment_data(x, window, step=None):
     num_segs = segs.shape[0]
 
     # segment annotations
-    if x.annot:
-        annot = x.annot.segment(num_segs=num_segs, window=window, step=step)
-    else:
-        annot = None
+    if x.annot: annots = x.annot.segment(num_segs=num_segs, window=window, step=step)
+    else: annots = None
 
     # compute offsets
-    offset = np.arange(num_segs) * step
+    offsets = np.arange(num_segs) * step
 
-    #permute axes so the segment no. becomes the last axis
-    axes = np.concatenate([np.arange(1, len(segs.shape)), [0]]) 
-    segs = np.transpose(segs, axes)
+    # add global offset
+    offsets += x.offset
 
-    # segments inherit filename and label from original instance
-    filename = x.filename
-    label = x.label
+    # create audio objects
+    audio_objects = []    
+    for i in range(segs.shape[0]):
+        if annots is not None: annot = annots.get(id=i)
+        else: annot = None
+        kwargs = x.get_kwargs()
+        kwargs.pop('offset', None)
+        audio_objects.append(x.__class__(data=segs[i], annot=annot, offset=offsets[i], **kwargs))
 
-    #when segment method is applied to stacked objects, a little extra work is required:
-    if len(segs.shape) > x.ndim + 1: 
-        num_segs = segs.shape[-1]
-
-        if x.filename is not None:
-            filename = [[x for _ in range(num_segs)] for x in x.filename]
-
-        if x.label is not None:
-            label = np.array([[x for _ in range(num_segs)] for x in x.label], dtype=int)
-
-        if x.offset is not None:
-            offset = np.repeat(offset[np.newaxis, :], segs.shape[x.ndim], axis=0)
-
-    return segs, filename, offset, label, annot
-
-def get_slice(arr, axis=0, indices=None):
-    """ Get a slice of an array.
-
-        Args:
-            arr: array-like
-                Input array
-            axis: int
-                The axis over which to select values.
-            indices: int or tuple
-                The indices of the values to extract.
-
-        Returns:
-            ans: array-like
-                Sliced array
-    """
-    ans = arr
-
-    if indices is None or np.ndim(arr) == 0:
-        return ans
-
-    if np.ndim(indices) == 0:
-        indices = [indices]
-
-    num_dims = min(len(indices), len(arr.shape) - axis)
-    for i in range(num_dims):
-        ans = ans.take(indices=indices[i], axis=axis + i)
-        
-    return ans
+    return audio_objects
 
 
 class BaseAudio():
-    """ Parent class for time-series data classes such as
-        :class:`audio.waveform.Waveform` 
-        and :class:`audio.spectrogram.Spectrogram`.
+    """ Parent class for all audio classes.
 
         Args:
             data: numpy array
                 Data
-            time_res: float
-                Time resolution in seconds
-            ndim: int
-                Dimensionality of data.
             filename: str
                 Filename of the original data file, if available (optional)
             offset: float
                 Position within the original data file, in seconds 
                 measured from the start of the file. Defaults to 0 if not specified.
+            duration: float
+                Duration in seconds.
             label: int
                 Spectrogram label. Optional
             annot: AnnotationHandler
@@ -211,8 +126,6 @@ class BaseAudio():
                 Data 
             ndim: int
                 Dimensionality of data.
-            time_ax: LinearAxis
-                Axis object for the time dimension
             filename: str
                 Filename of the original data file, if available (optional)
             offset: float
@@ -227,186 +140,111 @@ class BaseAudio():
             transform_log: list
                 List of transforms that have been applied to this object
     """
-    def __init__(self, data, time_res, ndim, filename='', offset=0, label=None, annot=None, 
+    def __init__(self, data, filename='', offset=0, duration=None, label=None, annot=None, 
                     transforms=None, transform_log=None, **kwargs):
 
         if transform_log is None: transform_log = []
-
-        self.ndim = ndim
-        self.data = data
-        bins = max(1, data.shape[0])
-        length = data.shape[0] * time_res
-        self.time_ax = LinearAxis(bins=bins, extent=(0., length), label='Time (s)') #initialize time axis
-
         if isinstance(annot, pd.DataFrame): annot = AnnotationHandler(annot)
 
-        if np.ndim(data) > ndim: #stacked arrays
-            filename = stack_attr(filename, shape=data.shape[ndim:], dtype=str)
-            offset = stack_attr(offset, shape=data.shape[ndim:], dtype=float)
-            label = stack_attr(label, shape=data.shape[ndim:], dtype=int)
+        self.ndim = np.ndim(data)
+        self.data = data
 
         self.filename = filename
         self.offset = offset
+        self._duration = duration
         self.label = label
+
         self.annot = annot
 
-        self.counter = 0
-
         self.allowed_transforms = {'normalize': self.normalize, 
-                                   'adjust_range': self.adjust_range,
-                                   'crop': self.crop}
+                                   'adjust_range': self.adjust_range}
 
         self.transform_log = transform_log        
         self.apply_transforms(transforms)
 
-    def __iter__(self):
-        return self
+        self.kwargs = kwargs
 
-    def __next__(self):
-        n = np.ndim(self.data) - self.ndim
-        if n == 0:   idx = 0
-        elif n == 1: idx = self.counter
-        else: idx = np.unravel_index(self.counter, shape=self.data.shape[n:])
-        self.counter += 1
-        return idx
+    def get(self):
+        """ Get a copy of this instance """ 
+        return self.__class__(data=self.get_data(), annot=self.get_annotations(), **self.get_kwargs())
 
-    @classmethod
-    def stack(cls, objects):
-        """ Stack objects 
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
 
-            Args:
-                objects: list(BaseAudio)
-                    List of objects to be stacked.
-
-            Returns:
-                : BaseAudio
-                    Stacked objects        
+            Does not include the data array and annotation handler.    
         """
-        assert len(objects) > 0, 'at least one object required'
+        kwargs = {}
+        kwargs.update(self.get_repres_attrs())
+        kwargs.update(self.get_instance_attrs())
+        return kwargs
 
-        kwargs = objects[0].get_attrs()
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = {'transform_log':self.transform_log}
+        return attrs
 
-        filename = [a.filename for a in objects]
-        offset   = [a.offset for a in objects]
+    def get_instance_attrs(self):
+        """ Get instance attributes """ 
+        attrs = {'filename':self.filename, 'offset':self.offset, 'duration':self._duration, 'label':self.label}
+        attrs.update(self.kwargs)
+        return attrs
 
-        label = [a.label for a in objects if a.label is not None]
-        if len(label) == 0: label = None
-
-        annot    = [a.annot for a in objects if a.annot is not None]
-        if len(annot) == 0: annot = None
-        else: annot = stack_annotations(annot)
-
-        data = np.moveaxis(np.concatenate([a.data[np.newaxis,:] for a in objects], axis=0), 0, -1)
-
-        return cls(data=data, filename=filename, offset=offset, label=label, annot=annot, **kwargs)
-
-    def get(self, id):
-        """ Get a given data object stored in this instance """ 
-        return self.__class__(data=self.get_data(id), filename=self.get_filename(id), 
-            offset=self.get_offset(id), label=self.get_label(id), annot=self.get_annotations(id), **self.get_attrs())
-
-    def get_attrs(self):
-        """ Get scalar attributes """ 
-        return {'time_res':self.time_res(), 'ndim':self.ndim, 'transform_log':self.transform_log}
-
-    def num_objects(self):
-        """ Get number of data objects stored in this instance """ 
-        num = 1
-        n = np.ndim(self.data) - self.ndim
-        if n > 0:
-            dims = self.data.shape[-n:]
-            for d in dims: num *= d
-        
-        return num
-
-    def get_data(self, id=None):
+    def get_data(self):
         """ Get underlying data.
-
-            Args:
-                id: int
-                    Data array ID. Only relevant if the object 
-                    contains multiple, stacked arrays.
 
             Returns:
                 : numpy array
                     Data array 
         """
-        return get_slice(self.data, axis=self.ndim, indices=id)
+        return self.data
 
-    def get_filename(self, id=None):
+    def get_filename(self):
         """ Get filename.
 
-            Args:
-                id: int
-                    Data array ID. Only relevant if the object 
-                    contains multiple, stacked arrays.
-
             Returns:
-                : array-like
+                : string
                     Filename
         """
-        ans = get_slice(self.filename, axis=0, indices=id)
-        if ans is not None and not isinstance(ans, str) and np.ndim(ans) == 0:
-            ans = ans.decode()
+        return self.filename
 
-        if isinstance(ans, np.ndarray):
-            ans = ans.astype(str)
-        
-        return ans
-
-    def get_offset(self, id=None):
+    def get_offset(self):
         """ Get offset.
 
-            Args:
-                id: int
-                    Data array ID. Only relevant if the object 
-                    contains multiple, stacked arrays.
-
             Returns:
-                : array-like
+                : float
                     Offset
         """
-        return get_slice(self.offset, axis=0, indices=id)
+        return self.offset
+
+    def duration(self):
+        """ Data array duration in seconds
+
+            TODO: rename to get_duration()
+
+            Returns:
+                : float
+                   Duration in seconds
+        """    
+        return self._duration
 
     def get_label(self, id=None):
         """ Get label.
 
-            Args:
-                id: int
-                    Data array ID. Only relevant if the object 
-                    contains multiple, stacked arrays.
-
             Returns:
-                : array-like
+                : int
                     Label
         """
-        return get_slice(self.label, axis=0, indices=id)
+        return self.label
 
-    def get_annotations(self, id=None):
+    def get_annotations(self):
         """ Get annotations.
-
-            Args:
-                id: int
-                    Data array ID. Only relevant if the object 
-                    contains multiple, stacked arrays.
 
             Returns:
                 : pandas DataFrame
                     Annotations 
         """
-        if self.annot is None: 
-            return None
-        else: 
-            return self.annot.get(id=id)
-
-    def time_res(self):
-        """ Get the time resolution.
-
-            Returns:
-                : float
-                    Time resolution in seconds
-        """
-        return self.time_ax.bin_width()
+        if self.annot is None: return None
+        else: return self.annot.get()
 
     def deepcopy(self):
         """ Make a deep copy of the present instance
@@ -419,59 +257,70 @@ class BaseAudio():
         """
         return copy.deepcopy(self)
 
-    def duration(self):
-        """ Data array duration in seconds
+    def max(self, axis=0):
+        """ Maximum data value along selected axis
 
-            Returns:
-                : float
-                   Duration in seconds
-        """    
-        return self.time_ax.max()
-
-    def max(self):
-        """ Maximum data value along time axis
+            Args:
+                axis: int
+                    Axis along which metric is computed
 
             Returns:
                 : array-like
                    Maximum value of the data array
         """    
-        return np.max(self.data, axis=0)
+        return np.max(self.data, axis=axis)
 
-    def min(self):
-        """ Minimum data value along time axis
+    def min(self, axis=0):
+        """ Minimum data value along selected axis
+
+            Args:
+                axis: int
+                    Axis along which metric is computed
 
             Returns:
                 : array-like
                    Minimum value of the data array
         """    
-        return np.min(self.data, axis=0)
+        return np.min(self.data, axis=axis)
 
-    def std(self):
-        """ Standard deviation along time axis
+    def std(self, axis=0):
+        """ Standard deviation along selected axis
+
+            Args:
+                axis: int
+                    Axis along which metric is computed
 
             Returns:
                 : array-like
                    Standard deviation of the data array
         """   
-        return np.std(self.data, axis=0) 
+        return np.std(self.data, axis=axis) 
 
-    def average(self):
-        """ Average value along time axis
+    def average(self, axis=0):
+        """ Average value along selected axis
+
+            Args:
+                axis: int
+                    Axis along which metric is computed
 
             Returns:
                 : array-like
                    Average value of the data array
         """   
-        return np.average(self.data, axis=0)
+        return np.average(self.data, axis=axis)
 
-    def median(self):
-        """ Median value along time axis
+    def median(self, axis=0):
+        """ Median value along selected axis
+
+            Args:
+                axis: int
+                    Axis along which metric is computed
 
             Returns:
                 : array-like
                    Median value of the data array
         """   
-        return np.median(self.data, axis=0)
+        return np.median(self.data, axis=axis)
 
     def normalize(self, mean=0, std=1):
         """ Normalize the data array to specified mean and standard deviation.
@@ -552,10 +401,96 @@ class BaseAudio():
 
             Input arguments are described in :meth:`ketos.audio.annotation.AnnotationHandler.add`
         """
-        if self.annot is None: #if the object does not have an annotation handler, create one!
-            self.annot = AnnotationHandler() 
+        if self.annot is None: self.annot = AnnotationHandler() #if the object does not have an annotation handler, create one!
 
         self.annot.add(**kwargs)
+
+
+class BaseAudioTime(BaseAudio):
+    """ Parent class for time-series audio classes such as :class:`audio.waveform.Waveform` 
+        and :class:`audio.spectrogram.Spectrogram`.
+
+        Args:
+            data: numpy array
+                Data
+            time_res: float
+                Time resolution in seconds
+            filename: str
+                Filename of the original data file, if available (optional)
+            offset: float
+                Position within the original data file, in seconds 
+                measured from the start of the file. Defaults to 0 if not specified.
+            label: int
+                Spectrogram label. Optional
+            annot: AnnotationHandler
+                AnnotationHandler object. Optional
+            transforms: list(dict)
+                List of dictionaries, where each dictionary specifies the name of 
+                a transformation and its arguments, if any. For example,
+                {"name":"normalize", "mean":0.5, "std":1.0}
+
+        Attributes:
+            data: numpy array
+                Data 
+            ndim: int
+                Dimensionality of data.
+            time_ax: LinearAxis
+                Axis object for the time dimension
+            filename: str
+                Filename of the original data file, if available (optional)
+            offset: float
+                Position within the original data file, in seconds 
+                measured from the start of the file. Defaults to 0 if not specified.
+            label: int
+                Data label.
+            annot: AnnotationHandler or pandas DataFrame
+                AnnotationHandler object.
+            allowed_transforms: dict
+                Transforms that can be applied via the apply_transform method
+            transform_log: list
+                List of transforms that have been applied to this object
+    """
+    def __init__(self, data, time_res, filename='', offset=0, label=None, annot=None, 
+                    transforms=None, transform_log=None, **kwargs):
+
+        bins = max(1, data.shape[0])
+        length = data.shape[0] * time_res
+        self.time_ax = LinearAxis(bins=bins, extent=(0., length), label='Time (s)') #initialize time axis
+
+        super().__init__(data=data, filename=filename, offset=offset, duration=self.duration(),
+            label=label, annot=annot, transforms=transforms, transform_log=transform_log, **kwargs)
+
+        self.allowed_transforms.update({'crop': self.crop})
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'time_res':self.time_res()})
+        return attrs
+
+    def get_instance_attrs(self):
+        """ Get instance attributes """ 
+        attrs = super().get_instance_attrs()
+        attrs.pop('duration', None)
+        return attrs
+
+    def time_res(self):
+        """ Get the time resolution.
+
+            Returns:
+                : float
+                    Time resolution in seconds
+        """
+        return self.time_ax.bin_width()
+
+    def duration(self):
+        """ Data array duration in seconds
+
+            Returns:
+                : float
+                   Duration in seconds
+        """    
+        return self.time_ax.max()
 
     def label_array(self, label):
         """ Get an array indicating presence/absence (1/0) 
@@ -597,19 +532,10 @@ class BaseAudio():
                     Step size in seconds.
 
             Returns:
-                d: BaseAudio
+                : list(BaseAudioTime)
                     Stacked data segments
         """   
-        segs, filename, offset, label, annot = segment_data(self, window, step)
-
-        # add global offset
-        if np.ndim(self.offset) == 0: offset += self.offset
-        else: offset += self.offset[:,np.newaxis]
-
-        # create stacked object
-        d = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
-
-        return d
+        return segment_data(self, window, step)
 
     def crop(self, start=None, end=None, length=None, make_copy=False):
         """ Crop audio signal.
@@ -653,7 +579,7 @@ class BaseAudio():
 
         return d
 
-    def plot(self, id=0, figsize=(5,4), label_in_title=True):
+    def plot(self, figsize=(5,4), label_in_title=True):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -662,9 +588,6 @@ class BaseAudio():
             or saved (fig.savefig(file_name))
 
             Args:
-                id: int
-                    ID of data array to be plotted. Only relevant if the object 
-                    contains multiple, stacked data arrays.
                 figsize: tuple
                     Figure size
                 label_in_title: bool
@@ -680,10 +603,10 @@ class BaseAudio():
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, sharex=True)
 
         # select the data array and attributes
-        x = self.get_data(id)
-        filename = self.get_filename(id)
-        offset = self.get_offset(id)
-        label = self.get_label(id)
+        x = self.get_data()
+        filename = self.get_filename()
+        offset = self.get_offset()
+        label = self.get_label()
 
         # axis labels
         ax.set_xlabel(self.time_ax.label)
