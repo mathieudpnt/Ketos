@@ -142,7 +142,6 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
                 The detections time stamp. Each item in the list is a tuple with the filename, start time, duration and score for that detection.
                 The filename corresponds to the file where the detection started.          
     """
-
     det_vector = np.where(scores_vector >= threshold, 1.0, 0.0)
     det_timestamps = []
     within_det = False
@@ -152,14 +151,18 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
     for det_index,det_value in enumerate(det_vector):
 
         is_new_file = (filename_vector[det_index] != filename_vector[max(0,prev_det_index)])
+        is_end_of_vector = (det_index == len(det_vector) - 1)
 
         if det_value == 1.0 and not within_det: #start new detection
             start = det_index
             within_det = True
         
-
-        elif (det_value == 0 or is_new_file) and within_det: #end current detection
-            end = prev_det_index
+        elif (det_value == 0 or is_new_file or is_end_of_vector) and within_det: #end current detection
+            if is_end_of_vector:
+                end = det_index
+            else:
+                end = prev_det_index
+            
             within_det = False
             filename = filename_vector[start]
             # From all timestamps within the batch, select only the timestamps for the file containing the detection start
@@ -380,9 +383,9 @@ def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, thre
 
         batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=threshold, 
                                         buffer=buffer, spec_dur=duration, step=step, win_len=win_len, group=group)
+        
         if len(batch_detections) > 0: detections += batch_detections
         
-
     return detections
 
 
