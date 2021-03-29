@@ -1,10 +1,10 @@
 # Welcome to Ketos, a deep learning package for underwater acoustics
 
-Ketos provides a unified, high-level interface for working with acoustic data and deep neural networks. 
-Its main purpose is to support the development of deep learning models for solving challenging 
+Ketos provides an unified, high-level interface for working with acoustic data and deep neural networks. 
+Its main purpose is to support the development and distribution of deep learning models for solving challenging 
 detection and classification problems in underwater acoustics.
 
-Ketos is written in Python and utilizes a number of powerful software packages 
+Ketos is written in Python and uses a number of powerful software packages 
 including NumPy, HDF5, and Tensorflow. It is licensed under the [GNU GPLv3 licens](https://www.gnu.org/licenses/) 
 and hence freely available for anyone to use and modify. The project is hosted on GitLab at 
 [gitlab.meridian.cs.dal.ca/public_projects/ketos](https://gitlab.meridian.cs.dal.ca/public_projects/ketos). 
@@ -37,8 +37,8 @@ Ketos is available on the Python package index repository and the latest version
 
 Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7.
 
-Note that GPU support depends on CUDA enabled graphics cards and the necessary drivers and libraries. 
-Refer to  https://www.tensorflow.org/install/gpu for more information further instructions.
+Note that GPU support depends on CUDA-enabled graphic cards and the necessary drivers and libraries. 
+Refer to  https://www.tensorflow.org/install/gpu for further instructions.
 
 
 Depending on your operating system, you might have to install other dependencies (like hdf5lib).

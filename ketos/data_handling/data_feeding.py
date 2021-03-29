@@ -315,6 +315,13 @@ class BatchGenerator():
         
         return data_indices, annot_indices
 
+    def reset(self):
+        self.batch_count = 0
+        if self.refresh_on_epoch_end:
+            self.entry_indices = self.__update_indices__()
+            self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__()
+
+
     def __iter__(self):
         return self
 
@@ -349,10 +356,7 @@ class BatchGenerator():
             
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
-            self.batch_count = 0
-            if self.refresh_on_epoch_end:
-                self.entry_indices = self.__update_indices__()
-                self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__()
+            self.reset()
 
         if self.output_transform_func is not None:
             X,Y = self.output_transform_func(X,Y)
@@ -380,7 +384,8 @@ class JointBatchGen():
             If True, shuffle the joint batch before returning it. Note that this only concerns the joint batches and is independent of wheter the joined generators
             shuffle or not.
         reset_generators:bool (default:False)
-            If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value
+            If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value.
+            This evokes the end-of-epoch behaviour for each batch generator (i.e.: if a  batch generator was created with 'duffle_on_epoch_end=True', then it will shuffle at this time, even if that generator's batch counter is not yet at the maximum)
 
     """
 
@@ -424,6 +429,7 @@ class JointBatchGen():
             self.batch_count = 0
             if self.reset_generators ==  True:
                 for gen in self.batch_generators:
-                    gen.batch_count = 0 # gen.n_batches -1 
+                    gen.reset()
+                                        
                 
         return (X,Y)
