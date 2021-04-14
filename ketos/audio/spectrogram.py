@@ -698,7 +698,10 @@ class Spectrogram(BaseAudioTime):
             time_const_len = None
 
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
-        self.transform_log.append({'name':'reduce_tonal_noise', 'method':method}.update(**kwargs))
+
+        transf = {'name':'reduce_tonal_noise', 'method':method}
+        if 'time_constant' in kwargs.keys(): transf.update({'time_constant': kwargs['time_constant']})
+        self.transform_log.append(transf)
 
     def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
         """ Plot the spectrogram with proper axes ranges and labels.
