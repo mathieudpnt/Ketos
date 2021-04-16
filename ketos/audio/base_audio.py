@@ -380,7 +380,7 @@ class BaseAudio():
                 >>> wf = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
                 >>> # print allowed transforms
                 >>> wf.view_allowed_transforms()
-                ['normalize', 'adjust_range', 'crop', 'add_gaussian_noise']
+                ['normalize', 'adjust_range', 'crop', 'add_gaussian_noise', 'bandpass_filter']
                 >>> # apply gaussian normalization followed by cropping
                 >>> transforms = [{'name':'normalize','mean':0.5,'std':1.0},{'name':'crop','start':0.2,'end':0.7}]
                 >>> wf.apply_transforms(transforms)
