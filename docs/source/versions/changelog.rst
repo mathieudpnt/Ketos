@@ -3,6 +3,7 @@ Change log
 
 **Version 2.1.5** (date)
 
+ * Added bandbass_filter method in Waveform class.
  * Added option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
 
 

@@ -37,6 +37,7 @@ import librosa
 import warnings
 import scipy.io.wavfile as wave
 from scipy import interpolate
+import scipy.signal
 import matplotlib.pyplot as plt
 from ketos.utils import ensure_dir, morlet_func
 from ketos.data_handling.data_handling import read_wave
@@ -101,7 +102,8 @@ class Waveform(BaseAudioTime):
         super().__init__(data=data, time_res=1./self.rate, filename=filename, offset=offset, label=label, annot=annot, 
                             transform_log=transform_log, **kwargs)
 
-        self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise})
+        self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise, 
+                                        'bandpass_filter': self.bandpass_filter})
         
         self.apply_transforms(transforms)
 
@@ -606,6 +608,63 @@ class Waveform(BaseAudioTime):
         noise = Waveform.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
         self.transform_log.append({'name':'add_gaussian_noise', 'sigma':sigma})
+
+    def bandpass_filter(self, freq_min=None, freq_max=None, N=3):
+        """ Apply a lowpass, highpass, or bandpass filter to the signal.
+
+            Uses SciPy's implementation of an Nth-order digital Butterworth filter.
+
+            The critical frequencies, freq_min and freq_max, correspond to the points 
+            at which the gain drops to 1/sqrt(2) that of the passband (the “-3 dB point”).
+
+            Args:
+                freq_min: float
+                    Lower limit of the frequency window in Hz.
+                    (Also sometimes referred to as the highpass frequency).
+                    If None, a lowpass filter is applied. 
+                freq_max: float
+                    Upper limit of the frequency window in Hz.
+                    (Also sometimes referred to as the lowpass frequency)
+                    If None, a highpass filter is applied. 
+                N: int
+                    The order of the filter. The default value is 3.
+
+            Example:
+                >>> from ketos.audio.waveform import Waveform
+                >>> # create a Cosine waves with frequencies of 7 and 14 Hz
+                >>> cos = Waveform.cosine(rate=1000., frequency=7.)
+                >>> cos14 = Waveform.cosine(rate=1000., frequency=14.)
+                >>> cos.add(cos14)
+                >>> # show combined signal
+                >>> fig = cos.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cosine_double_audio.png")
+                >>> plt.close(fig)
+                >>> # apply 10 Hz highpass filter
+                >>> cos.bandpass_filter(freq_max=10)
+                >>> # show filtered signal
+                >>> fig = cos.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cosine_double_hp_audio.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_audio.png
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_hp_audio.png
+        """
+        if freq_min is None and freq_max is None: return
+
+        if freq_min is None: 
+            Wn = freq_max
+            btype = 'lowpass'
+        elif freq_max is None: 
+            Wn = freq_min            
+            btype = 'highpass'
+        else: 
+            Wn = (freq_min, freq_max)            
+            btype = 'bandpass'
+
+        b,a = scipy.signal.butter(N=N, Wn=Wn, btype=btype, fs=self.rate)
+        self.data = scipy.signal.filtfilt(b, a, self.data)
+        self.transform_log.append({'name':'bandpass_filter', 'freq_min':freq_min, 'freq_max':freq_max, 'N':N})
 
     def add(self, signal, offset=0, scale=1):
         """ Add the amplitudes of the two audio signals.
