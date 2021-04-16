@@ -1,6 +1,11 @@
 Change log
 ==========
 
+**Version 2.1.5** (date)
+
+ * Added option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
+
+
 **Version 2.1.4** (March 29, 2021)
 
  * The create_database function can now include extra columns specified in the selection tables into the database. 

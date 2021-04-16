@@ -764,7 +764,7 @@ def file_duration_table(path, search_subdirs=False):
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
     return pd.DataFrame({'filename':paths, 'duration':durations})
 
-def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False):
+def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False, buffer=0):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -776,6 +776,10 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
 
         To avoid any overlap, set the 'no_overlap' to True, but note that this can 
         lead to longer execution times.
+
+        Use the 'buffer' argument to ensure a minimum separation between the background 
+        selections and the annotated segments. This can be useful if the annotation 
+        start and end times are not always fully accurate.
 
         Args:
             files: pandas DataFrame
@@ -791,6 +795,9 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
                 If True, randomly selected segments will have no overlap.
             trim_table: bool
                 Keep only the columns prescribed by the Ketos annotation format.
+            buffer: float
+                Minimum separation in seconds between the background selections and the annotated segments.
+                The default value is zero.
 
         Returns:
             table_backgr: pandas DataFrame
@@ -880,7 +887,7 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
             end   = start + length
 
             if annotations is not None:
-                q = query(annotations, filename=fname, start=start, end=end)
+                q = query(annotations, filename=fname, start=start-buffer, end=end+buffer)
                 if len(q) > 0: continue
 
             if no_overlap and len(df) > 0:
