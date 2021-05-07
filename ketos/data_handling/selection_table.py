@@ -470,7 +470,7 @@ def cast_to_str(labels, nested=False):
         return labels_str, labels_str_flat
 
 def select(annotations, length, step=0, min_overlap=0, center=False,\
-    discard_long=False, keep_id=False):
+    discard_long=False, keep_id=False, label=None):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
         way is chracterized by a single, integer-valued, label.
@@ -513,6 +513,8 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             keep_id: bool
                 For each generated selection, include the id of the annotation from which 
                 the selection was generated.
+            label: int or list(int)
+                Only create selections for annotations with these labels.
 
         Results:
             table_sel: pandas DataFrame
@@ -582,6 +584,11 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
 
     # check that input table has expected format
     assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
+
+    # select labels
+    if label != None:
+        if isinstance(label, int): label = [label]
+        df = df[df['label'].isin(label)]
 
     # discard annotations with label -1
     df = df[df['label'] != -1]
@@ -920,8 +927,32 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
 
     return df
 
+def random_choice(df, siz):
+    """ Randomly select a specified number of elements from a table.
+
+        Args:
+            df: pandas DataFrame
+                Selection table or annotation table
+            siz: int
+                Number of elements to be selected
+
+        Returns:
+            sel: pandas DataFrame
+                Reduced table
+    """
+
+    name_id = 'sel_id' if 'sel_id' in df.index.names else 'annot_id'
+    n = min(siz, len(df))
+    idx = np.sort(np.random.choice(np.arange(len(df), dtype=int), size=n, replace=False)).tolist()
+    df = df.reset_index()
+    df = df.loc[idx]
+    df = df.set_index([df.filename, df[name_id]])
+    df = df.drop(['filename', name_id], axis=1)
+    df = df.sort_index()
+    return df
+
 def select_by_segmenting(files, length, annotations=None, step=None,
-    discard_empty=False, pad=True):
+    pad=True, discard_empty=False, keep_only_empty=False):
     """ Generate a selection table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
         
@@ -944,18 +975,22 @@ def select_by_segmenting(files, length, annotations=None, step=None,
             step: float
                 Selection step size in seconds. If None, the step size is set 
                 equal to the selection length.
-            discard_empty: bool
-                If True, only selection that contain annotations will be used. 
-                If False (default), all selections are used.
             pad: bool
                 If True (default), the last selection window is allowed to extend 
                 beyond the endpoint of the audio file.
+            discard_empty: bool
+                If True, only selection that contain annotations will be used. 
+                If False (default), all selections are used.
+            keep_only_empty: bool
+                If True, only selections *without* any annotations are used, and 
+                only the selections table is returned. Default is False. 
 
         Returns:
             sel: pandas DataFrame
                 Selection table
             annot: pandas DataFrame
-                Annotations table. Only returned if annotations is specified.
+                Annotations table. Only returned if annotations is specified 
+                and keep_only_empty is False.
 
         Example:
             >>> import pandas as pd
@@ -1036,13 +1071,20 @@ def select_by_segmenting(files, length, annotations=None, step=None,
     if annotations is not None:
         annot = segment_annotations(annotations, num=num_segs, length=length, step=step)
 
-        # discard empties
-        if discard_empty:
+        if discard_empty or keep_only_empty:
             indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
-            sel = sel.loc[indices].sort_index()
 
-        return sel, annot
+            if discard_empty: 
+                sel = sel.loc[indices].sort_index()
+                return sel, annot
 
+            elif keep_only_empty: 
+                sel = sel.loc[~sel.index.isin(indices)].sort_index()
+                sel['label'] = 0
+                return sel
+        else:
+            return sel, annot
+            
     else:
         return sel
 
@@ -1181,11 +1223,14 @@ def query_labeled(table, filename=None, label=None, start=None, end=None):
     """
     df = table
     if filename is not None:
-        if isinstance(filename, str):
-            if filename not in df.index: return df.iloc[0:0]
-            else: filename = [filename]
-        
-        df = df.loc[filename]
+        if isinstance(filename, str): filename = [filename]
+
+        filename = [f for f in filename if f in df.index]
+
+        if len(filename) == 0: 
+            return df.iloc[0:0]
+        else: 
+            df = df.loc[filename]
 
     if label is not None:
         if not isinstance(label, list):

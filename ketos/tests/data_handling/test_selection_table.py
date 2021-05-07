@@ -181,6 +181,12 @@ def test_select_removes_discarded_annotations(annot_table_std):
     res = st.select(df, length=1, center=True)
     assert len(res[res.label==-1]) == 0
 
+def test_select_only_uses_specified_labels(annot_table_std):
+    df = annot_table_std
+    df = st.standardize(df)
+    res = st.select(df, length=1, center=True, label=[1,3])
+    assert np.all(np.isin(res.label.values, [1,3]))
+
 def test_select_keeps_extra_attrs(annot_table_std):
     annot_table = annot_table_std.copy()
     annot_table['comment'] = ['good', 'tall', 'thin', 'bad', 'hopeless', 'green'] #add extra column
@@ -386,6 +392,36 @@ f2.wav   2      1             1         0.0        0.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
     pd.testing.assert_frame_equal(ans, sel[1][ans.columns.values])
 
+def test_select_by_segmenting_keep_only_empty(annot_table_std, file_duration_table):
+    a = st.standardize(annot_table_std)
+    f = file_duration_table
+    sel = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, keep_only_empty=True, pad=False)
+    # check selection table
+    d = '''filename sel_id start  end
+f0.wav   2         8.0  24.0
+f0.wav   3        12.0  28.0
+f1.wav   2         8.0  24.0
+f1.wav   3        12.0  28.0
+f2.wav   3        12.0  28.0
+f2.wav   4        16.0  32.0
+f3.wav   0         0.0  16.0
+f3.wav   1         4.0  20.0
+f3.wav   2         8.0  24.0
+f3.wav   3        12.0  28.0
+f3.wav   4        16.0  32.0
+f4.wav   0         0.0  16.0
+f4.wav   1         4.0  20.0
+f4.wav   2         8.0  24.0
+f4.wav   3        12.0  28.0
+f4.wav   4        16.0  32.0
+f5.wav   0         0.0  16.0
+f5.wav   1         4.0  20.0
+f5.wav   2         8.0  24.0
+f5.wav   3        12.0  28.0
+f5.wav   4        16.0  32.0'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
+
 def test_query_labeled(annot_table_std):
     df = st.standardize(annot_table_std)
     df = st.select(df, length=1, center=True)
@@ -461,3 +497,12 @@ empty_HMS_12_ 5_ 3__DMY_23_ 2_84.wav,0.5
 empty_HMS_12_ 5_ 4__DMY_23_ 2_84.wav,0.5'''
     ans = pd.read_csv(StringIO(d))
     pd.testing.assert_frame_equal(df, ans[df.columns.values])
+
+def test_random_choice(annot_table_std, file_duration_table):
+    a = st.standardize(annot_table_std)
+    f = file_duration_table
+    sel = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, keep_only_empty=True, pad=False)
+    sel = st.random_choice(sel, siz=3)
+    assert len(sel) == 3
+    a = st.random_choice(a, siz=2)
+    assert len(a) == 2
