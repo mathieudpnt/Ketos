@@ -54,16 +54,28 @@ class BatchGenerator():
 
         Yields:
         (X,Y) or (ids,X,Y) if 'return_batch_ids' is True.
-            X is a batch of data as a np.array of shape like (batch_size,mx,nx) where 
+
+            X is a batch of data in the form of an np.array of shape (batch_size,mx,nx) where 
             mx,nx are the shape of one instance of X in the database. The number
             of dimensions in addition to 'batch_size' will not necessarily be 2, but correspond to
             the instance shape (1 for 1d instances, 3 for 3d, etc).
-            
+
+            It is also possible to load multiple data objects per instance by specifying multiple x_field 
+            values, e.g., 'x_field=['spectrogram', 'waveform']'. In such cases, the return argument X is a 
+            np.array with shape (batch_size,) and each element is a np.void array with length equal to the 
+            number of x fields. Each element in this array is a np.array and can be accessed either through 
+            use of integer indices or the x_field names, e.g., the first spectrogram in the batch can be 
+            accessed as X[0][0] or X[0]['spectrogram'].
+
             Similarly, Y is an np.array of shape(batch_size) with the corresponding labels.
             Each item in the array is a named array of shape=(n_fields), where n_field is the number of fields
-            specified in the 'y_field' argument. For instance, if 'y_fields'=['label', 'start', 'end'], you can access
+            specified in the 'y_field' argument. For instance, if 'y_field'=['label', 'start', 'end'], you can access
             the first label with Y[0]['label'].
             Notice that even if y_field==['label'], you would still use the Y[0]['label'] syntax.
+
+            Important note: The above remarks regarding the shapes of X and Y assume that the output 
+            transform function `output_transform_func` only modifies the contents and not the shapes 
+            of X and Y, which may not always be the case.
 
         
         Args:
@@ -180,14 +192,14 @@ class BatchGenerator():
             (3,)
             >>> h5.close()
     """
-    def __init__(self, batch_size, data_table=None, annot_in_data_table=True, annot_table=None, x=None, y=None, select_indices=None, output_transform_func=None, x_field='data', y_field='label',\
+    def __init__(self, batch_size, data_table=None, annot_in_data_table=True, annot_table=None, x=None, y=None, 
+                    select_indices=None, output_transform_func=None, x_field='data', y_field='label',
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None, n_extend=0):
 
         self.from_memory = x is not None and y is not None
         self.annot_in_data_table = annot_in_data_table
         self.filter = filter
         
-
         if self.from_memory:
             #TODO: Reinstate 'check_data_sanity' once it is more more flexible
             # check data sanity currently has restrictive assumptions. 
@@ -243,6 +255,7 @@ class BatchGenerator():
         self.entry_indices = self.__update_indices__()
 
         self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__(n_extend)
+
 
     
     def __update_indices__(self):
@@ -316,6 +329,11 @@ class BatchGenerator():
         return data_indices, annot_indices
 
     def reset(self):
+        """ Reset the batch generator.
+
+            Resets the batch index counter and reshuffles the sample indices 
+            if shuffle was set to True.
+        """
         self.batch_count = 0
         if self.refresh_on_epoch_end:
             self.entry_indices = self.__update_indices__()
@@ -350,8 +368,7 @@ class BatchGenerator():
                 Y = self.annot[batch_annot_row_index][['data_index'] + self.y_field]
                 Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
                 Y = np.array(Y)
-            else:
-                
+            else:                
                 Y = self.data[batch_data_row_index][self.y_field]
             
         self.batch_count += 1
@@ -374,6 +391,21 @@ class JointBatchGen():
         It offers a flexible way of composing custom batches for training neural networks.
         Each batch is composed by joining the batches of all generators in the 'batch_generators' list.
 
+        In order to be able to combine batch generators in this manner, the batch generators must 
+        yield data batches (X,Y) with the same format. Furthermore, the first dimension must be 
+        the batch size. In the case of multimodal generators, the second dimension must be the 
+        number of modes.
+
+        For example, if the generator is returning a waveform and a spectrogram, and the batch size 
+        was set to 32, the JointBatchGen expects X to have length 32 and every element in X to have 
+        length 2 (corresponding to the two modalities, waveform and spectrogram).
+
+        An assertion is made at initialization to check that all batch generators yield data with 
+        consistent formats. If the assertion fails, an error is thrown.
+
+        Unlike the individual batch generators, which can be initialized to return sample IDs in addition 
+        to the data arrays X and labels Y, the joint batch generator can only return X and Y.
+
     Args:
         batch_generators: list of BatchGenerator objects
             A list of 2 or more BatchGenerator instances
@@ -387,8 +419,24 @@ class JointBatchGen():
             If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value.
             This evokes the end-of-epoch behaviour for each batch generator (i.e.: if a  batch generator was created with 'duffle_on_epoch_end=True', then it will shuffle at this time, even if that generator's batch counter is not yet at the maximum)
 
+        Example:
+            >>> from tables import open_file
+            >>> from ketos.data_handling.database_interface import open_table
+            >>> h5 = open_file("ketos/tests/assets/multimodal.h5", 'r') # create the database handle  
+            >>> tbl_pos = open_table(h5, "/train/pos/data") #table with positive samples
+            >>> tbl_neg = open_table(h5, "/train/neg/data") #table with negative samples
+            >>> #Create batch generators for multi-modal data (waveform, spectrogram)
+            >>> generator_pos = BatchGenerator(data_table=tbl_pos, batch_size=2, x_field=['waveform','spectrogram']) 
+            >>> generator_neg = BatchGenerator(data_table=tbl_neg, batch_size=3, x_field=['waveform','spectrogram']) 
+            >>> #Join the generators
+            >>> generator = JointBatchGen([generator_pos, generator_neg])
+            >>> #Loading the first batch, we note that the joint generator has a batch size of 2+3=5
+            >>> #and the waveforms and spectrograms have shapes (3000,) and (129,94), respectively.
+            >>> X, Y = next(generator)
+            >>> print(len(X), len(X[0]), X[0][0].shape, X[0][1].shape)
+            5 2 (3000,) (94, 129)
+            >>> h5.close() #close the database handle.
     """
-
     def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False):
         self.batch_generators = batch_generators
         self.reset_generators = reset_generators
@@ -396,14 +444,32 @@ class JointBatchGen():
         
         assert n_batches in ("min", "max") or isinstance(n_batches, int), "n_batches must be 'min', 'max' or an integer"
         if n_batches == "min":
-            self.n_batches = min([gen.n_batches for gen in self.batch_generators]) - 1
+            self.n_batches = min([gen.n_batches for gen in self.batch_generators]) 
         elif n_batches == "max":
-            self.n_batches = max([gen.n_batches for gen in self.batch_generators]) - 1
+            self.n_batches = max([gen.n_batches for gen in self.batch_generators]) 
         else:
-            self.n_batches=n_batches
+            self.n_batches = n_batches
         
         self.batch_count = 0
 
+        # ensure that batch generators are not returning indices
+        for generator in self.batch_generators: 
+            generator.return_batch_ids = False
+
+        # check that the batch generators return consistent data types
+        x_sizes = []
+        y_sizes = []
+        for generator in self.batch_generators:
+            x,y = next(generator)
+            x_sizes.append(len(x[0]) if isinstance(x[0], (np.void, list, tuple)) else 0)
+            y_sizes.append(len(y[0]) if isinstance(y[0], (np.void, list, tuple)) else 0)
+            generator.reset()
+
+        assert np.all(np.array(x_sizes)==x_sizes[0]), 'Attempt to join batch generators with different X output formats. Only batch generators with the same X and Y format may be joined'
+        assert np.all(np.array(y_sizes)==y_sizes[0]), 'Attempt to join batch generators with different Y output formats. Only batch generators with the same X and Y format may be joined'
+
+        self.xsiz = x_sizes[0]
+        self.ysiz = y_sizes[0]
 
     def __iter__(self):
         return self
@@ -414,22 +480,46 @@ class JointBatchGen():
         Y = []
         for gen in self.batch_generators:
             x,y = next(gen)
-            X.append(x)
-            Y.append(y)
-        X = np.vstack(X)
-        Y = np.vstack(Y)
+            if self.xsiz == 0:
+                X.append(x)            
+            else:
+                X += [e for e in x]
+            if self.ysiz == 0:
+                Y.append(y)            
+            else:
+                Y += [e for e in y]
+
+        if self.xsiz == 0:
+            X = np.vstack(X)
+
+        if self.ysiz == 0:
+            Y = np.concatenate(Y)
+
+        siz = len(X)
 
         if self.shuffle == True:
-            indices = np.arange(len(X))
+            indices = np.arange(siz)
             np.random.shuffle(indices)
-            X = X[indices]
-            Y = Y[indices]
+            if self.xsiz == 0:
+                X = X[indices]
+            else:
+                X = [X[i] for i in indices]
+
+            if self.ysiz == 0:
+                Y = Y[indices]
+            else:
+                Y = [Y[i] for i in indices]
+
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.batch_count = 0
             if self.reset_generators ==  True:
                 for gen in self.batch_generators:
                     gen.reset()
-                                        
-                
+                                                        
         return (X,Y)
+
+    def reset(self):
+        """ Resets the individual batch generators.
+        """
+        for gen in self.batch_generators: gen.reset()

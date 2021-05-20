@@ -820,11 +820,9 @@ class ResNet1DInterface(ResNetInterface):
                 (10, 2)
                 
         """
-
-        
         X = cls._transform_input(x)
-        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
-        
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])        
+
         return (X,Y)
 
     @classmethod
