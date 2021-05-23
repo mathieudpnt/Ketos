@@ -418,6 +418,9 @@ class JointBatchGen():
         reset_generators:bool (default:False)
             If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value.
             This evokes the end-of-epoch behaviour for each batch generator (i.e.: if a  batch generator was created with 'duffle_on_epoch_end=True', then it will shuffle at this time, even if that generator's batch counter is not yet at the maximum)
+        return_batch_ids: bool
+            If False, each batch will consist of X and Y. If True, the generator index and the instance indices 
+            (as they are in the hdf5_table) will be included ((ids, X, Y)). Default is False.
 
         Example:
             >>> from tables import open_file
@@ -437,10 +440,11 @@ class JointBatchGen():
             5 2 (3000,) (94, 129)
             >>> h5.close() #close the database handle.
     """
-    def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False):
+    def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False, return_batch_ids=False):
         self.batch_generators = batch_generators
         self.reset_generators = reset_generators
         self.shuffle = shuffle
+        self.return_batch_ids = return_batch_ids
         
         assert n_batches in ("min", "max") or isinstance(n_batches, int), "n_batches must be 'min', 'max' or an integer"
         if n_batches == "min":
@@ -452,15 +456,18 @@ class JointBatchGen():
         
         self.batch_count = 0
 
-        # ensure that batch generators are not returning indices
+        # overwrite return_batch_ids attribute of individual generators
         for generator in self.batch_generators: 
-            generator.return_batch_ids = False
+            generator.return_batch_ids = self.return_batch_ids
 
         # check that the batch generators return consistent data types
         x_sizes = []
         y_sizes = []
         for generator in self.batch_generators:
-            x,y = next(generator)
+            if generator.return_batch_ids:
+                i,x,y = next(generator)
+            else:
+                x,y = next(generator)
             x_sizes.append(len(x[0]) if isinstance(x[0], (np.void, list, tuple)) else 0)
             y_sizes.append(len(y[0]) if isinstance(y[0], (np.void, list, tuple)) else 0)
             generator.reset()
@@ -478,12 +485,21 @@ class JointBatchGen():
 
         X = []
         Y = []
-        for gen in self.batch_generators:
-            x,y = next(gen)
+        ids = []
+        for gen_id, gen in enumerate(self.batch_generators):
+            if self.return_batch_ids:
+                i,x,y = next(gen)
+                i = np.column_stack((gen_id * np.ones(len(i)),i))
+                i = i.astype(int)
+                ids.append(i)
+            else:
+                x,y = next(gen)
+
             if self.xsiz == 0:
                 X.append(x)            
             else:
                 X += [e for e in x]
+
             if self.ysiz == 0:
                 Y.append(y)            
             else:
@@ -494,6 +510,9 @@ class JointBatchGen():
 
         if self.ysiz == 0:
             Y = np.concatenate(Y)
+
+        if self.return_batch_ids:
+            ids = np.vstack(ids)
 
         siz = len(X)
 
@@ -510,14 +529,20 @@ class JointBatchGen():
             else:
                 Y = [Y[i] for i in indices]
 
+            if self.return_batch_ids:
+                ids = ids[indices]
+
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.batch_count = 0
             if self.reset_generators ==  True:
                 for gen in self.batch_generators:
                     gen.reset()
-                                                        
-        return (X,Y)
+
+        if self.return_batch_ids:
+            return (ids,X,Y)
+        else:                                                
+            return (X,Y)
 
     def reset(self):
         """ Resets the individual batch generators.
