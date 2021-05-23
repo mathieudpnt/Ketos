@@ -446,6 +446,47 @@ def test_joint_batch_gen():
     h51.close()
     h52.close()
 
+def test_joint_batch_gen_ids():
+    """ Test the a joint batch generator can return ids
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('data')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, return_batch_ids=True)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, return_batch_ids=False)  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
+    ids, X, Y = next(gen)
+    
+    assert len(ids) == 5
+    assert len(ids[0]) == 2
+    assert np.all(ids[0] == [0, 0])
+    assert np.all(ids[1] == [0, 1])
+    assert np.all(ids[2] == [0, 2])
+    assert np.all(ids[3] == [1, 0])
+    assert np.all(ids[4] == [1, 1])
+
+    assert len(X) == 5
+    assert X[0].shape == (94, 129)
+    np.testing.assert_array_equal(X[:3], three_specs)
+    np.testing.assert_array_equal(X[3:], three_specs[:2])
+
+    assert len(Y) == 5
+    for i in range(3):
+        np.testing.assert_array_equal(Y[i][0], three_labels[i])
+    for i in range(2):
+        np.testing.assert_array_equal(Y[3+i][0], three_labels[i])
+
+    h51.close()
+    h52.close()
+
 def test_joint_batch_gen_output_transform():
     """ Test the a joint batch generator can be used to load from tables with a single data column
         while applying the ResNet output transform
@@ -495,9 +536,17 @@ def test_joint_batch_gen_multi_modal():
     gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'])  
     gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'])  
 
-    gen = JointBatchGen([gen1, gen2], n_batches="min") 
-    X, Y = next(gen)
-    
+    gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
+    ids, X, Y = next(gen)
+
+    assert len(ids) == 5
+    assert len(ids[0]) == 2
+    assert np.all(ids[0] == [0, 0])
+    assert np.all(ids[1] == [0, 1])
+    assert np.all(ids[2] == [0, 2])
+    assert np.all(ids[3] == [1, 0])
+    assert np.all(ids[4] == [1, 1])
+
     assert len(X) == 5
     assert len(X[0]) == 2
     assert X[0]['spec'].shape == (94, 129)
