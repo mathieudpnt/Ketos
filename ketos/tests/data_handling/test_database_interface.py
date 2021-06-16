@@ -753,3 +753,27 @@ def test_create_database_with_attrs(sine_wave_file):
     assert attrs['comment'] == 'bigger'
     fil.close()
     os.remove(out)
+
+def test_create_database_with_indices(sine_wave_file):
+    """ Create a database with indices for some columns"""
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db13.h5')
+    rep = {'type': 'Waveform'}
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'extra_id':[13,14]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, 
+        progress_bar=False, include_attrs=True, index_cols=["filename", "extra_id"])
+    # check database contents
+    fil = di.open_file(out, 'r')
+    assert '/assets/data' in fil
+    wfs = di.load_audio(table=fil.root.assets.data)
+    wf = wfs[0]
+    assert type(wf) == Waveform
+    attrs = wf.get_instance_attrs()
+    assert 'extra_id' in attrs.keys()
+    assert attrs['extra_id'] == 13
+    wf = wfs[1]
+    attrs = wf.get_instance_attrs()
+    assert attrs['extra_id'] == 14
+    fil.close()
+    os.remove(out)

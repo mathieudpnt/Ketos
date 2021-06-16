@@ -734,7 +734,7 @@ def create_database(output_file, data_dir, selections, channel=0,
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
     allow_resizing=1, include_source=True, include_label=True, 
-    include_attrs=False, attrs=None, data_name=None):
+    include_attrs=False, attrs=None, data_name=None, index_cols=None):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -804,13 +804,16 @@ def create_database(output_file, data_dir, selections, channel=0,
             data_name: str or list(str) 
                 Name(s) of the data columns. If None is specified, the data column is named 'data', 
                 or 'data0', 'data1', ... if the table contains multiple data columns.
+            index_cols: str og list(str)
+                Create indices for the specified columns in the data table to allow for faster queries.
+                For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
     """
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
-        include_source=include_source, include_label=include_label, data_name=data_name)
+        include_source=include_source, include_label=include_label, data_name=data_name, index_cols=index_cols)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
@@ -913,10 +916,13 @@ class AudioWriter():
             data_name: str or list(str) 
                 Name(s) of the data columns. If None is specified, the data column is named 'data', 
                 or 'data0', 'data1', ... if the table contains multiple data columns.
+            index_cols: str og list(str)
+                Create indices for the specified columns in the data table to allow for faster queries.
+                For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
         allow_resizing=1, include_source=True, include_label=True, include_attrs=True, 
-        max_filename_len=100, data_name=None):
+        max_filename_len=100, data_name=None, index_cols=None):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -938,6 +944,12 @@ class AudioWriter():
         self.include_attrs = include_attrs
         self.filename_len = max_filename_len
         self.data_name = data_name
+        if index_cols is None:
+            self.index_cols = []
+        elif isinstance(index_cols, str):
+            self.index_cols = [index_cols]
+        else:   
+            self.index_cols = index_cols
 
     def set_table(self, path, name):
         """ Change the current table
@@ -1031,6 +1043,14 @@ class AudioWriter():
             # https://www.pytables.org/usersguide/optimization.html
             tbl_dict = self._open_tables(path=self.path, name=self.name)
             if 'table_annot' in tbl_dict.keys(): tbl_dict['table_annot'].cols.data_index.create_index()
+
+            # create user-specified indices
+            for index_col in self.index_cols:
+                if index_col in tbl_dict['table'].cols._v_colnames:
+                    tbl_dict['table'].cols._f_col(index_col).create_index()
+                else:
+                    if self.verbose:
+                        print(' Warning: Attempting to build index for column {index_col} which does not exist. Ignore.')
 
             self.file.close()
             self.file = None
