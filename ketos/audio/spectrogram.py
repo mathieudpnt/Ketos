@@ -332,17 +332,13 @@ class Spectrogram(BaseAudioTime):
         Parent class for MagSpectrogram, PowerSpectrogram, MelSpectrogram, 
         and CQTSpectrogram.
 
-        The Spectrogram class stores the spectrogram pixel values in a 2d 
+        The Spectrogram class stores the spectrogram pixel values in a 
         numpy array, where the first axis (0) is the time dimension and 
         the second axis (1) is the frequency dimensions.
 
-        The Spectrogram class can also store a stack of multiple, identical-size, 
-        spectrograms in a 3d numpy array with the last axis (3) representing the 
-        multiple instances.
-
         Args:
-            image: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            image: numpy array
+                Spectrogram matrix. 
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             type: str
@@ -374,8 +370,8 @@ class Spectrogram(BaseAudioTime):
                 generating this spectrogram
             
         Attributes:
-            image: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            data: numpy array
+                Spectrogram matrix. 
             time_ax: LinearAxis
                 Axis object for the time dimension
             freq_ax: LinearAxis or Log2Axis
@@ -782,9 +778,19 @@ class Spectrogram(BaseAudioTime):
 class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram.
     
+        While the underlying data array can be accessed via the :attr:`data` attribute,
+        it is recommended to always use the :func:`get_data` function to access the data 
+        array, i.e., 
+
+        >>> from ketos.audio.base_audio import BaseAudio
+        >>> x = np.ones(6)
+        >>> audio_sample = BaseAudio(data=x)
+        >>> audio_sample.get_data()
+        array([1., 1., 1., 1., 1., 1.])
+
         Args:
-            data: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            data: numpy array
+                Magnitude spectrogram.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
@@ -815,6 +821,12 @@ class MagSpectrogram(Spectrogram):
                 Complex phase angle.
 
         Attrs:
+            data: numpy array
+                If the phase angle matrix is not provided, data will be a 2d numpy 
+                array containing the magnitude spectrogram.
+                On the other hand, if the phase angle matrix is provided, data will 
+                be a 3d numpy array where data[:,:,0] contains the magnitude spectrogram 
+                and data[:,:,1] contains the complex phase angle. 
             window_func: str
                 Window function.
     """

@@ -102,6 +102,16 @@ def segment_data(x, window, step=None):
 class BaseAudio():
     """ Parent class for all audio classes.
 
+        While the underlying data array can be accessed via the :attr:`data` attribute,
+        it is recommended to always use the :func:`get_data` function to access the data 
+        array, i.e., 
+
+        >>> from ketos.audio.base_audio import BaseAudio
+        >>> x = np.ones(6)
+        >>> audio_sample = BaseAudio(data=x)
+        >>> audio_sample.get_data()
+        array([1., 1., 1., 1., 1., 1.])
+        
         Args:
             data: numpy array
                 Data
