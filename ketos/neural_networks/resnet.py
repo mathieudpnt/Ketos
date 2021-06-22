@@ -86,33 +86,79 @@ class ResNetBlock(tf.keras.Model):
                 Kernel used in convolutional layers within the block
             residual_path: bool
                 Whether or not the block will contain a residual path
-
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of the batch normalization layers.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in the dropout layers.
+                Set this parameter to 0 to disable dropout (default).
         Returns:
             A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
     """
-    def __init__(self, filters, strides=1, kernel=(3,3), residual_path=False):
+    def __init__(self, filters, strides=1, kernel=(3,3), residual_path=False, batch_norm_momentum=0.99, dropout_rate=0):
         super(ResNetBlock, self).__init__()
 
         self.filters = filters
         self.strides = strides
         self.kernel  = kernel
         self.residual_path = residual_path
+
         self.conv_1 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=self.kernel, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
+
         self.conv_2 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=self.kernel, strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
 
         if residual_path == True:
             self.conv_down = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(1,1), strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+
+            self.batch_norm_down = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         
-        self.dropout = tf.keras.layers.Dropout(0.0)
+        self.dropout = tf.keras.layers.Dropout(rate=dropout_rate)
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of the batch normalization layers in the block.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+        
+        self.batch_norm_1.momentum = momentum
+        self.batch_norm_2.momentum = momentum
+        if self.residual_path:
+            self.batch_norm_down.momentum = momentum
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in the dropout layers in the block.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        self.dropout.rate = rate
 
     def call(self,inputs, training=None):
         residual = inputs
@@ -120,17 +166,17 @@ class ResNetBlock(tf.keras.Model):
         x = self.batch_norm_1(inputs, training=training)
         x = tf.nn.relu(x)
         x = self.conv_1(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
         x = self.batch_norm_2(x, training=training)
         x = tf.nn.relu(x)
         x = self.conv_2(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
 
         if self.residual_path:
             residual = self.batch_norm_down(inputs, training=training)
             residual = tf.nn.relu(residual)
             residual = self.conv_down(residual)
-            x = self.dropout(x)
+            x = self.dropout(x, training=training)
 
         x = x + residual
         return x
@@ -148,33 +194,81 @@ class ResNet1DBlock(tf.keras.Model):
                 Kernel size used in convolutional layers within the block
             residual_path: bool
                 Whether or not the block will contain a residual path
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of the batch normalization layers.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in the dropout layers.
+                Set this parameter to 0 to disable dropout (default).
 
         Returns:
             A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
     """
-    def __init__(self, filters, strides=1, kernel=300, residual_path=False):
+    def __init__(self, filters, strides=1, kernel=300, residual_path=False, batch_norm_momentum=0.99, dropout_rate=0):
         super(ResNet1DBlock, self).__init__()
 
         self.filters = filters
         self.strides = strides
         self.kernel = kernel
         self.residual_path = residual_path
+
         self.conv_1 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=self.kernel, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
+
         self.conv_2 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=self.kernel, strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
 
         if residual_path == True:
             self.conv_down = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=1, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+
+            self.batch_norm_down = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         
-        self.dropout = tf.keras.layers.Dropout(0.0)
+        self.dropout = tf.keras.layers.Dropout(rate=dropout_rate)
+
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of the batch normalization layers in the block.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+        
+        self.batch_norm_1.momentum = momentum
+        self.batch_norm_2.momentum = momentum
+        if self.residual_path:
+            self.batch_norm_down.momentum = momentum
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in the dropout layers in the block.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        self.dropout.rate = rate
 
     def call(self,inputs, training=None):
         residual = inputs
@@ -182,17 +276,17 @@ class ResNet1DBlock(tf.keras.Model):
         x = self.batch_norm_1(inputs, training=training)
         x = tf.nn.relu(x)
         x = self.conv_1(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
         x = self.batch_norm_2(x, training=training)
         x = tf.nn.relu(x)
         x = self.conv_2(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
 
         if self.residual_path:
             residual = self.batch_norm_down(inputs, training=training)
             residual = tf.nn.relu(residual)
             residual = self.conv_down(residual)
-            x = self.dropout(x)
+            x = self.dropout(x, training=training)
 
         x = x + residual
         return x
@@ -232,12 +326,23 @@ class ResNetArch(tf.keras.Model):
                 A pre-trained resnet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
 
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of all the batch normalization layers in the network.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in all the dropout layers in the network.
+                Set this parameter to 0 to disable dropout (default).
+
         Returns:
             A ResNetArch object, which is a tensorflow model.
     """
 
     def __init__(self,  n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, 
-                        initial_strides=1, initial_kernel=(3,3), strides=2, kernel=(3,3), **kwargs):
+                        initial_strides=1, initial_kernel=(3,3), strides=2, kernel=(3,3), 
+                        batch_norm_momentum=0.99, dropout_rate=0, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
 
         self.n_classes = n_classes
@@ -261,11 +366,13 @@ class ResNetArch(tf.keras.Model):
 
             self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
+            self.num_blocks = 0
             for set_id in range(self.n_sets):
                 for block_id in range(self.block_sets[set_id]):
-                    #Frst layer of every block except the first
+                    #First layer of every block except the first
                     if set_id != 0 and block_id == 0:
-                        block = ResNetBlock(self.output_filters, strides=self.strides, kernel=self.kernel, residual_path=True)
+                        block = ResNetBlock(self.output_filters, strides=self.strides, kernel=self.kernel, residual_path=True,
+                                            batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
                     
                     else:
                         if self.input_filters != self.output_filters:
@@ -273,15 +380,17 @@ class ResNetArch(tf.keras.Model):
                         else:
                             residual_path = False
 
-                        block = ResNetBlock(self.output_filters, strides=1, kernel=self.kernel, residual_path=residual_path)
+                        block = ResNetBlock(self.output_filters, strides=1, kernel=self.kernel, residual_path=residual_path,
+                                            batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
 
                     self.input_filters = self.output_filters
 
                     self.blocks.add(block)
+                    self.num_blocks += 1
                 
                 self.output_filters *= 2
 
-        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.batch_norm_final = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
@@ -358,7 +467,41 @@ class ResNetArch(tf.keras.Model):
         cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
 
         return cloned_model
-        
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of all the batch normalization layers in the network.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+
+        self.batch_norm_final.momentum = momentum
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_batch_norm_momentum(momentum=momentum)
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in all the dropout layers in the network.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
+
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
@@ -406,12 +549,23 @@ class ResNet1DArch(tf.keras.Model):
                 A pre-trained resnet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
 
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of all the batch normalization layers in the network.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in all the dropout layers in the network.
+                Set this parameter to 0 to disable dropout (default).
+
         Returns:
             A ResNet1DArch object, which is a tensorflow model.
     """
 
     def __init__(self, n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, 
-                       initial_strides=1, initial_kernel=30, strides=2, kernel=300, **kwargs):
+                       initial_strides=1, initial_kernel=30, strides=2, kernel=300, 
+                       batch_norm_momentum=0.99, dropout_rate=0, **kwargs):
 
         super(ResNet1DArch, self).__init__(**kwargs)
 
@@ -436,11 +590,13 @@ class ResNet1DArch(tf.keras.Model):
 
             self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
+            self.num_blocks = 0
             for set_id in range(self.n_sets):
                 for block_id in range(self.block_sets[set_id]):
                     #First layer of every block except the first
                     if set_id != 0 and block_id == 0:
-                        block = ResNet1DBlock(self.output_filters, strides=self.strides, kernel=self.kernel, residual_path=True)
+                        block = ResNet1DBlock(self.output_filters, strides=self.strides, kernel=self.kernel, 
+                                residual_path=True, batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
                     
                     else:
                         if self.input_filters != self.output_filters:
@@ -448,15 +604,17 @@ class ResNet1DArch(tf.keras.Model):
                         else:
                             residual_path = False
 
-                        block = ResNet1DBlock(self.output_filters, strides=1, kernel=self.kernel, residual_path=residual_path)
+                        block = ResNet1DBlock(self.output_filters, strides=1, kernel=self.kernel,
+                                residual_path=residual_path, batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
 
                     self.input_filters = self.output_filters
 
                     self.blocks.add(block)
+                    self.num_blocks += 1
                 
                 self.output_filters *= 2
 
-        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.batch_norm_final = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         self.average_pool = tf.keras.layers.GlobalAveragePooling1D()
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
@@ -534,6 +692,40 @@ class ResNet1DArch(tf.keras.Model):
         cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
 
         return cloned_model
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of all the batch normalization layers in the network.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+
+        self.batch_norm_final.momentum = momentum
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_batch_norm_momentum(momentum=momentum)
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in all the dropout layers in the network.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
 
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)

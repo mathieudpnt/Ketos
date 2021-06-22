@@ -282,7 +282,6 @@ def test_read_recipe_file_simple(recipe, recipe_dict):
     assert read_recipe['block_sets'] == recipe['block_sets']
     assert read_recipe['n_classes'] ==  recipe['n_classes']
 
-
 def test_train_ResNet(sample_data):
     data, labels = sample_data
     resnet = ResNetInterface() #default resnet
@@ -293,6 +292,26 @@ def test_train_ResNet(sample_data):
     resnet.val_generator = val_generator
 
     resnet.train_loop(2)
+
+def test_freeze_and_unfreeze_block():
+    """ Check that calling the freeze_block and unfreeze_block methods does not result in an error"""
+    resnet = ResNetInterface() #default resnet
+    resnet.model.freeze_block([1,2,5])
+    resnet.model.unfreeze_block([5])
+
+def test_set_batch_norm_momentum():
+    """ Check that calling the set_batch_norm_momentum method does not result in an error"""
+    resnet = ResNetInterface() #default resnet
+    resnet.model.set_batch_norm_momentum(momentum=0.5)
+    resnet1d = ResNet1DInterface() #default resnet
+    resnet1d.model.set_batch_norm_momentum(momentum=0.5)
+
+def test_set_dropout_rate():
+    """ Check that calling the set_dropout_rate method does not result in an error"""
+    resnet = ResNetInterface() #default resnet
+    resnet.model.set_dropout_rate(rate=0.5)
+    resnet1d = ResNet1DInterface() #default resnet
+    resnet1d.model.set_dropout_rate(rate=0.5)
 
 
 # ResNet 1D

@@ -276,7 +276,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
 
     return segs
 
-def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', decibel=True):
+def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', decibel=True, compute_phase=False):
     """ Compute Short Time Fourier Transform (STFT).
 
         Uses :func:`audio.utils.misc.segment_args` to convert 
@@ -305,6 +305,8 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', 
                     * hanning
             decibel: bool
                 Convert to dB scale
+            compute_phase: bool
+                Compute complex phase angle. Default it False
 
         Returns:
             img: numpy.array
@@ -315,6 +317,8 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', 
                 Number of points used for the Fourier Transform.
             seg_args: dict
                 Input arguments used for evaluating :func:`audio.utils.misc.segment_args`. 
+            cpx_angle: numpy.array
+                Complex phase angle in radians. None unless compute_phase=True
     """
     if seg_args is None:
         assert window and step, "if seg_args is not specified, window and step must both be specified."
@@ -335,7 +339,11 @@ def stft(x, rate, window=None, step=None, seg_args=None, window_func='hamming', 
     
     num_fft = segs.shape[1] #Number of points used for the Fourier Transform        
     freq_max = rate / 2. #Maximum frequency
-    return img, freq_max, num_fft, seg_args
+    
+    if compute_phase: cpx_angle = np.angle(fft)
+    else: cpx_angle = None
+    
+    return img, freq_max, num_fft, seg_args, cpx_angle
 
 def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hamming'):
     """ Compute the CQT spectrogram of an audio signal.
@@ -500,7 +508,7 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
             image: 2d numpy array
                 Magnitude spectrogram, linear scale
             phase_angle: 
-                Initial condition for phase in degrees
+                Initial condition for phase in radians
             num_fft: int
                 Number of points used for the Fast-Fourier Transform. Same as window size.
             step_len: int
@@ -525,7 +533,7 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
             >>> #using a window size of 200, step size of 40, and a Hamming window,
             >>> from ketos.audio.utils.misc import stft
             >>> win_fun = 'hamming'
-            >>> mag, freq_max, num_fft, _ = stft(x=audio, rate=1000, seg_args={'win_len':200, 'step_len':40}, window_func=win_fun)
+            >>> mag, freq_max, num_fft, _, _ = stft(x=audio, rate=1000, seg_args={'win_len':200, 'step_len':40}, window_func=win_fun)
             >>> #Estimate the original audio signal            
             >>> from ketos.audio.utils.misc import spec2wave
             >>> audio_est = spec2wave(image=mag, phase_angle=0, num_fft=num_fft, step_len=40, num_iters=25, window_func=win_fun)
@@ -541,13 +549,14 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
     """
     # swap axis to conform with librosa 
     image = np.swapaxes(image, 0, 1)
+    if np.ndim(phase_angle) == 2: phase_angle = np.swapaxes(phase_angle, 0, 1)
 
     # settings for FFT and inverse FFT    
     fft_config = dict(n_fft=num_fft, win_length=num_fft, hop_length=step_len, center=False, window=window_func)
     ifft_config = dict(win_length=num_fft, hop_length=step_len, center=False, window=window_func)
 
     # initial spectrogram for iterative algorithm
-    complex_specgram = complex_value(image, phase_angle * np.pi/180.)
+    complex_specgram = complex_value(image, phase_angle)
 
     # Griffin-Lim iterative algorithm
     for i in range(num_iters):
