@@ -45,7 +45,7 @@ def test_init_spec(spec_image_with_attrs):
     """Test that we can initialize an instance of the Spectrogram class"""
     img, dt, ax = spec_image_with_attrs
     spec = Spectrogram(data=img, time_res=dt, type='MagSpectrogram', freq_ax=ax)
-    assert np.all(spec.data == img)
+    assert np.all(spec.get_data() == img)
     assert spec.type == 'MagSpectrogram'
 
 def test_init_mag_spec():
@@ -53,7 +53,7 @@ def test_init_mag_spec():
        from keyword arguments"""
     img = np.ones((20,10))
     spec = MagSpectrogram(data=img, time_res=1.0, freq_min=100, freq_res=4)
-    assert np.all(spec.data == img)
+    assert np.all(spec.get_data() == img)
     assert spec.type == 'MagSpectrogram'
 
 def test_copy_spec(spec_image_with_attrs):
@@ -61,10 +61,10 @@ def test_copy_spec(spec_image_with_attrs):
     img, dt, ax = spec_image_with_attrs
     spec = Spectrogram(data=img, time_res=dt, type='MagSpectrogram', freq_ax=ax)
     spec2 = spec.deepcopy()
-    assert np.all(spec.data == spec2.data)
-    spec2.data += 1.5 #modify copied image
+    assert np.all(spec.get_data() == spec2.get_data())
+    spec2.data += + 1.5 #modify copied image
     spec2.time_ax.x_min += 30. #modify copied time axis
-    assert np.all(spec.data + 1.5 == spec2.data) #check that original image was not affected
+    assert np.all(spec.get_data() + 1.5 == spec2.get_data()) #check that original image was not affected
     assert spec.time_ax.min() + 30. == spec2.time_ax.min() #check that original time axis was not affected
 
 def test_mag_spec_of_sine_wave(sine_audio):
@@ -75,7 +75,7 @@ def test_mag_spec_of_sine_wave(sine_audio):
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     assert spec.time_res() == step
     assert spec.freq_min() == 0    
-    freq = np.argmax(spec.data, axis=1)
+    freq = np.argmax(spec.get_data(), axis=1)
     freqHz = freq * spec.freq_res()
     assert np.all(np.abs(freqHz - 2000) < spec.freq_res())
 
@@ -88,7 +88,7 @@ def test_power_spec_of_sine_wave(sine_audio):
     assert spec.time_res() == step
     assert spec.freq_min() == 0
     assert spec.type == 'PowerSpectrogram'
-    freq = np.argmax(spec.data, axis=1)
+    freq = np.argmax(spec.get_data(), axis=1)
     freqHz = freq * spec.freq_res()
     assert np.all(np.abs(freqHz - 2000) < spec.freq_res())
 
@@ -107,18 +107,18 @@ def test_cqt_spec_of_sine_wave(sine_audio):
     step = duration / 10
     spec = CQTSpectrogram.from_waveform(audio=sine_audio, step=step, bins_per_oct=64, freq_min=1, freq_max=4000)
     assert spec.freq_min() == 1
-    freq = np.argmax(spec.data, axis=1)
+    freq = np.argmax(spec.get_data(), axis=1)
     freqHz = spec.freq_ax.low_edge(freq)
     assert np.all(np.abs(freqHz - 2000) < 2 * spec.freq_ax.bin_width(freq))
     
 def test_add_preserves_shape(sine_audio):
     """Test that when we add a spectrogram the shape of the present instance is preserved"""
     spec1 = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
-    orig_shape = spec1.data.shape
+    orig_shape = spec1.get_data().shape
     spec2 = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
     spec2.crop(start=1.0, end=2.5, freq_min=1000, freq_max=4000)
     spec1.add(spec2)
-    assert spec1.data.shape == orig_shape
+    assert spec1.get_data().shape == orig_shape
 
 def test_add(sine_audio):
     """Test that when we add two spectrograms, we get the expected result"""
@@ -126,9 +126,9 @@ def test_add(sine_audio):
     spec2 = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
     spec12 = spec1.add(spec2, offset=1.0, scale=1.3, make_copy=True)
     bx = spec12.time_ax.bin(1.0)
-    assert np.all(np.abs(spec12.data[:bx] - spec2.data[:bx]) < 0.001) # values before t=1.0 s are unchanged
-    sum_spec = spec1.data[bx:] + 1.3 * spec2.data[:spec1.data.shape[0]-bx]
-    assert np.all(np.abs(spec12.data[bx:] - sum_spec) < 0.001) # values outside addition region have changed
+    assert np.all(np.abs(spec12.get_data()[:bx] - spec2.get_data()[:bx]) < 0.001) # values before t=1.0 s are unchanged
+    sum_spec = spec1.get_data()[bx:] + 1.3 * spec2.get_data()[:spec1.get_data().shape[0]-bx]
+    assert np.all(np.abs(spec12.get_data()[bx:] - sum_spec) < 0.001) # values outside addition region have changed
 
 def test_cropped_mag_spec_has_correct_frequency_axis_range(sine_audio):
     """Test that when we crop a spectrogram along the frequency axis, we get the correct range"""
@@ -146,7 +146,7 @@ def test_blur_time_axis():
     spec = Spectrogram(data=img, time_res=1, type='MagSpectrogram', freq_ax=ax)
     sig = 2.0
     spec.blur(sigma_time=sig, sigma_freq=0.01)
-    xy = spec.data / np.max(spec.data)
+    xy = spec.get_data() / np.max(spec.get_data())
     x = xy[:,10]
     assert x[10] == pytest.approx(1, rel=0.001)
     assert x[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
@@ -161,7 +161,7 @@ def test_blur_freq_axis():
     spec = Spectrogram(data=img, time_res=1, type='MagSpectrogram', freq_ax=ax)
     sig = 4.2
     spec.blur(sigma_time=0.01, sigma_freq=sig)
-    xy = spec.data / np.max(spec.data)
+    xy = spec.get_data() / np.max(spec.get_data())
     y = xy[10,:]
     assert y[10] == pytest.approx(1, rel=0.001)
     assert y[9] == pytest.approx(np.exp(-pow(1,2)/(2.*pow(sig,2))), rel=0.001)
@@ -175,7 +175,7 @@ def test_recover_waveform(sine_audio):
     win = duration / 4
     step = duration / 10
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
-    audio = spec.recover_waveform(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10, phase_angle=0)
     assert audio.rate == sine_audio.rate
 
 def test_recover_waveform_after_time_crop(sine_audio):
@@ -185,7 +185,7 @@ def test_recover_waveform_after_time_crop(sine_audio):
     step = 0.02
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     spec.crop(start=0.4, end=2.7)
-    audio = spec.recover_waveform(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10, phase_angle=0)
     assert audio.rate == pytest.approx(sine_audio.rate, abs=0.1)
 
 def test_recover_waveform_after_freq_crop(sine_audio):
@@ -195,7 +195,7 @@ def test_recover_waveform_after_freq_crop(sine_audio):
     step = 0.02
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=win, step=step)
     spec.crop(freq_min=200, freq_max=2300)
-    audio = spec.recover_waveform(num_iters=10)
+    audio = spec.recover_waveform(num_iters=10, phase_angle=0)
     assert audio.rate == pytest.approx(2*2300, abs=0.5)
 
 def test_mag_from_wav(sine_wave_file):
@@ -244,7 +244,7 @@ def test_mag_from_wav_time_shift():
     spec0 = MagSpectrogram.from_wav(fname, window=0.1, step=0.02, offset=0.00, duration=0.4, freq_max=800)
     spec1 = MagSpectrogram.from_wav(fname, window=0.1, step=0.02, offset=0.12, duration=0.4, freq_max=800)
     n_shift = int(0.12 / 0.02)
-    assert np.all(np.isclose(spec0.data[n_shift:], spec1.data[:-n_shift], rtol=1e-6))
+    assert np.all(np.isclose(spec0.get_data()[n_shift:], spec1.get_data()[:-n_shift], rtol=1e-6))
 
 def test_mag_from_wav_id(sine_wave_file):
     """ Test that mag spectrogram created with from_wav method 

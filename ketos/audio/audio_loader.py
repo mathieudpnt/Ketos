@@ -295,7 +295,7 @@ class AudioLoader():
             See child classes :class:`audio.audio_loader.AudioFrameLoader` and 
             :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
-    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}):
+    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, **kwargs):
 
         repres = copy.deepcopy(repres)
         if not isinstance(repres, list): repres = [repres]
@@ -308,6 +308,7 @@ class AudioLoader():
         self.channel = channel
         self.sel_gen = selection_gen
         self.annot = annotations
+        self.kwargs = kwargs
 
     def __iter__(self):
         return self
@@ -320,7 +321,7 @@ class AudioLoader():
                     Next segment
         """
         audio_sel = next(self.sel_gen)
-        return self.load(**audio_sel)
+        return self.load(**audio_sel, **self.kwargs)
 
     def num(self):
         """ Returns total number of segments.
@@ -360,9 +361,10 @@ class AudioLoader():
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")        
-                kwargs.update(cfg)
+                _kwargs = kwargs.copy()
+                _kwargs.update(cfg)
                 seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, 
-                                                            duration=duration, id=filename, **kwargs)
+                                                            duration=duration, id=filename, **_kwargs)
         
             # add annotations
             if label is not None:
@@ -445,7 +447,7 @@ class AudioFrameLoader(AudioLoader):
             .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}, batch_size=1):
+                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, **kwargs):
 
         if isinstance(repres, list): r0 = repres[0]
         else: r0 = repres
@@ -460,7 +462,7 @@ class AudioFrameLoader(AudioLoader):
         assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
 
         super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres)
+            channel=channel, annotations=annotations, repres=repres, **kwargs)
 
         if isinstance(batch_size, int):
             self.max_batch_size = batch_size
@@ -502,7 +504,7 @@ class AudioFrameLoader(AudioLoader):
             filename = audio_sel['filename']            
 
         duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
-        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, duration=duration, label=None)
+        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, duration=duration, label=None, **self.kwargs)
         self.batch = self.batch.segment(window=self.sel_gen.frame, step=self.sel_gen.step)
 
         self.offset = offset
@@ -548,7 +550,7 @@ class AudioSelectionLoader(AudioLoader):
                 include_attrs=True.
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-        include_attrs=False, attrs=None):
+        include_attrs=False, attrs=None, **kwargs):
 
         if isinstance(repres, list): r0 = repres[0]
         else: r0 = repres
@@ -557,4 +559,4 @@ class AudioSelectionLoader(AudioLoader):
         else: duration = None
 
         super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration, include_attrs=include_attrs, attrs=attrs), 
-            channel=channel, annotations=annotations, repres=repres)
+            channel=channel, annotations=annotations, repres=repres, **kwargs)

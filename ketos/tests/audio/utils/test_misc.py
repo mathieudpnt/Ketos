@@ -159,7 +159,7 @@ def test_stft():
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
     # compute STFT with window length of 200, step length of 40, and offset of -(200-40)/2=-80
     seg_args = aum.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
-    mag, freq_max, num_fft, seg_args = aum.stft(x=sig, rate=1000, seg_args=seg_args)
+    mag, freq_max, num_fft, seg_args, phase = aum.stft(x=sig, rate=1000, seg_args=seg_args)
     assert freq_max == 500.
     assert num_fft == 200
     assert seg_args == {'win_len':200, 'step_len':40, 'num_segs':25, 'offset_len':-80}
@@ -167,7 +167,7 @@ def test_stft():
     # compute STFT with window size of 0.2 s and step size of 0.04 s, and check that results are identical to above
     x = np.arange(1000)
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
-    mag_s, freq_max_s, num_fft_s, seg_args_s = aum.stft(x=sig, rate=1000, window=0.2, step=0.04)
+    mag_s, freq_max_s, num_fft_s, seg_args_s, phase = aum.stft(x=sig, rate=1000, window=0.2, step=0.04)
     assert freq_max_s == freq_max
     assert num_fft_s == num_fft
     assert seg_args_s == {'win_len':200, 'step_len':40, 'num_segs':mag_s.shape[0], 'offset_len':-80}
@@ -195,7 +195,7 @@ def test_spec2wave():
     # compute STFT
     win_fun = 'hamming'
     seg_args = dict(win_len=100, step_len=20, offset_len=0)
-    mag, freq_max, num_fft, seg_args = aum.stft(x=sig, rate=1000, seg_args=seg_args, window_func=win_fun)
+    mag, freq_max, num_fft, seg_args, phase = aum.stft(x=sig, rate=1000, seg_args=seg_args, window_func=win_fun)
     img = aum.from_decibel(mag)
     # invert
     aud = aum.spec2wave(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
