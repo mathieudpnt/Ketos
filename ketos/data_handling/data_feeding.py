@@ -322,7 +322,7 @@ class BatchGenerator():
             data_indices = list_of_indices
             if self.annot_in_data_table == False:
                 annot_indices = [[self.entry_indices[self.entry_indices[:,0]==data_idx,1] for data_idx in batch] for batch in list_of_indices] 
-                annot_indices = [np.vstack(batch).flatten() for batch in annot_indices]
+                annot_indices = [np.concatenate(batch) for batch in annot_indices]
             else:
                 annot_indices = None
         

@@ -178,6 +178,6 @@ def test_train_DenseNet(sample_data):
     densenet.train_generator = train_generator
     densenet.val_generator = val_generator
 
-    densenet.train_loop(2)
+    densenet.train_loop(2, checkpoint_freq=0)
 
 

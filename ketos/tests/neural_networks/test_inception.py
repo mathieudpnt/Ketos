@@ -140,7 +140,7 @@ def test_train_Inception(sample_data):
     inception.train_generator = train_generator
     inception.val_generator = val_generator
 
-    inception.train_loop(2)
+    inception.train_loop(2, checkpoint_freq=0)
 
 
 
