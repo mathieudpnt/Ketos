@@ -60,6 +60,10 @@ filename, offset, and some additional attributes::
     >>> spec.get_attrs()
     {'time_res': 0.01, 'freq_min': 0.0, 'freq_res': 4.9504950495049505, 'window_func': 'hamming', 'type': 'MagSpectrogram'}
 
+While the underlying data array can be accessed via the :attr:`data <ketos.audio.base_audio.BaseAudio.data>`  attribute, 
+it is recommended to always use the :meth:`get_data() <ketos.audio.base_audio.BaseAudio.get_data>` function to access 
+the data array, as shown in the preceding example.
+
 The spectrogram classes have a number of useful methods for manipulating spectrograms, e.g., cropping in either the time or 
 frequency dimension or both (:meth:`crop() <ketos.audio.spectrogram.Spectrogram.crop>`), or recovering 
 the original waveform (:meth:`recover_waveform() <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>`). 
