@@ -291,7 +291,7 @@ def test_train_ResNet(sample_data):
     resnet.train_generator = train_generator
     resnet.val_generator = val_generator
 
-    resnet.train_loop(2)
+    resnet.train_loop(2, checkpoint_freq=0)
 
 def test_freeze_and_unfreeze_block():
     """ Check that calling the freeze_block and unfreeze_block methods does not result in an error"""
@@ -508,4 +508,4 @@ def test_train_ResNet1D(sample_data_1d):
     resnet.train_generator = train_generator
     resnet.val_generator = val_generator
 
-    resnet.train_loop(2)
+    resnet.train_loop(2, checkpoint_freq=0)
