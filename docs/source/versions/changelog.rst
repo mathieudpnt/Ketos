@@ -1,19 +1,14 @@
 Change log
 ==========
 
-**Version 2.1.5** (date)
-
- * Added bandbass_filter method in Waveform class.
- * Added option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
-
-
-**Version 2.1.4** (March 29, 2021)
+**Version 2.2.0** (June 24, 2021)
 
  * The create_database function can now include extra columns specified in the selection tables into the database. 
  * The reduce_tonal_noise function had a bug  that caused the desired method (median or running mean) not to be recognized sometimes. This has now been fixed.
  * The group_detections function had a bug that caused detections at the end of a batch to be dropped. This has been fixed.
- 
-
+ * Added bandbass_filter method in Waveform class.
+ * Added option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
+ *
 
 **Version 2.1.3** (february 17, 2021)
 
