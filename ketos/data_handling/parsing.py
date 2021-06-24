@@ -95,7 +95,13 @@ def parse_audio_representation(s):
               ['duration',            float, 's'],
               ['normalize_wav',       bool,  None],
               ['transforms',          list,  None],
-              ['waveform_transforms', list,  None]]
+              ['waveform_transforms', list,  None],
+              ['num_chan',            int,   None],
+              ['filter_pad_samples',  int,   None],
+              ['global_km_window_seconds',  float, 's'],
+              ['local_km_window_seconds',  float, 's'],
+              ['filter_n',            int,   None],
+              ['filter_min_hz',       float, 'Hz']]
 
     d = {}
     for p in params:

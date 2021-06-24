@@ -469,3 +469,20 @@ def test_audio_select_loader_with_attrs(five_time_stamped_wave_files):
     assert attrs['comment'] == 'big'
     assert 'conf' not in attrs.keys()
     assert 'dummy' not in attrs.keys()
+
+def test_audio_select_loader_accepts_kwargs(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with 
+        a complex phase""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    sel = pd.DataFrame({'filename':[files[0],files[1]],
+                        'start':[0.10,0.12],
+                        'end':[0.46,0.42],
+                        'comment':['big','small'],
+                        'conf':[0.31,0.99]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader all attrs
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, compute_phase=True)
+    s = next(loader)
+    assert np.ndim(s.data) == 3

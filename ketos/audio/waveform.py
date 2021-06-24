@@ -39,6 +39,7 @@ import scipy.io.wavfile as wave
 from scipy import interpolate
 import scipy.signal
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from ketos.utils import ensure_dir, morlet_func
 from ketos.data_handling.data_handling import read_wave
 from ketos.audio.annotation import AnnotationHandler
@@ -394,48 +395,6 @@ class Waveform(BaseAudioTime):
         
         return cls(rate=rate, data=np.array(y), filename=filename)
 
-    def segment(self, window, step=None):
-        """ Divide the time axis into segments of uniform length, which may or may 
-            not be overlapping.
-
-            Window length and step size are converted to the nearest integer number 
-            of time steps.
-
-            If necessary, the audio signal will be padded with zeros at the end to 
-            ensure that all segments have an equal number of samples. 
-
-            Args:
-                window: float
-                    Length of each segment in seconds.
-                step: float
-                    Step size in seconds.
-
-            Returns:
-                segs: list(Waveform)
-                    Audio signals
-
-            Example:
-                >>> from ketos.audio.waveform import Waveform
-                >>> # create a morlet wavelet
-                >>> mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
-                >>> mor.duration()
-                3.0
-                >>> # segment into 2-s wide frames, using a step size of 1 s
-                >>> segs = mor.segment(window=2., step=1.)
-                >>> # show the segments
-                >>> fig0 = segs[0].plot()
-                >>> fig0.savefig("ketos/tests/assets/tmp/morlet_segmented_0.png")
-                >>> fig1 = segs[1].plot()
-                >>> fig1.savefig("ketos/tests/assets/tmp/morlet_segmented_1.png")
-                >>> plt.close(fig0)
-                >>> plt.close(fig1)
-
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_0.png
-
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_1.png
-        """              
-        return segment_data(self, window, step)
-
     def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
 
@@ -457,7 +416,7 @@ class Waveform(BaseAudioTime):
 
         wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
-    def plot(self, show_annot=False):
+    def plot(self, show_annot=False, figsize=(5,4), label_in_title=True, append_title='', show_envelope=False):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -468,6 +427,14 @@ class Waveform(BaseAudioTime):
             Args:
                 show_annot: bool
                     Display annotations
+                figsize: tuple
+                    Figure size
+                label_in_title: bool
+                    Include label (if available) in figure title
+                append_title: str
+                    Append this string to the title
+                show_envelope: bool
+                    Display envelope on top of signal
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -483,13 +450,18 @@ class Waveform(BaseAudioTime):
 
                 .. image:: ../../_static/morlet.png
         """
-        fig, ax = super().plot()
+        fig, ax = super().plot(figsize, label_in_title, append_title)
 
         y = self.get_data()
 
         x = np.linspace(start=0, stop=self.duration(), num=self.data.shape[0])
         ax.plot(x, y)
         ax.set_ylabel('Amplitude')
+
+        # superimpose envelope
+        if show_envelope:
+            z = np.abs(scipy.signal.hilbert(y))
+            ax.plot(x, z, color='C1')
 
         # superimpose annotation boxes
         if show_annot: self._draw_annot_boxes(ax)
@@ -507,12 +479,14 @@ class Waveform(BaseAudioTime):
         annots = self.get_annotations()
         if annots is None: return
         y1, y2 = ax.get_ylim()
+        y1 *= 0.95
+        y2 *= 0.95
         for idx,annot in annots.iterrows():
             x1 = annot['start']
             x2 = annot['end']
-            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C3',facecolor='none')
             ax.add_patch(box)
-            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C3')
 
     def append(self, signal, n_smooth=0):
         """ Append another audio signal to the present instance.

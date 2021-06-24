@@ -520,28 +520,6 @@ class Spectrogram(BaseAudioTime):
         if self.annot: self.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
-
-    def segment(self, window, step=None):
-        """ Divide the time axis into segments of uniform length, which may or may 
-            not be overlapping.
-
-            Window length and step size are converted to the nearest integer number 
-            of time steps.
-
-            If necessary, the spectrogram will be padded with zeros at the end to 
-            ensure that all segments have an equal number of samples. 
-
-            Args:
-                window: float
-                    Length of each segment in seconds.
-                step: float
-                    Step size in seconds.
-
-            Returns:
-                specs: list(Spectrogram)
-                    Spectrogram segments
-        """
-        return segment_data(self, window, step)
                 
     def add(self, spec, offset=0, scale=1, make_copy=False):
         """ Add another spectrogram on top of this spectrogram.
@@ -703,7 +681,7 @@ class Spectrogram(BaseAudioTime):
         if 'time_constant' in kwargs.keys(): transf.update({'time_constant': kwargs['time_constant']})
         self.transform_log.append(transf)
 
-    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -722,7 +700,10 @@ class Spectrogram(BaseAudioTime):
                     The colormap to be used
                 label_in_title: bool
                     Include label (if available) in figure title
-            
+                vmin, vmax : scalar, optional
+                    When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
+                    By default, the colormap covers the complete value range of the supplied data. 
+                    vmin, vmax are ignored if the norm parameter is used.            
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
@@ -746,7 +727,7 @@ class Spectrogram(BaseAudioTime):
 
         x = self.get_data() # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
-        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent)# draw image
+        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent, vmin=vmin, vmax=vmax)# draw image
         ax.set_ylabel(self.freq_ax.label) # axis label        
         fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
 
@@ -808,6 +789,8 @@ class MagSpectrogram(Spectrogram):
             waveform_transform_log: list(dict)
                 List of transforms that have been applied to the waveform before 
                 generating this spectrogram
+            phase_angle: numpy.array
+                Complex phase angle.
 
         Attrs:
             window_func: str
@@ -815,12 +798,16 @@ class MagSpectrogram(Spectrogram):
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
         filename=None, offset=0, label=None, annot=None, transforms=None, 
-        transform_log=None, waveform_transform_log=None, **kwargs):
+        transform_log=None, waveform_transform_log=None, phase_angle=None, **kwargs):
 
         # create frequency axis
         freq_bins = max(1, data.shape[1])
         freq_max  = freq_min + data.shape[1] * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
+
+        if phase_angle is not None:
+            assert phase_angle.shape == data.shape, 'phase_angle and data array must have same shape'
+            data = np.stack([data, phase_angle], axis=2)
 
         # create spectrogram
         kwargs.pop('type', None)
@@ -845,6 +832,16 @@ class MagSpectrogram(Spectrogram):
         kwargs.pop('freq_ax', None)
         return kwargs
 
+    def get_data(self):
+        """ Get magnitude spectrogram data """
+        if np.ndim(self.data) == 3: return self.data[:,:,0]
+        else: return super().get_data()
+
+    def get_phase_angle(self):
+        """ Get magnitude spectrogram complex phase angle, if available """
+        if np.ndim(self.data) == 3: return self.data[:,:,1]
+        else: return None
+
     @classmethod
     def empty(cls):
         """ Creates an empty MagSpectrogram object
@@ -853,7 +850,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None, transforms=None, **kwargs):
+        freq_min=None, freq_max=None, transforms=None, compute_phase=False, **kwargs):
         """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -882,6 +879,8 @@ class MagSpectrogram(Spectrogram):
                     List of dictionaries, where each dictionary specifies the name of 
                     a transformation to be applied to the spectrogram. For example,
                     {"name":"normalize", "mean":0.5, "std":1.0}
+                compute_phase: bool
+                    Compute complex phase angle. Default it False
 
             Returns:
                 spec: MagSpectrogram
@@ -890,15 +889,15 @@ class MagSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
-            step=step, seg_args=seg_args, window_func=window_func)
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,
+            step=step, seg_args=seg_args, window_func=window_func, compute_phase=compute_phase)
 
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
-            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
+            waveform_transform_log=audio.transform_log, transforms=transforms, phase_angle=phase, **kwargs)
 
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
@@ -910,7 +909,7 @@ class MagSpectrogram(Spectrogram):
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, 
-            waveform_transforms=None, **kwargs):
+            waveform_transforms=None, compute_phase=False, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -969,6 +968,8 @@ class MagSpectrogram(Spectrogram):
                     a transformation to be applied to the waveform before generating 
                     the spectrogram. For example,
                     {"name":"add_gaussian_noise", "sigma":0.5}
+                compute_phase: bool
+                    Compute complex phase angle. Default it False
 
             Returns:
                 : MagSpectrogram
@@ -998,7 +999,7 @@ class MagSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, compute_phase=compute_phase, **kwargs)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1009,7 +1010,7 @@ class MagSpectrogram(Spectrogram):
         """
         return self.freq_ax.bin_width()
 
-    def recover_waveform(self, num_iters=25, phase_angle=0):
+    def recover_waveform(self, num_iters=25, phase_angle=None, subtract=0):
         """ Estimate audio signal from magnitude spectrogram.
 
             Uses :func:`audio.audio.spec2wave`.
@@ -1018,19 +1019,33 @@ class MagSpectrogram(Spectrogram):
                 num_iters: 
                     Number of iterations to perform.
                 phase_angle: 
-                    Initial condition for phase.
+                    Initial condition for phase in radians. If not specified, 
+                    the phase angle computed computed at initialization will 
+                    be used, if available. If not available, the phase angle 
+                    will default to zero and a warning will be printed.
 
             Returns:
                 : Waveform
                     Audio signal
         """
-        mag = aum.from_decibel(self.data) #use linear scale
+        mag = self.get_data()
+
+        if phase_angle is None:
+            phase_angle = self.get_phase_angle()
+            if phase_angle is None:
+                phase_angle = 0
+                print('Warning: spectrogram phase angle not available; phase will be set to zero everywhere')
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
         pad_low  = max(0, int(self.freq_min() / self.freq_res()))
         if pad_low > 0:
             mag = np.pad(mag, pad_width=((0,0),(pad_low,0)), mode='constant')
+            if np.ndim(phase_angle) == 2:
+                phase_angle = np.pad(phase_angle, pad_width=((0,0),(pad_low,0)), mode='constant')
+
+        #use linear scale
+        mag = aum.from_decibel(mag) - subtract
 
         target_rate = self.freq_ax.bin_width() * 2 * mag.shape[1]
 
@@ -1165,7 +1180,7 @@ class PowerSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
         img = aum.to_decibel(img) # convert to dB
@@ -1405,7 +1420,7 @@ class MelSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
@@ -1795,7 +1810,7 @@ class CQTSpectrogram(Spectrogram):
         """
         return self.freq_ax.bins_per_oct
 
-    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -1819,7 +1834,7 @@ class CQTSpectrogram(Spectrogram):
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(show_annot, figsize, cmap, label_in_title)
+        fig = super().plot(show_annot, figsize, cmap, label_in_title, vmin, vmax)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig

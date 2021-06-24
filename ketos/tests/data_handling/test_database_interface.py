@@ -37,6 +37,7 @@ import ketos.data_handling.data_handling as dh
 from ketos.data_handling.selection_table import use_multi_indexing 
 from ketos.audio.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.audio.waveform import Waveform
+from ketos.audio.gammatone import GammatoneFilterBank
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -570,6 +571,23 @@ def test_audio_writer_can_write_one_spec(sine_wave_file):
     assert len(specs) == 1
     assert specs[0].transform_log == transforms
     assert specs[0].waveform_transform_log == wf_transforms
+    fil.close()
+
+def test_audio_writer_can_write_one_gammatone_filter_bank(sine_audio):
+    out = os.path.join(path_to_assets, 'tmp/db14.h5')
+    writer = di.AudioWriter(output_file=out)
+    gfb = GammatoneFilterBank.from_waveform(sine_audio, num_chan=20, freq_min=10)
+    writer.write(gfb)
+    writer.close()
+    fname = os.path.join(path_to_assets, 'tmp/db14.h5')
+    fil = di.open_file(fname, 'r')
+    assert '/audio' in fil
+    gfbs = di.load_audio(fil.root.audio)
+    assert len(gfbs) == 1
+    assert gfbs[0].weight_func == True
+    assert len(gfbs[0].freqs) == 20
+    assert np.min(gfbs[0].freqs) == pytest.approx(10., abs=1e-6)
+    assert gfbs[0].get_data().shape[1] == 20
     fil.close()
 
 def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
