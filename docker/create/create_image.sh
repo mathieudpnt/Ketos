@@ -3,16 +3,16 @@
 cp -r ../../ketos/ .
 cp ../../setup.py .
 cp ../../requirements.txt .
-cp ../../../sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
+cp ../../../meridian-rtd-theme/dist/sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz .
 
 # build image
-docker build --tag=ketos_v2.0.1 .
+docker build --tag=ketos_v2.1.4 .
 
 # tag image
-docker tag ketos_v2.0.1 meridiancfi/ketos:v2.0.1
+docker tag ketos_v2.1.4 meridiancfi/ketos:v2.1.4
 
 # push image to repository
-docker push meridiancfi/ketos:v2.0.1
+docker push meridiancfi/ketos:v2.1.4
 
 # clean
 rm -rf ketos

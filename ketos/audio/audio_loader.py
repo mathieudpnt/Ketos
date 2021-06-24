@@ -39,6 +39,7 @@ import numpy as np
 import librosa
 import warnings
 from ketos.audio.waveform import Waveform
+from ketos.audio.gammatone import GammatoneFilterBank,AuralFeatures
 from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
@@ -55,7 +56,11 @@ audio_repres_dict = {'Waveform':Waveform,
                      'MelSpectrogram':MelSpectrogram,
                      'Mel':MelSpectrogram,
                      'CQTSpectrogram':CQTSpectrogram,
-                     'CQT':CQTSpectrogram}
+                     'CQT':CQTSpectrogram,
+                     'AuralFeatures': AuralFeatures,
+                     'Aural': AuralFeatures,
+                     'GammatoneFilterBank': GammatoneFilterBank,
+                     'Gammatone': GammatoneFilterBank}
 
 
 class SelectionGenerator():

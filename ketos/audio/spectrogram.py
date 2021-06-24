@@ -516,28 +516,6 @@ class Spectrogram(BaseAudioTime):
         if self.annot: self.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
-
-    def segment(self, window, step=None):
-        """ Divide the time axis into segments of uniform length, which may or may 
-            not be overlapping.
-
-            Window length and step size are converted to the nearest integer number 
-            of time steps.
-
-            If necessary, the spectrogram will be padded with zeros at the end to 
-            ensure that all segments have an equal number of samples. 
-
-            Args:
-                window: float
-                    Length of each segment in seconds.
-                step: float
-                    Step size in seconds.
-
-            Returns:
-                specs: list(Spectrogram)
-                    Spectrogram segments
-        """
-        return segment_data(self, window, step)
                 
     def add(self, spec, offset=0, scale=1, make_copy=False):
         """ Add another spectrogram on top of this spectrogram.

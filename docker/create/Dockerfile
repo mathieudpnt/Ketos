@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.6-stretch
+FROM python:3.7-stretch
 
 # Set the working directory to /app
 WORKDIR /app
@@ -25,8 +25,12 @@ RUN rm -rf /var/lib/apt/lists/*
 # Install packages specified in requirements.txt
 RUN pip install -r requirements.txt
 
+# Install Scipy>=1.6.0 and aural-features
+RUN pip install scipy>=1.6.0
+RUN pip install aural-features
+
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-2.0.1.tar.gz
+RUN pip install dist/ketos-2.1.4.tar.gz
 RUN pip install sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz
 

@@ -589,7 +589,7 @@ class BaseAudioTime(BaseAudio):
 
         return d
 
-    def plot(self, figsize=(5,4), label_in_title=True):
+    def plot(self, figsize=(5,4), label_in_title=True, append_title=''):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -602,6 +602,8 @@ class BaseAudioTime(BaseAudio):
                     Figure size
                 label_in_title: bool
                     Include label (if available) in figure title
+                append_title: str
+                    Append this string to the title
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -628,6 +630,7 @@ class BaseAudioTime(BaseAudio):
             if len(title) > 0: title += ", "
             title += "{0}".format(label)
 
+        title += append_title
         plt.title(title)
 
         # if offset is non-zero, add a second time axis at the top 

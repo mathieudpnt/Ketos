@@ -499,7 +499,6 @@ class JointBatchGen():
                 X.append(x)            
             else:
                 X += [e for e in x]
-
             if self.ysiz == 0:
                 Y.append(y)            
             else:
