@@ -135,7 +135,7 @@ def empty_selection_table():
 
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
     backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
-    return_label_dict=False):
+    return_label_dict=False, sort_by_filename_start=False):
     """ Standardize the annotation table format.
 
         The input table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -178,6 +178,8 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
                 Keep only the columns prescribed by the Ketos annotation format.
             return_label_dict: bool
                 Return label dictionary. Default is False.
+            sort_by_filename_start: bool
+                Automatically sort the table by filename (first) and start time (second). Default is False.
 
         Returns:
             table_std: pandas DataFrame
@@ -241,6 +243,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     for key, value in _label_dict.items():
         if str_is_int(key): key = int(key)
         label_dict[key] = value
+
+    if sort_by_filename_start:
+        df.sort_values(by=['filename','start'], inplace=True, ignore_index=True)
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'annot_id')

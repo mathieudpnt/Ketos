@@ -3,6 +3,7 @@ Change log
 
 **Version 2.2.0** (June 24, 2021)
 
+ * sort_by_filename_start argument added to :meth:`standardize <ketos.data_handling.selection_table.standardize>` method.
  * The create_database function can now include extra columns specified in the selection tables into the database. 
  * The reduce_tonal_noise function had a bug  that caused the desired method (median or running mean) not to be recognized sometimes. This has now been fixed.
  * The group_detections function had a bug that caused detections at the end of a batch to be dropped. This has been fixed.
