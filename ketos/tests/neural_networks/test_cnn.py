@@ -306,7 +306,7 @@ def test_train_CNN(sample_data):
     cnn.train_generator = train_generator
     cnn.val_generator = val_generator
 
-    cnn.train_loop(2)
+    cnn.train_loop(2, checkpoint_freq=0)
     
 
 
@@ -625,7 +625,7 @@ def test_train_CNN1D(sample_data_1d):
     cnn.train_generator = train_generator
     cnn.val_generator = val_generator
 
-    cnn.train_loop(2)
+    cnn.train_loop(2, checkpoint_freq=0)
     
 
 

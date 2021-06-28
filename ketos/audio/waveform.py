@@ -37,15 +37,17 @@ import librosa
 import warnings
 import scipy.io.wavfile as wave
 from scipy import interpolate
+import scipy.signal
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from ketos.utils import ensure_dir, morlet_func
 from ketos.data_handling.data_handling import read_wave
 from ketos.audio.annotation import AnnotationHandler
 from ketos.audio.utils.axis import LinearAxis
-from ketos.audio.base_audio import BaseAudio, segment_data
+from ketos.audio.base_audio import BaseAudioTime, segment_data
 import ketos.audio.utils.misc as aum
 
-class Waveform(BaseAudio):
+class Waveform(BaseAudioTime):
     """ Audio signal
 
         Args:
@@ -98,12 +100,19 @@ class Waveform(BaseAudio):
         else:
             self.rate = 1. / time_res
 
-        super().__init__(data=data, time_res=1./self.rate, ndim=1, filename=filename, offset=offset, label=label, annot=annot, 
+        super().__init__(data=data, time_res=1./self.rate, filename=filename, offset=offset, label=label, annot=annot, 
                             transform_log=transform_log, **kwargs)
 
-        self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise})
+        self.allowed_transforms.update({'add_gaussian_noise': self.add_gaussian_noise, 
+                                        'bandpass_filter': self.bandpass_filter})
         
         self.apply_transforms(transforms)
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'rate':self.rate, 'type':self.__class__.__name__})
+        return attrs
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
@@ -386,75 +395,6 @@ class Waveform(BaseAudio):
         
         return cls(rate=rate, data=np.array(y), filename=filename)
 
-    def get_attrs(self):
-        return {'rate':self.rate, 'type':self.__class__.__name__, 'transform_log':self.transform_log}
-
-    def get_data(self, id=0):
-        """ Get the underlying data numpy array.
-
-            Args:
-                id: int
-                    Audio signal ID. Only relevant if the Waveform object 
-                    contains multiple, stacked audio signals.
-
-            Returns:
-                d: numpy array
-                    Data
-        """
-        if id is None or np.ndim(self.data) == 1:
-            d = self.data
-        else:
-            d = self.data[:,id]
-
-        return d
-
-    def segment(self, window, step=None):
-        """ Divide the time axis into segments of uniform length, which may or may 
-            not be overlapping.
-
-            Window length and step size are converted to the nearest integer number 
-            of time steps.
-
-            If necessary, the audio signal will be padded with zeros at the end to 
-            ensure that all segments have an equal number of samples. 
-
-            Args:
-                window: float
-                    Length of each segment in seconds.
-                step: float
-                    Step size in seconds.
-
-            Returns:
-                segs: Waveform
-                    Stacked audio signals
-
-            Example:
-                >>> from ketos.audio.waveform import Waveform
-                >>> # create a morlet wavelet
-                >>> mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
-                >>> mor.duration()
-                3.0
-                >>> # segment into 2-s wide frames, using a step size of 1 s
-                >>> segs = mor.segment(window=2., step=1.)
-                >>> # show the segments
-                >>> fig0 = segs.plot(0)
-                >>> fig0.savefig("ketos/tests/assets/tmp/morlet_segmented_0.png")
-                >>> fig1 = segs.plot(1)
-                >>> fig1.savefig("ketos/tests/assets/tmp/morlet_segmented_1.png")
-                >>> plt.close(fig0)
-                >>> plt.close(fig1)
-
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_0.png
-
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_segmented_1.png
-        """              
-        segs, filename, offset, label, annot = segment_data(self, window, step)
-
-        d = self.__class__(data=segs, rate=self.rate, filename=filename,\
-            offset=offset, label=label, annot=annot)
-
-        return d
-
     def to_wav(self, path, auto_loudness=True):
         """ Save audio signal to wave file
 
@@ -476,7 +416,7 @@ class Waveform(BaseAudio):
 
         wave.write(filename=path, rate=int(self.rate), data=(s*self.data).astype(dtype=np.int16))
 
-    def plot(self, id=0, show_annot=False):
+    def plot(self, show_annot=False, figsize=(5,4), label_in_title=True, append_title='', show_envelope=False):
         """ Plot the data with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the data.
@@ -485,11 +425,16 @@ class Waveform(BaseAudio):
             or saved (fig.savefig(file_name))
 
             Args:
-                id: int
-                    ID of data array to be plotted. Only relevant if the object 
-                    contains multiple, stacked data arrays.
                 show_annot: bool
                     Display annotations
+                figsize: tuple
+                    Figure size
+                label_in_title: bool
+                    Include label (if available) in figure title
+                append_title: str
+                    Append this string to the title
+                show_envelope: bool
+                    Display envelope on top of signal
             
             Returns:
                 fig: matplotlib.figure.Figure
@@ -505,38 +450,43 @@ class Waveform(BaseAudio):
 
                 .. image:: ../../_static/morlet.png
         """
-        fig, ax = super().plot(id=id)
+        fig, ax = super().plot(figsize, label_in_title, append_title)
 
-        y = self.get_data(id)
+        y = self.get_data()
 
         x = np.linspace(start=0, stop=self.duration(), num=self.data.shape[0])
         ax.plot(x, y)
         ax.set_ylabel('Amplitude')
 
+        # superimpose envelope
+        if show_envelope:
+            z = np.abs(scipy.signal.hilbert(y))
+            ax.plot(x, z, color='C1')
+
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax,id)
+        if show_annot: self._draw_annot_boxes(ax)
 
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax, id=0):
+    def _draw_annot_boxes(self, ax):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
-                id: int
-                    Object ID
         """
-        annots = self.get_annotations(id=id)
+        annots = self.get_annotations()
         if annots is None: return
         y1, y2 = ax.get_ylim()
+        y1 *= 0.95
+        y2 *= 0.95
         for idx,annot in annots.iterrows():
             x1 = annot['start']
             x2 = annot['end']
-            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C3',facecolor='none')
             ax.add_patch(box)
-            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C3')
 
     def append(self, signal, n_smooth=0):
         """ Append another audio signal to the present instance.
@@ -632,6 +582,63 @@ class Waveform(BaseAudio):
         noise = Waveform.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
         self.transform_log.append({'name':'add_gaussian_noise', 'sigma':sigma})
+
+    def bandpass_filter(self, freq_min=None, freq_max=None, N=3):
+        """ Apply a lowpass, highpass, or bandpass filter to the signal.
+
+            Uses SciPy's implementation of an Nth-order digital Butterworth filter.
+
+            The critical frequencies, freq_min and freq_max, correspond to the points 
+            at which the gain drops to 1/sqrt(2) that of the passband (the “-3 dB point”).
+
+            Args:
+                freq_min: float
+                    Lower limit of the frequency window in Hz.
+                    (Also sometimes referred to as the highpass frequency).
+                    If None, a lowpass filter is applied. 
+                freq_max: float
+                    Upper limit of the frequency window in Hz.
+                    (Also sometimes referred to as the lowpass frequency)
+                    If None, a highpass filter is applied. 
+                N: int
+                    The order of the filter. The default value is 3.
+
+            Example:
+                >>> from ketos.audio.waveform import Waveform
+                >>> # create a Cosine waves with frequencies of 7 and 14 Hz
+                >>> cos = Waveform.cosine(rate=1000., frequency=7.)
+                >>> cos14 = Waveform.cosine(rate=1000., frequency=14.)
+                >>> cos.add(cos14)
+                >>> # show combined signal
+                >>> fig = cos.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cosine_double_audio.png")
+                >>> plt.close(fig)
+                >>> # apply 10 Hz highpass filter
+                >>> cos.bandpass_filter(freq_max=10)
+                >>> # show filtered signal
+                >>> fig = cos.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/cosine_double_hp_audio.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_audio.png
+
+                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_hp_audio.png
+        """
+        if freq_min is None and freq_max is None: return
+
+        if freq_min is None: 
+            Wn = freq_max
+            btype = 'lowpass'
+        elif freq_max is None: 
+            Wn = freq_min            
+            btype = 'highpass'
+        else: 
+            Wn = (freq_min, freq_max)            
+            btype = 'bandpass'
+
+        b,a = scipy.signal.butter(N=N, Wn=Wn, btype=btype, fs=self.rate)
+        self.data = scipy.signal.filtfilt(b, a, self.data)
+        self.transform_log.append({'name':'bandpass_filter', 'freq_min':freq_min, 'freq_max':freq_max, 'N':N})
 
     def add(self, signal, offset=0, scale=1):
         """ Add the amplitudes of the two audio signals.

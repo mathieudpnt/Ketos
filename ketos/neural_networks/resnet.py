@@ -46,6 +46,10 @@ import json
 default_resnet_recipe =  {'block_sets':[2,2,2],
                     'n_classes':2,
                     'initial_filters':16,        
+                    'initial_strides':1,
+                    'initial_kernel':[3,3],        
+                    'strides':2,
+                    'kernel':[3,3],        
                     'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                     'loss_function': RecipeCompat('BinaryCrossentropy', tf.keras.losses.BinaryCrossentropy),  
                     'metrics': [RecipeCompat('BinaryAccuracy',tf.keras.metrics.BinaryAccuracy),
@@ -56,7 +60,11 @@ default_resnet_recipe =  {'block_sets':[2,2,2],
 
 default_resnet_1d_recipe =  {'block_sets':[2,2,2],
                     'n_classes':2,
-                    'initial_filters':2,        
+                    'initial_filters':2,
+                    'initial_strides':1,
+                    'initial_kernel':30,        
+                    'strides':2,
+                    'kernel':300,        
                     'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
                     'loss_function': RecipeCompat('CategoricalCrossentropy', tf.keras.losses.CategoricalCrossentropy),  
                     'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy),
@@ -74,34 +82,83 @@ class ResNetBlock(tf.keras.Model):
                 The number of filters in the block
             strides: int
                 Strides used in convolutional layers within the block
+            kernel: (int,int)
+                Kernel used in convolutional layers within the block
             residual_path: bool
                 Whether or not the block will contain a residual path
-
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of the batch normalization layers.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in the dropout layers.
+                Set this parameter to 0 to disable dropout (default).
         Returns:
             A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
     """
-    def __init__(self, filters, strides=1, residual_path=False):
+    def __init__(self, filters, strides=1, kernel=(3,3), residual_path=False, batch_norm_momentum=0.99, dropout_rate=0):
         super(ResNetBlock, self).__init__()
 
         self.filters = filters
         self.strides = strides
+        self.kernel  = kernel
         self.residual_path = residual_path
-        self.conv_1 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(3,3), strides=self.strides,
+
+        self.conv_1 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=self.kernel, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
-        self.conv_2 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(3,3), strides=1,
+
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
+
+        self.conv_2 = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=self.kernel, strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
 
         if residual_path == True:
             self.conv_down = tf.keras.layers.Conv2D(filters=self.filters, kernel_size=(1,1), strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+
+            self.batch_norm_down = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         
-        self.dropout = tf.keras.layers.Dropout(0.0)
+        self.dropout = tf.keras.layers.Dropout(rate=dropout_rate)
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of the batch normalization layers in the block.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+        
+        self.batch_norm_1.momentum = momentum
+        self.batch_norm_2.momentum = momentum
+        if self.residual_path:
+            self.batch_norm_down.momentum = momentum
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in the dropout layers in the block.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        self.dropout.rate = rate
 
     def call(self,inputs, training=None):
         residual = inputs
@@ -109,17 +166,17 @@ class ResNetBlock(tf.keras.Model):
         x = self.batch_norm_1(inputs, training=training)
         x = tf.nn.relu(x)
         x = self.conv_1(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
         x = self.batch_norm_2(x, training=training)
         x = tf.nn.relu(x)
         x = self.conv_2(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
 
         if self.residual_path:
             residual = self.batch_norm_down(inputs, training=training)
             residual = tf.nn.relu(residual)
             residual = self.conv_down(residual)
-            x = self.dropout(x)
+            x = self.dropout(x, training=training)
 
         x = x + residual
         return x
@@ -133,34 +190,85 @@ class ResNet1DBlock(tf.keras.Model):
                 The number of filters in the block
             strides: int
                 Strides used in convolutional layers within the block
+            kernel: int
+                Kernel size used in convolutional layers within the block
             residual_path: bool
                 Whether or not the block will contain a residual path
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of the batch normalization layers.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in the dropout layers.
+                Set this parameter to 0 to disable dropout (default).
 
         Returns:
             A ResNetBlock object. The block itself is a tensorflow model and can be used as such.
     """
-    def __init__(self, filters, strides=1, residual_path=False):
+    def __init__(self, filters, strides=1, kernel=300, residual_path=False, batch_norm_momentum=0.99, dropout_rate=0):
         super(ResNet1DBlock, self).__init__()
 
         self.filters = filters
         self.strides = strides
+        self.kernel = kernel
         self.residual_path = residual_path
-        self.conv_1 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=self.strides,
+
+        self.conv_1 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=self.kernel, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_1 = tf.keras.layers.BatchNormalization()
-        self.conv_2 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=300, strides=1,
+
+        self.batch_norm_1 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
+
+        self.conv_2 = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=self.kernel, strides=1,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-        self.batch_norm_2 = tf.keras.layers.BatchNormalization()
+
+        self.batch_norm_2 = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
 
         if residual_path == True:
             self.conv_down = tf.keras.layers.Conv1D(filters=self.filters, kernel_size=1, strides=self.strides,
                                                 padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
-            self.batch_norm_down = tf.keras.layers.BatchNormalization()
+
+            self.batch_norm_down = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         
-        self.dropout = tf.keras.layers.Dropout(0.0)
+        self.dropout = tf.keras.layers.Dropout(rate=dropout_rate)
+
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of the batch normalization layers in the block.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+        
+        self.batch_norm_1.momentum = momentum
+        self.batch_norm_2.momentum = momentum
+        if self.residual_path:
+            self.batch_norm_down.momentum = momentum
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in the dropout layers in the block.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        self.dropout.rate = rate
 
     def call(self,inputs, training=None):
         residual = inputs
@@ -168,23 +276,20 @@ class ResNet1DBlock(tf.keras.Model):
         x = self.batch_norm_1(inputs, training=training)
         x = tf.nn.relu(x)
         x = self.conv_1(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
         x = self.batch_norm_2(x, training=training)
         x = tf.nn.relu(x)
         x = self.conv_2(x)
-        x = self.dropout(x)
+        x = self.dropout(x, training=training)
 
         if self.residual_path:
             residual = self.batch_norm_down(inputs, training=training)
             residual = tf.nn.relu(residual)
             residual = self.conv_down(residual)
-            x = self.dropout(x)
+            x = self.dropout(x, training=training)
 
         x = x + residual
         return x
-
-
-
 
 
 class ResNetArch(tf.keras.Model):
@@ -205,53 +310,87 @@ class ResNetArch(tf.keras.Model):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
+            initial_strides: int
+                Strides used in the first convolutional layer
+
+            initial_kernel: (int,int)
+                Kernel used in the first convolutional layer
+
+            strides: int
+                Strides used in convolutional layers within the block
+
+            kernel: (int,int)
+                Kernel used in convolutional layers within the block
+
             pre_trained_base: instance of ResNetArch
                 A pre-trained resnet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
+
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of all the batch normalization layers in the network.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in all the dropout layers in the network.
+                Set this parameter to 0 to disable dropout (default).
 
         Returns:
             A ResNetArch object, which is a tensorflow model.
     """
 
-    def __init__(self,  n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, **kwargs):
+    def __init__(self,  n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, 
+                        initial_strides=1, initial_kernel=(3,3), strides=2, kernel=(3,3), 
+                        batch_norm_momentum=0.99, dropout_rate=0, **kwargs):
         super(ResNetArch, self).__init__(**kwargs)
 
-        
         self.n_classes = n_classes
+        self.initial_strides = initial_strides
+        self.initial_kernel = initial_kernel
+        self.strides = strides
+        self.kernel = kernel
+
         if pre_trained_base:
             self.conv_initial = pre_trained_base[0]
             self.blocks = pre_trained_base[1]
+
         else:
             self.n_sets = len(block_sets)
             self.block_sets = block_sets
             self.input_filters = initial_filters
             self.output_filters = initial_filters
-            self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_filters, kernel_size=(3,3), strides=1,
-                                                    padding="same", use_bias=False,
+            self.conv_initial = tf.keras.layers.Conv2D(filters=self.output_filters, strides=self.initial_strides, 
+                                                    kernel_size=self.initial_kernel, padding="same", use_bias=False,
                                                     kernel_initializer=tf.random_normal_initializer())
 
             self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
+            self.num_blocks = 0
             for set_id in range(self.n_sets):
                 for block_id in range(self.block_sets[set_id]):
-                    #Frst layer of every block except the first
+                    #First layer of every block except the first
                     if set_id != 0 and block_id == 0:
-                        block = ResNetBlock(self.output_filters, strides=2, residual_path=True)
+                        block = ResNetBlock(self.output_filters, strides=self.strides, kernel=self.kernel, residual_path=True,
+                                            batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
                     
                     else:
                         if self.input_filters != self.output_filters:
                             residual_path = True
                         else:
                             residual_path = False
-                        block = ResNetBlock(self.output_filters, residual_path=residual_path)
+
+                        block = ResNetBlock(self.output_filters, strides=1, kernel=self.kernel, residual_path=residual_path,
+                                            batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
 
                     self.input_filters = self.output_filters
 
                     self.blocks.add(block)
+                    self.num_blocks += 1
                 
                 self.output_filters *= 2
 
-        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.batch_norm_final = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         self.average_pool = tf.keras.layers.GlobalAveragePooling2D()
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
@@ -328,7 +467,41 @@ class ResNetArch(tf.keras.Model):
         cloned_model = type(self)(n_classes=n_classes, pre_trained_base=pre_trained_base)
 
         return cloned_model
-        
+
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of all the batch normalization layers in the network.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+
+        self.batch_norm_final.momentum = momentum
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_batch_norm_momentum(momentum=momentum)
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in all the dropout layers in the network.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
+
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
@@ -340,8 +513,6 @@ class ResNetArch(tf.keras.Model):
 
         return output
     
-
-
 
 
 class ResNet1DArch(tf.keras.Model):
@@ -362,51 +533,88 @@ class ResNet1DArch(tf.keras.Model):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
+            initial_strides: int
+                Strides used in the first convolutional layer
+
+            initial_kernel: int
+                Kernel size used in the first convolutional layer
+
+            strides: int
+                Strides used in convolutional layers within the blocks
+
+            kernel: int
+                Kernel size used in convolutional layers within the blocks
+
             pre_trained_base: instance of ResNet1DArch
                 A pre-trained resnet model from which the residual blocks will be taken. 
                 Use by the the clone_with_new_top method when creating a clone for transfer learning
+
+            batch_norm_momentum: float between 0 and 1
+                Momentum for the moving average of all the batch normalization layers in the network.
+                The default value is 0.99.
+                For an explanation of how the momentum affects the batch normalisation operation,
+                see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            dropout_rate: float between 0 and 1
+                Fraction of the input units to drop in all the dropout layers in the network.
+                Set this parameter to 0 to disable dropout (default).
 
         Returns:
             A ResNet1DArch object, which is a tensorflow model.
     """
 
-    def __init__(self, n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, **kwargs):
+    def __init__(self, n_classes, pre_trained_base=None, block_sets=None, initial_filters=16, 
+                       initial_strides=1, initial_kernel=30, strides=2, kernel=300, 
+                       batch_norm_momentum=0.99, dropout_rate=0, **kwargs):
+
         super(ResNet1DArch, self).__init__(**kwargs)
+
         self.n_classes = n_classes
+        self.initial_strides = initial_strides
+        self.initial_kernel = initial_kernel
+        self.strides = strides
+        self.kernel = kernel
+
         if pre_trained_base:
             self.conv_initial = pre_trained_base[0]
             self.blocks = pre_trained_base[1]
+        
         else:
             self.n_sets = len(block_sets)
             self.block_sets = block_sets
             self.input_filters = initial_filters
             self.output_filters = initial_filters
-            self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=30, strides=1,
-                                                padding="same", use_bias=False,
+            self.conv_initial = tf.keras.layers.Conv1D(filters=self.output_filters, kernel_size=initial_kernel, 
+                                                strides=initial_strides, padding="same", use_bias=False,
                                                 kernel_initializer=tf.random_normal_initializer())
 
             self.blocks = tf.keras.models.Sequential(name="dynamic_blocks")
 
+            self.num_blocks = 0
             for set_id in range(self.n_sets):
                 for block_id in range(self.block_sets[set_id]):
-                    #Frst layer of every block except the first
+                    #First layer of every block except the first
                     if set_id != 0 and block_id == 0:
-                        block = ResNet1DBlock(self.output_filters, strides=2, residual_path=True)
+                        block = ResNet1DBlock(self.output_filters, strides=self.strides, kernel=self.kernel, 
+                                residual_path=True, batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
                     
                     else:
                         if self.input_filters != self.output_filters:
                             residual_path = True
                         else:
                             residual_path = False
-                        block = ResNet1DBlock(self.output_filters, residual_path=residual_path)
+
+                        block = ResNet1DBlock(self.output_filters, strides=1, kernel=self.kernel,
+                                residual_path=residual_path, batch_norm_momentum=batch_norm_momentum, dropout_rate=dropout_rate)
 
                     self.input_filters = self.output_filters
 
                     self.blocks.add(block)
+                    self.num_blocks += 1
                 
                 self.output_filters *= 2
 
-        self.batch_norm_final = tf.keras.layers.BatchNormalization()
+        self.batch_norm_final = tf.keras.layers.BatchNormalization(momentum=batch_norm_momentum)
         self.average_pool = tf.keras.layers.GlobalAveragePooling1D()
         self.fully_connected = tf.keras.layers.Dense(self.n_classes)
         self.softmax = tf.keras.layers.Softmax()
@@ -485,6 +693,40 @@ class ResNet1DArch(tf.keras.Model):
 
         return cloned_model
 
+    def set_batch_norm_momentum(self, momentum):
+        """ Set the momentum for the moving average of all the batch normalization layers in the network.
+
+            For an explanation of how the momentum affects the batch normalisation operation,
+            see <https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization>
+
+            Args: 
+                momentum: float between 0 and 1
+                    Momentum for the moving average of the batch normalization layers.
+
+            Returns:
+                None
+        """
+        assert momentum>=0 and momentum<=1, 'batch normalization momentum must be between 0 and 1'
+
+        self.batch_norm_final.momentum = momentum
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_batch_norm_momentum(momentum=momentum)
+
+    def set_dropout_rate(self, rate):
+        """ Set the fraction of the input units to drop in all the dropout layers in the network.
+
+            Args: 
+                rate: float between 0 and 1
+                    Fraction of the input units to drop in the dropout layers.
+
+            Returns:
+                None
+        """
+        assert rate>=0 and rate<=1, 'dropout rate must be between 0 and 1'
+
+        for block_id in range(self.num_blocks):
+            self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
+
     def call(self, inputs, training=None):
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
@@ -517,6 +759,18 @@ class ResNetInterface(NNInterface):
                 The number of filters used in the first ResNetBlock. Subsequent blocks 
                 will have two times more filters than their previous block.
 
+            initial_strides: int
+                Strides used in the first convolutional layer
+
+            initial_kernel: int
+                Kernel size used in the first convolutional layer
+
+            strides: int
+                Strides used in convolutional layers within the blocks
+
+            kernel: int
+                Kernel size used in convolutional layers within the blocks
+
             optimizer: ketos.neural_networks.RecipeCompat object
                 A recipe compatible optimizer (i.e.: wrapped by the ketos.neural_networksRecipeCompat class)
 
@@ -533,6 +787,28 @@ class ResNetInterface(NNInterface):
                 logged as the average at the end of the epoch
                 
     """
+    def __init__(self, block_sets=default_resnet_recipe['block_sets'], 
+                        n_classes=default_resnet_recipe['n_classes'], 
+                        initial_filters=default_resnet_recipe['initial_filters'],
+                        initial_strides=default_resnet_recipe['initial_strides'],
+                        initial_kernel=default_resnet_recipe['initial_kernel'],
+                        strides=default_resnet_recipe['strides'],
+                        kernel=default_resnet_recipe['kernel'],
+                        optimizer=default_resnet_recipe['optimizer'], 
+                        loss_function=default_resnet_recipe['loss_function'], 
+                        metrics=default_resnet_recipe['metrics']):
+        super(ResNetInterface, self).__init__(optimizer, loss_function, metrics)
+        self.block_sets = block_sets
+        self.n_classes = n_classes
+        self.initial_filters = initial_filters
+        self.initial_strides = initial_strides
+        self.initial_kernel  = initial_kernel
+        self.strides = strides
+        self.kernel  = kernel
+
+        self.model=ResNetArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters,
+                                initial_strides=initial_strides, initial_kernel=initial_kernel, 
+                                strides=strides, kernel=kernel)
 
     @classmethod
     def _build_from_recipe(cls, recipe, recipe_compat=True):
@@ -543,7 +819,7 @@ class ResNetInterface(NNInterface):
                     A recipe dictionary. optimizer, loss function
                     and metrics must be instances of ketos.neural_networks.RecipeCompat.
                     
-                    Example recipe:
+                    Example recipe (minimal):
                     
                     >>> {{'block_sets':[2,2,2], # doctest: +SKIP
                     ...    'n_classes':2,
@@ -553,16 +829,32 @@ class ResNetInterface(NNInterface):
                     ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
                     }
 
-                     
+                    Example recipe (full):
+                    
+                    >>> {{'block_sets':[2,2,2], # doctest: +SKIP
+                    ...    'n_classes':2,
+                    ...    'initial_filters':16,   
+                    ...     initial_strides':1,     
+                    ...     initial_kernel':[3,3],     
+                    ...     strides':2,     
+                    ...     kernel':[3,3],     
+                    ...    'optimizer': RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.005),
+                    ...    'loss_function': RecipeCompat('FScoreLoss', FScoreLoss),  
+                    ...    'metrics': [RecipeCompat('CategoricalAccuracy',tf.keras.metrics.CategoricalAccuracy)],
+                    }                     
 
             Returns:
                 An instance of ResNetInterface.
 
         """
-
         block_sets = recipe['block_sets']
         n_classes = recipe['n_classes']
         initial_filters = recipe['initial_filters']
+
+        initial_strides = recipe['initial_strides'] if 'initial_strides' in recipe.keys() else default_resnet_recipe['initial_strides']
+        initial_kernel = recipe['initial_kernel'] if 'initial_kernel' in recipe.keys() else default_resnet_recipe['initial_kernel']
+        strides = recipe['strides'] if 'strides' in recipe.keys() else default_resnet_recipe['strides']
+        kernel = recipe['kernel'] if 'kernel' in recipe.keys() else default_resnet_recipe['kernel']
         
         if recipe_compat == True:
             optimizer = recipe['optimizer']
@@ -574,8 +866,9 @@ class ResNetInterface(NNInterface):
             loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
             metrics = cls._metrics_from_recipe(recipe['metrics'])
             
-
-        instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        instance = cls(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters,
+                        initial_strides=initial_strides, initial_kernel=initial_kernel, strides=strides, kernel=kernel, 
+                        optimizer=optimizer, loss_function=loss_function, metrics=metrics)
 
         return instance
 
@@ -633,16 +926,12 @@ class ResNetInterface(NNInterface):
         recipe_dict['n_classes'] = recipe_dict['n_classes']
         recipe_dict['initial_filters'] = recipe_dict['initial_filters']
 
+        recipe_dict['initial_strides'] = recipe_dict['initial_strides'] if 'initial_strides' in recipe_dict.keys() else default_resnet_recipe['initial_strides']
+        recipe_dict['initial_kernel'] = recipe_dict['initial_kernel'] if 'initial_kernel' in recipe_dict.keys() else default_resnet_recipe['initial_kernel']
+        recipe_dict['strides'] = recipe_dict['strides'] if 'strides' in recipe_dict.keys() else default_resnet_recipe['strides']
+        recipe_dict['kernel'] = recipe_dict['kernel'] if 'kernel' in recipe_dict.keys() else default_resnet_recipe['kernel']
+
         return recipe_dict
-
-    def __init__(self, block_sets=default_resnet_recipe['block_sets'], n_classes=default_resnet_recipe['n_classes'], initial_filters=default_resnet_recipe['initial_filters'],
-                       optimizer=default_resnet_recipe['optimizer'], loss_function=default_resnet_recipe['loss_function'], metrics=default_resnet_recipe['metrics']):
-        super(ResNetInterface, self).__init__(optimizer, loss_function, metrics)
-        self.block_sets = block_sets
-        self.n_classes = n_classes
-        self.initial_filters = initial_filters
-
-        self.model=ResNetArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
 
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a ResNetInterface instance.
@@ -666,6 +955,10 @@ class ResNetInterface(NNInterface):
         recipe['block_sets'] = self.block_sets
         recipe['n_classes'] = self.n_classes
         recipe['initial_filters'] = self.initial_filters
+        recipe['initial_strides'] = self.initial_strides
+        recipe['initial_kernel'] = self.initial_kernel
+        recipe['strides'] = self.strides
+        recipe['kernel'] = self.kernel
         recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self._metrics_to_recipe(self.metrics)
@@ -691,8 +984,6 @@ class ResNet1DInterface(ResNetInterface):
                     The array is expected to have a field named 'label'.
                 n_classes:int
                     The number of possible classes for one hot encoding.
-                    
-                
 
             Returns:
                 X:numpy.array
@@ -721,11 +1012,9 @@ class ResNet1DInterface(ResNetInterface):
                 (10, 2)
                 
         """
-
-        
         X = cls._transform_input(x)
-        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
-        
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])        
+
         return (X,Y)
 
     @classmethod
@@ -779,12 +1068,23 @@ class ResNet1DInterface(ResNetInterface):
 
         return transformed_input
 
-    def __init__(self, block_sets=default_resnet_1d_recipe['block_sets'], n_classes=default_resnet_1d_recipe['n_classes'], initial_filters=default_resnet_1d_recipe['initial_filters'],
-                       optimizer=default_resnet_1d_recipe['optimizer'], loss_function=default_resnet_1d_recipe['loss_function'], metrics=default_resnet_1d_recipe['metrics']):
+    def __init__(self, block_sets=default_resnet_1d_recipe['block_sets'], n_classes=default_resnet_1d_recipe['n_classes'], 
+                        initial_filters=default_resnet_1d_recipe['initial_filters'],
+                        initial_strides=default_resnet_1d_recipe['initial_strides'], initial_kernel=default_resnet_1d_recipe['initial_kernel'],
+                        strides=default_resnet_1d_recipe['strides'], kernel=default_resnet_1d_recipe['kernel'], 
+                        optimizer=default_resnet_1d_recipe['optimizer'], loss_function=default_resnet_1d_recipe['loss_function'], 
+                        metrics=default_resnet_1d_recipe['metrics']):
+
         super(ResNet1DInterface, self).__init__(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+
         self.block_sets = block_sets
         self.n_classes = n_classes
         self.initial_filters = initial_filters
+        self.initial_strides = initial_strides
+        self.initial_kernel  = initial_kernel
+        self.strides = strides
+        self.kernel  = kernel
        
-        self.model=ResNet1DArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters)
+        self.model=ResNet1DArch(block_sets=block_sets, n_classes=n_classes, initial_filters=initial_filters, 
+                                initial_strides=initial_strides, initial_kernel=initial_kernel, strides=strides, kernel=kernel)
        

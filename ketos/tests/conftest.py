@@ -433,6 +433,20 @@ def spec_image_with_attrs():
 @pytest.fixture
 def base_audio_1d():
     """ Create a simple 1d BaseAudio object with value 1 everywhere, length 
+        of 10 s, filename 'x', offset of 2 s, and label 13.
+
+        Yields:
+            o: BaseAudio
+                BaseAudio object
+    """
+    N = 10000
+    d = np.ones(N)
+    o = aba.BaseAudio(data=d, filename='x', offset=2., label=13, duration=10.)
+    return o, d
+
+@pytest.fixture
+def base_audio_time_1d():
+    """ Create a simple 1d BaseAudioTime object with value 1 everywhere, length 
         of 10 s, time resolution of 0.001 s, filename 'x', offset of 2 s, and label 13.
 
         Yields:
@@ -441,24 +455,7 @@ def base_audio_1d():
     """
     N = 10000
     d = np.ones(N)
-    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename='x', offset=2., label=13)
-    return o, d
-
-@pytest.fixture
-def base_audio_1d_stacked():
-    """ Create a 1d BaseAudio object consisting of three stacked arrays (with values 1,2,3 
-        everywhere), and having a length of 10 s, time resolution of 0.001 s, filename 'x',
-        'y','z', offset of 2 s, and label 13.
-
-        Yields:
-            o: BaseAudio
-                BaseAudio object
-    """
-    N = 10000
-    d = np.ones((N,3))
-    d[:,1] = 2
-    d[:,2] = 3
-    o = aba.BaseAudio(time_res=0.001, data=d, ndim=1, filename=['x','yy','z'], offset=2., label=13)
+    o = aba.BaseAudioTime(time_res=0.001, data=d, filename='x', offset=2., label=13)
     return o, d
 
 @pytest.fixture

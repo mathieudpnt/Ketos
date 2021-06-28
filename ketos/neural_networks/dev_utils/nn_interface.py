@@ -857,8 +857,13 @@ class NNInterface():
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
         with ZipFile(model_file, 'w') as zip:
             
-            latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-            checkpoints = glob(latest + '*')                                                                                                                 
+            if checkpoint_name is not None:
+                checkpoints = glob(os.path.join(self.checkpoint_dir, checkpoint_name) + '*')
+                assert len(checkpoints) > 0, "The checkpoint name '{}' was not found in the checkpoints_dir ({})".format(checkpoint_name, self.checkpoint_dir)
+            else:            
+                latest = tf.train.latest_checkpoint(self.checkpoint_dir)
+                assert isinstance(latest,str), "No checkpoints were found at the checkpoint_dir ({})".format(self.checkpoint_dir) 
+                checkpoints = glob(latest + '*')                                                                                                                 
             self.save_recipe_file(recipe_path)
             zip.write(recipe_path, "recipe.json")
             if audio_repr_file is not None:
@@ -1191,6 +1196,9 @@ class NNInterface():
 
                 checkpoint_freq:int
                     The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
+                    This number should not exceed 'n_epochs'. If early_stopping  (see below) is used, this parameter is ignored and every epoch is saved as a checkpoint
+                    so that the model state can be set to whichever chekpopint is selected by the early stopping monitor. 
+                    If this value is <=0, no checkpoints will be saved.
 
                 early_stopping: bool
                     If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reached (or n_epochs is reached, whichever happens first).
@@ -1199,6 +1207,8 @@ class NNInterface():
                     The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
 
         """
+
+        assert checkpoint_freq <= n_epochs, "The checkpoint frequency ({0}) cannot be greater than the number of epochs ({1})".format(checkpoint_freq, n_epochs)
 
         if log_csv == True:
             column_names = ['epoch', 'loss', 'dataset'] + [ m.recipe_name for m in self.metrics]
@@ -1284,7 +1294,8 @@ class NNInterface():
             if verbose == True:
                 print("\n====================================================================================")
 
-            if (epoch + 1)  % checkpoint_freq == 0:
+            
+            if (checkpoint_freq > 0) and ((epoch + 1)  % checkpoint_freq == 0):
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
             
@@ -1343,31 +1354,9 @@ class NNInterface():
             self.model.load_weights(os.path.join(self.checkpoint_dir, last_checkpoint_with_improvement))
             return {'checkpoint_name':last_checkpoint_with_improvement}
 
-    def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):
-        if compute_val_metrics:
-            self._val_loss.reset_states()
-            for val_metric in self._val_metrics:
-                val_metric.reset_states()
-
-        predictions = []
-        for batch_id in range(self._test_generator.n_batches):
-                    X, Y = next(self._test_generator)
-                    if compute_val_metrics: self._val_step(X, Y)
-                    predictions.append(self.model(X, training=False))
-                                           
-                                    
-        if verbose == True and compute_val_metrics == True:
-            print("loss: {}".format(self._val_loss.result()))
-            print("".join([m.name.split('_val')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
-
-        predictions = np.array(predictions)
-
-        return predictions
-
-        
 
 
-    def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True):
+    def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True, return_metrics=False):
         """ Run the model on the test generator
 
             Args:
@@ -1378,12 +1367,17 @@ class NNInterface():
                     If True, compute the same metrics used for validation when running the model on the test generator
                 verbose: bool
                     If True and compute_val_metrics is also true, print the results.
+                return_metrics: bool
+                    Only relevant if 'compute_val_metrics=True'.
+                    If True, return a dictionary with the metrics
                 
             Returns:
                 output
                     The corresponding batch of model outputs
-        """
-        
+                metrics
+                    A dictionary with the validation metrics.
+                    Only returned if both 'compute_val_metrics' and 'return_metrics' are True.
+        """        
         if compute_val_metrics:
             self._val_loss.reset_states()
             for val_metric in self._val_metrics:
@@ -1395,16 +1389,20 @@ class NNInterface():
                     if compute_val_metrics: self._val_step(X, Y)
                     predictions.append(self.model(X, training=False))
                                            
-                                    
-        if verbose == True and compute_val_metrics == True:
-            print("loss: {}".format(self._val_loss.result()))
-            print("".join([m.name.split('val_')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
-
         predictions = np.array(predictions)
         
         if return_raw_output == False:
             reshaped_predictions = predictions.reshape(-1, predictions.shape[2])
             predictions = self._transform_output(reshaped_predictions)
+
+        if compute_val_metrics == True:                                    
+            if verbose == True:
+                print("loss: {}".format(self._val_loss.result()))
+                print("".join([m.name.split('val_')[1] + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
+            if return_metrics == True:
+                metrics_dict ={m.name.split('val_')[1]:m.result().numpy() for m in self._val_metrics}
+                metrics_dict["loss"] = self._val_loss.result()
+                return predictions, metrics_dict
 
         return predictions
 

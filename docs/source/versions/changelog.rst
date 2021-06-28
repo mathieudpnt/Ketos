@@ -1,6 +1,32 @@
 Change log
 ==========
 
+**Version 2.2.0** (June 24, 2021)
+
+ * sort_by_filename_start argument added to :meth:`standardize <ketos.data_handling.selection_table.standardize>` method.
+ * The create_database function can now include extra columns specified in the selection tables into the database. 
+ * The reduce_tonal_noise function had a bug  that caused the desired method (median or running mean) not to be recognized sometimes. This has now been fixed.
+ * The group_detections function had a bug that caused detections at the end of a batch to be dropped. This has been fixed.
+ * bandbass_filter method in Waveform class.
+ * Option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
+ * New module :module:`gammatone <ketos.audio.gammatone>` which contains the classes :class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>` and :class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`
+ * When creating a MagSpectrogram object, the user can now use the compute_phase argument to specify that the complex phase angle should be computed and stored along with the magnitude spectrogram.
+ * Cleaning the duplicate run_on_test_generator method in the NNInterface class
+ * Option to return a dictionary with metrics when calling the run_on_test_generator method
+ * Assertion to verify that the checkpoint_freq does not exceed the number of epochs.
+ * Assertion in the NNInterface.save_model() method, which raise and error if no checkpoints are found
+ * Method set_batch_norm_momentum in ResNetArch for modifying the momentum parameter of the batch normalization layers in the network.
+ * Method set_dropout_rate in ResNetArch for modifying the dropout rate parameter of the dropout layers in the network. Equivalent methods in ResNetBlock. Possibility to specify the above parameters at initialization
+ * Added training=training in all calls to the dropout layers
+ * Option to build indices for user-specified columns in the AudioWriter class and the create_database method.
+ * Option to have JointBatchGen return indices, in addition to X and Y.
+ * In the :meth:`select <ketos.data_handling.selection_table.select>` method, the user can now specify which labels to generate selections for.
+ * In the meth:`select_by_segmenting <ketos.data_handling.selection_table.select_by_segmenting>` method, I have added an extra boolean argument called keep_only_empty, which is useful for generating background samples.
+ * A new method called random_choice() that selects a random subset of an annotation/selection table.
+ * strides and kernel_size exposed in the ResNet and ResNet1D interfaces
+ * Option to include extra attributes present in selection tables in the HDF5 database produced by the AudioWriter and create_database method.
+ * Minor bug fix in reduce_tonal_noise method in the Spectrogram class.
+
 **Version 2.1.3** (february 17, 2021)
 
  * Add features that allow database_interface and audio_loader modules to handle multiple audio representations (i.e. for the same audio clip, multiple representations are generated).

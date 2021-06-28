@@ -65,7 +65,7 @@ import ketos.audio.utils.misc as aum
 from ketos.audio.utils.axis import LinearAxis, Log2Axis
 from ketos.audio.annotation import AnnotationHandler
 from ketos.audio.utils.filter import enhance_signal, reduce_tonal_noise
-from ketos.audio.base_audio import BaseAudio, segment_data
+from ketos.audio.base_audio import BaseAudioTime, segment_data
 
 
 def add_specs(a, b, offset=0, scale=1, make_copy=False):
@@ -326,26 +326,22 @@ def load_audio_for_spec(path, channel, rate, window, step,\
 
     return audio, seg_args
 
-class Spectrogram(BaseAudio):
+class Spectrogram(BaseAudioTime):
     """ Spectrogram.
 
         Parent class for MagSpectrogram, PowerSpectrogram, MelSpectrogram, 
         and CQTSpectrogram.
 
-        The Spectrogram class stores the spectrogram pixel values in a 2d 
+        The Spectrogram class stores the spectrogram pixel values in a 
         numpy array, where the first axis (0) is the time dimension and 
         the second axis (1) is the frequency dimensions.
 
-        The Spectrogram class can also store a stack of multiple, identical-size, 
-        spectrograms in a 3d numpy array with the last axis (3) representing the 
-        multiple instances.
-
         Args:
-            image: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            image: numpy array
+                Spectrogram matrix. 
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
-            spec_type: str
+            type: str
                 Spectrogram type. Options include,
                     * 'Mag': Magnitude spectrogram
                     * 'Pow': Power spectrogram
@@ -374,8 +370,8 @@ class Spectrogram(BaseAudio):
                 generating this spectrogram
             
         Attributes:
-            image: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            data: numpy array
+                Spectrogram matrix. 
             time_ax: LinearAxis
                 Axis object for the time dimension
             freq_ax: LinearAxis or Log2Axis
@@ -402,16 +398,16 @@ class Spectrogram(BaseAudio):
                 List of transforms that have been applied to the waveform before 
                 generating this spectrogram
 """
-    def __init__(self, data, time_res, spec_type, freq_ax, filename=None, offset=0, label=None, annot=None, transforms=None, 
-        transform_log=None, waveform_transform_log=None, **kwargs):
+    def __init__(self, data, time_res, type, freq_ax, filename=None, offset=0, label=None, 
+        annot=None, transforms=None, transform_log=None, waveform_transform_log=None, **kwargs):
 
-        super().__init__(data=data, time_res=time_res, ndim=2, filename=filename, offset=offset, label=label, annot=annot, 
-            transform_log=transform_log, **kwargs)
+        super().__init__(data=data, time_res=time_res, filename=filename, offset=offset, label=label, 
+            annot=annot, transform_log=transform_log, **kwargs)
 
         if waveform_transform_log is None: waveform_transform_log = []
 
         self.freq_ax = freq_ax
-        self.type = spec_type
+        self.type = type
 
         self.allowed_transforms.update({'blur': self.blur, 
                                         'enhance_signal': self.enhance_signal,
@@ -421,9 +417,20 @@ class Spectrogram(BaseAudio):
 
         self.waveform_transform_log = waveform_transform_log
 
-    def get_attrs(self):
-        return {'time_res':self.time_res(), 'spec_type':self.type, 'freq_ax':self.freq_ax, 'transform_log':self.transform_log,
-            'waveform_transform_log': self.waveform_transform_log}
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'type':self.type, 'waveform_transform_log': self.waveform_transform_log})
+        return attrs
+
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
+
+            Does not include the data array and annotation handler.    
+        """
+        kwargs = super().get_kwargs()
+        kwargs.update({'freq_ax': self.freq_ax})
+        return kwargs
 
     def freq_min(self):
         """ Get spectrogram minimum frequency in Hz.
@@ -480,7 +487,7 @@ class Spectrogram(BaseAudio):
                 >>> # 0 to 300 Hz,
                 >>> ax = LinearAxis(bins=30, extent=(0.,300.), label='Frequency (Hz)')
                 >>> img = np.random.rand(20,30)
-                >>> spec = Spectrogram(data=img, time_res=0.5, spec_type='Mag', freq_ax=ax)
+                >>> spec = Spectrogram(data=img, time_res=0.5, type='Mag', freq_ax=ax)
                 >>> # Draw the spectrogram
                 >>> fig = spec.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
@@ -506,41 +513,9 @@ class Spectrogram(BaseAudio):
         spec.data = spec.data[:, b1:b2+1]
 
         # crop annotations, if any
-        if self.annot:
-            self.annot.crop(freq_min=freq_min, freq_max=freq_max)
+        if self.annot: self.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
-
-    def segment(self, window, step=None):
-        """ Divide the time axis into segments of uniform length, which may or may 
-            not be overlapping.
-
-            Window length and step size are converted to the nearest integer number 
-            of time steps.
-
-            If necessary, the spectrogram will be padded with zeros at the end to 
-            ensure that all segments have an equal number of samples. 
-
-            Args:
-                window: float
-                    Length of each segment in seconds.
-                step: float
-                    Step size in seconds.
-
-            Returns:
-                specs: Spectrogram
-                    Stacked spectrograms
-        """
-        segs, filename, offset, label, annot = segment_data(self, window, step)
-
-        # add global offset
-        if np.ndim(self.offset) == 0: offset += self.offset
-        else: offset += self.offset[:,np.newaxis]
-
-        ax = copy.deepcopy(self.freq_ax)
-        specs = self.__class__(data=segs, filename=filename, offset=offset, label=label, annot=annot, **self.get_attrs())
-        
-        return specs
                 
     def add(self, spec, offset=0, scale=1, make_copy=False):
         """ Add another spectrogram on top of this spectrogram.
@@ -697,9 +672,12 @@ class Spectrogram(BaseAudio):
             time_const_len = None
 
         self.data = reduce_tonal_noise(self.data, method=method, time_const_len=time_const_len)
-        self.transform_log.append({'name':'reduce_tonal_noise', 'method':method}.update(**kwargs))
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
+        transf = {'name':'reduce_tonal_noise', 'method':method}
+        if 'time_constant' in kwargs.keys(): transf.update({'time_constant': kwargs['time_constant']})
+        self.transform_log.append(transf)
+
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -710,9 +688,6 @@ class Spectrogram(BaseAudio):
             or saved (fig.savefig(file_name))
 
             Args:
-                id: int
-                    Spectrogram to be plotted. Only relevant if the spectrogram object 
-                    contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
                 figsize: tuple
@@ -721,7 +696,10 @@ class Spectrogram(BaseAudio):
                     The colormap to be used
                 label_in_title: bool
                     Include label (if available) in figure title
-            
+                vmin, vmax : scalar, optional
+                    When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
+                    By default, the colormap covers the complete value range of the supplied data. 
+                    vmin, vmax are ignored if the norm parameter is used.            
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
@@ -741,30 +719,28 @@ class Spectrogram(BaseAudio):
 
                 .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
         """
-        fig, ax = super().plot(id, figsize, label_in_title)
+        fig, ax = super().plot(figsize, label_in_title)
 
-        x = self.get_data(id) # select image data        
+        x = self.get_data() # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
-        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent)# draw image
+        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent, vmin=vmin, vmax=vmax)# draw image
         ax.set_ylabel(self.freq_ax.label) # axis label        
         fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
 
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax,id)
+        if show_annot: self._draw_annot_boxes(ax)
             
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax, id=0):
+    def _draw_annot_boxes(self, ax):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
-                id: int
-                    Object ID
         """
-        annots = self.get_annotations(id=id)
+        annots = self.get_annotations()
         if annots is None: return
         y1 = self.freq_min()
         y2 = self.freq_max()
@@ -780,9 +756,19 @@ class Spectrogram(BaseAudio):
 class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram.
     
+        While the underlying data array can be accessed via the :attr:`data` attribute,
+        it is recommended to always use the :func:`get_data` function to access the data 
+        array, i.e., 
+
+        >>> from ketos.audio.base_audio import BaseAudio
+        >>> x = np.ones(6)
+        >>> audio_sample = BaseAudio(data=x)
+        >>> audio_sample.get_data()
+        array([1., 1., 1., 1., 1., 1.])
+
         Args:
-            data: 2d or 3d numpy array
-                Spectrogram pixel values. 
+            data: numpy array
+                Magnitude spectrogram.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
             freq_min: float
@@ -809,26 +795,64 @@ class MagSpectrogram(Spectrogram):
             waveform_transform_log: list(dict)
                 List of transforms that have been applied to the waveform before 
                 generating this spectrogram
+            phase_angle: numpy.array
+                Complex phase angle.
 
         Attrs:
+            data: numpy array
+                If the phase angle matrix is not provided, data will be a 2d numpy 
+                array containing the magnitude spectrogram.
+                On the other hand, if the phase angle matrix is provided, data will 
+                be a 3d numpy array where data[:,:,0] contains the magnitude spectrogram 
+                and data[:,:,1] contains the complex phase angle. 
             window_func: str
                 Window function.
     """
     def __init__(self, data, time_res, freq_min, freq_res, window_func=None, 
         filename=None, offset=0, label=None, annot=None, transforms=None, 
-        transform_log=None, waveform_transform_log=None, **kwargs):
+        transform_log=None, waveform_transform_log=None, phase_angle=None, **kwargs):
 
         # create frequency axis
         freq_bins = max(1, data.shape[1])
         freq_max  = freq_min + data.shape[1] * freq_res
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
+        if phase_angle is not None:
+            assert phase_angle.shape == data.shape, 'phase_angle and data array must have same shape'
+            data = np.stack([data, phase_angle], axis=2)
+
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
+        kwargs.pop('type', None)
+        super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
             transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func})
+        return attrs
+
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
+
+            Does not include the data array and annotation handler.    
+        """
+        kwargs = super().get_kwargs()
+        kwargs.pop('freq_ax', None)
+        return kwargs
+
+    def get_data(self):
+        """ Get magnitude spectrogram data """
+        if np.ndim(self.data) == 3: return self.data[:,:,0]
+        else: return super().get_data()
+
+    def get_phase_angle(self):
+        """ Get magnitude spectrogram complex phase angle, if available """
+        if np.ndim(self.data) == 3: return self.data[:,:,1]
+        else: return None
 
     @classmethod
     def empty(cls):
@@ -838,7 +862,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None, transforms=None, **kwargs):
+        freq_min=None, freq_max=None, transforms=None, compute_phase=False, **kwargs):
         """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -867,6 +891,8 @@ class MagSpectrogram(Spectrogram):
                     List of dictionaries, where each dictionary specifies the name of 
                     a transformation to be applied to the spectrogram. For example,
                     {"name":"normalize", "mean":0.5, "std":1.0}
+                compute_phase: bool
+                    Compute complex phase angle. Default it False
 
             Returns:
                 spec: MagSpectrogram
@@ -875,15 +901,15 @@ class MagSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,
-            step=step, seg_args=seg_args, window_func=window_func)
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,
+            step=step, seg_args=seg_args, window_func=window_func, compute_phase=compute_phase)
 
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_nyquist / img.shape[1]
 
         spec = cls(data=img, time_res=time_res, freq_min=0, freq_res=freq_res, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
-            waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
+            waveform_transform_log=audio.transform_log, transforms=transforms, phase_angle=phase, **kwargs)
 
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
@@ -895,7 +921,7 @@ class MagSpectrogram(Spectrogram):
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, 
-            waveform_transforms=None, **kwargs):
+            waveform_transforms=None, compute_phase=False, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -954,6 +980,8 @@ class MagSpectrogram(Spectrogram):
                     a transformation to be applied to the waveform before generating 
                     the spectrogram. For example,
                     {"name":"add_gaussian_noise", "sigma":0.5}
+                compute_phase: bool
+                    Compute complex phase angle. Default it False
 
             Returns:
                 : MagSpectrogram
@@ -983,12 +1011,7 @@ class MagSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
-
-    def get_attrs(self):
-        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log, 
-            'waveform_transform_log': self.waveform_transform_log}
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, compute_phase=compute_phase, **kwargs)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -999,7 +1022,7 @@ class MagSpectrogram(Spectrogram):
         """
         return self.freq_ax.bin_width()
 
-    def recover_waveform(self, num_iters=25, phase_angle=0):
+    def recover_waveform(self, num_iters=25, phase_angle=None, subtract=0):
         """ Estimate audio signal from magnitude spectrogram.
 
             Uses :func:`audio.audio.spec2wave`.
@@ -1008,19 +1031,33 @@ class MagSpectrogram(Spectrogram):
                 num_iters: 
                     Number of iterations to perform.
                 phase_angle: 
-                    Initial condition for phase.
+                    Initial condition for phase in radians. If not specified, 
+                    the phase angle computed computed at initialization will 
+                    be used, if available. If not available, the phase angle 
+                    will default to zero and a warning will be printed.
 
             Returns:
                 : Waveform
                     Audio signal
         """
-        mag = aum.from_decibel(self.data) #use linear scale
+        mag = self.get_data()
+
+        if phase_angle is None:
+            phase_angle = self.get_phase_angle()
+            if phase_angle is None:
+                phase_angle = 0
+                print('Warning: spectrogram phase angle not available; phase will be set to zero everywhere')
 
         # if the frequency axis has been cropped, pad with zeros to ensure that 
         # the spectrogram has the expected shape
         pad_low  = max(0, int(self.freq_min() / self.freq_res()))
         if pad_low > 0:
             mag = np.pad(mag, pad_width=((0,0),(pad_low,0)), mode='constant')
+            if np.ndim(phase_angle) == 2:
+                phase_angle = np.pad(phase_angle, pad_width=((0,0),(pad_low,0)), mode='constant')
+
+        #use linear scale
+        mag = aum.from_decibel(mag) - subtract
 
         target_rate = self.freq_ax.bin_width() * 2 * mag.shape[1]
 
@@ -1088,11 +1125,27 @@ class PowerSpectrogram(Spectrogram):
         ax = LinearAxis(bins=freq_bins, extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
+        kwargs.pop('type', None)
+        super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
             transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 'window_func':self.window_func})
+        return attrs
+
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
+
+            Does not include the data array and annotation handler.    
+        """
+        kwargs = super().get_kwargs()
+        kwargs.pop('freq_ax', None)
+        return kwargs
 
     @classmethod
     def empty(cls):
@@ -1139,7 +1192,7 @@ class PowerSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
         img = mag2pow(img, num_fft) # Magnitude->Power conversion
         img = aum.to_decibel(img) # convert to dB
@@ -1251,11 +1304,6 @@ class PowerSpectrogram(Spectrogram):
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
             freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
 
-    def get_attrs(self):
-        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_res':self.freq_res(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
-            'waveform_transform_log': self.waveform_transform_log}
-
     def freq_res(self):
         """ Get frequency resolution in Hz.
 
@@ -1315,12 +1363,28 @@ class MelSpectrogram(Spectrogram):
         ax = LinearAxis(bins=data.shape[1], extent=(freq_min, freq_max), label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
+        kwargs.pop('type', None)
+        super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
             transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
         self.filter_banks = filter_banks
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'freq_min':self.freq_min(), 'filter_banks':self.filter_banks, 'window_func':self.window_func})
+        return attrs
+
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
+
+            Does not include the data array and annotation handler.    
+        """
+        kwargs = super().get_kwargs()
+        kwargs.pop('freq_ax', None)
+        return kwargs
 
     @classmethod
     def empty(cls):
@@ -1368,7 +1432,7 @@ class MelSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
@@ -1481,11 +1545,6 @@ class MelSpectrogram(Spectrogram):
 
         return spec
 
-    def get_attrs(self):
-        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'freq_max':self.freq_max(), 
-            'filter_banks':self.filter_banks, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
-            'waveform_transform_log': self.waveform_transform_log}
-
     def plot(self, filter_bank=False, figsize=(5,4), cmap='viridis'):
         """ Plot the spectrogram with proper axes ranges and labels.
 
@@ -1568,11 +1627,27 @@ class CQTSpectrogram(Spectrogram):
             min_value=freq_min, label='Frequency (Hz)')
 
         # create spectrogram
-        super().__init__(data=data, time_res=time_res, spec_type=self.__class__.__name__, freq_ax=ax,
+        kwargs.pop('type', None)
+        super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,
             filename=filename, offset=offset, label=label, annot=annot, transforms=transforms, 
             transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
+
+    def get_repres_attrs(self):
+        """ Get audio representation attributes """ 
+        attrs = super().get_repres_attrs()
+        attrs.update({'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave(), 'window_func':self.window_func})
+        return attrs
+
+    def get_kwargs(self):
+        """ Get keyword arguments required to create a copy of this instance. 
+
+            Does not include the data array and annotation handler.    
+        """
+        kwargs = super().get_kwargs()
+        kwargs.pop('freq_ax', None)
+        return kwargs
 
     @classmethod
     def empty(cls):
@@ -1738,11 +1813,6 @@ class CQTSpectrogram(Spectrogram):
         return cls.from_waveform(audio=audio, step=step, bins_per_oct=bins_per_oct, 
             freq_min=freq_min, freq_max=freq_max, window_func=window_func, transforms=transforms, **kwargs)
 
-    def get_attrs(self):
-        return {'time_res':self.time_res(), 'freq_min':self.freq_min(), 'bins_per_oct':self.bins_per_octave(), 
-            'window_func':self.window_func, 'type':self.__class__.__name__, 'transform_log':self.transform_log,
-            'waveform_transform_log': self.waveform_transform_log}
-
     def bins_per_octave(self):
         """ Get no. bins per octave.
 
@@ -1752,7 +1822,7 @@ class CQTSpectrogram(Spectrogram):
         """
         return self.freq_ax.bins_per_oct
 
-    def plot(self, id=0, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -1763,9 +1833,6 @@ class CQTSpectrogram(Spectrogram):
             or saved (fig.savefig(file_name))
 
             Args:
-                id: int
-                    Spectrogram to be plotted. Only relevant if the spectrogram object 
-                    contains multiple, stacked spectrograms.
                 show_annot: bool
                     Display annotations
                 figsize: tuple
@@ -1779,7 +1846,7 @@ class CQTSpectrogram(Spectrogram):
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        fig = super().plot(id, show_annot, figsize, cmap, label_in_title)
+        fig = super().plot(show_annot, figsize, cmap, label_in_title, vmin, vmax)
         ticks, labels = self.freq_ax.ticks_and_labels()
         plt.yticks(ticks, labels)
         return fig

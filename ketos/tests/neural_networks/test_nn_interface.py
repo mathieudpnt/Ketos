@@ -18,6 +18,7 @@ import os
 import shutil
 import tables
 import json
+from zipfile import ZipFile
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -563,6 +564,36 @@ def test_train_loop(instance_of_MLPInterface):
     instance_of_MLPInterface.train_loop(n_epochs=5)
 
 
+def test_save_model_latest(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
+    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"))
+    extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
+    with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
+            zip.extractall(path=extraction_path)
+    
+    assert os.path.exists(os.path.join(extraction_path,"checkpoints", "cp-0005.ckpt.data-00000-of-00001" ))
+    assert os.path.exists(os.path.join(extraction_path, "checkpoints", "cp-0005.ckpt.index"))
+    assert os.path.exists(os.path.join(extraction_path, "checkpoints", "checkpoint"))
+
+
+
+
+def test_save_model_checkpoint_name(instance_of_MLPInterface):
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
+    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"), checkpoint_name="cp-0003.ckpt")
+    extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
+    with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
+            zip.extractall(path=extraction_path)
+    
+    assert os.path.exists(os.path.join(extraction_path,"checkpoints", "cp-0003.ckpt.data-00000-of-00001" ))
+    assert os.path.exists(os.path.join(extraction_path, "checkpoints", "cp-0003.ckpt.index"))
+    assert os.path.exists(os.path.join(extraction_path, "checkpoints", "checkpoint"))
+
+
+
+
 
 
 def test_train_loop_log_csv(MLPInterface_subclass,batch_generator):
@@ -717,8 +748,7 @@ def test_run_on_test_generator(instance_of_MLPInterface):
 
     assert pred.shape == (20,)
     assert np.array_equal(pred, np.array([0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1]))
-    print(pred)
-    print(scores)
+
     assert scores.shape == (20,)
     assert np.array_equal(scores, np.array([0.5086525, 1.,1., 0.5086525, 0.5086525,
                                           0.5086525, 1., 0.5086525, 1.,0.5086525,
@@ -726,14 +756,21 @@ def test_run_on_test_generator(instance_of_MLPInterface):
                                           1., 0.5086525, 1., 0.5086525, 1.], dtype=scores.dtype))
 
 
+def test_run_on_test_generator_metrics(instance_of_MLPInterface):
+    """ Test that the run_on_test_generator method returns validation metrics """
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    _, metrics = instance_of_MLPInterface.run_on_test_generator(compute_val_metrics=True, return_raw_output=False, return_metrics=True)
+    
+    assert metrics['CategoricalAccuracy'] == 1.0
+    assert metrics['loss'].numpy() == pytest.approx(0.2456744, abs=0.00001)
+
 
 def test_run_on_test_generator_raw_output(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5)
     scores = instance_of_MLPInterface.run_on_test_generator(compute_val_metrics=True, return_raw_output=True)
 
-    
-    print(scores)
     assert scores.shape == (4,5,2,)
     assert np.allclose(scores, np.array([[[5.0865251e-01, 4.9134743e-01],
                                             [7.2768415e-12, 1.0000000e+00],

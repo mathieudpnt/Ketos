@@ -135,7 +135,7 @@ def empty_selection_table():
 
 def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
     backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
-    return_label_dict=False):
+    return_label_dict=False, sort_by_filename_start=False):
     """ Standardize the annotation table format.
 
         The input table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -178,6 +178,8 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
                 Keep only the columns prescribed by the Ketos annotation format.
             return_label_dict: bool
                 Return label dictionary. Default is False.
+            sort_by_filename_start: bool
+                Automatically sort the table by filename (first) and start time (second). Default is False.
 
         Returns:
             table_std: pandas DataFrame
@@ -241,6 +243,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     for key, value in _label_dict.items():
         if str_is_int(key): key = int(key)
         label_dict[key] = value
+
+    if sort_by_filename_start:
+        df.sort_values(by=['filename','start'], inplace=True, ignore_index=True)
 
     # transform to multi-indexing
     df = use_multi_indexing(df, 'annot_id')
@@ -470,7 +475,7 @@ def cast_to_str(labels, nested=False):
         return labels_str, labels_str_flat
 
 def select(annotations, length, step=0, min_overlap=0, center=False,\
-    discard_long=False, keep_id=False):
+    discard_long=False, keep_id=False, label=None):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
         way is chracterized by a single, integer-valued, label.
@@ -513,6 +518,8 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             keep_id: bool
                 For each generated selection, include the id of the annotation from which 
                 the selection was generated.
+            label: int or list(int)
+                Only create selections for annotations with these labels.
 
         Results:
             table_sel: pandas DataFrame
@@ -582,6 +589,11 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
 
     # check that input table has expected format
     assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
+
+    # select labels
+    if label != None:
+        if isinstance(label, int): label = [label]
+        df = df[df['label'].isin(label)]
 
     # discard annotations with label -1
     df = df[df['label'] != -1]
@@ -764,7 +776,7 @@ def file_duration_table(path, search_subdirs=False):
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
     return pd.DataFrame({'filename':paths, 'duration':durations})
 
-def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False):
+def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False, buffer=0):
     """ Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
@@ -776,6 +788,10 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
 
         To avoid any overlap, set the 'no_overlap' to True, but note that this can 
         lead to longer execution times.
+
+        Use the 'buffer' argument to ensure a minimum separation between the background 
+        selections and the annotated segments. This can be useful if the annotation 
+        start and end times are not always fully accurate.
 
         Args:
             files: pandas DataFrame
@@ -791,6 +807,9 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
                 If True, randomly selected segments will have no overlap.
             trim_table: bool
                 Keep only the columns prescribed by the Ketos annotation format.
+            buffer: float
+                Minimum separation in seconds between the background selections and the annotated segments.
+                The default value is zero.
 
         Returns:
             table_backgr: pandas DataFrame
@@ -880,7 +899,7 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
             end   = start + length
 
             if annotations is not None:
-                q = query(annotations, filename=fname, start=start, end=end)
+                q = query(annotations, filename=fname, start=start-buffer, end=end+buffer)
                 if len(q) > 0: continue
 
             if no_overlap and len(df) > 0:
@@ -913,8 +932,32 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
 
     return df
 
+def random_choice(df, siz):
+    """ Randomly select a specified number of elements from a table.
+
+        Args:
+            df: pandas DataFrame
+                Selection table or annotation table
+            siz: int
+                Number of elements to be selected
+
+        Returns:
+            sel: pandas DataFrame
+                Reduced table
+    """
+
+    name_id = 'sel_id' if 'sel_id' in df.index.names else 'annot_id'
+    n = min(siz, len(df))
+    idx = np.sort(np.random.choice(np.arange(len(df), dtype=int), size=n, replace=False)).tolist()
+    df = df.reset_index()
+    df = df.loc[idx]
+    df = df.set_index([df.filename, df[name_id]])
+    df = df.drop(['filename', name_id], axis=1)
+    df = df.sort_index()
+    return df
+
 def select_by_segmenting(files, length, annotations=None, step=None,
-    discard_empty=False, pad=True):
+    pad=True, discard_empty=False, keep_only_empty=False):
     """ Generate a selection table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
         
@@ -937,18 +980,22 @@ def select_by_segmenting(files, length, annotations=None, step=None,
             step: float
                 Selection step size in seconds. If None, the step size is set 
                 equal to the selection length.
-            discard_empty: bool
-                If True, only selection that contain annotations will be used. 
-                If False (default), all selections are used.
             pad: bool
                 If True (default), the last selection window is allowed to extend 
                 beyond the endpoint of the audio file.
+            discard_empty: bool
+                If True, only selection that contain annotations will be used. 
+                If False (default), all selections are used.
+            keep_only_empty: bool
+                If True, only selections *without* any annotations are used, and 
+                only the selections table is returned. Default is False. 
 
         Returns:
             sel: pandas DataFrame
                 Selection table
             annot: pandas DataFrame
-                Annotations table. Only returned if annotations is specified.
+                Annotations table. Only returned if annotations is specified 
+                and keep_only_empty is False.
 
         Example:
             >>> import pandas as pd
@@ -1029,13 +1076,20 @@ def select_by_segmenting(files, length, annotations=None, step=None,
     if annotations is not None:
         annot = segment_annotations(annotations, num=num_segs, length=length, step=step)
 
-        # discard empties
-        if discard_empty:
+        if discard_empty or keep_only_empty:
             indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
-            sel = sel.loc[indices].sort_index()
 
-        return sel, annot
+            if discard_empty: 
+                sel = sel.loc[indices].sort_index()
+                return sel, annot
 
+            elif keep_only_empty: 
+                sel = sel.loc[~sel.index.isin(indices)].sort_index()
+                sel['label'] = 0
+                return sel
+        else:
+            return sel, annot
+            
     else:
         return sel
 
@@ -1174,11 +1228,14 @@ def query_labeled(table, filename=None, label=None, start=None, end=None):
     """
     df = table
     if filename is not None:
-        if isinstance(filename, str):
-            if filename not in df.index: return df.iloc[0:0]
-            else: filename = [filename]
-        
-        df = df.loc[filename]
+        if isinstance(filename, str): filename = [filename]
+
+        filename = [f for f in filename if f in df.index]
+
+        if len(filename) == 0: 
+            return df.iloc[0:0]
+        else: 
+            df = df.loc[filename]
 
     if label is not None:
         if not isinstance(label, list):

@@ -34,7 +34,8 @@ import numpy as np
 import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
-from ketos.data_handling.data_feeding import BatchGenerator
+from ketos.data_handling.data_feeding import BatchGenerator, JointBatchGen
+from ketos.neural_networks.resnet import ResNetInterface
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -55,7 +56,7 @@ def test_one_batch():
 
     train_generator = BatchGenerator(data_table=train_data,batch_size=5, return_batch_ids=True) #create a batch generator 
     ids, X, Y = next(train_generator)
-    
+
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
     assert X.shape == (5, 94, 129)
     np.testing.assert_array_equal(X, five_specs)
@@ -83,8 +84,8 @@ def test_multiple_data_fields():
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
     assert len(X) == 5
     assert len(X[0]) == 2
-    assert X[0][0].shape == (94, 129)
-    assert X[0][1].shape == (3000, 20)
+    assert X[0]['spec'].shape == (94, 129)
+    assert X[0]['gamma'].shape == (3000, 20)
     specs = [x[0] for x in X]
     gammas = [x[1] for x in X]
     np.testing.assert_array_equal(specs, five_specs)
@@ -410,3 +411,200 @@ def test_batch_size_larger_than_dataset_size():
     assert X.shape == (20, 94, 129)
     
     h5.close()
+
+
+def test_joint_batch_gen():
+    """ Test the a joint batch generator can be used to load from tables with a single data column
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('data')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, return_batch_ids=True)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, return_batch_ids=False)  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min") 
+    X, Y = next(gen)
+    
+    assert len(X) == 5
+    assert X[0].shape == (94, 129)
+    np.testing.assert_array_equal(X[:3], three_specs)
+    np.testing.assert_array_equal(X[3:], three_specs[:2])
+
+    assert len(Y) == 5
+    for i in range(3):
+        np.testing.assert_array_equal(Y[i][0], three_labels[i])
+    for i in range(2):
+        np.testing.assert_array_equal(Y[3+i][0], three_labels[i])
+
+    h51.close()
+    h52.close()
+
+def test_joint_batch_gen_ids():
+    """ Test the a joint batch generator can return ids
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('data')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, return_batch_ids=True)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, return_batch_ids=False)  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
+    ids, X, Y = next(gen)
+    
+    assert len(ids) == 5
+    assert len(ids[0]) == 2
+    assert np.all(ids[0] == [0, 0])
+    assert np.all(ids[1] == [0, 1])
+    assert np.all(ids[2] == [0, 2])
+    assert np.all(ids[3] == [1, 0])
+    assert np.all(ids[4] == [1, 1])
+
+    assert len(X) == 5
+    assert X[0].shape == (94, 129)
+    np.testing.assert_array_equal(X[:3], three_specs)
+    np.testing.assert_array_equal(X[3:], three_specs[:2])
+
+    assert len(Y) == 5
+    for i in range(3):
+        np.testing.assert_array_equal(Y[i][0], three_labels[i])
+    for i in range(2):
+        np.testing.assert_array_equal(Y[3+i][0], three_labels[i])
+
+    h51.close()
+    h52.close()
+
+def test_joint_batch_gen_output_transform():
+    """ Test the a joint batch generator can be used to load from tables with a single data column
+        while applying the ResNet output transform
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('data')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, return_batch_ids=True, output_transform_func=ResNetInterface.transform_batch)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, return_batch_ids=False, output_transform_func=ResNetInterface.transform_batch)  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min") 
+    X, Y = next(gen)
+    
+    assert len(X) == 5
+    assert X[0].shape == (94, 129, 1)
+    np.testing.assert_array_equal(X[:3,:,:,0], three_specs)
+    np.testing.assert_array_equal(X[3:,:,:,0], three_specs[:2])
+
+    assert len(Y) == 5
+    np.testing.assert_array_equal(Y[:3], np.array([[0,1],[0,1],[0,1]]))
+    np.testing.assert_array_equal(Y[3:], np.array([[0,1],[0,1]]))
+
+    h51.close()
+    h52.close()
+
+def test_joint_batch_gen_multi_modal():
+    """ Test the a joint batch generator can be used to load multi-modal data
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('spec')[:3]
+    three_gammas = tbl1.col('gamma')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'])  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'])  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
+    ids, X, Y = next(gen)
+
+    assert len(ids) == 5
+    assert len(ids[0]) == 2
+    assert np.all(ids[0] == [0, 0])
+    assert np.all(ids[1] == [0, 1])
+    assert np.all(ids[2] == [0, 2])
+    assert np.all(ids[3] == [1, 0])
+    assert np.all(ids[4] == [1, 1])
+
+    assert len(X) == 5
+    assert len(X[0]) == 2
+    assert X[0]['spec'].shape == (94, 129)
+    assert X[0]['gamma'].shape == (3000, 20)
+    specs = [x[0] for x in X]
+    gammas = [x[1] for x in X]
+    np.testing.assert_array_equal(specs[:3], three_specs)
+    np.testing.assert_array_equal(gammas[:3], three_gammas)
+    np.testing.assert_array_equal(specs[3:], three_specs[:2])
+    np.testing.assert_array_equal(gammas[3:], three_gammas[:2])
+
+    assert len(Y) == 5
+    labels = [y[0] for y in Y]
+    np.testing.assert_array_equal(labels[:3], three_labels)
+    np.testing.assert_array_equal(labels[3:], three_labels[:2])
+
+    h51.close()
+    h52.close()
+
+def test_joint_batch_gen_multi_modal_transform():
+    """ Test the a joint batch generator can be used to load multi-modal data
+        while applying output transform """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('spec')[:3]
+    three_gammas = tbl1.col('gamma')[:3]
+    three_labels = tbl1.col('label')[:3]
+
+    three_labels = [np.array(l) for l in three_labels]
+
+    def transform_batch(X, Y):
+        X = [[x['spec'][:,:,np.newaxis], x['gamma'][:,:,np.newaxis]] for x in X]
+        Y = np.array([label for label in Y['label']])        
+        return (X,Y)
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
+
+    gen = JointBatchGen([gen1, gen2], n_batches="min") 
+    X, Y = next(gen)
+    
+    assert len(X) == 5
+    assert len(X[0]) == 2
+    assert X[0][0].shape == (94, 129, 1)
+    assert X[0][1].shape == (3000, 20, 1)
+    specs = [x[0][:,:,0] for x in X]
+    gammas = [x[1][:,:,0] for x in X]
+    np.testing.assert_array_equal(specs[:3], three_specs)
+    np.testing.assert_array_equal(gammas[:3], three_gammas)
+    np.testing.assert_array_equal(specs[3:], three_specs[:2])
+    np.testing.assert_array_equal(gammas[3:], three_gammas[:2])
+
+    assert len(Y) == 5
+    np.testing.assert_array_equal(Y[:3], three_labels)
+    np.testing.assert_array_equal(Y[3:], three_labels[:2])
+
+    h51.close()
+    h52.close()

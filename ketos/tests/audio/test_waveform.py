@@ -43,17 +43,6 @@ def test_init_audio_signal():
     assert a.offset == 2.
     assert a.label == 13
 
-def test_init_stacked_audio_signal():
-    """ Test if a stacked audio signal has expected attribut values"""
-    N = 10000
-    d = np.ones((N,3))
-    a = Waveform(rate=1000, data=d, filename='xx', offset=2., label=13)
-    assert np.all(a.get_data(1) == d[:,1])
-    assert a.rate == 1000
-    assert np.all(a.get_filename() == 'xx')
-    assert np.all(a.offset == 2.)
-    assert np.all(a.label == 13)
-
 def test_from_wav(sine_wave_file, sine_wave):
     """ Test if an audio signal can be created from a wav file"""
     a = Waveform.from_wav(sine_wave_file)
@@ -247,4 +236,4 @@ def test_resampling_preserves_frequency_of_sine_wave(sine_wave_file):
 def test_segment():
     mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
     segs = mor.segment(window=2., step=1.)
-    assert segs.get_filename(0) == 'morlet'
+    assert segs[0].get_filename() == 'morlet'
