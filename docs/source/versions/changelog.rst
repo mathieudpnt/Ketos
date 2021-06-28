@@ -9,7 +9,7 @@ Change log
  * The group_detections function had a bug that caused detections at the end of a batch to be dropped. This has been fixed.
  * bandbass_filter method in Waveform class.
  * Option in selection_table::create_rndm_backgr_selections to specify the minimum separation between the background selections and the annotated segments.
- * New module :module:`gammatone <ketos.audio.gammatone>` which contains the classes :class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>` and :class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`
+ * New module `gammatone` which contains the classes :class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>` and :class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`
  * When creating a MagSpectrogram object, the user can now use the compute_phase argument to specify that the complex phase angle should be computed and stored along with the magnitude spectrogram.
  * Cleaning the duplicate run_on_test_generator method in the NNInterface class
  * Option to return a dictionary with metrics when calling the run_on_test_generator method
@@ -21,7 +21,7 @@ Change log
  * Option to build indices for user-specified columns in the AudioWriter class and the create_database method.
  * Option to have JointBatchGen return indices, in addition to X and Y.
  * In the :meth:`select <ketos.data_handling.selection_table.select>` method, the user can now specify which labels to generate selections for.
- * In the meth:`select_by_segmenting <ketos.data_handling.selection_table.select_by_segmenting>` method, I have added an extra boolean argument called keep_only_empty, which is useful for generating background samples.
+ * In the :meth:`select_by_segmenting <ketos.data_handling.selection_table.select_by_segmenting>` method, I have added an extra boolean argument called keep_only_empty, which is useful for generating background samples.
  * A new method called random_choice() that selects a random subset of an annotation/selection table.
  * strides and kernel_size exposed in the ResNet and ResNet1D interfaces
  * Option to include extra attributes present in selection tables in the HDF5 database produced by the AudioWriter and create_database method.
