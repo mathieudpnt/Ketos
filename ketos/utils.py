@@ -490,3 +490,21 @@ def str_is_int(s, signed=True):
         res = s.isdigit()
          
     return res
+
+def signif(x, p):
+    """ Round to a specified number of significant digits.
+
+        Args:
+            x: array-like
+                Values to be rounded
+            p: int
+                Number of significant digits
+
+        Returns:
+            : array-like
+                Rounded values
+    """
+    x = np.asarray(x)
+    x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
+    mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
+    return np.round(x * mags) / mags

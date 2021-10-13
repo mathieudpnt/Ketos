@@ -60,6 +60,10 @@ def test_annotate_plot():
 
 def test_init_aural_features_from_wav():
     """Test if we can initialize an Aural Features object from a wav file"""
-    af = AuralFeatures.from_wav('ketos/tests/assets/grunt1.wav')
-    assert af.get_data().shape == (46,)
-    assert np.all(~np.isnan(af.get_data()))
+    try:
+        af = AuralFeatures.from_wav('ketos/tests/assets/grunt1.wav')
+        assert af.get_data().shape == (46,)
+        assert np.all(~np.isnan(af.get_data()))
+    except:
+        with pytest.raises(ImportError):
+            af = AuralFeatures.from_wav('ketos/tests/assets/grunt1.wav')      

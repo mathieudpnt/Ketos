@@ -40,13 +40,18 @@
     Contents:
         Axis class:
         LinearAxis class:
-        Log2Axis class
+        Log2Axis class:
+        MelAxis class:
 """
 import numpy as np
 import copy
+from ketos.audio.utils.misc import hz_to_mel, mel_to_hz
+from ketos.utils import signif
+
 
 def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
-    """ Compute bin number corresponding to a given value.
+    """ Helper function for computing the bin number corresponding to a 
+        given axis value.
 
         If the value lies outside the axis range, a negative 
         bin number or a bin number above N-1 will be returned. 
@@ -57,6 +62,9 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
                 Value
             pos_func: function
                 Calculates the position on the axis of any given input value.
+                The position is a float ranging from 0 (lower edge of first bin) 
+                to N (upper edge of last bin) inside the axis range, and assuming 
+                negative values or values above N outside the range of the axis.
             bins: int
                 Number of bins
             truncate: bool
@@ -66,10 +74,8 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
             closed_right: bool
                 If False, bin is closed on the left and open on the 
                 right. If True, bin is open on the left and closed 
-                on the right. Default is False.                    
+                on the right. Default is False.                    , but they do not need to get involved yet.
 
-        Returns: 
-            b: array-like
                 Bin number
     """
     if np.ndim(x) == 0:
@@ -103,10 +109,11 @@ def bin_number(x, pos_func, bins, truncate=False, closed_right=False):
 
     return b
 
+
 class Axis():
     """ Base class for all Axis classes.
 
-        Child classes must implement the methods `bin` and  `low_edge`.
+        Child classes must implement the methods `_pos_func`, `bin`, `low_edge`, and `resize`
 
         Args: 
             bins: int
@@ -119,8 +126,6 @@ class Axis():
         Attributes:
             bins: int
                 Number of bins
-            x_min: float
-                Left edge of first bin
             label: str
                 Descriptive label.
     """
@@ -149,7 +154,7 @@ class Axis():
                 : float
                     Lower edge of first bin
         """
-        return self.x_min
+        return self.low_edge(0)
 
     def max(self):
         """ Get the upper boundary of the axis.
@@ -202,14 +207,14 @@ class Axis():
                 >>> ax = LinearAxis(bins=20, extent=(0.,10.))
                 >>> #Select interval from 5.3 to 8.7
                 >>> b_min, b_max = ax.cut(x_min=5.3, x_max=8.7)
-                >>> print(ax.x_min, ax.x_max, ax.bins, ax.dx)
+                >>> print(ax.min(), ax.max(), ax.bins, ax.dx)
                 5.0 9.0 8 0.5
                 >>> print(b_min, b_max)
                 10 17
                 >>> #Select 6-bin long interval with lower cut at 3.2
                 >>> ax = LinearAxis(bins=20, extent=(0.,10.))
                 >>> b_min, b_max = ax.cut(x_min=3.2, bins=6)
-                >>> print(ax.x_min, ax.x_max, ax.bins, ax.dx)
+                >>> print(ax.min(), ax.max(), ax.bins, ax.dx)
                 3.0 6.0 6 0.5
         """
         # lower bin
@@ -228,12 +233,23 @@ class Axis():
 
         # update attributes
         x_min = self.low_edge(b_min)
-        x_max = self.up_edge(b_max)
         self.bins = b_max - b_min + 1
         self.x_min = x_min
-        self.x_max = x_max
 
         return b_min, b_max
+
+    def _pos_func(self, x):
+        """ Compute the position of a given input value on the axis.
+
+            Args:
+                x: array-like
+                    Value
+
+            Returns: 
+                : array-like
+                    Position
+        """  
+        pass
 
     def bin(self, x, truncate=False, closed_right=False):
         """ Get bin number corresponding to a given value.
@@ -278,6 +294,77 @@ class Axis():
                     Lower-edge bin value
         """
         pass
+
+    def resize(self, bins):
+        """ Resize the axis.
+
+            This operation changes the number of bins, but preserves the axis range. 
+
+            Must be implemented in child class.
+
+            Args:
+                bins: int
+                    Number of bins
+        """
+        pass
+
+    def ticks_and_labels(self, numeric_format='.1f', num_labels=None, step=None, 
+        step_bins=1, ticks=None, significant_figures=None):
+        """ Create ticks and labels for drawing the axis.
+
+            The label density can be specified in three different ways:
+            using the `num_labels` argument, the `step` argument, or 
+            the `step_bins` argument.
+
+            Args:
+                numeric_format: str
+                    Numeric format for labels.
+                num_labels: int
+                    Number of labels
+                step: float
+                    Distance between consecutive labels.
+                step_bins: int
+                    Number of bins between consecutive labels.
+                ticks: array-like
+                    Specify tick positions manually. In this case, the method simply returns copies of 
+                    the input array, in float and string formats.
+                significant_figures: int
+                    Number of significant figures for labels.
+
+            Returns: 
+                ticks: numpy.array
+                    Tick positions
+                labels: list(str)
+                    Labels
+        """
+        if ticks is None:
+            if step is not None:
+                n = np.ceil((self.max() - self.min()) / step)
+                bin_no = np.arange(0, n + 1)
+
+            elif num_labels is not None:
+                step = (self.max() - self.min()) / self.bins
+                bin_no = np.linspace(0, self.bins, num_labels)
+                
+            else:
+                step = (self.max() - self.min()) / self.bins
+                bin_no = np.arange(0, self.bins + 1, step_bins)
+                
+            ticks = self.min() + bin_no * step
+            labels = self.low_edge(bin_no)
+
+            if significant_figures is not None:
+                labels = signif(x=labels, p=significant_figures)
+                ticks = self.min() + self._pos_func(labels) * step
+                ticks[-1] = min(self.max(), ticks[-1])
+
+        else:
+            if isinstance(ticks, list): ticks = np.array(ticks)
+            labels = ticks
+
+        labels = [('{0:'+numeric_format+'}').format(l) for l in labels.tolist()]
+
+        return ticks, labels
 
 class LinearAxis(Axis):
     """ Linear axis.
@@ -408,6 +495,18 @@ class LinearAxis(Axis):
         x = self.x_min + b * self.dx
         return x
 
+    def resize(self, bins):
+        """ Resize the axis.
+
+            This operation changes the number of bins, but preserves the axis range. 
+
+            Args:
+                bins: int
+                    Number of bins
+        """        
+        self.dx = (self.max() - self.min()) / bins
+        self.bins = bins
+
     def zero_offset(self):
         """ Shift axis lower boundary to zero.
         """
@@ -438,7 +537,7 @@ class Log2Axis(Axis):
         Attributes:
             bins: int
                 Total number of bins
-            bins_per_oct: int
+            bins_per_oct: float
                 Number of bins per octave
             x_min: float
                 Left edge of first bin
@@ -521,8 +620,39 @@ class Log2Axis(Axis):
         x = 2**(b / self.bins_per_oct) * self.x_min
         return x
 
-    def ticks_and_labels(self):
+    def resize(self, bins):
+        """ Resize the axis.
+
+            This operation changes the number of bins, but preserves the axis range. 
+
+            Note: may result in an axis with a non-integer `bins_per_oct` attribute
+
+            Args:
+                bins: int
+                    Number of bins
+        """        
+        self.bins_per_oct *= bins / self.bins
+        self.bins = bins
+
+    def ticks_and_labels(self, numeric_format='.1f', num_labels=None, step=None, step_bins=-1, ticks=None):
         """ Create ticks and labels for drawing the axis.
+
+            The label density can be specified in three different ways:
+            using the `num_labels` argument, the `step` argument, or 
+            the `step_bins` argument.
+
+            Args:
+                numeric_format: str
+                    Numeric format for labels.
+                num_labels: int
+                    Number of labels
+                step: float
+                    Distance between consecutive labels.
+                step_bins: int
+                    Number of bins between consecutive labels.
+                ticks: array-like
+                    Specify tick positions manually. In this case, the method simply returns copies of 
+                    the input array, in float and string formats.
 
             Returns: 
                 ticks: numpy.array
@@ -530,11 +660,163 @@ class Log2Axis(Axis):
                 labels: list(str)
                     Labels
         """
-        i = np.arange(0, self.bins, self.bins_per_oct)
+        if step_bins == -1: step_bins = self.bins_per_oct
+        return super().ticks_and_labels(numeric_format=numeric_format, num_labels=num_labels, step=step, step_bins=step_bins, ticks=ticks)
 
-        ticks = self.min() + i * (self.max() - self.min()) / self.bins
+class MelAxis(Axis):
+    """ Mel-spectrogram axis.
 
-        labels = 2**(i / self.bins_per_oct) * self.min()
-        labels = ['{0:.1f}'.format(l) for l in labels.tolist()]
+        Args: 
+            num_filters: int
+                Number of filters
+            freq_max: float
+                Maximum frequency in Hz
+            start_bin: int
+                Start bin. Default is 0
+            bins: int
+                Number of bins. If not specified, bins=num_filters
+            label: str
+                Descriptive label. Optional
 
-        return ticks, labels
+        Attributes:
+            bins: int
+                Total number of bins
+            x_min: float
+                Left edge of first bin
+            freq_max: float
+                Maximum frequency in Hz
+            label: str
+                Descriptive label
+            start_bin: int
+                Minimum bin number
+            num_filters: int
+                Number of filters
+            resize_factor: float
+                Resizing factor.
+    """
+    def __init__(self, num_filters, freq_max, start_bin=0, bins=None, label=None):
+        self.freq_max = freq_max
+        self.start_bin = start_bin
+        self.num_filters = num_filters
+        self.resize_factor = 1.
+        if bins is None: bins = num_filters - start_bin
+        super().__init__(bins=bins, x_min=self.low_edge(0), label=label)
+
+    def _pos_func(self, x):
+        """ Compute the position of a given input value on the axis.
+
+            Args:
+                x: array-like
+                    Value
+
+            Returns: 
+                : array-like
+                    Position
+        """        
+        pos = hz_to_mel(x) / hz_to_mel(self.freq_max) * (self.num_filters + 1) - 0.5
+
+        # compress below end point
+        idx = np.logical_and(pos<1.0, pos>=-0.5)
+        pos[idx] = 1.0 - (1.0 - pos[idx]) / 1.5
+        pos[pos<-0.5] += 0.5
+
+        # compress above end point
+        idx = np.logical_and(pos>self.num_filters-1, pos<self.num_filters+0.5)
+        pos[idx] = self.num_filters-1 + (pos[idx] - (self.num_filters-1)) / 1.5 
+        pos[pos>self.num_filters+0.5] -= 0.5
+
+        pos -= self.start_bin
+
+        pos *= self.resize_factor
+
+        return pos
+
+    def bin(self, x, truncate=False, closed_right=False):
+        """ Get bin number corresponding to a given value.
+
+            By default bins are closed on the left and open on the 
+            right, i.e., [a,b). Use the argument `closed_right` to 
+            reverse this.
+
+            If the value lies outside the axis range, a negative 
+            bin number or a bin number above N-1 will be returned. 
+            This behaviour can be changed using the argument 'truncate'.
+
+            Args:
+                x: array-like
+                    Value
+                truncate: bool
+                    Return 0 if x is below the lower axis boundary 
+                    and N-1 if x is above the upper boundary. Default 
+                    is False.
+                closed_right: bool
+                    If False, bin is closed on the left and open on the 
+                    right. If True, bin is open on the left and closed 
+                    on the right. Default is False.                    
+
+            Returns: 
+                b: array-like
+                    Bin number
+        """
+        b = bin_number(x, pos_func=self._pos_func, bins=self.bins, truncate=truncate, closed_right=closed_right)
+        return b
+
+    def low_edge(self, b):
+        """ Get the lower-edge value of a given bin.
+
+            Args:
+                b: array-like
+                    Bin number.
+            
+            Returns: 
+                x: array-like
+                    Lower-edge bin value
+        """
+        if isinstance(b, list):
+            b = np.array(b)
+
+        b_ = b / self.resize_factor + self.start_bin
+
+        # stretch first and last bin to cover the full range [0,freq_max]
+        b_ = np.where(np.logical_and(b_>0, b_<self.num_filters), b_ + 0.5, b_)
+        b_ = np.where(b_>=self.num_filters, b_ + 1.0, b_)
+
+        x = mel_to_hz(b_ * hz_to_mel(self.freq_max) / (self.num_filters + 1))
+        return x
+
+    def resize(self, bins):
+        """ Resize the axis.
+
+            This operation changes the number of bins, but preserves the axis range. 
+
+            Args:
+                bins: int
+                    Number of bins
+        """        
+        self.resize_factor *= bins / self.bins
+        self.bins = bins
+
+    def cut(self, x_min=None, x_max=None, bins=None):
+        """ Cut the axis by specifing either a minimum and a maximum value, 
+            or by specifying a minimum value and the axis length (as an integer 
+            number of bins).
+
+            At both ends of the axis, the bins containing the cut values are 
+            included. 
+
+            Args:
+                x_min: float
+                    Position of lower cut. Defaults to the axis' lower limit.
+                x_max: float 
+                    Position of upper cut.
+                bins: int
+                    Cut length, given as a integer number of bins. When `bins` is 
+                    specified, the argument `x_max` is ignored.
+            
+            Returns: 
+                b_min, b_max: int, int
+                    Lower and upper bin number of the cut
+        """
+        b_min, b_max = super().cut(x_min, x_max, bins)
+        self.start_bin += b_min
+        return b_min, b_max

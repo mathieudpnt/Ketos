@@ -495,6 +495,144 @@ def from_decibel(y):
     x = np.power(10., y/20.)
     return x
 
+def mag2pow(img, num_fft):
+    """ Convert a Magnitude spectrogram to a Power spectrogram.
+
+        Args:
+            img: numpy.array
+                Magnitude spectrogram image, linear axis
+            num_fft: int
+                Number of points used for the FFT.
+        
+        Returns:
+            : numpy.array
+                Power spectrogram image
+    """
+    return (1.0 / num_fft) * (img ** 2)
+
+def hz_to_mel(freq):
+    """ Convert frequency to position on Mel scale
+    
+        Args:
+            freq: array-like
+                Frequency in Hz
+
+        Returns:
+            mel: array-like
+                Mel scale position
+    """
+    return 2595 * np.log10(1 + freq / 700)
+
+def mel_to_hz(mel):
+    """ Convert position on Mel scale to frequency 
+    
+        Args:
+            mel: array-like
+                Mel scale position
+
+        Returns:
+            freq: array-like
+                Frequency in Hz
+    """
+    return 700 * (10**(mel / 2595) - 1)
+
+def mel_filter_bank(num_fft, rate, num_filters):
+    """ Compute Mel-scale filter bank
+
+        Args:
+            num_fft: int
+                Number of points used for the FFT.
+            rate: float
+                Sampling rate in Hz.
+            num_filters: int
+                The number of filters in the filter bank.
+
+        Returns:
+            fbank: numpy.array
+                Mel filter bank, has shape (num_filters, int(np.floor(num_fft / 2 + 1))
+    """
+    low_freq_mel = 0
+    high_freq_mel = hz_to_mel(rate / 2)  # Convert Hz to Mel
+    mel_points = np.linspace(low_freq_mel, high_freq_mel, num_filters + 2)  # Equally spaced in Mel scale
+    hz_points = mel_to_hz(mel_points)  # Convert Mel to Hz
+    bin = np.floor((num_fft + 1) * hz_points / rate)
+
+    bin_edges = hz_points[1:] - 0.5 * np.concatenate([np.diff(hz_points[1:]),[0]])
+    bin_edges[0] = 0
+
+    fbank = np.zeros((num_filters, int(np.floor(num_fft / 2 + 1))))
+    for m in range(1, num_filters + 1):
+        f_m_minus = int(bin[m - 1])   # left
+        f_m = int(bin[m])             # center
+        f_m_plus = int(bin[m + 1])    # right
+
+        for k in range(f_m_minus, f_m):
+            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
+        for k in range(f_m, f_m_plus):
+            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
+
+    return fbank
+
+def mag2mel(img, num_fft, rate, num_filters):
+    """ Convert a Magnitude spectrogram to a Mel spectrogram.
+
+        Args:
+            img: numpy.array
+                Magnitude spectrogram image, linear axis
+            num_fft: int
+                Number of points used for the FFT.
+            rate: float
+                Sampling rate in Hz.
+            num_filters: int
+                The number of filters in the filter bank.
+        
+        Returns:
+            mel_spec: numpy.array
+                Mel spectrogram image
+    """
+    power_spec = mag2pow(img, num_fft)
+    fbank = mel_filter_bank(num_fft, rate, num_filters)
+    mel_spec = np.dot(power_spec, fbank.T)
+    return mel_spec
+
+def mag2mfcc(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
+    """ Convert a Magnitude spectrogram to a Mel-frequency cepstrum.
+
+        TODO: Check that the formulas used to compute the MFCCs are 
+        correct and consistent with those used in librosa:
+        https://librosa.org/doc/main/generated/librosa.feature.mfcc.html#  
+
+        Args:
+            img: numpy.array
+                Magnitude spectrogram image, linear axis
+            num_fft: int
+                Number of points used for the FFT.
+            rate: float
+                Sampling rate in Hz.
+            num_filters: int
+                The number of filters in the filter bank.
+            num_ceps: int
+                The number of Mel-frequency cepstrums.
+            cep_lifters: int
+                The number of cepstum filters.
+        
+        Returns:
+            mfcc: numpy.array
+                Mel frequency cepstral coefficients
+    """
+    img = mag2mel(img, num_fft, rate, num_filters)
+    img = np.where(img == 0, np.finfo(float).eps, img)  # Numerical Stability
+    img = to_decibel(img)  # dB
+    
+    mfcc = dct(img, type=2, axis=1, norm='ortho')[:, 1 : (num_ceps + 1)] # Keep 2-13
+
+    (nframes, ncoeff) = mfcc.shape
+    n = np.arange(ncoeff)
+    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
+    mfcc *= lift  
+    
+    return mfcc
+
 def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
     """ Estimate audio signal from magnitude spectrogram.
 
@@ -570,3 +708,4 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
     # Cut 
 
     return audio
+

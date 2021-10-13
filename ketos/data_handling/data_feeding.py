@@ -244,6 +244,7 @@ class BatchGenerator():
         if self.batch_size > self.n_instances:
             warnings.warn("The batch size is greater than the number of instances available. Setting batch_size to n_instances.")
             self.batch_size = self.n_instances
+
         self.shuffle = shuffle
         self.output_transform_func = output_transform_func
         self.batch_count = 0
@@ -255,8 +256,6 @@ class BatchGenerator():
         self.entry_indices = self.__update_indices__()
 
         self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__(n_extend)
-
-
     
     def __update_indices__(self):
         """Updates the indices used to divide the instances into batches.
@@ -277,7 +276,7 @@ class BatchGenerator():
             row_index = np.array([(row['data_index'], annot_idx) for annot_idx,row in enumerate(self.annot.iterrows()) if row['data_index'] in self.select_indices])
         
         if self.shuffle:
-                np.random.shuffle(row_index)
+            np.random.shuffle(row_index)
               
         return row_index
 
@@ -339,6 +338,39 @@ class BatchGenerator():
             self.entry_indices = self.__update_indices__()
             self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__()
 
+    def get_samples(self, indices, annot_indices=None):
+        """ Get data samples for specified indices
+
+            Args:
+                indices: list of ints
+                    Row indices of the samples in the data table
+                annot_indices: list of ints
+                    Row indices of the matching samples in the annotation table, if applicable.
+
+            Returns: 
+                : tuple
+                    A batch of instances (X,Y) 
+        """
+        if self.from_memory:
+            X = np.take(self.x, indices, axis=0)
+            Y = np.take(self.y, indices, axis=0)
+        
+        else:
+            X = self.data[indices][self.x_field]
+
+            if self.annot_in_data_table == True:            
+                Y = self.data[indices][self.y_field]
+            else:
+                assert annot_indices is not None, "row indices for annotation table must be specified"
+
+                Y = self.annot[annot_indices][['data_index'] + self.y_field]
+                Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
+                Y = np.array(Y)
+            
+        if self.output_transform_func is not None:
+            X,Y = self.output_transform_func(X,Y)
+
+        return (X, Y)
 
     def __iter__(self):
         return self
@@ -348,38 +380,21 @@ class BatchGenerator():
             Return: tuple
             A batch of instances (X,Y) or, if 'returns_batch_ids" is True, a batch of instances accompanied by their indices (ids, X, Y) 
         """
-
-        batch_data_row_index = self.batch_indices_data[self.batch_count]
+        data_row_index = self.batch_indices_data[self.batch_count]
         
-        if self.from_memory or self.annot_in_data_table:
-            batch_ids = batch_data_row_index
+        if not self.from_memory and not self.annot_in_data_table:
+            annot_row_index = self.batch_indices_annot[self.batch_count]
         else:
-            #batch_ids = self.entry_indices[np.isin(self.entry_indices[:,0], batch_data_row_index),1]
-            batch_ids = batch_data_row_index
-            batch_annot_row_index = self.batch_indices_annot[self.batch_count]
+            annot_row_index = None
 
-        if self.from_memory:
-            X = np.take(self.x, batch_ids, axis=0)
-            Y = np.take(self.y, batch_ids, axis=0)
-        else:
-            X = self.data[batch_data_row_index][self.x_field]
-
-            if self.annot_in_data_table == False:            
-                Y = self.annot[batch_annot_row_index][['data_index'] + self.y_field]
-                Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
-                Y = np.array(Y)
-            else:                
-                Y = self.data[batch_data_row_index][self.y_field]
-            
         self.batch_count += 1
         if self.batch_count > (self.n_batches - 1):
             self.reset()
 
-        if self.output_transform_func is not None:
-            X,Y = self.output_transform_func(X,Y)
+        (X,Y) = self.get_samples(indices=data_row_index, annot_indices=annot_row_index)
 
         if self.return_batch_ids:
-            return (batch_ids,X,Y)
+            return (data_row_index,X,Y)
         else:
             return (X, Y)
 

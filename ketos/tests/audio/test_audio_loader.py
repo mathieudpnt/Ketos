@@ -87,7 +87,7 @@ def test_audio_frame_loader_gives_same_output_with_batches(sine_wave_file):
 
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
-    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'decibel':False}
     loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
     assert len(loader.sel_gen.files) == 5
     assert loader.num() == 5
@@ -486,3 +486,20 @@ def test_audio_select_loader_accepts_kwargs(five_time_stamped_wave_files):
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, compute_phase=True)
     s = next(loader)
     assert np.ndim(s.data) == 3
+
+def test_audio_select_loader_start_end_outside_file(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        for selections that extend beyond the limits of the wav file """ 
+    rep = {'type':'MagSpectrogram','window':0.02,'step':0.01}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    sel = pd.DataFrame({'filename':[files[0],files[1],files[3]],
+                        'start':[-0.20,0.12,0.44],
+                        'end':[0.11,0.43,0.75]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 3
+    for i in range(3):
+        s = next(loader)
+        assert s.duration() == 0.31

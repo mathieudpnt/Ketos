@@ -31,3 +31,9 @@ a deep neural network at detecting North Atlantic right whale upcalls, JASA, 147
 The name Ketos was chosen to highlight the package's main intended application, underwater acoustics.
 In Ancient Greek, the word ketos denotes a large fish, whale, shark, or sea monster. The word ketos 
 is also the origin of the scientific term for whales, cetacean.
+
+
+Developers
+==========
+
+Bruno Padovese, Sadman Sakib, Fabio Frazao, Oliver Kirsebom

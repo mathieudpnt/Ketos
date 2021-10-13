@@ -423,7 +423,7 @@ class AuralFeatures(BaseAudio):
                 print('aural-features is required by the AuralFeatures class.')
                 print('install with `pip install aural-features`.')
                 print('note that aural-features requires Scipy>=1.6 and Python>=3.7')
-                sys.exit(1)                       
+                raise ImportError
 
         conf = au.Config() # For defaults, should be safe to start
 

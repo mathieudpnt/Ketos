@@ -1,6 +1,16 @@
 Change log
 ==========
 
+**Version 2.3.0** (October 13, 2021)
+
+ * Added exception handling to the :meth:`create_database <ketos.data_handling.database_interface.create_database>` function
+ * Added :meth:`get_selection <ketos.audio.data_loader.SelectionTableIterator.get_selection>` function
+ * Fixed bug in computation of Mel spectrogram
+ * Added :class:`MelAxis <ketos.audio.utils.axis.Axis>` class to handle frequency axis of Mel spectrograms
+ * Improved implementation and interface of the ticks_and_labels :meth:`select <ketos.audio.utils.axis.Axis.ticks_and_labels>` method
+ * Added :meth:`resize <ketos.audio.spectrogram.Spectrogram.resize>` function in Spectrogram class
+ * Added option to select between linear and log (decibel) scale for MagSpectrogram and PowerSpectrogram at creation time
+
 **Version 2.2.0** (June 24, 2021)
 
  * sort_by_filename_start argument added to :meth:`standardize <ketos.data_handling.selection_table.standardize>` method.
