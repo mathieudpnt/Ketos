@@ -290,3 +290,47 @@ def test_cqt_from_wav_id(sine_wave_file):
 def test_mel_from_wav(sine_wave_file):
     spec = MelSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
     assert spec.time_res() == 0.02
+
+def test_resize_mag_spec_with_shape(sine_audio):
+    """Test that when we resize a magnitude spectrogram using the shape argument, we get 
+       spectrogram with the expected shape and resolution"""
+    spec = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
+    new_spec = spec.deepcopy()
+    new_spec.resize(shape=(20,300))
+    assert new_spec.data.shape == (20,300)
+    assert new_spec.time_res() == spec.time_res() * spec.data.shape[0] / new_spec.data.shape[0]
+    assert new_spec.freq_res() == spec.freq_res() * spec.data.shape[1] / new_spec.data.shape[1]
+
+def test_resize_mag_spec_with_time_res(sine_audio):
+    """Test that when we resize a magnitude spectrogram using the time_res argument, we get 
+       spectrogram with the expected shape and resolution"""
+    spec = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
+    new_spec = spec.deepcopy()
+    new_spec.resize(time_res=0.2)
+    assert pytest.approx(new_spec.time_res(), 0.2, abs=0.001)
+    assert new_spec.freq_res() == spec.freq_res()
+    n_bins = int(spec.data.shape[0] * spec.time_res() / new_spec.time_res())
+    assert new_spec.data.shape == (n_bins, spec.data.shape[1])
+
+def test_resize_mag_spec_complex_phase(sine_audio):
+    """Test that when we resize a magnitude spectrogram with a complex phase angle"""
+    spec = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05, compute_phase=True)
+    new_spec = spec.deepcopy()
+    new_spec.resize(shape=(20,300))
+    assert new_spec.data.shape == (20,300,2)
+    assert new_spec.time_res() == spec.time_res() * spec.data.shape[0] / new_spec.data.shape[0]
+    assert new_spec.freq_res() == spec.freq_res() * spec.data.shape[1] / new_spec.data.shape[1]
+
+def test_resize_cqt_spec(sine_audio):
+    """Test that when we resize a cqt spectrogram"""
+    spec = CQTSpectrogram.from_waveform(audio=sine_audio, step=0.01, freq_min=1, freq_max=300, bins_per_oct=32)
+    new_spec = spec.deepcopy()
+    new_spec.resize(shape=(40,100))
+    assert new_spec.data.shape == (40,100)
+
+def test_resize_mel_spec(sine_audio):
+    """Test that when we resize a mel spectrogram"""
+    spec = MelSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.02)
+    new_spec = spec.deepcopy()
+    new_spec.resize(shape=(6,10))
+    assert new_spec.data.shape == (6,10)

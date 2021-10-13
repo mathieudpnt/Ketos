@@ -100,7 +100,7 @@ class SelectionGenerator():
         """ Resets the selection generator to the beginning.
         """        
         pass
-
+    
 class SelectionTableIterator(SelectionGenerator):
     """ Iterates over entries in a selection table.
 
@@ -140,28 +140,13 @@ class SelectionTableIterator(SelectionGenerator):
 
     def __next__(self):
         """ Returns the next audio selection.
-        
+
             Returns:
                 audio_sel: dict
                     Audio selection
         """
-        audio_sel = {'data_dir': self.dir}
-        audio_sel['filename'] = self.sel.index.values[self.row_id][0]
-        # current row
-        s = self.sel.iloc[self.row_id]
-        # start time
-        if 'start' in s.keys(): offset = s['start']
-        else: offset = 0
-        audio_sel['offset'] = offset
-        # duration
-        if self.duration is not None: audio_sel['duration'] = self.duration
-        elif 'end' in s.keys(): audio_sel['duration'] = s['end'] - offset
-        # label
-        if 'label' in self.sel.columns.values: audio_sel['label'] = s['label']
-        # attribute columns
-        for col in self.attrs: audio_sel[col] = s[col]
-        # update row no.
-        self.row_id = (self.row_id + 1) % len(self.sel)
+        audio_sel = self.get_selection(id=self.row_id)
+        self.row_id = (self.row_id + 1) % len(self.sel) #update row no.
         return audio_sel
 
     def num(self):
@@ -177,6 +162,34 @@ class SelectionTableIterator(SelectionGenerator):
         """ Resets the selection generator to the beginning of the selection table.
         """        
         self.row_id = 0
+        
+    def get_selection(self, id):
+        """ Returns the audio selection with a given id.
+
+            Args:
+                id: int
+                    The id within the selection table to be searched        
+            Returns:
+                audio_sel: dict
+                    Audio selection
+        """
+        audio_sel = {'data_dir': self.dir}
+        audio_sel['filename'] = self.sel.index.values[id][0]
+        # current row
+        s = self.sel.iloc[id]
+        # start time
+        if 'start' in s.keys(): offset = s['start']
+        else: offset = 0
+        audio_sel['offset'] = offset
+        # duration
+        if self.duration is not None: audio_sel['duration'] = self.duration
+        elif 'end' in s.keys(): audio_sel['duration'] = s['end'] - offset
+        # label
+        if 'label' in self.sel.columns.values: audio_sel['label'] = s['label']
+        # attribute columns
+        for col in self.attrs: audio_sel[col] = s[col]
+        return audio_sel
+
 
 class FrameStepper(SelectionGenerator):
     """ Generates selections with uniform duration 'frame', with successive selections 
@@ -301,7 +314,6 @@ class AudioLoader():
             :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, **kwargs):
-
         repres = copy.deepcopy(repres)
         if not isinstance(repres, list): repres = [repres]
         self.typ, self.cfg = [], []
@@ -309,7 +321,6 @@ class AudioLoader():
             self.typ.append(r.pop('type'))
             if 'duration' in r.keys(): r.pop('duration')
             self.cfg.append(r)
-
         self.channel = channel
         self.sel_gen = selection_gen
         self.annot = annotations

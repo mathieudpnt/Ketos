@@ -729,7 +729,6 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 
     return audio_objs
     
-
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
@@ -747,6 +746,9 @@ def create_database(output_file, data_dir, selections, channel=0,
 
         If 'dataset_name' is not specified, the name of the folder containing the audio 
         files ('data_dir') will be used.
+        
+        If the method encounters problems loading/writing a sound clipe, it continues 
+        while printing a warning
     
         Args:
             output_file:str
@@ -808,6 +810,7 @@ def create_database(output_file, data_dir, selections, channel=0,
                 Create indices for the specified columns in the data table to allow for faster queries.
                 For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
     """
+    
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
@@ -818,9 +821,21 @@ def create_database(output_file, data_dir, selections, channel=0,
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
     
-    for _ in tqdm(range(loader.num()), disable = not progress_bar):
-        x = next(loader)
-        writer.write(x=x, path=path_to_dataset, name='data')
+    for i in tqdm(range(loader.num()), disable = not progress_bar):
+        loader_filename=loader.sel_gen.get_selection(id=i)['filename']
+        
+        try:
+            x = next(loader)
+        except Exception as e:
+            if(verbose):
+                print("Warning: while loading {0}, Message: {1}".format(loader_filename, str(e)))
+            continue
+        
+        try:
+            writer.write(x=x, path=path_to_dataset, name='data')
+        except Exception as e:
+            if(verbose):
+                print("Warning: while writing {0}, Message: {1}".format(loader_filename, str(e)))
 
     writer.close()
 
@@ -950,7 +965,7 @@ class AudioWriter():
             self.index_cols = [index_cols]
         else:   
             self.index_cols = index_cols
-
+            
     def set_table(self, path, name):
         """ Change the current table
 
@@ -1168,7 +1183,7 @@ class AudioWriter():
             elif isinstance(value, float):
                 attr['shape'] = ()
                 attr['type'] = 'float'
-            elif isinstance(value, int):
+            elif isinstance(value, (int,np.int32,np.int64)):
                 attr['shape'] = ()
                 attr['type'] = 'int'
             else:

@@ -24,9 +24,9 @@ copyright = '2020 MERIDIAN'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
-version = '2.2'
+version = '2.3'
 # The full version, including alpha/beta/rc tags
-release = '2.2.0'
+release = '2.3.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -106,8 +106,8 @@ html_context = {
     'css_files': ['_static/custom.css'],
 }
 def setup(app):
-    app.add_stylesheet('_static/custom.css')
-
+    #app.add_stylesheet() #deprecated at sphinx 1.8.0
+    app.add_css_file('_static/custom.css')
 
 
 # Custom sidebar templates, must be a dictionary that maps document names

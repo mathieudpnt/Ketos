@@ -101,7 +101,8 @@ def parse_audio_representation(s):
               ['global_km_window_seconds',  float, 's'],
               ['local_km_window_seconds',  float, 's'],
               ['filter_n',            int,   None],
-              ['filter_min_hz',       float, 'Hz']]
+              ['filter_min_hz',       float, 'Hz'],
+              ['decibel',             bool,  None]]
 
     d = {}
     for p in params:
@@ -144,12 +145,16 @@ def parse_value(x, name, unit=None, typ='float'):
         elif typ in ['bool', bool]:
             v = (v.lower() == "true")
 
-        # convert range argument for adjust_range transform from str to tuple
+        # convert specific transform arguments from str to tuple
         if name == 'transforms':
             for tr in v:
                 if tr['name'] == 'adjust_range':
                     s = tr['range'][1:-1]
                     tr['range'] = tuple(map(int, s.split(',')))
+                
+                elif tr['name'] == 'resize' and 'shape' in tr.keys():
+                    s = tr['shape'][1:-1]
+                    tr['shape'] = tuple(map(int, s.split(',')))
 
     return v
 

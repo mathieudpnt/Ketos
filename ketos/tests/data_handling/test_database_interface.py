@@ -795,3 +795,22 @@ def test_create_database_with_indices(sine_wave_file):
     assert attrs['extra_id'] == 14
     fil.close()
     os.remove(out)
+
+def test_create_database_with_exception_handling(sine_wave_file):
+    """ Check if database can be created if file does not exist """
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db15.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav', 'unknown_file_1.wav', 'sine_wave.wav', 'unknown_file_2.wav'], 
+                        'start':[0.1, 0.2, 0.3, 0.4], 
+                        'end':[2.0, 2.1, 2.2, 2.3], 
+                        'label':[1, 2, 1, 1]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=True, progress_bar=False)
+    # check database contents
+    db = di.open_file(out, 'r')
+    assert '/assets/data' in db
+    specs = di.load_audio(table=db.root.assets.data)
+    assert len(specs) == 2
+    db.close()
+    os.remove(out)

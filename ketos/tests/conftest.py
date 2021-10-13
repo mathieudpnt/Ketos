@@ -35,7 +35,7 @@ import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
 from ketos.data_handling.data_feeding import BatchGenerator
 from ketos.audio.waveform import Waveform
-from ketos.audio.utils.axis import LinearAxis, Log2Axis
+from ketos.audio.utils.axis import LinearAxis, Log2Axis, MelAxis
 import ketos.audio.base_audio as aba
 
 path_to_assets = os.path.join(os.path.dirname(__file__),"assets")
@@ -412,6 +412,18 @@ def log2_axis_8_16():
     return ax
 
 @pytest.fixture
+def mel_axis_40_500():
+    """ Create a Mel frequency axis with with 40 bins (filters)
+        for a maximum frequncy of 500 Hz
+
+        Yields:
+            ax: MelAxis
+                Axis object
+    """
+    ax = MelAxis(num_filters=40, freq_max=500)
+    return ax
+
+@pytest.fixture
 def spec_image_with_attrs():
     """ Creates a spectrogram image with shape (20,10) and random pixel values, 
         with time resolution of 0.5 s, and a linear frequency axis from 0 to 
@@ -460,6 +472,7 @@ def base_audio_time_1d():
 
 @pytest.fixture
 def five_time_stamped_wave_files():
+    """ Each wav file is 0.5 second long. The sampling rate is 1 kHz."""
     N = 5
     path_to_tmp = os.path.join(path_to_assets,'tmp')
     folder = path_to_tmp + '/five_time_stamped_wave_files/'
@@ -484,7 +497,7 @@ def spectr_settings():
     j = '{"spectrogram": {"type":"MagSpectrogram", "rate": "20 kHz",\
         "window": "0.1 s", "step": "0.025 s",\
         "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz",\
-        "duration": "1.0s", "resample_method": "scipy", "normalize_wav": "False",\
+        "duration": "1.0s", "resample_method": "scipy", "normalize_wav": "False", "decibel": "true",\
         "transforms": [{"name":"enhance_signal", "enhancement":1.0}, {"name":"adjust_range", "range":"(0,1)"}],\
         "waveform_transforms": [{"name":"add_gaussian_noise", "sigma":0.2}] }}'
     return j
@@ -492,7 +505,7 @@ def spectr_settings():
 
 @pytest.fixture
 def sample_data():
-    data = np.vstack([np.zeros((10,512,512,1)), np.ones((10,512,512,1))])
+    data = np.vstack([np.zeros((10,64,64,1)), np.ones((10,64,64,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
     
     return (data, labels)

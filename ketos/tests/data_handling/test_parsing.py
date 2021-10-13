@@ -45,3 +45,4 @@ def test_parse_audio_representation(spectr_settings):
     assert not d['normalize_wav']
     assert d['transforms'] == [{"name":"enhance_signal", "enhancement":1.0}, {"name":"adjust_range", "range":(0,1)}]
     assert d['waveform_transforms'] == [{"name":"add_gaussian_noise", "sigma":0.2}]
+    assert d['decibel']

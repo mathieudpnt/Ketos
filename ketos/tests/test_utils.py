@@ -31,7 +31,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
-    detect_peaks, str_is_int
+    detect_peaks, str_is_int, signif
 
 
 def test_tostring():
@@ -105,3 +105,7 @@ def test_str_is_int():
     assert str_is_int('+5')
     assert not str_is_int('-5', signed=False)
     assert not str_is_int('5.')
+
+def test_signif():
+    assert signif(1234,2) == 1200
+    assert np.all(signif([1236,-4444],3) == [1240, -4440])

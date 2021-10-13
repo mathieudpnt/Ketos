@@ -58,11 +58,12 @@ import numpy as np
 from scipy.signal import get_window
 from scipy.fftpack import dct
 from scipy import ndimage
+from skimage.transform import resize
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from ketos.audio.waveform import Waveform
 import ketos.audio.utils.misc as aum
-from ketos.audio.utils.axis import LinearAxis, Log2Axis
+from ketos.audio.utils.axis import LinearAxis, Log2Axis, MelAxis
 from ketos.audio.annotation import AnnotationHandler
 from ketos.audio.utils.filter import enhance_signal, reduce_tonal_noise
 from ketos.audio.base_audio import BaseAudioTime, segment_data
@@ -131,76 +132,6 @@ def add_specs(a, b, offset=0, scale=1, make_copy=False):
     ab.data[pos_x:pos_x+bins_x, pos_y:pos_y+bins_y] += scale * b.data
 
     return ab
-
-def mag2pow(img, num_fft):
-    """ Convert a Magnitude spectrogram to a Power spectrogram.
-
-        Args:
-            img: numpy.array
-                Magnitude spectrogram image.
-            num_fft: int
-                Number of points used for the FFT.
-        
-        Returns:
-            : numpy.array
-                Power spectrogram image
-    """
-    return (1.0 / num_fft) * (img ** 2)
-
-def mag2mel(img, num_fft, rate, num_filters, num_ceps, cep_lifter):
-    """ Convert a Magnitude spectrogram to a Mel spectrogram.
-
-        Args:
-            img: numpy.array
-                Magnitude spectrogram image.
-            num_fft: int
-                Number of points used for the FFT.
-            rate: float
-                Sampling rate in Hz.
-            num_filters: int
-                The number of filters in the filter bank.
-            num_ceps: int
-                The number of Mel-frequency cepstrums.
-            cep_lifters: int
-                The number of cepstum filters.
-        
-        Returns:
-            mel_spec: numpy.array
-                Mel spectrogram image
-            filter_banks: numpy.array
-                Filter banks
-    """
-    power_spec = mag2pow(img, num_fft)
-    
-    low_freq_mel = 0
-    high_freq_mel = (2595 * np.log10(1 + (rate / 2) / 700))  # Convert Hz to Mel
-    mel_points = np.linspace(low_freq_mel, high_freq_mel, num_filters + 2)  # Equally spaced in Mel scale
-    hz_points = (700 * (10**(mel_points / 2595) - 1))  # Convert Mel to Hz
-    bin = np.floor((num_fft + 1) * hz_points / rate)
-
-    fbank = np.zeros((num_filters, int(np.floor(num_fft / 2 + 1))))
-    for m in range(1, num_filters + 1):
-        f_m_minus = int(bin[m - 1])   # left
-        f_m = int(bin[m])             # center
-        f_m_plus = int(bin[m + 1])    # right
-
-        for k in range(f_m_minus, f_m):
-            fbank[m - 1, k] = (k - bin[m - 1]) / (bin[m] - bin[m - 1])
-        for k in range(f_m, f_m_plus):
-            fbank[m - 1, k] = (bin[m + 1] - k) / (bin[m + 1] - bin[m])
-
-    filter_banks = np.dot(power_spec, fbank.T)
-    filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)  # Numerical Stability
-    filter_banks = 20 * np.log10(filter_banks)  # dB
-    
-    mel_spec = dct(filter_banks, type=2, axis=1, norm='ortho')[:, 1 : (num_ceps + 1)] # Keep 2-13
-
-    (nframes, ncoeff) = mel_spec.shape
-    n = np.arange(ncoeff)
-    lift = 1 + (cep_lifter / 2) * np.sin(np.pi * n / cep_lifter)
-    mel_spec *= lift  
-    
-    return mel_spec, filter_banks
 
 def load_audio_for_spec(path, channel, rate, window, step,\
             offset, duration, resample_method, id=None, normalize_wav=False,
@@ -337,7 +268,7 @@ class Spectrogram(BaseAudioTime):
         the second axis (1) is the frequency dimensions.
 
         Args:
-            image: numpy array
+            data: numpy array
                 Spectrogram matrix. 
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
@@ -411,7 +342,8 @@ class Spectrogram(BaseAudioTime):
 
         self.allowed_transforms.update({'blur': self.blur, 
                                         'enhance_signal': self.enhance_signal,
-                                        'reduce_tonal_noise': self.reduce_tonal_noise})
+                                        'reduce_tonal_noise': self.reduce_tonal_noise,
+                                        'resize': self.resize})
         
         self.apply_transforms(transforms)
 
@@ -677,6 +609,86 @@ class Spectrogram(BaseAudioTime):
         if 'time_constant' in kwargs.keys(): transf.update({'time_constant': kwargs['time_constant']})
         self.transform_log.append(transf)
 
+    def resize(self, shape=None, time_res=None, **kwargs):
+        """ Resize the spectrogram.
+
+            The resizing operation can be controlled either by specifying the 
+            shape of the resized spectrogram or by specifying the desired time 
+            resolution. In the latter case, the spectrogram is only resized along the time axis.
+
+            The resizing operation is performed using the `resize` method of the 
+            scikit-image package, which interpolates the pixel values:
+
+                https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.resize
+
+            Use keyword arguments to control the behavior of scikit-image's resize 
+            operation.
+
+            Args:
+                shape: tuple(int,int)
+                    Shape of the resized spectrogram
+                time_res: float
+                    Time resolution of the resized spectrogram in seconds. Note that the actual time 
+                    resolution of the resized spectrogram may differ slightly from that specified 
+                    via the time_res argument, as required to produce an image with an integer number 
+                    of time bins.
+
+            Returns: 
+                None
+
+            Example:
+                >>> from ketos.audio.spectrogram import MagSpectrogram
+                >>> # load spectrogram
+                >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.02)
+                >>> # add an annotation
+                >>> spec.annotate(start=1.1, end=1.6, freq_min=70, freq_max=600, label=1)
+                >>> # keep only frequencies below 800 Hz
+                >>> spec = spec.crop(freq_max=800)
+                >>> # make a copy of the current spectrogram, then reduce time resolution by a factor of eight
+                >>> spec_orig = spec.deepcopy()
+                >>> new_time_res = 8.0 * spec.time_res()
+                >>> spec.resize(time_res=new_time_res)
+                >>> # show spectrograms
+                >>> fig = spec_orig.plot(show_annot=True)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_w_annot_box.png")
+                >>> plt.close(fig)
+                >>> fig = spec.plot(show_annot=True)
+                >>> fig.savefig("ketos/tests/assets/tmp/spec_w_annot_box_reduced_resolution.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
+
+                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box_reduced_resolution.png
+        """
+        assert shape is not None or time_res is not None, "either shape or time_res must be specified"
+
+        transf = {'name':'resize'} #log transform attributes
+
+        # deduce new shape from time_res argument
+        if shape is None:
+            n_bins = int(self.time_res() / time_res * self.data.shape[0])
+            shape = (n_bins, self.data.shape[1])
+            transf.update({'time_res': time_res})
+        else:
+            transf.update({'shape': shape})
+
+        if np.ndim(self.data) == 3:
+            shape = (shape[0], shape[1], self.data.shape[2])
+
+        # resize time axis
+        if shape[0] != self.data.shape[0]:
+            self.time_ax.resize(bins=shape[0])
+
+        # resize frequency axis
+        if shape[1] != self.data.shape[1]:
+            self.freq_ax.resize(bins=shape[1])
+
+        # resize data array
+        self.data = resize(self.data, output_shape=shape, **kwargs)
+
+        transf.update(kwargs)
+        self.transform_log.append(transf)
+
     def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
@@ -709,7 +721,7 @@ class Spectrogram(BaseAudioTime):
                 >>> # load spectrogram
                 >>> spec = MagSpectrogram.from_wav('ketos/tests/assets/grunt1.wav', window=0.2, step=0.02)
                 >>> # add an annotation
-                >>> spec.annotate(start=1.2, end=1.6, freq_min=70, freq_max=600, label=1)
+                >>> spec.annotate(start=1.1, end=1.6, freq_min=70, freq_max=600, label=1)
                 >>> # keep only frequencies below 800 Hz
                 >>> spec = spec.crop(freq_max=800)
                 >>> # show spectrogram with annotation box
@@ -862,7 +874,7 @@ class MagSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None, transforms=None, compute_phase=False, **kwargs):
+        freq_min=None, freq_max=None, transforms=None, compute_phase=False, decibel=True, **kwargs):
         """ Create a Magnitude Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -893,6 +905,8 @@ class MagSpectrogram(Spectrogram):
                     {"name":"normalize", "mean":0.5, "std":1.0}
                 compute_phase: bool
                     Compute complex phase angle. Default it False
+                decibel: bool
+                    Convert to dB scale
 
             Returns:
                 spec: MagSpectrogram
@@ -902,7 +916,7 @@ class MagSpectrogram(Spectrogram):
 
         # compute STFT
         img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,
-            step=step, seg_args=seg_args, window_func=window_func, compute_phase=compute_phase)
+            step=step, seg_args=seg_args, window_func=window_func, compute_phase=compute_phase, decibel=decibel)
 
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_nyquist / img.shape[1]
@@ -921,7 +935,8 @@ class MagSpectrogram(Spectrogram):
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, 
-            waveform_transforms=None, compute_phase=False, **kwargs):
+            waveform_transforms=None, compute_phase=False, 
+            decibel=True, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -982,6 +997,8 @@ class MagSpectrogram(Spectrogram):
                     {"name":"add_gaussian_noise", "sigma":0.5}
                 compute_phase: bool
                     Compute complex phase angle. Default it False
+                decibel: bool
+                    Convert to dB scale
 
             Returns:
                 : MagSpectrogram
@@ -1011,7 +1028,8 @@ class MagSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max, transforms=transforms, compute_phase=compute_phase, **kwargs)
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, compute_phase=compute_phase, 
+            decibel=decibel, **kwargs)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1155,7 +1173,7 @@ class PowerSpectrogram(Spectrogram):
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming', 
-        freq_min=None, freq_max=None, transforms=None, **kwargs):
+        freq_min=None, freq_max=None, transforms=None, decibel=True, **kwargs):
         """ Create a Power Spectrogram from an :class:`audio_signal.Waveform` by 
             computing the Short Time Fourier Transform (STFT).
         
@@ -1184,6 +1202,8 @@ class PowerSpectrogram(Spectrogram):
                     List of dictionaries, where each dictionary specifies the name of 
                     a transformation to be applied to the spectrogram. For example,
                     {"name":"normalize", "mean":0.5, "std":1.0}
+                decibel: bool
+                    Convert to dB scale
 
             Returns:
                 : MagSpectrogram
@@ -1194,8 +1214,9 @@ class PowerSpectrogram(Spectrogram):
         # compute STFT
         img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
-        img = mag2pow(img, num_fft) # Magnitude->Power conversion
-        img = aum.to_decibel(img) # convert to dB
+        img = aum.mag2pow(img, num_fft) # Magnitude->Power conversion
+        if decibel:
+            img = aum.to_decibel(img) # convert to dB
 
         time_res = seg_args['step_len'] / audio.rate
         freq_res = freq_nyquist / img.shape[1]
@@ -1214,7 +1235,7 @@ class PowerSpectrogram(Spectrogram):
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, waveform_transforms=None, 
-            **kwargs):            
+            decibel=True, **kwargs):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1273,6 +1294,8 @@ class PowerSpectrogram(Spectrogram):
                     a transformation to be applied to the waveform before generating 
                     the spectrogram. For example,
                     {"name":"add_gaussian_noise", "sigma":0.5}
+                decibel: bool
+                    Convert to dB scale
 
             Returns:
                 spec: MagSpectrogram
@@ -1302,7 +1325,7 @@ class PowerSpectrogram(Spectrogram):
 
         # compute spectrogram
         return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            freq_min=freq_min, freq_max=freq_max, transforms=transforms, **kwargs)
+            freq_min=freq_min, freq_max=freq_max, transforms=transforms, decibel=decibel, **kwargs)
 
     def freq_res(self):
         """ Get frequency resolution in Hz.
@@ -1317,16 +1340,14 @@ class MelSpectrogram(Spectrogram):
     """ Mel Spectrogram.
     
         Args:
-            data: 2d or 3d numpy array
+            data: 2d numpy array
                 Mel spectrogram pixel values. 
-            filter_banks: numpy.array
-                Filter banks
+            num_filters: int
+                The number of filters in the filter bank.
             time_res: float
                 Time resolution in seconds (corresponds to the bin size used on the time axis)
-            freq_min: float
-                Lower value of the frequency axis in Hz
             freq_max: float
-                Upper value of the frequency axis in Hz
+                Maximum frequency in Hz
             window_func: str
                 Window function used for computing the spectrogram
             filename: str or list(str)
@@ -1351,16 +1372,12 @@ class MelSpectrogram(Spectrogram):
         Attrs:
             window_func: str
                 Window function.
-            filter_banks: numpy.array
-                Filter banks
     """
-    def __init__(self, data, filter_banks, time_res, freq_min, freq_max, 
-        window_func=None, filename=None, offset=0, label=None, annot=None, transforms=None, 
-        transform_log=None, waveform_transform_log=None, **kwargs):
+    def __init__(self, data, num_filters, time_res, freq_max, start_bin=0, bins=None, window_func=None, filename=None, offset=0, 
+        label=None, annot=None, transforms=None, transform_log=None, waveform_transform_log=None, **kwargs):
 
         # create frequency axis
-        # TODO: this needs to be modified as the Mel frequency axis is not linear
-        ax = LinearAxis(bins=data.shape[1], extent=(freq_min, freq_max), label='Frequency (Hz)')
+        ax = MelAxis(num_filters=num_filters, freq_max=freq_max, start_bin=start_bin, bins=bins, label='Frequency (Hz)')
 
         # create spectrogram
         kwargs.pop('type', None)
@@ -1369,12 +1386,12 @@ class MelSpectrogram(Spectrogram):
             transform_log=transform_log, waveform_transform_log=waveform_transform_log, **kwargs)
 
         self.window_func = window_func
-        self.filter_banks = filter_banks
 
     def get_repres_attrs(self):
         """ Get audio representation attributes """ 
         attrs = super().get_repres_attrs()
-        attrs.update({'freq_min':self.freq_min(), 'filter_banks':self.filter_banks, 'window_func':self.window_func})
+        attrs.update({'num_filters':self.freq_ax.num_filters, 'freq_max':self.freq_ax.freq_max, 
+            'start_bin':self.freq_ax.start_bin, 'bins':self.freq_ax.bins, 'window_func':self.window_func})
         return attrs
 
     def get_kwargs(self):
@@ -1390,11 +1407,11 @@ class MelSpectrogram(Spectrogram):
     def empty(cls):
         """ Creates an empty MelSpectrogram object
         """
-        return cls(data=np.empty(shape=(0,0), dtype=np.float64), filter_banks=None, time_res=0, freq_min=0, freq_max=0)
+        return cls(data=np.empty(shape=(0,0), dtype=np.float64), num_filters=40, time_res=1, freq_min=0, freq_max=0)
 
     @classmethod
     def from_waveform(cls, audio, window=None, step=None, seg_args=None, window_func='hamming',
-        num_filters=40, num_ceps=20, cep_lifter=20, transforms=None, **kwargs):
+        num_filters=40, transforms=None, **kwargs):
         """ Creates a Mel Spectrogram from an :class:`audio_signal.Waveform`.
         
             Args:
@@ -1415,11 +1432,7 @@ class MelSpectrogram(Spectrogram):
                         * hanning
 
                 num_filters: int
-                    The number of filters in the filter bank.
-                num_ceps: int
-                    The number of Mel-frequency cepstrums.
-                cep_lifters: int
-                    The number of cepstum filters.
+                    The number of filters in the filter bank. Default is 40.
                 transforms: list(dict)
                     List of dictionaries, where each dictionary specifies the name of 
                     a transformation to be applied to the spectrogram. For example,
@@ -1432,26 +1445,24 @@ class MelSpectrogram(Spectrogram):
         if window_func is not None: window_func = window_func.lower() #make lowercase
 
         # compute STFT
-        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,\
+        img, freq_nyquist, num_fft, seg_args, phase = aum.stft(x=audio.data, rate=audio.rate, window=window,
             step=step, seg_args=seg_args, window_func=window_func, decibel=False)
 
         # Magnitude->Mel conversion
-        img, filter_banks = mag2mel(img=img, num_fft=num_fft, rate=audio.rate,\
-            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter) 
+        img = aum.mag2mel(img=img, num_fft=num_fft, rate=audio.rate, num_filters=num_filters) 
+        img = np.where(img == 0, np.finfo(float).eps, img) #Numerical Stability
+        img = aum.to_decibel(img) # convert to dB
 
         time_res = seg_args['step_len'] / audio.rate   
 
-        return cls(data=img, filter_banks=filter_banks, time_res=time_res, 
-            freq_min=0, freq_max=freq_nyquist, window_func=window_func, 
+        return cls(data=img, num_filters=num_filters, time_res=time_res, freq_max=audio.rate/2, window_func=window_func, 
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
             waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
     @classmethod
-    def from_wav(cls, path, window, step, channel=0, rate=None,\
-            window_func='hamming', num_filters=40, num_ceps=20, cep_lifter=20,\
-            offset=0, duration=None, resample_method='scipy',
-            id=None, normalize_wav=False, transforms=None, waveform_transforms=None, 
-            **kwargs):            
+    def from_wav(cls, path, window, step, channel=0, rate=None, window_func='hamming', num_filters=40,
+            offset=0, duration=None, resample_method='scipy', id=None, normalize_wav=False, transforms=None, 
+            waveform_transforms=None, **kwargs):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1480,11 +1491,7 @@ class MelSpectrogram(Spectrogram):
                         * hanning
 
                 num_filters: int
-                    The number of filters in the filter bank.
-                num_ceps: int
-                    The number of Mel-frequency cepstrums.
-                cep_lifters: int
-                    The number of cepstum filters.
+                    The number of filters in the filter bank. Default is 40.
                 offset: float
                     Start time of spectrogram in seconds, relative the start of the wav file.
                 duration: float
@@ -1531,7 +1538,7 @@ class MelSpectrogram(Spectrogram):
                 .. image:: ../../../../ketos/tests/assets/tmp/mel_grunt1.png
         """
         # load audio
-        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
+        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
             transforms=waveform_transforms)
 
@@ -1540,12 +1547,12 @@ class MelSpectrogram(Spectrogram):
             return cls.empty()
 
         # compute spectrogram
-        spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
-            num_filters=num_filters, num_ceps=num_ceps, cep_lifter=cep_lifter, transforms=transforms, **kwargs)
+        spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, num_filters=num_filters, 
+            transforms=transforms, **kwargs)
 
         return spec
 
-    def plot(self, filter_bank=False, figsize=(5,4), cmap='viridis'):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None, num_labels=5):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             The colormaps available can be seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
@@ -1556,30 +1563,27 @@ class MelSpectrogram(Spectrogram):
             TODO: Check implementation for filter_bank=True
 
             Args:
-                filter_bank: bool
-                    If True, plot the filter banks if True. If False (default), 
-                    print the mel spectrogram.
+                show_annot: bool
+                    Display annotations
                 figsize: tuple
                     Figure size
                 cmap: string
                     The colormap to be used
+                label_in_title: bool
+                    Include label (if available) in figure title
+                num_labels: int
+                    Number of labels
             
             Returns:
                 fig: matplotlib.figure.Figure
                     A figure object.
         """
-        if filter_bank:
-            img = self.filter_banks
-            fig, ax = plt.subplots(figsize=figsize)
-            extent = (0,self.duration(),self.freq_min(),self.freq_max())
-            img_plot = ax.imshow(img.T,aspect='auto',origin='lower', cmap=cmap, extent=extent)
-            ax.set_xlabel(self.time_ax.label)
-            fig.colorbar(img_plot,format='%+2.0f dB')
-
-        else:
-            fig = super().plot(cmap=cmap, figsize=figsize)
-
+        fig = super().plot(show_annot, figsize, cmap, label_in_title, vmin, vmax)
+        num = min(self.get_data().shape[1] + 1, num_labels)
+        ticks, labels = self.freq_ax.ticks_and_labels(num_labels=num)
+        plt.yticks(ticks, labels)
         return fig
+
 
 class CQTSpectrogram(Spectrogram):
     """ Magnitude Spectrogram computed from Constant Q Transform (CQT).
