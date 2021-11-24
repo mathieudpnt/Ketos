@@ -77,6 +77,15 @@ def const_wave():
     return sampling_rate, signal
 
 @pytest.fixture
+def growing_sine_wave():
+    sampling_rate = 1000
+    frequency = 18
+    duration = 3
+    x = np.arange(duration * sampling_rate)
+    signal = x / np.max(x) * np.sin(2 * np.pi * frequency * x / sampling_rate) 
+    return sampling_rate, signal
+
+@pytest.fixture
 def sine_wave_file(sine_wave):
     """Create a .wav with the 'sine_wave()' fixture
     
@@ -163,6 +172,24 @@ def const_wave_file(const_wave):
     """
     wav_file =  os.path.join(path_to_assets, "const_wave.wav")
     rate, sig = const_wave
+    sf.write(wav_file, sig, rate)    
+    yield wav_file
+    os.remove(wav_file)
+
+@pytest.fixture
+def growing_sine_wave_file(growing_sine_wave):
+    """Create a .wav with the 'growing_sine_wave()' fixture
+    
+       The file is saved as tests/assets/growing_sine_wave.wav.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+       Yields:
+            wav_file : str
+                A string containing the path to the .wav file.
+    """
+    wav_file = os.path.join(path_to_assets, "growing_sine_wave.wav")
+    rate, sig = growing_sine_wave
     sf.write(wav_file, sig, rate)    
     yield wav_file
     os.remove(wav_file)
@@ -502,18 +529,14 @@ def spectr_settings():
         "waveform_transforms": [{"name":"add_gaussian_noise", "sigma":0.2}] }}'
     return j
 
-
 @pytest.fixture
 def sample_data():
     data = np.vstack([np.zeros((10,64,64,1)), np.ones((10,64,64,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
-    
     return (data, labels)
 
 @pytest.fixture
 def sample_data_1d():
     data = np.vstack([np.zeros((10,20000,1)), np.ones((10,20000,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
-    
-
     return (data, labels)

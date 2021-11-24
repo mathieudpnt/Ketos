@@ -1,3 +1,30 @@
+# ================================================================================ #
+#   Authors: Fabio Frazao and Oliver Kirsebom                                      #
+#   Contact: fsfrazao@dal.ca, oliver.kirsebom@dal.ca                               #
+#   Organization: MERIDIAN (https://meridian.cs.dal.ca/)                           #
+#   Team: Data Analytics                                                           #
+#   Project: ketos                                                                 #
+#   Project goal: The ketos library provides functionalities for handling          #
+#   and processing acoustic data and applying deep neural networks to sound        #
+#   detection and classification tasks.                                            #
+#                                                                                  #
+#   License: GNU GPLv3                                                             #
+#                                                                                  #
+#       This program is free software: you can redistribute it and/or modify       #
+#       it under the terms of the GNU General Public License as published by       #
+#       the Free Software Foundation, either version 3 of the License, or          #
+#       (at your option) any later version.                                        #
+#                                                                                  #
+#       This program is distributed in the hope that it will be useful,            #
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#       GNU General Public License for more details.                               # 
+#                                                                                  #
+#       You should have received a copy of the GNU General Public License          #
+#       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
+# ================================================================================ #
+
+
 import tensorflow as tf
 from .losses import FScoreLoss
 from ...data_handling.parsing import parse_audio_representation
@@ -8,8 +35,6 @@ import numpy as np
 import pandas as pd
 import json
 import os
-
-
 
 
 class RecipeCompat():
@@ -52,8 +77,7 @@ class RecipeCompat():
         self.args = kwargs
         self.template = template
         self.instance = self.instantiate_template(**kwargs)
-        
-    
+            
     def instantiate_template(self, **template_kwargs):
         args = self.args.copy()
         args.update(template_kwargs)
@@ -839,7 +863,7 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-    def save_model(self, model_file, checkpoint_name=None, audio_repr_file=None):
+    def save_model(self, model_file, checkpoint_name=None, audio_repr=None, audio_repr_file=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
             The file includes the recipe necessary to build the network architecture and the parameter weights.
@@ -850,24 +874,56 @@ class NNInterface():
                 checkpoint_name: str
                     The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
                     If None, will use the latest checkpoints
+                audio_repr: dict
+                    Optional audio representation dictionary. 
+                    If passed, it will be added to the .kt file.
+                    For example,
+                        
+                    >>> audio_repr = {"spectrogram": {
+                    ...                   "type": "MagSpectrogram",
+                    ...                   "rate": "1000 Hz", 
+                    ...                   "window": "0.256 s",
+                    ...                   "step": "0.032 s",
+                    ...                   "freq_min": "0 Hz",
+                    ...                   "freq_max": "500 Hz",
+                    ...                   "window_func": "hamming",
+                    ...                   "transforms": [{"name":"normalize"}]}
+                    ...              }    
+
                 audio_repr_file: str
                     Optional path to an audio representation .json file. 
                     If passed, it will be added to the .kt file.
+                    Overwrites audio_repr.
         """
+        if audio_repr_file is not None:
+            f = open(audio_repr_file, 'r')
+            audio_repr = json.load(f)
+            f.close()
+
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
+
         with ZipFile(model_file, 'w') as zip:
             
             if checkpoint_name is not None:
                 checkpoints = glob(os.path.join(self.checkpoint_dir, checkpoint_name) + '*')
                 assert len(checkpoints) > 0, "The checkpoint name '{}' was not found in the checkpoints_dir ({})".format(checkpoint_name, self.checkpoint_dir)
+
             else:            
                 latest = tf.train.latest_checkpoint(self.checkpoint_dir)
                 assert isinstance(latest,str), "No checkpoints were found at the checkpoint_dir ({})".format(self.checkpoint_dir) 
                 checkpoints = glob(latest + '*')                                                                                                                 
+
             self.save_recipe_file(recipe_path)
+
             zip.write(recipe_path, "recipe.json")
-            if audio_repr_file is not None:
-                zip.write(audio_repr_file, "audio_repr.json")
+
+            if audio_repr is not None:
+                audio_repr_path = os.path.join(self.checkpoint_dir, "audio_repr.json")
+                with open(audio_repr_path, 'w') as json_repr:
+                    json.dump(audio_repr, json_repr)
+                
+                zip.write(audio_repr_path, "audio_repr.json")
+
             zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
             for c in checkpoints:
                  zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
@@ -1207,7 +1263,6 @@ class NNInterface():
                     The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
 
         """
-
         assert checkpoint_freq <= n_epochs, "The checkpoint frequency ({0}) cannot be greater than the number of epochs ({1})".format(checkpoint_freq, n_epochs)
 
         if log_csv == True:
@@ -1225,15 +1280,12 @@ class NNInterface():
             epochs_without_improvement = 0
             should_stop = False
             checkpoint_freq = 1
-        
 
         for epoch in range(n_epochs):
             #Reset the metric accumulators
             self._train_loss.reset_states()
             for train_metric in self._train_metrics:
                 train_metric.reset_states()
-
-            
             
             self._val_loss.reset_states()
             for val_metric in self._val_metrics:
@@ -1248,27 +1300,20 @@ class NNInterface():
                 print("Epoch: {} \ntrain_loss: {}".format(epoch + 1, self._train_loss.result()))
                 print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._train_metrics]))
 
-            
             if log_csv == True:
                 log_row = [epoch + 1, self._train_loss.result().numpy(), "train"]
                 log_row = log_row + [m.result().numpy() for m in self._train_metrics]
-
                 log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
-
-             
             
             if log_tensorboard == True:
                 tf.summary.scalar('train_loss', data=self._train_loss.result().numpy(), step=epoch)
                 for m in self._train_metrics:
                     tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
             
-            
             if validate == True:
                 for val_batch_id in range(self._val_generator.n_batches):
                     val_X, val_Y = next(self._val_generator)
-                    self._val_step(val_X, val_Y)
-                                           
-                                    
+                    self._val_step(val_X, val_Y)                                    
                 if verbose == True:
                     print("val_loss: {}".format(self._val_loss.result()))
                     print("".join([m.name + ": {:.3f} ".format(m.result().numpy()) for m in self._val_metrics]))
@@ -1276,29 +1321,19 @@ class NNInterface():
                 if log_csv == True:
                     log_row = [epoch + 1, self._val_loss.result().numpy(), "val"]
                     log_row = log_row + [m.result().numpy() for m in self._val_metrics]
-
                     log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
 
-             
-            
                 if log_tensorboard == True:
                     tf.summary.scalar('val_loss', data=self._val_loss.result().numpy(), step=epoch)
                     for m in self._val_metrics:
                         tf.summary.scalar(m.name, data=m.result().numpy(), step=epoch)
 
-            
-            
-
-            
-
             if verbose == True:
                 print("\n====================================================================================")
-
             
             if (checkpoint_freq > 0) and ((epoch + 1)  % checkpoint_freq == 0):
                 checkpoint_name = "cp-{:04d}.ckpt".format(epoch + 1)
                 self.model.save_weights(os.path.join(self._checkpoint_dir, checkpoint_name))
-            
             
             if early_stopping == True:
                
@@ -1321,7 +1356,6 @@ class NNInterface():
                                 best_metric_value = current_early_stopping_metric
                             else:                 # metric is not decreasing = no improvement
                                 epochs_without_improvement += 1
-                                
                                 
                     elif self._early_stopping_monitor['decreasing'] == False:
                         if (self._early_stopping_monitor['baseline'] is not None) and (current_early_stopping_metric >= self._early_stopping_monitor['baseline']):
@@ -1423,12 +1457,11 @@ class NNInterface():
                 output
                     The model output
                 
-        """
-        
+        """        
         if transform_input == True:
             input = self._transform_input(input)
+
         output = self.model.predict(input)
-        #output = output.numpy()
         
         if not return_raw_output:
             return self._transform_output(output)
@@ -1452,11 +1485,9 @@ class NNInterface():
                 output
                     The corresponding batch of model outputs
         """
-
         if transform_input == True:
             input_batch = self._transform_input(input_batch)
         output = self.model.predict_on_batch(input_batch)
-        #output = output.numpy()
         
         if not return_raw_output:
             return self._transform_output(output)

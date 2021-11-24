@@ -506,3 +506,10 @@ def test_random_choice(annot_table_std, file_duration_table):
     assert len(sel) == 3
     a = st.random_choice(a, siz=2)
     assert len(a) == 2
+
+def test_aggregate_duration(annot_table_std):
+    df = st.standardize(annot_table_std)
+    agg_dur = st.aggregate_duration(df)
+    assert agg_dur == 18.9
+    agg_dur = st.aggregate_duration(df, label=2)
+    assert agg_dur == 6.6

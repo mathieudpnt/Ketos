@@ -34,20 +34,53 @@ import json
 from pint import UnitRegistry
 
 ureg = UnitRegistry()
+
+
+""" Standard audio-representation parameters recognized by Ketos.
+"""
+audio_std_params = {'type':                     {'type':str,   'unit':None},
+                    'rate':                     {'type':float, 'unit':'Hz'},
+                    'window':                   {'type':float, 'unit':'s'},
+                    'step':                     {'type':float, 'unit':'s'},
+                    'bins_per_oct':             {'type':int,   'unit':None},
+                    'freq_min':                 {'type':float, 'unit':'Hz'},
+                    'freq_max':                 {'type':float, 'unit':'Hz'},
+                    'window_func':              {'type':str,   'unit':None},
+                    'resample_method':          {'type':str,   'unit':None},
+                    'duration':                 {'type':float, 'unit':'s'},
+                    'normalize_wav':            {'type':bool,  'unit':None},
+                    'transforms':               {'type':list,  'unit':None},
+                    'waveform_transforms':      {'type':list,  'unit':None},
+                    'num_chan':                 {'type':int,   'unit':None},
+                    'filter_pad_samples':       {'type':int,   'unit':None},
+                    'global_km_window_seconds': {'type':float, 'unit':'s'},
+                    'local_km_window_seconds':  {'type':float, 'unit':'s'},
+                    'filter_n':                 {'type':int,   'unit':None},
+                    'filter_min_hz':            {'type':float, 'unit':'Hz'},
+                    'decibel':                  {'type':bool,  'unit':None}
+                    }
     
 
-def load_audio_representation(path, name=None):
-    """ Load audio representation settings from JSON file.
+def load_audio_representation(path, name=None, return_unparsed=False):
+    """ Load audio representation from JSON file.
+
+        By default the function attempts to parse the individual parameter 
+        values, e.g., the value "20 kHz" will be returned as 20000 and the 
+        value "11 ms" will be returned as 0.011. Use the `return_unparsed` 
+        argument to change this behaviour.
 
         Args:
             path: str
                 Path to json file
             name: str
-                Heading of the relevant section of the json file
+                Heading of the relevant section of the json file. If None, 
+                the function returns the entire content of the JSON file.
+            return_unparsed: bool
+                Do not parse the parameter values. Default is False.
 
         Returns:
             d: dict
-                Dictionary with the settings
+                Audio representation 
 
         Example:
             >>> import json
@@ -61,102 +94,145 @@ def load_audio_representation(path, name=None):
             >>> # load settings back from json file
             >>> settings = load_audio_representation(path=path, name='spectrogram')
             >>> print(settings)
-            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'freq_min': 30, 'freq_max': 3000, 'window_func': 'hamming'}
+            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'window_func': 'hamming', 'freq_min': 30, 'freq_max': 3000}
             >>> # clean up
             >>> os.remove(path)
     """
-    f = open(path, 'r')
-    data = json.load(f)
-    if name is not None: data = data[name]
-    d = parse_audio_representation(data)
-    f.close()
-    return d
+    with open(path, 'r') as fil:
+        data = json.load(fil)
+        if name is not None: 
+            data = data[name]
+        if not return_unparsed:
+            data = parse_audio_representation(data)
+
+    return data
 
 def parse_audio_representation(s):
-    """ Parse audio representation settings for generating waveforms or spectrograms.
+    """ Parse audio representation parameters.
     
         Args:
-            s: str
-                Json-format string with the settings 
+            s: dict
+                Unparsed audio representation  
 
         Returns:
-            d: dict
-                Dictionary with the settings
+            s: dict
+                Parsed audio representation
     """
-    params = [['type',                str,   None],  # name, type, unit
-              ['rate',                float, 'Hz'],
-              ['window',              float, 's'],
-              ['step',                float, 's'],
-              ['bins_per_oct',        int,   None],
-              ['freq_min',            float, 'Hz'],
-              ['freq_max',            float, 'Hz'],
-              ['window_func',         str,   None],
-              ['resample_method',     str,   None],
-              ['duration',            float, 's'],
-              ['normalize_wav',       bool,  None],
-              ['transforms',          list,  None],
-              ['waveform_transforms', list,  None],
-              ['num_chan',            int,   None],
-              ['filter_pad_samples',  int,   None],
-              ['global_km_window_seconds',  float, 's'],
-              ['local_km_window_seconds',  float, 's'],
-              ['filter_n',            int,   None],
-              ['filter_min_hz',       float, 'Hz'],
-              ['decibel',             bool,  None]]
+    for key,value in s.items():
+        s[key] = parse_parameter(name=key, value=value)
 
-    d = {}
-    for p in params:
-        val = parse_value(s, p[0], typ=p[1], unit=p[2])
-        if val is not None: d[p[0]] = val
+    return s
 
-    return d
+def parse_parameter(name, value):
+    """ Parse the parameter value according to the type and unit specified 
+        in the `audio_std_params` dictionary. For example, if name='window' 
+        and value='22.1 ms', the function returns the float 0.0221.
 
-def parse_value(x, name, unit=None, typ='float'):
-    """ Parse data fields in dictionary.
+        If the parameter is not found in the `audio_std_params` dictionary, 
+        the function returns the input value unmodified.
 
         Args:
-            x: dict
-                Dictionary containing the data
             name: str
-                Name of field to be parsed
-            unit: str
-                Physical unit to be used for the parsed quantity, e.g., Hz
-            typ: str
-                Variable type
+                Name of the parameter to be parsed
+            value: str
+                Value of the parameter to be parsed
             
         Returns:
-            v: same type as typ
-                Parsed data
+            parsed_value: str, int, float, bool, or list 
+                Parsed value
+
+        Example:
+            >>> from ketos.data_handling.parsing import parse_parameter
+            >>> print(parse_parameter(name='step', value='23 ms'))
+            0.023
     """
     Q = ureg.Quantity
-    v = None
-    if x.get(name) is not None:
-        if unit is None:
-            v = x[name]
-        else:
-            v = Q(x[name]).m_as(unit)
+    parsed_value = value
+
+    if name in audio_std_params.keys():
+        param = audio_std_params[name]
+        typ  = param['type'] 
+        unit = param['unit']
+
+        if unit is not None: 
+            parsed_value = Q(value).m_as(unit)
 
         if typ in ['int', int]:
-            v = int(v)
+            parsed_value = int(parsed_value)
+
         elif unit in ['float', float]:
-            v = float(v)
+            parsed_value = float(parsed_value)
+
         elif typ in ['str', str]:
-            v = str(v)
+            parsed_value = str(parsed_value)
+
         elif typ in ['bool', bool]:
-            v = (v.lower() == "true")
+            parsed_value = (parsed_value.lower() == "true")
 
-        # convert specific transform arguments from str to tuple
-        if name == 'transforms':
-            for tr in v:
-                if tr['name'] == 'adjust_range':
-                    s = tr['range'][1:-1]
-                    tr['range'] = tuple(map(int, s.split(',')))
-                
-                elif tr['name'] == 'resize' and 'shape' in tr.keys():
-                    s = tr['shape'][1:-1]
-                    tr['shape'] = tuple(map(int, s.split(',')))
+        elif typ in [list]:
+            # convert specific transform arguments from str to tuple
+            if name == 'transforms':
+                for tr in parsed_value:
+                    if tr['name'] == 'adjust_range':
+                        s = tr['range'][1:-1]
+                        tr['range'] = tuple(map(int, s.split(',')))
 
-    return v
+                    elif tr['name'] == 'resize' and 'shape' in tr.keys():
+                        s = tr['shape'][1:-1]
+                        tr['shape'] = tuple(map(int, s.split(',')))
+
+    return parsed_value
+
+def encode_audio_representation(s):
+    """ Encode audio representation.
+
+        Every parameter listed in the `audio_std_params` dictionary 
+        with a unit is encoded as a str.
+    
+        Args:
+            s: dict
+                Input audio representation  
+
+        Returns:
+            s: dict
+                Encoded audio representation
+    """
+    for key,value in s.items():
+        s[key] = encode_parameter(name=key, value=value)
+
+    return s
+
+def encode_parameter(name, value):
+    """ Encode paramater as a string with an SI unit, according to the 
+        unit specified in the `audio_std_params` dictionary. For example, 
+        if name='window' and value=4.22, the function returns the str '4.22 s'.
+
+        If the parameter is not found in the `audio_std_params` dictionary, 
+        the function returns the input value unmodified.
+    
+        Args:
+            name: str
+                Name of the parameter to be encoded
+            value: str
+                Value of the parameter to be encoded
+            
+        Returns:
+            encoded_value: str or type of input value 
+                Encoded value
+
+        Example:
+            >>> from ketos.data_handling.parsing import encode_parameter
+            >>> print(encode_parameter(name='step', value=0.037))
+            0.037 s
+    """
+    encoded_value = value
+    if name in audio_std_params.keys():
+        param = audio_std_params[name]
+        unit = param['unit']
+        if unit is not None:
+            encoded_value = f'{value} {unit}'
+
+    return encoded_value
 
 def str2bool(v):
     """ Convert most common answers to yes/no questions to boolean

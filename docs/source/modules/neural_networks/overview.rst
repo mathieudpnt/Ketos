@@ -139,7 +139,7 @@ This can be useful for programatically generating recipes, but most users will f
     >>> custom_recipe['optimizer'] =  RecipeCompat('Adam', tf.keras.optimizers.Adam, learning_rate=0.001)
     
     # Build a model with the custom_recipe
-    >>> custom_resnet = ResNetInterface.build_from_recipe(custom_recipe)
+    >>> custom_resnet = ResNetInterface._build_from_recipe(custom_recipe)
 
     # Save a .json recipe file with from the model 
     >>> custom_resnet.save_recipe_file("custom_recipe.json")
@@ -226,7 +226,7 @@ The simplest case will not overwrite any of the NNInterface's methods:
 
     .. code-block:: python
 
-        from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
+        from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterface
         
         class MLPInterface(NNInterface): 
         
@@ -252,7 +252,7 @@ This is useful you want to share your interface with other users or if you envis
 
 .. code-block:: python
 
-        from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
+        from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterface
         
         
         class MLPInterface(NNInterface): 

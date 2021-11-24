@@ -11,6 +11,7 @@ Audio Processing
    spectrogram
    audio_loader
    annotation
+   gammatone
    Utilities <utils/index>
 
 

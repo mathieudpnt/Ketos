@@ -32,6 +32,7 @@ import ketos.data_handling.parsing as jp
 
 def test_parse_audio_representation(spectr_settings):
     data = json.loads(spectr_settings)
+    data['spectrogram']['dummy'] = 'hest'
     d = jp.parse_audio_representation(data['spectrogram'])
     assert d['rate'] == 20000
     assert d['window'] == 0.1
@@ -46,3 +47,20 @@ def test_parse_audio_representation(spectr_settings):
     assert d['transforms'] == [{"name":"enhance_signal", "enhancement":1.0}, {"name":"adjust_range", "range":(0,1)}]
     assert d['waveform_transforms'] == [{"name":"add_gaussian_noise", "sigma":0.2}]
     assert d['decibel']
+    assert d['dummy'] == 'hest'
+
+def test_parse_parameter():
+    assert jp.parse_parameter(name='window', value='7.3 ms') == 0.0073
+    assert jp.parse_parameter(name='window2', value='7.3 ms') == '7.3 ms'
+
+def test_encode_parameter():
+    assert jp.encode_parameter(name='window', value=8.2) == '8.2 s'
+    assert jp.encode_parameter(name='window2', value=8.2) == 8.2
+    assert jp.encode_parameter(name='window3', value=[8.2]) == [8.2]
+
+def test_encode_audio_representation():
+    s = {'window': 0.032, 'dummy': ['x', 'y'], 'transforms':[]}
+    s = jp.encode_audio_representation(s)
+    assert s['window'] == '0.032 s'
+    assert s['dummy'] == ['x', 'y']
+    assert s['transforms'] == []

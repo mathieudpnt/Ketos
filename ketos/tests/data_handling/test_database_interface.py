@@ -186,8 +186,8 @@ def test_create_table_existing():
     _ = di.create_table(h5file=h5file, path='/train/', name='species1', description=descr_annot)
     table = h5file.get_node("/train/species1")
     assert table.nrows == 15
-    assert table[0]['data'].shape == (2413,201)
-    assert table[1]['id'] == b'1'
+    assert table[0]['data'].shape == (12,12)
+    assert table[1]['id'] == 1
     # clean
     h5file.close()
 

@@ -232,14 +232,14 @@ class FrameStepper(SelectionGenerator):
                 self.files = filename
 
         # get file durations
-        file_durations = np.array([librosa.get_duration(filename=os.path.join(self.dir, f)) for f in self.files])
+        self.file_durations = np.array([librosa.get_duration(filename=os.path.join(self.dir, f)) for f in self.files])
 
         # discard any files with 0 second duration
-        self.files = np.array(self.files)[file_durations > 0].tolist()
-        file_durations = file_durations[file_durations > 0].tolist()
+        self.files = np.array(self.files)[self.file_durations > 0].tolist()
+        self.file_durations = self.file_durations[self.file_durations > 0].tolist()
 
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in file_durations]
+        self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in self.file_durations]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
         self.reset()
@@ -278,6 +278,33 @@ class FrameStepper(SelectionGenerator):
         """        
         self.file_id = -1
         self._next_file()
+
+    def get_file_paths(self, fullpath=True):
+        """ Get the paths to the audio files associated with this instance.
+
+            Args:
+                fullpath: bool
+                    Whether to return the full path (default) or only the filename.
+
+            Returns:
+                ans: list
+                    List of file paths
+        """
+        if fullpath:
+            ans = [os.path.join(self.dir, f) for f in self.files]
+        else:
+            ans = self.files
+
+        return ans
+
+    def get_file_durations(self):
+        """ Get the durations of the audio files associated with this instance.
+
+            Returns:
+                ans: list
+                    List of file durations in seconds
+        """
+        return self.file_durations
 
 class AudioLoader():
     """ Class for loading segments of audio data from .wav files. 
@@ -321,6 +348,7 @@ class AudioLoader():
             self.typ.append(r.pop('type'))
             if 'duration' in r.keys(): r.pop('duration')
             self.cfg.append(r)
+
         self.channel = channel
         self.sel_gen = selection_gen
         self.annot = annotations
@@ -348,7 +376,7 @@ class AudioLoader():
         """
         return self.sel_gen.num()
 
-    def load(self, data_dir, filename, offset=0, duration=None, label=None, **kwargs):
+    def load(self, data_dir, filename, offset=0, duration=None, label=None, apply_transforms=True, **kwargs):
         """ Load audio segment for specified file and time.
 
             Args:
@@ -363,6 +391,8 @@ class AudioLoader():
                     Duration of segment in seconds.
                 label: int
                     Integer label
+                apply_transforms: bool
+                    Apply transforms. Default is True.
         
             Returns: 
                 seg: BaseAudio
@@ -379,6 +409,7 @@ class AudioLoader():
                 warnings.simplefilter("ignore")        
                 _kwargs = kwargs.copy()
                 _kwargs.update(cfg)
+                if not apply_transforms and 'transforms' in _kwargs.keys(): del _kwargs['transforms']
                 seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, 
                                                             duration=duration, id=filename, **_kwargs)
         
@@ -480,6 +511,11 @@ class AudioFrameLoader(AudioLoader):
         super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
             channel=channel, annotations=annotations, repres=repres, **kwargs)
 
+        self.transforms_list = []
+        for config in self.cfg:
+            transforms = config['transforms'] if 'transforms' in config.keys() else []
+            self.transforms_list.append(transforms)
+
         if isinstance(batch_size, int):
             self.max_batch_size = batch_size
         else:
@@ -520,8 +556,27 @@ class AudioFrameLoader(AudioLoader):
             filename = audio_sel['filename']            
 
         duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
-        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, duration=duration, label=None, **self.kwargs)
-        self.batch = self.batch.segment(window=self.sel_gen.frame, step=self.sel_gen.step)
+
+        # load the data without applying transforms
+        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, 
+            duration=duration, label=None, apply_transforms=False, **self.kwargs)
+
+        if not isinstance(self.batch, list): self.batch = [self.batch]
+
+        # loop over the representations
+        for i in range(len(self.transforms_list)):
+
+            # segment the data
+            self.batch[i] = self.batch[i].segment(window=self.sel_gen.frame, step=self.sel_gen.step)
+
+            # apply the transforms to each segment separately 
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")        
+                for j in range(len(self.batch[i])):
+                    self.batch[i][j].apply_transforms(self.transforms_list[i])
+
+
+        if len(self.batch) == 1: self.batch = self.batch[0]
 
         self.offset = offset
         self.data_dir = data_dir
@@ -539,6 +594,27 @@ class AudioFrameLoader(AudioLoader):
         self.counter += 1
         return a
 
+    def get_file_paths(self, fullpath=True):
+        """ Get the paths to the audio files associated with this instance.
+
+            Args:
+                fullpath: bool
+                    Whether to return the full path (default) or only the filename.
+
+            Returns:
+                ans: list
+                    List of file paths
+        """
+        return self.sel_gen.get_file_paths(fullpath=fullpath)
+
+    def get_file_durations(self):
+        """ Get the durations of the audio files associated with this instance.
+
+            Returns:
+                ans: list
+                    List of file durations in seconds
+        """
+        return self.sel_gen.get_file_durations()
 
 class AudioSelectionLoader(AudioLoader):
     """ Load segments of audio data from .wav files. 

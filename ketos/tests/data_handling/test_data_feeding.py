@@ -101,16 +101,13 @@ def test_output_for_strong_annotations():
     h5 = open_file(os.path.join(path_to_assets, "11x_same_spec.h5"), 'r') # create the database handle  
     data = open_table(h5, "/group_1/table_data")
     annot = open_table(h5, "/group_1/table_annot")
-    
-
-    
+        
     expected_y = np.array([[annot[0]['label'],annot[1]['label']],
                             [annot[2]['label'],annot[3]['label']],
                             [annot[4]['label'],annot[5]['label']],
                             [annot[6]['label'],annot[7]['label']],
                             [annot[8]['label'],annot[9]['label']]])
-
-
+                            
     train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
     
     _, Y = next(train_generator)

@@ -31,6 +31,6 @@ RUN pip install aural-features
 
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-2.1.4.tar.gz
+RUN pip install dist/ketos-2.4.0.tar.gz
 RUN pip install sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz
 

@@ -157,7 +157,7 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
             start = det_index
             within_det = True
         
-        elif (det_value == 0 or is_new_file or is_end_of_vector) and within_det: #end current detection
+        if (det_value == 0 or is_new_file or is_end_of_vector) and within_det: #end current detection
             if is_end_of_vector:
                 end = det_index
             else:
@@ -165,8 +165,10 @@ def group_detections(scores_vector, batch_support_data, buffer=0.0, step=0.5, sp
             
             within_det = False
             filename = filename_vector[start]
+
             # From all timestamps within the batch, select only the timestamps for the file containing the detection start
             file_timestamps = batch_support_data[filename_vector==filename]
+
             batch_start_timestamp = float(file_timestamps[0,1])
             batch_end_timestamp = float(file_timestamps[-1,1])
             time_start, duration = map_detection_to_time(start, end, step=step, spec_dur=spec_dur, batch_start_timestamp=batch_start_timestamp, batch_end_timestamp=batch_end_timestamp, buffer=buffer)
@@ -252,7 +254,7 @@ def process(provider, **kwargs):
         return process_batch_generator(provider, **kwargs)
 
 
-def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=0, win_len=1, group=False, progress_bar=False):
+def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=0, win_len=1, group=False, progress_bar=False, merge=False):
     """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
@@ -282,6 +284,8 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
                 average score of all spectrograms comprising the detection event.
             progress_bar: bool
                 Show progress bar.  
+            merge: bool
+                Apply :func:`merge_overlapping_detections` to the detections before they are returned. Default is False.
 
         Returns:
             detections: list
@@ -337,10 +341,13 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
                                         buffer=buffer, step=step, spec_dur=duration, win_len=win_len, group=group)
         if len(batch_detections) > 0: detections += batch_detections
 
+    if merge:
+        detections = merge_overlapping_detections(detections)
+
     return detections
 
 
-def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, threshold=0.5, buffer=0, win_len=1, group=False):
+def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, threshold=0.5, buffer=0, win_len=1, group=False, merge=False):
     """ Use a batch_generator object to process pre-computed spectrograms stored in an HDF5 database with the trained classifier.
 
         The resulting .csv is separated by commas, with each row representing one detection and has the following columns:
@@ -372,6 +379,8 @@ def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, thre
                 If False, return the filename, start, duration and scores for each spectrogram with score above the threshold. In this case, the duration will always be the duration of a single spectrogram.
                 If True (default), average scores over(overlapping) spectrograms and group detections that are immediatelly next to each other. In this case, the score given for that detection will be the
                 average score of all spectrograms comprising the detection event.
+            merge: bool
+                Apply :func:`merge_overlapping_detections` to the detections before they are returned. Default is False.
 
         Returns:
             detections: list
@@ -385,7 +394,10 @@ def process_batch_generator(batch_generator, model, duration=3.0, step=0.5, thre
                                         buffer=buffer, spec_dur=duration, step=step, win_len=win_len, group=group)
         
         if len(batch_detections) > 0: detections += batch_detections
-        
+
+    if merge:
+        detections = merge_overlapping_detections(detections)
+
     return detections
 
 
@@ -416,10 +428,11 @@ def transform_batch(x,y):
 
 
 def merge_overlapping_detections(detections):
-    """ Merge overlapping detection groups
-        
-        Note: The annotations for each file are assumed to be sorted by start time in increasing order.
+    """ Merge overlapping or adjacent detections.
 
+        The score of the merged detection is computed as the average of the individual detection scores.
+
+        Note: The detections are assumed to be sorted by start time in chronological order.
 
         Args:
             detections: numpy.array
@@ -445,9 +458,12 @@ def merge_overlapping_detections(detections):
         end_prev = start_prev + duration_prev        
         score_prev = merged[-1][3]
         
-        if start > end_prev or filename != filename_prev:#do not overlap
+        # detections do not overlap, nor are they adjacent
+        if start > end_prev or filename != filename_prev:
             merged.append(detections[i])
-        else:#do overlap
+
+        # detections overlap, or adjacent to one another
+        else:
             merged_dur = max(end, end_prev) - min(start,start_prev)
             avg_score = 0.5 * (score + score_prev) 
             merged_det = (filename, start_prev, merged_dur, avg_score)

@@ -1,6 +1,24 @@
 Change log
 ==========
 
+**Version 2.4.0** (November 24, 2021)
+
+ * :meth:`get <ketos.audio.annotation.AnnotationHandler.get>` method in :class:`AnnotationHandler <ketos.audio.annotation.AnnotationHandler>` class returns auxiliary columns
+ * Reduced the size of large files in the tests/assets folder
+ * Fixed broken search functionality in docs page
+ * Added option to specify write mode (append/overwrite) in :meth:`create_database <ketos.data_handling.database_interface.create_database>` function
+ * New methods for getting file paths and file durations in the :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and 
+   :class:`FrameStepper <ketos.audio.audio_loader.FrameStepper>` classes
+ * Fixed bug in the :meth:`group_detections <ketos.neural_networks.dev_utils.detection.group_detections>` function that was causing single-sample 
+   detections to be dropped if they occurred at the end of a batch.
+ * Added `merge` argument to the :meth:`process <ketos.neural_networks.dev_utils.detection.process>` functions. With merge=True, the 
+   :meth:`merge_overlapping_detections <ketos.neural_networks.dev_utils.detection.merge_overlapping_detections>` function is applied to the detections 
+   before they are returned. The default value is `merge=False` to ensure backward-compatability.
+ * New :meth:`aggregate_duration <ketos.data_handling.selection_table.aggregate_duration>` function for computing the aggregate duration of annotations
+ * Improved the implementation of :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` to ensure that transforms are applied to frames 
+   on a individual basis when frames are loaded in batches.
+ * New export module for exporting Ketos models to various formats such as protobuf
+
 **Version 2.3.0** (October 13, 2021)
 
  * Added exception handling to the :meth:`create_database <ketos.data_handling.database_interface.create_database>` function

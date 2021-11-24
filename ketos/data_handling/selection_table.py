@@ -1211,8 +1211,8 @@ def query_labeled(table, filename=None, label=None, start=None, end=None):
         and/or with certain labels.
 
         Args:
-            selections: pandas DataFrame
-                Selections table, which must have a 'label' column.
+            table: pandas DataFrame
+                Annotations table or Selections table with a 'label' column.
             filename: str or list(str)
                 Filename(s)
             label: int or list(int)
@@ -1283,3 +1283,45 @@ def query_annotated(selections, annotations, filename=None, label=None, start=No
     df1 = df1.loc[indices].sort_index()
 
     return df1, df2
+
+def aggregate_duration(table, label=None):
+    """ Compute the aggregate duration of the annotations.
+
+        Overlapping segments are only counted once.
+
+        Args:
+            table: pandas DataFrame
+                Annotations table or Selections table
+            label: int or list(int)
+                Label(s). Optional
+
+        Returns:
+            agg_dur: float
+                Aggregate duration in seconds
+    """
+    df = query_labeled(table=table, label=label)
+    df.sort_index(axis='index', level=[0, 1], inplace=True)
+
+    agg_dur = 0
+    
+    for index, row in df.iterrows():
+        filename = index[0]
+        dur = row['end'] - row['start']
+
+        if agg_dur == 0 or filename != filename_prev:
+            agg_dur += dur
+            end_prev = row['end']
+        
+        else:
+            if row['start'] >= end_prev:
+                agg_dur += dur
+                end_prev = row['end']
+
+            else:
+                extend = max(0, row['end'] - end_prev)                
+                agg_dur += extend
+                end_prev += extend
+
+        filename_prev = filename
+
+    return agg_dur
