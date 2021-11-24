@@ -161,12 +161,12 @@ class BatchGenerator():
             ...    for batch_num in range(train_generator.n_batches):
             ...        ids, batch_X, batch_Y = next(train_generator)
             ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3} labels for instance {4}: {5}".format(e, batch_num, ids, batch_X.shape, ids[0], batch_Y[0]['label']))
-            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 150, 4411) labels for instance 0: [2 3]
-            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 150, 4411) labels for instance 3: [2 3]
-            epoch:0, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 150, 4411) labels for instance 6: [2 3]
-            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 150, 4411) labels for instance 0: [2 3]
-            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 150, 4411) labels for instance 3: [2 3]
-            epoch:1, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 150, 4411) labels for instance 6: [2 3]
+            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [2 3]
+            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [2 3]
+            epoch:0, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [2 3]
+            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [2 3]
+            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [2 3]
+            epoch:1, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [2 3]
             >>> h5.close() #close the database handle.
             >>> # Creating a Batch Generator from a data tables that includes annotations
             >>> h5 = open_file("ketos/tests/assets/mini_narw.h5", 'r') # create the database handle  

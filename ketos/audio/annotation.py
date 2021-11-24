@@ -229,7 +229,7 @@ class AnnotationHandler():
         num = len(self.get(id=id))
         return num
 
-    def get(self, label=None, id=None, squeeze=True, drop_freq=False, key_error=False):
+    def get(self, label=None, id=None, squeeze=True, drop_freq=False, key_error=False, trim_table=False):
         """ Get annotations managed by the handler module.
         
             Note: This returns a view (not a copy) of the pandas DataFrame used by 
@@ -249,6 +249,9 @@ class AnnotationHandler():
                 key_error: bool
                     If set to True, return error if the specified annotation set does not 
                     exist. If set to False, return None. Default is False.  
+                trim_table: bool
+                    Keep only the columns prescribed by the Ketos annotation format: filename,start,end,label,freq_min,freq_max
+                    Discard any other columns. Default is False.
 
             Returns:
                 ans: pandas DataFrame
@@ -290,11 +293,19 @@ class AnnotationHandler():
             ans = ans[ans.label.isin(label)]
 
         # ensure correct ordering of columns
-        cols = ['label', 'start', 'end']
-        if not drop_freq: 
-            cols += ['freq_min', 'freq_max']
-        
+        cols = ['label', 'start', 'end', 'freq_min', 'freq_max']
+
+        # keep extra columns
+        if not trim_table:
+            extra_cols = np.copy(ans.columns.values)
+            extra_cols = list(extra_cols[~np.isin(extra_cols, cols)])
+            cols += extra_cols
+
         ans = ans[cols]
+
+        # drop freq columns
+        if drop_freq: 
+            ans.drop(columns=['freq_min', 'freq_max'], inplace=True, errors='ignore')
 
         return ans
 

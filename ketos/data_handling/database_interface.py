@@ -733,7 +733,8 @@ def create_database(output_file, data_dir, selections, channel=0,
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
     allow_resizing=1, include_source=True, include_label=True, 
-    include_attrs=False, attrs=None, data_name=None, index_cols=None):
+    include_attrs=False, attrs=None, data_name=None, index_cols=None,
+    mode='a'):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -809,12 +810,16 @@ def create_database(output_file, data_dir, selections, channel=0,
             index_cols: str og list(str)
                 Create indices for the specified columns in the data table to allow for faster queries.
                 For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
-    """
-    
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted). 
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created. This is the default.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
+    """    
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
-    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode = 'a',
+    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode=mode,
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
         include_source=include_source, include_label=include_label, data_name=data_name, index_cols=index_cols)
     
@@ -857,6 +862,11 @@ class AudioWriter():
                 is never split).
             verbose: bool
                 Print relevant information during execution such as no. of files written to disk
+            mode: str
+                The mode to open the file. It can be one of the following:
+                    ’w’: Write; a new file is created (an existing file with the same name would be deleted). This is the default.
+                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    ’r+’: It is similar to ‘a’, but the file must already exist.
             discard_wrong_shape: bool
                 Discard objects that do not have the same shape as previously saved objects. Default is False.
             allow_resizing: int

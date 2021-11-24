@@ -78,8 +78,10 @@ def segment_data(x, window, step=None):
     num_segs = segs.shape[0]
 
     # segment annotations
-    if x.annot: annots = x.annot.segment(num_segs=num_segs, window=window, step=step)
-    else: annots = None
+    if x.annot is not None:
+        annots = x.annot.segment(num_segs=num_segs, window=window, step=step)    
+    else: 
+        annots = None
 
     # compute offsets
     offsets = np.arange(num_segs) * step

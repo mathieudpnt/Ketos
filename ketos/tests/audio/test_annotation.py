@@ -204,4 +204,18 @@ def test_get_single_annotation():
     h = AnnotationHandler()
     h.add(1, 0.2, 1.1, 50, 200)
     ann = h.get(id=0)
-    print(ann)
+    assert len(ann) == 1
+    assert ann['label'][0] == 1
+    assert ann['start'][0] == 0.2
+    assert ann['end'][0] == 1.1
+    assert ann['freq_min'][0] == 50.
+    assert ann['freq_max'][0] == 200.
+
+def test_add_annotations_with_extra_columns():
+    handler = AnnotationHandler()
+    df = {'start':1, 'end':7, 'label':14, 'comment':'whale', 'ID':4}
+    handler.add(df=df)
+    a = handler.get()
+    assert len(a) == 1
+    assert a['comment'][0] == 'whale'
+    assert a['ID'][0] == 4

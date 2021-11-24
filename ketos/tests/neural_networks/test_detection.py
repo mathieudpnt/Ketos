@@ -18,7 +18,7 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 @pytest.fixture
 def batch():
-    data = np.vstack([np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((4,512,512))])
+    data = np.vstack([np.zeros((10,8,8)), np.ones((3,8,8)),np.zeros((10,8,8)), np.ones((3,8,8)),np.zeros((4,8,8))])
     support = np.array([('file_1.wav', i*0.5) for i in range(30)],dtype=[('filename', '|S10'), ('offset', '>f4')])
     return data, support
 
@@ -231,10 +231,10 @@ def test_transform_batch(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)
 
-    expected_data = np.vstack([np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((10,512,512)), np.ones((3,512,512)),np.zeros((4,512,512))])
+    expected_data = np.vstack([np.zeros((10,8,8)), np.ones((3,8,8)),np.zeros((10,8,8)), np.ones((3,8,8)),np.zeros((4,8,8))])
     expected_support = np.array([('file_1.wav', str(i*0.5)) for i in range(30)],dtype='<U32')
 
-    assert transformed_data.shape == (30,512,512)
+    assert transformed_data.shape == (30,8,8)
     assert transformed_support.shape == (30,2)
     assert np.array_equal(transformed_data, expected_data)
     assert np.array_equal(transformed_support, expected_support)

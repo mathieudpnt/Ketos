@@ -78,7 +78,7 @@ Note that annotations can be added to both waveform and spectrogram objects usin
 See the documentation of the :ref:`spectrogram` module for the complete list.
 
 
-Loading Multiple Audio Segments
+Loading multiple audio segments
 --------------------------------
 
 The :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` and 
@@ -96,3 +96,64 @@ one at a time. For example,::
     >>> spec2 = next(loader)
 
 See the documentation of the :ref:`audio_loader` module for more examples and details.
+
+
+Configuration files
+-------------------
+
+As shown in the example above, the audio representation can be configured with a simple 
+Python dictionary. Furthemore, this dictionary can be saved to a JSON file (*.json), which 
+can be helpful for storing configurations for later use or for sharing with collaborators.
+
+The audio representations currently implemented in Ketos are: 
+:class:`Waveform <ketos.audio.waveform.Waveform>`, 
+:class:`Magspectrogram <ketos.audio.spectrogram.MagSpectrogram>` , 
+:class:`PowSpectrogram <ketos.audio.spectrogram.PowSpectrogram>`, 
+:class:`MelSpectrogram <ketos.audio.spectrogram.MelSpectrogram>`, 
+:class:`CQTSpectrogram <ketos.audio.spectrogram.CQTSpectrogram>`, 
+:class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>`, and
+:class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`. 
+These are also listed in the :ref:`audio_loader` module 
+along with convenient, shorthand names (e.g. `Mag` for `MagSpectrogram`).
+
+With the dictionary approach, you can specify the type of audio representation 
+you wish to work with and supply parameter values for the class constructor. 
+For example, your JSON file might look like this,
+
+.. code-block:: json
+
+    {
+        "spectrogram": {
+            "duration": "5.0 s",
+            "rate": "10000 Hz", 
+            "window": "0.051 s",
+            "step": "0.01955 s",
+            "freq_min": "0 Hz",
+            "freq_max": "6000 Hz",
+            "window_func": "hamming",
+            "normalize_wav": "true",
+            "type": "MagSpectrogram",
+            "transforms": [
+                {"name":"reduce_tonal_noise"},
+                {"name":"normalize", "mean":0.0, "std":1.0}
+            ] 
+        }
+    }
+
+Note that parameters with physical units are specified as strings. This approach 
+gives you the flexibility to use the SI unit that you find most convenient. 
+You can use the :meth:`load_audio_representation() <ketos.data_handling.parsing.oad_audio_representation>` 
+method to load the contents of the JSON configuration file into a Python dictionary.
+This method also takes care of parsing the parameter values that have physical units.
+
+To find out which parameters are available for a given audio representation, 
+consult the docstring of the corresponding class constructor.
+The `allowed_transforms` attribute will tell you which 
+transformations are available. For example, for the 
+:class:`Magspectrogram <ketos.audio.spectrogram.MagSpectrogram>` 
+class,
+
+    >>> from ketos.audio.spectrogram import MagSpectrogram
+    >>> spec = MagSpectrogram.from_wav(path='sound.wav', window=0.2, step=0.01)
+    >>> spec.allowed_transforms.keys()   
+    dict_keys(['normalize', 'adjust_range', 'crop', 'blur', 'enhance_signal', 'reduce_tonal_noise', 'resize'])
