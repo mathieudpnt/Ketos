@@ -7,8 +7,7 @@ Welcome to Ketos's documentation!
 .. include:: introduction.rst
 
 .. toctree::
-   :maxdepth: 3
-   :glob:
+   :maxdepth: 1
    :hidden:
 
    introduction
@@ -24,5 +23,6 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+
+.. * :ref:`modindex`
+.. * :ref:`search`

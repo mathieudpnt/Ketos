@@ -35,7 +35,7 @@ Ketos is available on the Python package index repository and the latest version
    pip install ketos
    ``` 
 
-Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6 or 3.7.
+Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6, 3.7 or 3.8.
 
 Note that GPU support depends on CUDA-enabled graphic cards and the necessary drivers and libraries. 
 Refer to  https://www.tensorflow.org/install/gpu for further instructions.
@@ -45,7 +45,7 @@ Depending on your operating system, you might have to install other dependencies
 If you try the steps above and receive errors due to missing dependencies and don't want to install them yourself, you might find Anaconda helpful. 
 
 Anaconda is freely available from [docs.anaconda.com/anaconda/install](https://docs.anaconda.com/anaconda/install/). 
-Make sure you get the Python 3.7 version and make sure to pick the installer appropriate for your OS (Linux, macOS, Windows) 
+Make sure you get the appropriate Python version and make sure to pick the installer appropriate for your OS (Linux, macOS, Windows) 
 
  1. Create and activate a new Anaconda environment:
     ```bash
@@ -66,6 +66,4 @@ Make sure you get the Python 3.7 version and make sure to pick the installer app
 
 ## Jupyter notebook tutorials
 
- * [Creating a training database (Basic)](docs/source/tutorials/create_database_simpler/create_database_simpler.ipynb)
- * [Creating a training database (Extended)](docs/source/tutorials/create_database/create_database.ipynb)
- * [Training a ResNet classifier](docs/source/tutorials/train_a_narw_classifier/train_a_narw_classifier_part_1.ipynb)
+Go to [gitlab.meridian.cs.dal.ca/public_projects/ketos_tutorials](https://gitlab.meridian.cs.dal.ca/public_projects/ketos_tutorials)

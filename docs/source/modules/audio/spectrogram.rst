@@ -3,7 +3,16 @@
 Spectrogram
 ===========
 
+.. currentmodule:: ketos.audio.spectrogram
+
 .. automodule:: ketos.audio.spectrogram
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../generated/
+
+    CQTSpectrogram
+    MagSpectrogram
+    MelSpectrogram
+    PowerSpectrogram
+    Spectrogram
+    add_specs
+    load_audio_for_spec

@@ -1,6 +1,11 @@
 Change log
 ==========
 
+**Version 2.4.1** (December 18, 2021)
+
+ * Improved structure and rewamp style of html docs
+ * Generalized detection module to handle multiple threshold values
+
 **Version 2.4.0** (November 24, 2021)
 
  * :meth:`get <ketos.audio.annotation.AnnotationHandler.get>` method in :class:`AnnotationHandler <ketos.audio.annotation.AnnotationHandler>` class returns auxiliary columns

@@ -102,7 +102,7 @@ Configuration files
 -------------------
 
 As shown in the example above, the audio representation can be configured with a simple 
-Python dictionary. Furthemore, this dictionary can be saved to a JSON file (*.json), which 
+Python dictionary. Furthemore, this dictionary can be saved to a JSON file (\*.json), which 
 can be helpful for storing configurations for later use or for sharing with collaborators.
 
 The audio representations currently implemented in Ketos are: 

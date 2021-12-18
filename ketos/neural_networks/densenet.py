@@ -80,6 +80,20 @@ class ConvBlock(tf.keras.Model):
         self.conv2 = tf.keras.layers.Conv2D(self.growth_rate, kernel_size=3, strides=1, use_bias=False, padding="same")
 
     def call(self, inputs, training=False):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         outputs = self.batch_norm1(inputs, training=training)
         outputs = self.relu1(outputs)
         outputs = self.conv1(outputs)
@@ -113,6 +127,20 @@ class DenseBlock(tf.keras.Model):
         
 
     def call(self, inputs, training=False):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         outputs = self.blocks(inputs, training=training)
         outputs = tf.keras.layers.concatenate([inputs, outputs])
 
@@ -146,6 +174,20 @@ class TransitionBlock(tf.keras.Model):
         self.avg_pool = tf.keras.layers.AveragePooling2D((2,2), strides=2)
 
     def call(self, inputs, training=False):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         outputs = self.batch_norm(inputs, training=training)
         outputs = self.relu(outputs)
         outputs = self.conv(outputs)
@@ -217,6 +259,20 @@ class DenseNetArch(tf.keras.Model):
 
     
     def call(self, inputs, training=False):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         outputs = self.initial_conv(inputs)
         outputs = self.initial_batch_norm(outputs, training=training)
         outputs = self.initial_relu(outputs)

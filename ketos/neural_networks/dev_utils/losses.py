@@ -44,11 +44,11 @@ class FScoreLoss(tf.keras.losses.Loss):
         Args:
             beta:float
                 The relative weight of recall in relation to precision.
-                 Examples:
+
+                Examples:
                     If beta = 1.0, recall has same weight as precision
                     If beta = 0.5, recall has half the weight of precision
-                    If beta = 2.0, recall has twice the weight of precision
-            
+                    If beta = 2.0, recall has twice the weight of precision 
     """
 
     def __init__(self, beta=1.0, **kwargs):
@@ -56,6 +56,18 @@ class FScoreLoss(tf.keras.losses.Loss):
         self.beta = beta
 
     def call(self, y_true, y_pred):
+        """ Invokes the Loss instance.
+
+        Args:
+            y_true: Ground truth values. 
+                shape = [batch_size, d0, .. dN], except sparse loss functions such as sparse categorical crossentropy where shape = [batch_size, d0, .. dN-1]
+
+            y_pred: The predicted values. 
+                shape = [batch_size, d0, .. dN]
+
+        Returns:
+            Loss values with the shape [batch_size, d0, .. dN-1].
+        """
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.dtypes.cast(y_true, y_pred.dtype)
 

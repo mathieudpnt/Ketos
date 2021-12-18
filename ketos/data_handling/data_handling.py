@@ -280,9 +280,10 @@ def create_dir(dir):
     """ Create a new directory if it does not exist
 
         Will also create any intermediate directories that do not exist
+
         Args:
             dir: str
-               The path to the new directory
+                The path to the new directory
      """
     os.makedirs(dir, exist_ok=True)
 

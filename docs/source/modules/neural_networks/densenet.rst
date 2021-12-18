@@ -1,7 +1,14 @@
 DenseNet
 ========
 
+.. currentmodule:: ketos.neural_networks.densenet
+
 .. automodule:: ketos.neural_networks.densenet
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../generated/
+
+    ConvBlock
+    DenseBlock
+    DenseNetArch
+    DenseNetInterface
+    TransitionBlock

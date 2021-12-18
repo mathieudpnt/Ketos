@@ -1,7 +1,11 @@
 Neural-Network Interface
 ========================
 
+.. currentmodule:: ketos.neural_networks.dev_utils.nn_interface
+
 .. automodule:: ketos.neural_networks.dev_utils.nn_interface
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../../generated/
+
+    NNInterface
+    RecipeCompat

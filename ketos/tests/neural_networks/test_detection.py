@@ -167,6 +167,19 @@ def test_process_batch_without_avg_and_group(batch):
     assert detections == expected_detections
 
 
+def test_process_batch_without_avg_and_group_multiple_thresholds(batch):
+    data, support = batch
+    transformed_data, transformed_support = transform_batch(data,support)
+    model = CNNInterface.load_model_file(os.path.join(path_to_assets, "test_model.kt"), os.path.join(path_to_tmp, "tmp_model"))
+
+    expected_detections = [('file_1.wav', 5.0, 3.0, 1.0), ('file_1.wav', 5.5, 3.0, 1.0), ('file_1.wav', 6.0, 3.0, 1.0), ('file_1.wav', 11.5, 3.0, 1.0), ('file_1.wav', 12.0, 3.0, 1.0), ('file_1.wav', 12.5, 3.0, 1.0)]
+    detections = process_batch(batch_data=transformed_data, batch_support_data=transformed_support, model=model, buffer=1.0, step=0.5, threshold=[0.5,0.75,1.1], win_len=1, group=False)
+
+    assert detections[0] == expected_detections
+    assert detections[1] == expected_detections
+    assert len(detections[2]) == 0
+
+
 def test_process_batch_with_avg_and_group(batch):
     data, support = batch
     transformed_data, transformed_support = transform_batch(data,support)

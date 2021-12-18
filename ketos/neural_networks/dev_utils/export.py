@@ -56,7 +56,7 @@ def export_to_ketos_protobuf(model, output_name, input_shape, audio_repr=None, a
          * the audiot representation (audio_repr.json)
          * the ketos model recipe (recipe.json)
        
-        The user is free to specify the extension of the output file, but we recommend using *.ktpb
+        The user is free to specify the extension of the output file, but we recommend using \*.ktpb
         as this will allow the file to be recognized and loaded into PAMGuard.
 
         Args:
@@ -159,7 +159,7 @@ def export_to_ketos_protobuf(model, output_name, input_shape, audio_repr=None, a
 
 
 def export_to_protobuf(model, output_folder):
-    """ Export a ketos model to Protobuf format (*.pb).
+    """ Export a ketos model to Protobuf format (\*.pb).
 
         See also the related fuction :func:`export_to_ketos_protobuf`.
 

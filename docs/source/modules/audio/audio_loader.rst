@@ -3,7 +3,16 @@
 Audio Loader
 ============
 
+.. currentmodule:: ketos.audio.audio_loader
+
 .. automodule:: ketos.audio.audio_loader
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../generated/
+
+    AudioFrameLoader
+    AudioLoader
+    AudioSelectionLoader
+    FrameStepper
+    SelectionGenerator
+    SelectionTableIterator
+

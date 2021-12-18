@@ -81,6 +81,20 @@ class ConvBatchNormRelu(tf.keras.Model):
         ])
 
     def call(self, x, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         x = self.model(x, training=training)
 
         return x
@@ -112,6 +126,20 @@ class InceptionBlock(tf.keras.Model):
         self.pool_conv = ConvBatchNormRelu(self.n_filters, strides=self.strides)
 
     def call(self, x, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         x1 = self.conv1(x, training=training)
         x2 = self.conv2(x, training=training)
         x3_1 = self.conv3_1(x, training=training)
@@ -176,6 +204,20 @@ class InceptionArch(tf.keras.Model):
         self.softmax = tf.keras.layers.Softmax()
 
     def call(self, inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         output = self.conv1(inputs, training=training)
         output = self.blocks(output, training=training)
         output = self.avg_pool(output)

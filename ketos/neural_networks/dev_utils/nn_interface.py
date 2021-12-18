@@ -201,7 +201,6 @@ class NNInterface():
 
     valid_optimizers = {'Adadelta':tf.keras.optimizers.Adadelta,
                         'Adagrad':tf.keras.optimizers.Adagrad,
-                        'Adagrad':tf.keras.optimizers.Adagrad,
                         'Adam':tf.keras.optimizers.Adam,
                         'Adamax':tf.keras.optimizers.Adamax,
                         'Nadam':tf.keras.optimizers.Nadam,
@@ -1067,26 +1066,26 @@ class NNInterface():
 
             The following parameters are expected:
 
-              "metric": str
+                "metric": str
                     The name of the metric to be monitored. It must be one the metrics
                     defined when creating a neural network interface, either through 
                     the 'metrics' argument of the class constructor or the 'metrics' field in a recipe.
-                    The name must be prefixed by 'train_' or 'val_', indicating weather the training or
+                    The name must be prefixed by 'train\_' or 'val\_', indicating weather the training or
                     validation metric should be monitored.
-              "decreasing": bool,
+                "decreasing": bool,
                     If True, improvements will be indicated by a decrease in the metric value during training. 
                     If False, improvements will be defined as an increase in the metric value.
-              "period": int
+                "period": int
                     The number of epochs the training loop will continue without any improvement before training is stopped.
                     Example: If period is 5, training will stop if the target metric does not improve for 5 consecutive epochs.
-              "min_epochs": int
+                "min_epochs": int
                     The number of epochs to train for before starting to monitor.
-              "delta" : float
+                "delta": float
                     The minimum difference between the current metric value and the best
                     value recorded since the monitor started. An improvement is only considered if
-                     (current value - best value) <= delta (if decreasing is True) or 
-                     (current value - best value) >= delta (if decreasing is False)
-              "baseline":float or None
+                    (current value - best value) <= delta (if decreasing is True) or 
+                    (current value - best value) >= delta (if decreasing is False)
+                "baseline": float or None
                     If this value is reached, training will stop immediately.
                     If None, this parameter is ignored.
 

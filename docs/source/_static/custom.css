@@ -1,13 +1,6 @@
-div#notebook{
+/* div#notebook{
 	overflow: scroll !important;
-}
-
-div#notebook p{
-
-	text-align: justify;
-	font-family: 'Old Standard TT', serif; 	
-
-}
+} */
 
 /* Code snippets */
 div.highlight{
@@ -22,6 +15,13 @@ img#ketos-logo{
 	background-color: white;
 	height: 60%;
 	width: 60%;
-	
+}
 
+.ketos-sidebar-text {
+    color: black;
+}
+
+div.wy-side-nav-search .version {
+    color: black;
+    font-weight: bold;
 }

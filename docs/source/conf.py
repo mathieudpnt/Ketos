@@ -14,6 +14,7 @@
 #
 import os
 import sys
+import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../../'))
 
 
@@ -26,7 +27,7 @@ author = 'Fabio Frazao, Oliver Kirsebom'
 # The short X.Y version
 version = '2.4'
 # The full version, including alpha/beta/rc tags
-release = '2.4.0'
+release = '2.4.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -50,7 +51,12 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx_rtd_theme',
 ]
+
+autosummary_generate = True
+autosummary_imported_members = False
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -85,14 +91,22 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_mer_rtd_theme'
+# html_theme = 'sphinx_mer_rtd_theme'
+html_theme = 'sphinx_rtd_theme'
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
 
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {'collapse_navigation': False, 'logo_only': False}
+html_theme_options = {
+    'logo_only': True,
+    'style_nav_header_background': 'white',
+    'display_version': True,
+}
+# html_theme_options = {'collapse_navigation': False, 'logo_only': False}
 using_rtd_theme = True
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -100,11 +114,9 @@ using_rtd_theme = True
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-#html_logo = '_static/logo.png'
-#html_logo = '_static/MERIDIAN_Col_Logo.png'
-html_context = {
-    'css_files': ['_static/custom.css'],
-}
+# html_logo = '_static/logo.png'
+html_logo = '_static/MERIDIAN_Col_Logo.png'
+
 def setup(app):
     #app.add_stylesheet() #deprecated at sphinx 1.8.0
     app.add_css_file('_static/custom.css')
@@ -192,4 +204,3 @@ todo_include_todos = True
 
 auto_doc_member_order = "groupwise"
 autoclass_content = "class"
-autosummary_generate = []

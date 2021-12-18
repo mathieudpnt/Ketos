@@ -425,7 +425,7 @@ class Spectrogram(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_orig.png")
                 >>> plt.close(fig)
                 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_orig.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_orig.png
 
                 >>> # Crop the spectrogram along time axis
                 >>> spec1 = spec.crop(start=2.0, end=4.2, make_copy=True)
@@ -434,7 +434,7 @@ class Spectrogram(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_cropped.png")
                 >>> plt.close(fig)
                 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_cropped.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_cropped.png
         """
         spec = super().crop(start=start, end=end, length=length, make_copy=make_copy) #crop time axis
 
@@ -521,9 +521,9 @@ class Spectrogram(BaseAudioTime):
                 >>> fig = spec.plot()
                 >>> plt.close(fig)
                 
-                .. image:: ../../_static/morlet_spectrogram.png
+                .. image:: ../_static/morlet_spectrogram.png
 
-                .. image:: ../../_static/morlet_spectrogram_blurred.png
+                .. image:: ../_static/morlet_spectrogram_blurred.png
         """
         assert sigma_time > 0, "sigma_time must be strictly positive"
         sig_t = sigma_time / self.time_res()
@@ -593,9 +593,9 @@ class Spectrogram(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_after_tonal.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_before_tonal.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_before_tonal.png
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_after_tonal.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_after_tonal.png
 
         """
         if 'time_constant' in kwargs.keys():
@@ -656,9 +656,9 @@ class Spectrogram(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_w_annot_box_reduced_resolution.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_w_annot_box.png
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box_reduced_resolution.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_w_annot_box_reduced_resolution.png
         """
         assert shape is not None or time_res is not None, "either shape or time_res must be specified"
 
@@ -729,7 +729,7 @@ class Spectrogram(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_w_annot_box.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_w_annot_box.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_w_annot_box.png
         """
         fig, ax = super().plot(figsize, label_in_title)
 
@@ -1015,7 +1015,7 @@ class MagSpectrogram(Spectrogram):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
@@ -1312,7 +1312,7 @@ class PowerSpectrogram(Spectrogram):
                 >>> fig.savefig("ketos/tests/assets/tmp/spec_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/spec_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
@@ -1535,7 +1535,7 @@ class MelSpectrogram(Spectrogram):
                 >>> fig.savefig("ketos/tests/assets/tmp/mel_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/mel_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/mel_grunt1.png
         """
         # load audio
         audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
@@ -1793,7 +1793,7 @@ class CQTSpectrogram(Spectrogram):
                 >>> fig.savefig("ketos/tests/assets/tmp/cqt_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/cqt_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/cqt_grunt1.png
         """
         if rate is None:
             rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
