@@ -303,7 +303,7 @@ class GammatoneFilterBank(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/gfb3_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/gfb3_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/gfb3_grunt1.png
         """
         # load audio
         audio = Waveform.from_wav(path=path, channel=channel, rate=rate, offset=offset, duration=duration, 
@@ -358,7 +358,7 @@ class GammatoneFilterBank(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/gfb3_w_annot_box.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/gfb3_w_annot_box.png
+                .. image:: ../../../ketos/tests/assets/tmp/gfb3_w_annot_box.png
         """
         x = self.get_data()[:,filter_id] # select the filtered signal 
 

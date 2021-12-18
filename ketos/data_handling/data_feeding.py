@@ -30,6 +30,7 @@
 
     Contents:
         BatchGenerator class
+        
         TrainiDataProvider class
 """
 import warnings

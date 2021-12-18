@@ -1,7 +1,5 @@
 Data Handling
---------------
-
-
+===============
 
 .. toctree::
    :maxdepth: 2

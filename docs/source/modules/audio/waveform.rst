@@ -3,7 +3,10 @@
 Waveform
 ========
 
+.. currentmodule:: ketos.audio.waveform
+
 .. automodule:: ketos.audio.waveform
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../generated/
+
+    Waveform

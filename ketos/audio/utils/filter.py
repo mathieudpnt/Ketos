@@ -105,7 +105,7 @@ def enhance_signal(img, enhancement=1.):
             >>> plot_image(img_enh,fig,ax2,extent=(-4,4,-6,6))
             >>> fig.savefig("ketos/tests/assets/tmp/image_enhancement1.png")
 
-            .. image:: ../../../../../ketos/tests/assets/tmp/image_enhancement1.png
+            .. image:: ../../../ketos/tests/assets/tmp/image_enhancement1.png
     """
     if enhancement > 0:
         med = np.median(img)
@@ -170,7 +170,7 @@ def reduce_tonal_noise(img, method='MEDIAN', **kwargs):
             >>> plot_image(img_r,fig,ax3,extent=ext)
             >>> fig.savefig("ketos/tests/assets/tmp/image_tonal_noise_red1.png")
 
-            .. image:: ../../../../../ketos/tests/assets/tmp/image_tonal_noise_red1.png
+            .. image:: ../../../ketos/tests/assets/tmp/image_tonal_noise_red1.png
     """
     if method == 'MEDIAN':
         img_new = img - np.median(img, axis=0)

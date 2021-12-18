@@ -239,6 +239,19 @@ class CNNArch(tf.keras.Model):
         return cloned_model
 
     def call(self, inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns: 
+            A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
@@ -249,10 +262,10 @@ class CNNArch(tf.keras.Model):
 
 
 class CNN1DArch(tf.keras.Model):
-    """ Implement an 1D (temporal) Convolutional Neural Network
+    """ Implement an 1D (temporal) Convolutional Neural Network.
 
-        Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense
-              layer will always be added to the end. The output of this layer is determined by the 'n_classes'
+        Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense \
+              layer will always be added to the end. The output of this layer is determined by the 'n_classes' \
               parameter. 
 
         Args:
@@ -343,13 +356,14 @@ class CNN1DArch(tf.keras.Model):
                 n_classes:int
                     The number of classes the new classification top should output.
                     If None(default), the original number of classes will be used.
+
                 freeze_base:bool
                     If True, the weights of the feature extraction base will be froze (untrainable) in the new model.
                 
             Returns:
                 cloned_model: instance of CNN1DArch
                     The new model with the old feature extraction base and new classification top.
-         """
+        """
         if freeze_base == True:
             self.trainable = False
 
@@ -363,7 +377,20 @@ class CNN1DArch(tf.keras.Model):
 
 
     def call(self, inputs, training=None):
+        """Calls the model on new inputs.
 
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         output = self.convolutional_block(inputs, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
@@ -377,7 +404,7 @@ class CNNInterface(NNInterface):
     """ Creates a CNN model with the standardized Ketos interface.
 
         Args:
-             convolutional_layers: list
+            convolutional_layers: list
                 A list of dictionaries containing the detailed specification for the convolutional layers.
                 Each layer is specified as a dictionary with the following format:
 

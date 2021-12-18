@@ -172,7 +172,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/audio_grunt1.png
+                .. image:: ../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
         if transforms is None: transforms = []
 
@@ -277,7 +277,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/audio_noise.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/audio_noise.png
+                .. image:: ../../../ketos/tests/assets/tmp/audio_noise.png
         """        
         assert sigma > 0, "sigma must be strictly positive"
 
@@ -324,7 +324,7 @@ class Waveform(BaseAudioTime):
                 >>> fig = wavelet1.plot()
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_standard.png")
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_standard.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_standard.png
 
                 >>> # create another wavelet, but with frequency increasing linearly with time
                 >>> wavelet2 = Waveform.morlet(rate=100., frequency=3., width=2.0, dfdt=0.3)
@@ -333,7 +333,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_dfdt.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_dfdt.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_dfdt.png
         """        
         if samples is None:
             samples = int(6 * width * rate)
@@ -381,7 +381,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/cosine_audio.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/cosine_audio.png
+                .. image:: ../../../ketos/tests/assets/tmp/cosine_audio.png
         """        
         N = int(duration * rate)
 
@@ -448,7 +448,7 @@ class Waveform(BaseAudioTime):
                 >>> fig = a.plot()
                 >>> plt.close(fig)
 
-                .. image:: ../../_static/morlet.png
+                .. image:: ../_static/morlet.png
         """
         fig, ax = super().plot(figsize, label_in_title, append_title)
 
@@ -521,7 +521,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_cosine.png
         """   
         assert self.rate == signal.rate, "Cannot merge audio signals with different sampling rates."
 
@@ -575,9 +575,9 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_w_noise.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_wo_noise.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_wo_noise.png
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_w_noise.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_w_noise.png
         """
         noise = Waveform.gaussian_noise(rate=self.rate, sigma=sigma, samples=len(self.data))
         self.add(noise)
@@ -620,9 +620,9 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/cosine_double_hp_audio.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_audio.png
+                .. image:: ../../../ketos/tests/assets/tmp/cosine_double_audio.png
 
-                .. image:: ../../../../ketos/tests/assets/tmp/cosine_double_hp_audio.png
+                .. image:: ../../../ketos/tests/assets/tmp/cosine_double_hp_audio.png
         """
         if freq_min is None and freq_max is None: return
 
@@ -672,7 +672,7 @@ class Waveform(BaseAudioTime):
                 >>> fig.savefig("ketos/tests/assets/tmp/morlet_cosine_added.png")
                 >>> plt.close(fig)
 
-                .. image:: ../../../../ketos/tests/assets/tmp/morlet_cosine_added.png
+                .. image:: ../../../ketos/tests/assets/tmp/morlet_cosine_added.png
         """
         assert self.rate == signal.rate, "Cannot add audio signals with different sampling rates."
 

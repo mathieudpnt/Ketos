@@ -1,7 +1,12 @@
 Data feeding
 ============
 
+.. currentmodule:: ketos.data_handling.data_feeding
+
 .. automodule:: ketos.data_handling.data_feeding
-   :members:
-   :undoc-members:
-   :show-inheritance:
+
+.. autosummary::
+    :toctree: ../../generated/
+
+    BatchGenerator
+    JointBatchGen

@@ -216,9 +216,8 @@ For the following examples, let's suppose you implemented a simple multilayer pe
                 output = self.dense(inputs)
                 output = self.dense(output)
                 output = self.final_node(output)
+                return output
 
-
-    
     
 With the architecture, the interface to the MLP can be created by subclassing NNInterface.
 

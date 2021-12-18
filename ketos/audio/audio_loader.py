@@ -491,7 +491,7 @@ class AudioFrameLoader(AudioLoader):
             >>> fig.savefig("ketos/tests/assets/tmp/spec_2min_0.png")
             >>> plt.close(fig)
             
-            .. image:: ../../../../ketos/tests/assets/tmp/spec_2min_0.png
+            .. image:: ../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
                     annotations=None, repres={'type': 'Waveform'}, batch_size=1, **kwargs):

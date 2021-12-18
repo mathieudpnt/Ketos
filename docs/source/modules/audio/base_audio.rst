@@ -1,7 +1,12 @@
 Base Audio
 ==========
 
+.. currentmodule:: ketos.audio.base_audio
+
 .. automodule:: ketos.audio.base_audio
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: ../../generated/
+    
+    BaseAudio
+    BaseAudioTime
+    segment_data

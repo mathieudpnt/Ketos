@@ -161,6 +161,20 @@ class ResNetBlock(tf.keras.Model):
         self.dropout.rate = rate
 
     def call(self,inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         residual = inputs
 
         x = self.batch_norm_1(inputs, training=training)
@@ -271,6 +285,20 @@ class ResNet1DBlock(tf.keras.Model):
         self.dropout.rate = rate
 
     def call(self,inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         residual = inputs
 
         x = self.batch_norm_1(inputs, training=training)
@@ -503,6 +531,20 @@ class ResNetArch(tf.keras.Model):
             self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
 
     def call(self, inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
         output = self.batch_norm_final(output, training=training)
@@ -728,6 +770,20 @@ class ResNet1DArch(tf.keras.Model):
             self.layers[1].layers[block_id].set_dropout_rate(rate=rate)
 
     def call(self, inputs, training=None):
+        """Calls the model on new inputs.
+
+        In this case call just reapplies all ops in the graph to the new inputs (e.g. build a new computational graph from the provided inputs).
+
+        Args:
+            inputs: Tensor or list of tensors
+                A tensor or list of tensors
+            
+            training: Bool
+                Boolean or boolean scalar tensor, indicating whether to run the Network in training mode or inference mode.
+
+        Returns:
+                A tensor if there is a single output, or a list of tensors if there are more than one outputs.
+        """
         output = self.conv_initial(inputs)
         output = self.blocks(output, training=training)
         output = self.batch_norm_final(output, training=training)

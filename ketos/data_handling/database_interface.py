@@ -219,7 +219,7 @@ def table_description(data_shape, data_name=None, include_label=True, include_so
     """ Description of table structure for storing audio signals or spectrograms.
 
         Args:
-            data_shape: tuple (ints) or numpy array or :class:`audio.base_audio.BaseAudio' or list
+            data_shape: tuple (ints) or numpy array or :class:`audio.base_audio.BaseAudio` or list
                 The shape of the waveform or spectrogram to be stored in the table. 
                 If a numpy array is provided, the shape is deduced from this array.
                 If an instance of BaseAudio is provided, the shape is deduced from 
@@ -374,9 +374,9 @@ def write_repres_attrs(table, x):
             table: tables.Table
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
-            x: instance of :class:`spectrogram.MagSpectrogram', \
-                :class:`spectrogram.PowerSpectrogram', :class:`spectrogram.MelSpectrogram', \
-                :class:`spectrogram.CQTSpectrogram', numpy.array    
+            x: instance of :class:`spectrogram.MagSpectrogram`, \
+                :class:`spectrogram.PowerSpectrogram`, :class:`spectrogram.MelSpectrogram`, \
+                :class:`spectrogram.CQTSpectrogram`, numpy.array    
                 The audio object to be stored in the table.
 
         Returns:
@@ -493,11 +493,11 @@ def write(x, table, table_annot=None, id=None):
         object is written to the table.
 
         Args:
-            x: instance of :class:`audio.waveform.Waveform',
-                :class:`audio.spectrogram.MagSpectrogram', 
-                :class:`audio.spectrogram.PowerSpectrogram',
-                :class:`audio.spectrogram.MelSpectrogram', 
-                :class:`audio.spectrogram.CQTSpectrogram',
+            x: instance of :class:`audio.waveform.Waveform`,
+                :class:`audio.spectrogram.MagSpectrogram`, 
+                :class:`audio.spectrogram.PowerSpectrogram`,
+                :class:`audio.spectrogram.MelSpectrogram`, 
+                :class:`audio.spectrogram.CQTSpectrogram`,
                 numpy.ndarray 
                 The audio object to be stored in the table.
                 It is also possible to specify a list of audio objects.
@@ -758,7 +758,7 @@ def create_database(output_file, data_dir, selections, channel=0,
                 If the file does not exist, it will be created.
                 If the file already exists, new data will be appended to it.
             data_dir:str
-                Path to folder containing *.wav files.
+                Path to folder containing \*.wav files.
             selections: pandas DataFrame
                 Selection table
             channel: int
@@ -845,14 +845,14 @@ def create_database(output_file, data_dir, selections, channel=0,
     writer.close()
 
 class AudioWriter():
-    """ Saves waveform or spectrogram objects to a database file (*.h5).
+    """ Saves waveform or spectrogram objects to a database file (\*.h5).
 
         If the combined size of the saved data exceeds max_size (1 GB by default), the output database 
         file will be split into several files, with _000, _001, etc, appended to the filename.
 
         Args:
             output_file: str
-                Full path to output database file (*.h5)
+                Full path to output database file (\*.h5)
             max_size: int
                 Maximum size of output database file in bytes.
                 If file exceeds this size, it will be split up into several 
@@ -892,7 +892,7 @@ class AudioWriter():
             base: str
                 Output filename base
             ext: str
-                Output filename extension (*.h5)
+                Output filename extension (\*.h5)
             file: tables.File
                 Database file
             file_counter: int

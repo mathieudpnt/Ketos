@@ -2,7 +2,7 @@ Introduction
 ============
 
 Ketos provides a unified, high-level interface for working with acoustic data and deep neural networks. 
-Its main purpose is to support the development of deep learning models for solving challenging 
+Its main purpose is to support the development of deep learning models for solving 
 detection and classification problems in underwater acoustics.
 
 Ketos is written in Python and utilizes a number of powerful software packages 
@@ -24,7 +24,7 @@ some familiarity with Python and especially the NumPy package would be beneficia
 the fundamentals of machine learning and neural networks would also be an advantage.
 
 To get started with Ketos, follow the :ref:`installation_instructions` instructions and then proceed to 
-the :ref:`tutorials` section. For an example application of Ketos, see `Kirsebom, Frazao, et al., Performance of 
+the :ref:`tutorials_page` section. For an example application of Ketos, see `Kirsebom, Frazao, et al., Performance of 
 a deep neural network at detecting North Atlantic right whale upcalls, JASA, 147, 2636 (2020) <https://doi.org/10.1121/10.0001132>`_ 
 (`preprint <https://arxiv.org/abs/2001.09127>`_).
 
