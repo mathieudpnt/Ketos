@@ -440,15 +440,13 @@ class CNNInterface(NNInterface):
             >>> recipe = {'conv_set':[[64, False], [128, True], [256, True]], # doctest: +SKIP
             ...   'dense_set': [512, ],
             ...   'n_classes':2,
-            ...   'optimizer': {'name':'Adam', 'parameters': {'learning_rate':0.005}},
-            ...   'loss_function': {'name':'FScoreLoss', 'parameters':{}},  
-            ...   'metrics': [{'name':'CategoricalAccuracy', 'parameters':{}}]
+            ...   'optimizer': {'recipe_name':'Adam', 'parameters': {'learning_rate':0.005}},
+            ...   'loss_function': {'recipe_name':'FScoreLoss', 'parameters':{}},  
+            ...   'metrics': [{'recipe_name':'CategoricalAccuracy', 'parameters':{}}]
             ... }
             >>> # To create the CNN, simply  use the  'build_from_recipe' method:
-            >>> cnn = CNNInterface.build_from_recipe(recipe, recipe_compat=False) # doctest: +SKIP
-                
+            >>> cnn = CNNInterface._build_from_recipe(recipe, recipe_compat=False) # doctest: +SKIP         
     """
-
     
     @classmethod
     def _convolutional_layers_from_conv_set(cls, conv_set):
