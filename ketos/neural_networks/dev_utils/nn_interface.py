@@ -24,7 +24,6 @@
 #       along with this program.  If not, see <https://www.gnu.org/licenses/>.     #
 # ================================================================================ #
 
-
 import tensorflow as tf
 from .losses import FScoreLoss
 from ...data_handling.parsing import parse_audio_representation
@@ -40,7 +39,6 @@ import os
 class RecipeCompat():
     """ Makes a loss function, metric or optimizer compatible with the Ketos recipe format.
 
-
         The resulting object can be included in a ketos recipe and read by the NNInterface (or it's subclasses)
 
         Args:
@@ -54,7 +52,6 @@ class RecipeCompat():
         Returns:
              A RecipeCompat object
 
-
         Examples:
           >>> # Example Metric
           >>> p = tf.keras.metrics.Precision
@@ -67,7 +64,6 @@ class RecipeCompat():
           >>> # Example Loss
           >>> loss = tf.keras.losses.BinaryCrossentropy
           >>> dec_loss = RecipeCompat('binary_crossentropy', loss, from_logits=True)
-    
     """
     def __repr__(self):
         return "{0} ketos recipe".format(self.recipe_name)
@@ -87,8 +83,6 @@ class RecipeCompat():
     def __call__(self, *args, **kwargs):
         result = self.instance(*args, **kwargs)
         return result
-
-
 
 
 class NNInterface():
@@ -127,32 +121,29 @@ class NNInterface():
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
-        from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface
-        
-        >>> class MLPInterface(NNInterface):  # doctest: +SKIP
-        ...
-        ...    @classmethod
-        ...    def _build_from_recipe(cls, recipe, recipe_compat=True):
-        ...        n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
-        ...        activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
+        >>> from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface  # doctest: +SKIP
+        >>> 
+        >>> class MLPInterface(NNInterface):
+        ...     @classmethod
+        ...     def _build_from_recipe(cls, recipe, recipe_compat=True):
+        ...     n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
+        ...         activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
         ...        
         ...         if recipe_compat == True:
-        ...            optimizer = recipe['optimizer']
-        ...            loss_function = recipe['loss_function']
-        ...            metrics = recipe['metrics']
+        ...             optimizer = recipe['optimizer']
+        ...             loss_function = recipe['loss_function']
+        ...             metrics = recipe['metrics']
         ...            
         ...        else:
-        ...            optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
-        ...            loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
-        ...            metrics = cls._metrics_from_recipe(recipe['metrics'])
+        ...             optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
+        ...             loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
+        ...             metrics = cls._metrics_from_recipe(recipe['metrics'])
         ...
         ...        instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
-        ...
         ...        return instance
         ... 
         ...  @classmethod
         ...  def _read_recipe_file(cls, json_file, return_recipe_compat=True):
-        ...        
         ...        with open(json_file, 'r') as json_recipe:
         ...            recipe_dict = json.load(json_recipe)
         ...
@@ -181,18 +172,14 @@ class NNInterface():
         ...        self.model = MLP(n_neurons=n_neurons, activation=activation)
         ...
         ...    def _extract_recipe_dict(self):
-        ...   
         ...        recipe = {}
         ...        recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
         ...        recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
         ...        recipe['metrics'] = self._metrics_to_recipe(self.metrics)
         ...        recipe['n_neurons'] = self.n_neurons
         ...        recipe['activation'] = self.activation
-        ...        
         ...        return recipe
     """
-
-
     valid_optimizers = {'Adadelta':tf.keras.optimizers.Adadelta,
                         'Adagrad':tf.keras.optimizers.Adagrad,
                         'Adam':tf.keras.optimizers.Adam,
@@ -257,7 +244,6 @@ class NNInterface():
                      'TopKCategoricalAccuracy':tf.keras.metrics.TopKCategoricalAccuracy,
                      'TrueNegatives':tf.keras.metrics.TrueNegatives,
                      'TruePositives':tf.keras.metrics.TruePositives,
-                     
                      }
 
 
@@ -287,18 +273,19 @@ class NNInterface():
 
                 >>> NNInterface._to1hot(class_label=1, n_classes=5)
                 array([0., 1., 0., 0., 0.])
-
         """
         one_hot = np.zeros(n_classes)
         one_hot[class_label]=1.0
         return one_hot
     
+
     @classmethod
     def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
-            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
-            accomodate any transformations required. Common operations are reshaping of input arrays and parsing or one hot encoding of the labels.
+            When this interface is subclassed to make new neural_network classes, this method 
+            can be overwritten to accomodate any transformations required. Common operations 
+            are reshaping of input arrays and parsing or one hot encoding of the labels.
 
             Args:
                 x:numpy.array
@@ -310,8 +297,6 @@ class NNInterface():
                 n_classes:int
                     The number of possible classes for one hot encoding.
                     
-                
-
             Returns:
                 X:numpy.array
                     The transformed batch of inputs
@@ -325,7 +310,6 @@ class NNInterface():
                 >>> inputs.shape
                 (10, 5, 5)
 
-                    
                 >>> # Create a batch of 10 labels (0 or 1)
                 >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
                 >>> labels.shape
@@ -337,21 +321,21 @@ class NNInterface():
 
                 >>> transformed_labels.shape
                 (10, 2)
-                
         """
-
-        #X = x.reshape(x.shape[0],x.shape[1], x.shape[2],1)
         X = cls._transform_input(x)
         Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
         return (X,Y)
+
 
     @classmethod
     def _transform_input(cls,input):
         """ Transforms a training input to the format expected by the network.
 
-            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the inputs (not labels). Mostly used for inference, rather than training.
-            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
-            accomodate any transformations required. Common operations are reshaping of an input.
+            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the 
+            inputs (not labels). Mostly used for inference, rather than training.
+            When this interface is subclassed to make new neural_network classes, this 
+            method can be overwritten to accomodate any transformations required. Common 
+            operations are reshaping of an input.
 
             Args:
                 input:numpy.array
@@ -384,8 +368,6 @@ class NNInterface():
                 >>> transformed_input = NNInterface._transform_input(selected_input)
                 >>> transformed_input.shape
                 (1, 5, 5, 1)
-
-                
         """
         if input.ndim == 2:
             transformed_input = input.reshape(1,input.shape[0], input.shape[1],1)
@@ -396,19 +378,23 @@ class NNInterface():
 
         return transformed_input
 
+
     @classmethod
     def _transform_output(cls,output):
         """ Transforms the network output 
 
-            When this interface is subclassed to make new neural_network classes, this method can be overwritten to
-            accomodate any transformations required. Common operations are reshaping of an input and returning the class wih the highest score instead of a softmax vector.
+            When this interface is subclassed to make new neural_network classes, this method 
+            can be overwritten to accomodate any transformations required. Common operations are 
+            reshaping of an input and returning the class wih the highest score instead of a softmax vector.
 
             Args:
                 output:np.array
-                    The output neural network output. An array of one or more vectors of float scores that each add to 1.0.
+                    The output neural network output. An array of one or more vectors of float scores 
+                    that each add to 1.0.
             Returns:
                 transformed_output:tuple
-                    The transformed output, where the first value is the integer representing the highest  classs in the rank the second is the respective score
+                    The transformed output, where the first value is the integer representing the highest 
+                    classs in the rank the second is the respective score.
 
             Example:
                 >>> import numpy as np
@@ -419,7 +405,6 @@ class NNInterface():
                 >>> output = np.array([[0.2,0.1,0.7],[0.05,0.65,0.3]])  
                 >>> NNInterface._transform_output(output)
                 (array([2, 1]), array([0.7 , 0.65]))
-
         """
         max_class = np.argmax(output, axis=-1)
         if output.shape[0] == 1:
@@ -442,20 +427,18 @@ class NNInterface():
             Args:
                 optimizer: optimizer dictionay
                     A dictionary with the following keys: {'name':..., 'parameters':{...}}.
-                    The 'name' value must be a valid name as defined in the `valid_optimizers` class attribute.
-                    The 'parameters' value is a dictionary of keyword arguments to be used when building the optimizer
-                    (e.g.: {'learning_rate':0.001, 'momentum': 0.01})
-
+                    The 'name' value must be a valid name as defined in the `valid_optimizers` 
+                    class attribute. The 'parameters' value is a dictionary of keyword arguments 
+                    to be used when building the optimizer (e.g.: {'learning_rate':0.001, 'momentum': 0.01})
 
             Returns:
                 built_optimizer: 
                     A recipe-compatible optimizer object.
 
             Raises:
-                ValueError if the optimizer name is not included in the valid_optimizers class attribute.
-
+                ValueError if the optimizer name is not included in the valid_optimizers 
+                class attribute.
         """
-
         recipe_name = optimizer['recipe_name']
         kwargs = optimizer['parameters']
 
@@ -464,6 +447,7 @@ class NNInterface():
         built_optimizer = RecipeCompat(recipe_name,cls.valid_optimizers[recipe_name],**kwargs)
 
         return built_optimizer
+
 
     @classmethod
     def _optimizer_to_recipe(cls, optimizer):
@@ -479,8 +463,8 @@ class NNInterface():
                     A dictionary with the 'name' and 'parameters' keys.
 
             Raises:
-                ValueError if the optimizer name is not included in the valid_optimizers class attribute.
-
+                ValueError if the optimizer name is not included in the valid_optimizers 
+                class attribute.
         """
         recipe_name = optimizer.recipe_name
         kwargs = optimizer.args
@@ -490,6 +474,7 @@ class NNInterface():
         recipe_optimizer = {'recipe_name':recipe_name, 'parameters':kwargs}
 
         return recipe_optimizer
+
 
     @classmethod
     def _loss_function_from_recipe(cls, loss_function):
@@ -504,14 +489,12 @@ class NNInterface():
                     The 'parameters' value is a dictionary of keyword arguments to be used when building the loss_function
                     (e.g.: {'from_logits':True, 'label_smoothing':0.5})
 
-
             Returns:
                 built_loss: 
                     A recipe-compatible loss function object.
 
             Raises:
                 ValueError if the loss function name is not included in the valid_losses class attribute.
-
         """
         recipe_name = loss_function['recipe_name']
         kwargs = loss_function['parameters']
@@ -521,6 +504,7 @@ class NNInterface():
         built_loss = RecipeCompat(recipe_name, cls.valid_losses[recipe_name],**kwargs)
 
         return built_loss
+
 
     @classmethod
     def _loss_function_to_recipe(cls, loss_function):
@@ -537,7 +521,6 @@ class NNInterface():
 
             Raises:
                 ValueError if the loss_function name is not included in the valid_losses class attribute.
-
         """
         recipe_name = loss_function.recipe_name
         kwargs = loss_function.args
@@ -562,14 +545,12 @@ class NNInterface():
                     The 'parameters' value is a dictionary of keyword arguments to be used when building the metrics
                     (e.g.: {'from_logits':True})
 
-
             Returns:
                 built_metrics: 
                     A list of recipe-compatible metric objects.
 
             Raises:
                 ValueError if any of the metric names is not included in the valid_metrics class attribute.
-
         """
         
         built_metrics = []
@@ -582,6 +563,7 @@ class NNInterface():
             built_metrics.append(RecipeCompat(recipe_name, cls.valid_metrics[recipe_name], **kwargs))
 
         return built_metrics
+
 
     @classmethod
     def _metrics_to_recipe(cls, metrics):
@@ -597,10 +579,9 @@ class NNInterface():
                     A list dictionaries, each with 'name' and 'parameters' keys.
 
             Raises:
-                ValueError if any of the metric names is not included in the valid_metrics class attribute.
-
+                ValueError if any of the metric names is not included in the valid_metrics 
+                class attribute.
         """
-        
         recipe_metrics = []
         for m in metrics: 
             if m.recipe_name not in cls.valid_metrics.keys():
@@ -610,24 +591,24 @@ class NNInterface():
         return recipe_metrics
 
 
-
     @classmethod
     def _read_recipe_file(cls, json_file, return_recipe_compat=True):
         """ Read a .json_file containing a ketos recipe and builds a recipe dictionary.
 
-            When subclassing NNInterface to create interfaces to new neural networks, this method can be overwritten to include other recipe fields relevant to the child class.
+            When subclassing NNInterface to create interfaces to new neural networks, this 
+            method can be overwritten to include other recipe fields relevant to the child class.
 
             Args:
                 json_file:str
                     Path to the .json file (e.g.: '/home/user/ketos_recupes/my_recipe.json').
                 return_recipe_compat:bool
-                    If True, the returns a recipe-compatible dictionary (i.e.: where the values are RecipeCompat objects). If false, returns a recipe dictionary (i.e.: where the values are name+parameters dictionaries:  {'name':..., 'parameters':{...}})
+                    If True, the returns a recipe-compatible dictionary (i.e.: where the values 
+                    are RecipeCompat objects). If false, returns a recipe dictionary (i.e.: where 
+                    the values are name+parameters dictionaries:  {'name':..., 'parameters':{...}})
 
             Returns:
                 recipe_dict: dict
                     A recipe dictionary that can be used to rebuild a model.
-        
-        
         """
         with open(json_file, 'r') as json_recipe:
             recipe_dict = json.load(json_recipe)
@@ -635,7 +616,6 @@ class NNInterface():
         optimizer = cls._optimizer_from_recipe(recipe_dict['optimizer'])
         loss_function = cls._loss_function_from_recipe(recipe_dict['loss_function'])
         metrics = cls._metrics_from_recipe(recipe_dict['metrics'])
-        
 
         if return_recipe_compat == True:
             recipe_dict['optimizer'] = optimizer
@@ -648,6 +628,7 @@ class NNInterface():
             recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
         
         return recipe_dict
+
 
     @classmethod
     def _write_recipe_file(cls, json_file, recipe):
@@ -665,9 +646,7 @@ class NNInterface():
                               "loss_function":RecipeCompat('categorical_cross_entropy',tf.keras.losses.CategoricalCrossEntropy),
                               "metrics":[RecipeCompat('categorical_accuracy',tf.keras.metrics.CategoricalAccuracy)],
                               "another_parameter:32}
-
         """
-
         with open(json_file, 'w') as json_recipe:
             json.dump(recipe, json_recipe)
 
@@ -676,21 +655,22 @@ class NNInterface():
     def _load_model(cls, recipe, weights_path):
         """ Load a model given a recipe dictionary and the saved weights.
 
-            If multiple versions of the model are available in the folder indicated by weights_path the latest will be selected. 
+            If multiple versions of the model are available in the folder indicated by weights_path 
+            the latest will be selected. 
 
             Args:
                 recipe: dict
                     A dictionary containing the recipe
                 weights_path:str
                     The path to the folder containing the saved weights.
-                    Saved weights are tensorflow chekpoint. The path should not include the checkpoint files, only the folder containing them. (e.g.: '/home/user/my_saved_models/model_a/')
-
+                    Saved weights are tensorflow chekpoint. The path should not include the checkpoint 
+                    files, only the folder containing them. (e.g.: '/home/user/my_saved_models/model_a/')
         """
         instance = cls._build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
         instance.model.load_weights(latest_checkpoint)
-
         return instance
+
 
     @classmethod
     def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False,  replace_top=False, diff_n_classes=None):
@@ -698,7 +678,7 @@ class NNInterface():
 
             Args:
                 model_file:str
-                    Path to the ketos(.kt) file
+                    Path to the ketos (.kt) file
                 new_model_folder:str
                     Path to folder where files associated with the model will be stored.
                 overwrite: bool
@@ -720,9 +700,7 @@ class NNInterface():
             Returns:
                 model_instance: The loaded model
                 audio_repr: If load_audio_repr is True, also return a dictionary with the loaded audio representation.
-
         """
-
         try:
             os.makedirs(new_model_folder)
         except FileExistsError:
@@ -743,7 +721,6 @@ class NNInterface():
                 new_n_classes = diff_n_classes
             model_with_new_top = model_instance.model.clone_with_new_top(n_classes=new_n_classes)
             model_instance.model = model_with_new_top
-
                
         if load_audio_repr is True:
             audio_repr = []
@@ -754,7 +731,8 @@ class NNInterface():
             return model_instance, audio_repr
         
         return model_instance
-    
+
+
     @classmethod
     def _build_from_recipe(cls, recipe):
         """ Build a model from a recipe dictionary
@@ -765,17 +743,14 @@ class NNInterface():
             Args:
                 recipe:dict
                     A recipe dictionary
-
         """
-       
         optimizer = recipe['optimizer']
         loss_function = recipe['loss_function']
         metrics = recipe['metrics']
-
         instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
-
         return instance
     
+
     @classmethod
     def build_from_recipe_file(cls, recipe_file):
         """ Build a model from a recipe file
@@ -787,12 +762,9 @@ class NNInterface():
             Returns:
                 instance:
                     An instance of the neural network interface 
-
         """
-
         recipe = cls._read_recipe_file(recipe_file)
         instance = cls._build_from_recipe(recipe)
-
         return instance
        
 
@@ -829,19 +801,22 @@ class NNInterface():
     def _extract_recipe_dict(self):
         """ Create a recipe dictionary from a neural network instance.
 
-            The resulting recipe contains all the fields necessary to build  the same network architecture used by the instance calling this method.
-            When subclassing NNInterface to create interfaces for new neural networks, this method can be overwritten to match the recipe fields expected by :func:`build_from_recipe`
+            The resulting recipe contains all the fields necessary to build the same network 
+            architecture used by the instance calling this method.
+            When subclassing NNInterface to create interfaces for new neural networks, this method 
+            can be overwritten to match the recipe fields expected by :func:`build_from_recipe`
 
             Returns:
                 recipe:dict
-                    A dictionary containing the recipe fields necessary to build the same network architecture used by the instance calling this method
+                    A dictionary containing the recipe fields necessary to build the same network 
+                    architecture used by the instance calling this method
         """
         recipe = {}
         recipe['optimizer'] = self._optimizer_to_recipe(self.optimizer)
         recipe['loss_function'] = self._loss_function_to_recipe(self.loss_function)
         recipe['metrics'] = self._metrics_to_recipe(self.metrics)
-
         return recipe
+
 
     def save_recipe_file(self, recipe_file):
         """ Creates a recipe from an existing neural network instance and save it into a .json file.
@@ -851,10 +826,10 @@ class NNInterface():
             Args:
                 recipe_file:str
                     Path to .json file in which the recipe will be saved.
-
         """
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
+
 
     def save_model(self, model_file, checkpoint_name=None, audio_repr=None, audio_repr_file=None):
         """ Save the current neural network instance as a ketos (.kt) model file.
@@ -986,56 +961,64 @@ class NNInterface():
     def add_learning_rate_scheduler(self, scheduler_type="PiecewiseConstantDecay",**kwargs):
         """ Add a learning rate scheduler to the current neural network interface.
 
-                        
             Notes: - This method must be called before training and after an optimizer has been defined.
                    - Keep in mind that in the schedulers a 'step' corresponds to each time the optmization algorithm is called. 
                      Normally this means that each batch is a step (i.e.: each epoch has several steps). 
                      
-
             Args:
                 scheduler_type:str
-                    One of four scheduler types: 'PiecewiseConstantDecay', 'ExponentialDecay', 'InverseTimeDecay' or 'PolynomialDecay'.
+                    One of four scheduler types: 
+                    `PiecewiseConstantDecay <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay>`_ , 
+                    `ExponentialDecay, <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/ExponentialDecay>`_ 
+                    `InverseTimeDecay <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay>`_ , or
+                    `PolynomialDecay <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay>`_.
 
-                    Each type also requires additional arguments:
+                    Each type also requires additional arguments, as detailed below.
 
-                    'PiecewiseConstantDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay>`_ 
-                        boundaries:list
-                            A list of Tensors or ints or floats with strictly increasing entries, and with all elements having the same type as the optimizer step.
-                        values:list
-                        	A list of Tensors or floats or ints that specifies the values for the intervals defined by boundaries. It should have one more element than boundaries, and all elements should have the same type.
+                    PiecewiseConstantDecay:
 
-                    'ExponentialDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/ExponentialDecay>`_ 
-                        initial_learning_rate:float
-                        	The initial learning rate.
-                        decay_steps: int
-                            The decay steps (must be positive). In each step, the learning rate is calculated as initial_learning_rate * decay_rate ^ (step / decay_steps)
-                        decay_rate:float
+                    boundaries:list
+                        A list of Tensors or ints or floats with strictly increasing entries, and with all elements 
+                        having the same type as the optimizer step.
+                    values:list
+                        A list of Tensors or floats or ints that specifies the values for the intervals defined by 
+                        boundaries. It should have one more element than boundaries, and all elements should have the same type.
+
+                    ExponentialDecay:
+
+                    initial_learning_rate:float
+                        The initial learning rate.
+                    decay_steps: int
+                        The decay steps (must be positive). In each step, the learning rate is calculated as 
+                        initial_learning_rate * decay_rate ^ (step / decay_steps)
+                    decay_rate:float
+                        The decay rate.
+                    staircase:bool
+                        If True decay the learning rate at discrete intervals
+
+                    InverseTimeDecay:
+
+                    initial_learning_rate:float
+                        The initial learning rate.
+                    decay_steps:int
+                        How often to apply decay.
+                    decay_rate:float
                             The decay rate.
-                        staircase:bool
-                        	If True decay the learning rate at discrete intervals
+                    staircase:bool
+                        Whether to apply decay in a discrete staircase, as opposed to continuous, fashion.
 
-                    'InverseTimeDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay>`_ 
-                        initial_learning_rate:float
-                        	The initial learning rate.
-                        decay_steps:int
-                        	How often to apply decay.
-                        decay_rate:float
-                        	 The decay rate.
-                        staircase:bool
-                        	Whether to apply decay in a discrete staircase, as opposed to continuous, fashion.
+                    PolynomialDecay:
 
-                    'PolynomialDecay' (`See the tensorflow documentation) <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/PolynomialDecay>`_ 
-                        initial_learning_rate:float
-                            The initial learning rate.
-                        decay_steps:int
-                        	Must be positive. The number of steps in which the end_learning_rate should be reached.
-                        end_learning_rate:float
-                        	The minimal end learning rate.
-                        power:float
-                        	The power of the polynomial. Defaults to linear, 1.0.
-                        cycle:bool
-                        	Whether or not it should cycle beyond decay_steps.
-
+                    initial_learning_rate:float
+                        The initial learning rate.
+                    decay_steps:int
+                        Must be positive. The number of steps in which the end_learning_rate should be reached.
+                    end_learning_rate:float
+                        The minimal end learning rate.
+                    power:float
+                        The power of the polynomial. Defaults to linear, 1.0.
+                    cycle:bool
+                        Whether or not it should cycle beyond decay_steps.
         """
         scheduler_types = {"PiecewiseConstantDecay":tf.keras.optimizers.schedules.PiecewiseConstantDecay,
                             "ExponentialDecay":tf.keras.optimizers.schedules.ExponentialDecay,
@@ -1060,30 +1043,28 @@ class NNInterface():
 
             The following parameters are expected:
 
-                "metric": str
+                metric: str
                     The name of the metric to be monitored. It must be one the metrics
                     defined when creating a neural network interface, either through 
                     the 'metrics' argument of the class constructor or the 'metrics' field in a recipe.
                     The name must be prefixed by 'train\_' or 'val\_', indicating weather the training or
                     validation metric should be monitored.
-                "decreasing": bool,
+                decreasing: bool,
                     If True, improvements will be indicated by a decrease in the metric value during training. 
                     If False, improvements will be defined as an increase in the metric value.
-                "period": int
+                period: int
                     The number of epochs the training loop will continue without any improvement before training is stopped.
                     Example: If period is 5, training will stop if the target metric does not improve for 5 consecutive epochs.
-                "min_epochs": int
+                min_epochs: int
                     The number of epochs to train for before starting to monitor.
-                "delta": float
+                delta: float
                     The minimum difference between the current metric value and the best
                     value recorded since the monitor started. An improvement is only considered if
                     (current value - best value) <= delta (if decreasing is True) or 
                     (current value - best value) >= delta (if decreasing is False)
-                "baseline": float or None
+                baseline: float or None
                     If this value is reached, training will stop immediately.
                     If None, this parameter is ignored.
-
-
         """
         return self._early_stopping_monitor
 
@@ -1092,8 +1073,6 @@ class NNInterface():
     def early_stopping_monitor(self, parameters):
         valid_metrics = [m.name for m in self._train_metrics] + [m.name for m in self._val_metrics] + [self._train_loss.name] + [self._val_loss.name]
         assert parameters['metric'] in  valid_metrics, "Invalid metric. Must be one of {}".format(str(valid_metrics)) 
-
-
         self._early_stopping_monitor = parameters
 
     @property
@@ -1109,7 +1088,6 @@ class NNInterface():
                     Path to the directory
 
         """
-
         self._checkpoint_dir = checkpoint_dir
         os.makedirs(self._checkpoint_dir, exist_ok=True)
 
@@ -1129,12 +1107,9 @@ class NNInterface():
             Args:
                 metric_value:list
                     List of metric values. Usually returned by model.train_on_batch or generated by custom metrics.
-        
         """
-
         message  = [self.model.metrics_names[i] + ": {:.3f} ".format(metric_values[i]) for i in range(len(self.model.metrics_names))]
         print(''.join(message))
-
 
 
     def _name_logs(self, logs, prefix="train_"):
@@ -1150,11 +1125,10 @@ class NNInterface():
                 named_log: zip
                     A zip iterator that yields a tuple: (prefix + log metric name, log value)
         """
-
-
         named_logs = {}
         for l in zip(self.metrics_names, logs):
             named_logs[prefix+l[0]] = l[1]
+        
         return named_logs
 
     @tf.function
@@ -1162,10 +1136,10 @@ class NNInterface():
         with tf.GradientTape() as tape:
             predictions = self.model(inputs, training=True)
             loss = self.loss_function.instance(labels, predictions)
+        
         gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.instance.apply_gradients(zip(gradients, self.model.trainable_variables))
         self._train_loss(loss)
-        
         for train_metric in self._train_metrics:
             train_metric(labels, predictions)
 
@@ -1173,7 +1147,6 @@ class NNInterface():
     def _val_step(self,inputs, labels):
         predictions = self.model(inputs, training=False)
         v_loss = self.loss_function.instance(labels, predictions)
-
         self._val_loss(v_loss)
         for val_metric in self._val_metrics:
             val_metric(labels, predictions)
@@ -1194,44 +1167,50 @@ class NNInterface():
                     return m.result()
 
 
-    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', checkpoint_freq=5, early_stopping=False):
+    def train_loop(self, n_epochs, verbose=True, validate=True, log_tensorboard=False, 
+        tensorboard_metrics_name='tensorboard_metrics', log_csv=False, csv_name='log.csv', 
+        checkpoint_freq=5, early_stopping=False):
         """ Train the model
-
 
             Typically, before starting the training loop, a few steps will already have been taken:
             
-        
-            #Set the batch generator for the training data
-            model.train_generator = my_train_generator
-            #Set the batch generator for the validation data (optional; only if the validate option is set to True)
-            model.val_generator = my_val_generator
-            # Set the log_dir
-            model.log_dir = "./my_logs"
-            # Set the checkpoint_dir
-            model.checkpoint_dir = "./my_checkpoints"
-            model.train_loop(n_epochs=50)
-
+            >>> #Set the batch generator for the training data
+            >>> model.train_generator = my_train_generator
+            >>> #Set the batch generator for the validation data (optional; only if the validate option is set to True)
+            >>> model.val_generator = my_val_generator
+            >>> # Set the log_dir
+            >>> model.log_dir = "./my_logs"
+            >>> # Set the checkpoint_dir
+            >>> model.checkpoint_dir = "./my_checkpoints"
+            >>> model.train_loop(n_epochs=50)
 
             Args:
                 n_epochs:int
-                    The number of epochs (i.e.: passes through the entire training dataset, as defined by the train_generator attribute)
+                    The number of epochs (i.e.: passes through the entire training dataset, as defined 
+                    by the train_generator attribute)
                 verbose:bool
                     If True, print summary metrics at the end of each epoch
                 validate:bool
-                    If True, evaluate the model on the validation data (as defined by the val_generator attribute) at the end of each epoch
+                    If True, evaluate the model on the validation data (as defined by the val_generator 
+                    attribute) at the end of each epoch
                 log_tensorboard:bool
-                    If True, log the training and validation (if validate is True) metrics in the tensoraboard format.
+                    If True, log the training and validation (if validate is True) metrics in the tensoraboard 
+                    format.
                     See 'tensorboard_metrics_name' below.
                 tensorboard_metrics_name:string
-                    The name of the directory where the tensorboard metrics will be saved. This directory will be created within the path specified by the log_dir attribute.
+                    The name of the directory where the tensorboard metrics will be saved. This directory 
+                    will be created within the path specified by the log_dir attribute.
                     Default is 'tensorboard_metrics'. Only relevant if log_tensorboard is True.
                 log_csv:bool
-                    If True, log the training and validation (if validate is True) metrics in a csv file (see csv_name).
+                    If True, log the training and validation (if validate is True) metrics in a csv file 
+                    (see csv_name).
                     
-                    The csv will have the following columns:
-                    epoch: the epoch number, starting from 1
-                    loss: the value of the loss metric
-                    dataset: 'train' or 'val'(only when validate is True)
+                    The csv will have the following columns,
+
+                     * epoch: the epoch number, starting from 1
+                     * loss: the value of the loss metric
+                     * dataset: 'train' or 'val' (only when validate is True)
+                    
                     In addition, each metric defined by the metrics attribute will be added as a column.
 
                     Example:
@@ -1244,17 +1223,24 @@ class NNInterface():
                     50,0.160,val,0.848,0.748,0.838
 
                 checkpoint_freq:int
-                    The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be saved to the directory defined by the checkpoint_dir attribute.
-                    This number should not exceed 'n_epochs'. If early_stopping  (see below) is used, this parameter is ignored and every epoch is saved as a checkpoint
-                    so that the model state can be set to whichever chekpopint is selected by the early stopping monitor. 
+                    The frequency (in epochs) with which checkpoints (i.e.: the model weights) will be 
+                    saved to the directory defined by the checkpoint_dir attribute.
+                    This number should not exceed 'n_epochs'. If early_stopping  (see below) is used, 
+                    this parameter is ignored and every epoch is saved as a checkpoint
+                    so that the model state can be set to whichever chekpopint is selected by the 
+                    early stopping monitor. 
                     If this value is <=0, no checkpoints will be saved.
 
                 early_stopping: bool
-                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when the conditions defined there are reached (or n_epochs is reached, whichever happens first).
-                    When training is stopped by the early stopping monitor, an attribute 'last_epoch_with_improvement' will be added to the object.
-                    This attribute holds the epoch number (starting from zero) that had the best metric value based on the conditions set by the early_stopping_monitor.
-                    The 'last_epoch_with_improvement' reflects the current state of the weights when trained is stopped early.
-
+                    If False, train for n_epochs. If True, use the early_stop_monitor to stop training when 
+                    the conditions defined there are reached (or n_epochs is reached, whichever 
+                    happens first).
+                    When training is stopped by the early stopping monitor, an attribute 'last_epoch_with_improvement' 
+                    will be added to the object.
+                    This attribute holds the epoch number (starting from zero) that had the best metric value 
+                    based on the conditions set by the early_stopping_monitor.
+                    The 'last_epoch_with_improvement' reflects the current state of the weights when trained 
+                    is stopped early.
         """
         assert checkpoint_freq <= n_epochs, "The checkpoint frequency ({0}) cannot be greater than the number of epochs ({1})".format(checkpoint_freq, n_epochs)
 
@@ -1373,6 +1359,7 @@ class NNInterface():
                     
                     if should_stop == True:
                         break
+        
         if log_csv == True:
             log_csv_df.to_csv(os.path.join(self._log_dir, csv_name))
         
@@ -1380,7 +1367,6 @@ class NNInterface():
             last_checkpoint_with_improvement = "cp-{:04d}.ckpt".format(self.last_epoch_with_improvement + 1)
             self.model.load_weights(os.path.join(self.checkpoint_dir, last_checkpoint_with_improvement))
             return {'checkpoint_name':last_checkpoint_with_improvement}
-
 
 
     def run_on_test_generator(self, return_raw_output=False, compute_val_metrics=True, verbose=True, return_metrics=False):
