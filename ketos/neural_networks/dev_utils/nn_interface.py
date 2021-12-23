@@ -98,7 +98,6 @@ class NNInterface():
         When implementing new neural network architectures, the interface implemented in this clas can be inherited.
 
     Args:
-
         optimizer: RecipeCompat object
             An instance of the RecipeCompat class wrapping a tensorflow(-compatible) optimizer (e.g.:from tensorflow.keras.optimizers)
                 
@@ -108,10 +107,8 @@ class NNInterface():
         metrics: list of RecipeCompat objects
           A list of instances of the RecipeCompat class wrapping a tensorflow(-compatible) metric (e.g.:from tensorflow.keras.metrics)
 
-    Examples:
-     
+    Examples:     
         The following example shows how a newly defined network architecture could use the interface provided by NNInterface.
-
 
         First, the new architecture must be defined. Here, a simple multi-layer perceptron is defined in the following class.
 
@@ -126,7 +123,7 @@ class NNInterface():
         ...        output = self.dense(inputs)
         ...        output = self.dense(output)
         ...        output = self.final_node(output)
-
+        ...        return output
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
@@ -158,7 +155,6 @@ class NNInterface():
         ...        
         ...        with open(json_file, 'r') as json_recipe:
         ...            recipe_dict = json.load(json_recipe)
-        ...       
         ...
         ...        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
         ...        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
@@ -183,7 +179,6 @@ class NNInterface():
         ...        self.n_neurons = n_neurons
         ...        self.activation = activation
         ...        self.model = MLP(n_neurons=n_neurons, activation=activation)
-        ...       
         ...
         ...    def _extract_recipe_dict(self):
         ...   
@@ -195,7 +190,6 @@ class NNInterface():
         ...        recipe['activation'] = self.activation
         ...        
         ...        return recipe
-
     """
 
 
