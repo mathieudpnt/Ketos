@@ -134,31 +134,31 @@ class NNInterface():
         ...             loss_function = recipe['loss_function']
         ...             metrics = recipe['metrics']
         ...            
-        ...        else:
+        ...         else:
         ...             optimizer = cls._optimizer_from_recipe(recipe['optimizer'])
         ...             loss_function = cls._loss_function_from_recipe(recipe['loss_function'])
         ...             metrics = cls._metrics_from_recipe(recipe['metrics'])
         ...
-        ...        instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
-        ...        return instance
+        ...         instance = cls(n_neurons=n_neurons, activation=activation, optimizer=optimizer, loss_function=loss_function, metrics=metrics)
+        ...         return instance
         ... 
-        ...  @classmethod
-        ...  def _read_recipe_file(cls, json_file, return_recipe_compat=True):
-        ...        with open(json_file, 'r') as json_recipe:
+        ...     @classmethod
+        ...     def _read_recipe_file(cls, json_file, return_recipe_compat=True):
+        ...         with open(json_file, 'r') as json_recipe:
         ...            recipe_dict = json.load(json_recipe)
         ...
-        ...        optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
-        ...        loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
-        ...        metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
+        ...         optimizer = cls.optimizer_from_recipe(recipe_dict['optimizer'])
+        ...         loss_function = cls.loss_function_from_recipe(recipe_dict['loss_function'])
+        ...         metrics = cls.metrics_from_recipe(recipe_dict['metrics'])
         ...
-        ...        if return_recipe_compat == True:
-        ...            recipe_dict['optimizer'] = optimizer
-        ...            recipe_dict['loss_function'] = loss_function
-        ...            recipe_dict['metrics'] = metrics
-        ...        else:
-        ...            recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
-        ...            recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
-        ...            recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
+        ...         if return_recipe_compat == True:
+        ...             recipe_dict['optimizer'] = optimizer
+        ...             recipe_dict['loss_function'] = loss_function
+        ...             recipe_dict['metrics'] = metrics
+        ...         else:
+        ...             recipe_dict['optimizer'] = cls._optimizer_to_recipe(optimizer)
+        ...             recipe_dict['loss_function'] = cls._loss_function_to_recipe(loss_function)
+        ...             recipe_dict['metrics'] = cls._metrics_to_recipe(metrics)
         ...
         ...        recipe_dict['n_neurons'] = recipe_dict['n_neurons']    # read the n_neurons parameter from the recipe file
         ...        recipe_dict['activation'] = recipe_dict['activation']  # read the activation parameter from the recipe file
