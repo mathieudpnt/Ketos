@@ -121,12 +121,11 @@ class NNInterface():
 
         With the architecture, the interface to the MLP can be created by subclassing NNInterface:
         
-        >>> from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface  # doctest: +SKIP
-        >>> 
-        >>> class MLPInterface(NNInterface):
+        >>> from ketos.neural_networks.dev_utils import RecipeCompat, NNInterface   # doctest: +SKIP
+        >>> class MLPInterface(NNInterface):  # doctest: +SKIP
         ...     @classmethod
         ...     def _build_from_recipe(cls, recipe, recipe_compat=True):
-        ...     n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
+        ...         n_neurons = recipe['n_neurons']    # take the n_neurons parameter from the recipe instead of using the default
         ...         activation = recipe['activation']  # take the activation parameter from the recipe instead of using the default
         ...        
         ...         if recipe_compat == True:
@@ -1175,14 +1174,14 @@ class NNInterface():
             Typically, before starting the training loop, a few steps will already have been taken:
             
             >>> #Set the batch generator for the training data
-            >>> model.train_generator = my_train_generator
+            >>> model.train_generator = my_train_generator # doctest: +SKIP
             >>> #Set the batch generator for the validation data (optional; only if the validate option is set to True)
-            >>> model.val_generator = my_val_generator
+            >>> model.val_generator = my_val_generator # doctest: +SKIP
             >>> # Set the log_dir
-            >>> model.log_dir = "./my_logs"
+            >>> model.log_dir = "./my_logs" # doctest: +SKIP
             >>> # Set the checkpoint_dir
-            >>> model.checkpoint_dir = "./my_checkpoints"
-            >>> model.train_loop(n_epochs=50)
+            >>> model.checkpoint_dir = "./my_checkpoints" # doctest: +SKIP
+            >>> model.train_loop(n_epochs=50) # doctest: +SKIP
 
             Args:
                 n_epochs:int
