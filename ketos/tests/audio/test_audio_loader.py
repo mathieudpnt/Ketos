@@ -45,27 +45,27 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 
 def test_init_audio_frame_loader_with_folder(five_time_stamped_wave_files):
     """ Test that we can initialize an instance of the AudioFrameLoader class from a folder"""
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.5)
     assert len(loader.sel_gen.files) == 5
 
 def test_init_audio_frame_loader_with_wav_file(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file"""
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5)
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
 def test_init_audio_frame_loader_with_batches(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file with a batch size greater than 1"""
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, batch_size=2)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5, batch_size=2)
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
 def test_init_audio_frame_loader_with_batch_size_one_file(sine_wave_file):
     """ Test that we can initialize an instance of the AudioFrameLoader class 
         from a single wav file with a batch size equal to 1 file"""
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, batch_size='FILE')
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5, batch_size='FILE')
     assert len(loader.sel_gen.files) == 1
     assert loader.num() == 6
 
@@ -73,9 +73,9 @@ def test_audio_frame_loader_gives_same_output_with_batches(sine_wave_file):
     """ Test that segments returned by the AudioFrameLoader class are independent of batch size"""
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'freq_max':800}
     fname = os.path.join(path_to_assets, 'grunt1.wav')
-    loader1 = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size=1)
-    loader3 = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size=3)
-    loaderf = AudioFrameLoader(filename=fname, frame=0.4, step=0.12, repres=rep, batch_size='file')
+    loader1 = AudioFrameLoader(filename=fname, duration=0.4, step=0.12, repres=rep, batch_size=1)
+    loader3 = AudioFrameLoader(filename=fname, duration=0.4, step=0.12, repres=rep, batch_size=3)
+    loaderf = AudioFrameLoader(filename=fname, duration=0.4, step=0.12, repres=rep, batch_size='file')
     for i in range(loader1.num()):
         x1 = next(loader1)
         x3 = next(loader3)
@@ -88,7 +88,7 @@ def test_audio_frame_loader_gives_same_output_with_batches(sine_wave_file):
 def test_audio_frame_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'decibel':False}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.5, repres=rep)
     assert len(loader.sel_gen.files) == 5
     assert loader.num() == 5
     s = next(loader)
@@ -103,7 +103,7 @@ def test_audio_frame_loader_multiple_representations(five_time_stamped_wave_file
     """ Test that we can use the AudioFrameLoader class to load multiple audio representations""" 
     rep1 = {'type':'Waveform'}
     rep2 = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=[rep1, rep2])
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.5, repres=[rep1, rep2])
     assert len(loader.sel_gen.files) == 5
     assert loader.num() == 5
     s = next(loader)
@@ -121,7 +121,7 @@ def test_audio_frame_loader_mag_in_batches(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
         in batches""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'transforms':[]}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.26, repres=rep, batch_size=3)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.26, repres=rep, batch_size=3)
     assert len(loader.sel_gen.files) == 5
     assert loader.num() == 10
     s = next(loader) 
@@ -141,7 +141,7 @@ def test_audio_frame_loader_mag_in_batches_1_file(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms 
         in batches of 1 file per batch""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.12, repres=rep, batch_size='file')
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.12, repres=rep, batch_size='file')
     assert len(loader.sel_gen.files) == 5
     assert loader.num() == 25
     assert loader.sel_gen.file_id == 1
@@ -164,11 +164,11 @@ def test_audio_frame_loader_norm_mag(sine_wave_file):
     """ Test that we can initialize the AudioFrameLoader class to compute MagSpectrograms
         with the normalize_wav option set to True""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5, repres=rep)
     spec1 = next(loader)
     spec1 = next(loader)
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'normalize_wav': True}
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5, repres=rep)
     spec2 = next(loader)
     spec2 = next(loader)
     d1 = from_decibel(spec1.get_data())
@@ -185,7 +185,7 @@ def test_audio_frame_loader_mag_transforms(sine_wave_file):
     noise_trans = {'name':'add_gaussian_noise', 'sigma':2.0}
     wf_transforms = [norm_trans, noise_trans]
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02, 'transforms':transforms, 'waveform_transforms':wf_transforms}
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=0.5, repres=rep)
     spec1 = next(loader)
     assert spec1.transform_log == transforms
     assert spec1.waveform_transform_log == wf_transforms
@@ -194,7 +194,7 @@ def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
         with durations shorter than file durations""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.2, repres=rep)
     assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
@@ -222,7 +222,7 @@ def test_audio_frame_loader_overlap(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, step=0.06, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.2, step=0.06, repres=rep)
     assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
@@ -237,7 +237,7 @@ def test_audio_frame_loader_overlap_batches(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms in batches""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, step=0.06, repres=rep, batch_size=2)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.2, step=0.06, repres=rep, batch_size=2)
     assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.2
@@ -251,7 +251,7 @@ def test_audio_frame_loader_overlap_batches(five_time_stamped_wave_files):
 def test_audio_frame_loader_uniform_length(five_time_stamped_wave_files):
     """ Check that the AudioFrameLoader always returns segments of the same length""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.2, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.2, repres=rep)
     assert len(loader.sel_gen.files) == 5
     for _ in range(10):
         s = next(loader)
@@ -264,13 +264,13 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     dur = librosa.core.get_duration(filename=sine_wave_file)
     # duration is an integer number of lengths
     l = 0.2
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=l, repres=rep)
     assert len(loader.sel_gen.files) == 1
     N = int(dur / l)
     assert N == loader.sel_gen.num_segs[0]
     # duration is *not* an integer number of lengths
     l = 0.21
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=l, repres=rep)
     N = int(np.ceil(dur / l))
     assert N == loader.sel_gen.num_segs[0]
     # loop over all segments
@@ -279,7 +279,7 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     # non-zero overlap
     l = 0.21
     o = 0.8*l
-    loader = AudioFrameLoader(filename=sine_wave_file, frame=l, step=l-o, repres=rep)
+    loader = AudioFrameLoader(filename=sine_wave_file, duration=l, step=l-o, repres=rep)
     step = l - o
     N = int(np.ceil((dur-l) / step) + 1)
     assert N == loader.sel_gen.num_segs[0]
@@ -351,7 +351,7 @@ def test_audio_frame_loader_mag_json(five_time_stamped_wave_files, spectr_settin
     """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms from json settings""" 
     data = json.loads(spectr_settings)
     rep = parse_audio_representation(data['spectrogram'])
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, duration=0.5, repres=rep)
     assert len(loader.sel_gen.files) == 5
     s = next(loader)
     assert s.duration() == 0.5
@@ -366,7 +366,7 @@ def test_audio_frame_loader_accepts_filename_list(five_time_stamped_wave_files, 
     filename = ['empty_HMS_12_ 5_ 0__DMY_23_ 2_84.wav', 
                 'empty_HMS_12_ 5_ 1__DMY_23_ 2_84.wav',
                 'empty_HMS_12_ 5_ 2__DMY_23_ 2_84.wav']
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, filename=filename, frame=0.5, repres=rep)
+    loader = AudioFrameLoader(path=five_time_stamped_wave_files, filename=filename, duration=0.5, repres=rep)
     assert len(loader.sel_gen.files) == 3
     s = next(loader)
     assert s.duration() == 0.5
@@ -396,7 +396,7 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
 def test_audio_frame_loader_on_2min_wav():
     rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':600.}
     path = os.path.join(path_to_assets, '2min.wav')
-    loader = AudioFrameLoader(filename=path, frame=30., step=15., repres=rep)
+    loader = AudioFrameLoader(filename=path, duration=30., step=15., repres=rep)
     assert loader.num() == 8
     s = next(loader)
     assert s.freq_max() == pytest.approx(600, abs=s.freq_res())
@@ -405,7 +405,7 @@ def test_audio_frame_loader_subdirs():
     """Test that loader can load audio files from subdirectories"""
     rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
     path = os.path.join(path_to_assets, 'wav_files')
-    loader = AudioFrameLoader(path=path, frame=30., step=15., repres=rep)
+    loader = AudioFrameLoader(path=path, duration=30., step=15., repres=rep)
     assert len(loader.sel_gen.files) == 3
     for _ in range(loader.num()):
         _ = next(loader)
@@ -507,7 +507,7 @@ def test_audio_select_loader_start_end_outside_file(five_time_stamped_wave_files
 def test_audio_frame_loader_get_files():
     """Test that the get_file_paths method of the AudioFrameLoader class works"""
     path = os.path.join(path_to_assets, 'wav_files')
-    loader = AudioFrameLoader(path=path, frame=30., step=15.)
+    loader = AudioFrameLoader(path=path, duration=30., step=15.)
     file_paths = loader.get_file_paths()
     expected = [os.path.join(path, 'subf', 'w3.wav'), os.path.join(path, 'w1.wav'), os.path.join(path, 'w2.wav')]
     assert file_paths == expected
@@ -516,10 +516,10 @@ def test_audio_frame_loader_in_batches_with_transforms(growing_sine_wave_file):
     """ Test that transform are applied correctly to audio loaded in batches""" 
     norm_trans = {'name':'normalize','mean':0.5,'std':1.2}
     rep = {'type':'Waveform', 'transforms':[norm_trans]}
-    loader = AudioFrameLoader(filename=growing_sine_wave_file, frame=0.04, repres=rep, batch_size=2)
+    loader = AudioFrameLoader(filename=growing_sine_wave_file, duration=0.04, repres=rep, batch_size=2)
     wf1_b = next(loader)
     wf2_b = next(loader)
-    loader = AudioFrameLoader(filename=growing_sine_wave_file, frame=0.04, repres=rep, batch_size=1)
+    loader = AudioFrameLoader(filename=growing_sine_wave_file, duration=0.04, repres=rep, batch_size=1)
     wf1 = next(loader)
     wf2 = next(loader)
     assert np.all(wf1_b.get_data() == wf1.get_data())

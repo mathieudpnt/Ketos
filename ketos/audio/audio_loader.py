@@ -192,24 +192,33 @@ class SelectionTableIterator(SelectionGenerator):
 
 
 class FrameStepper(SelectionGenerator):
-    """ Generates selections with uniform duration 'frame', with successive selections 
+    """ Generates selections with uniform length 'duration', with successive selections 
         displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
-        to 'frame'.)
+        to 'duration'.)
 
         Args: 
-            frame: float
-                Frame length in seconds.
+            duration: float
+                Selection length in seconds.
             step: float
-                Separation between consecutive frames in seconds. If None, the step size 
-                equals the frame length.
+                Separation between consecutive selections in seconds. If None, the step size 
+                equals the selection length.
             path: str
                 Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
                 Relative path to a single .wav file or a list of .wav files. Optional.
+            frame: float
+                Same as duration. Only included for backward compatibility. Will be removed in future versions.
     """
-    def __init__(self, frame, step=None, path=None, filename=None):
-        self.frame = frame
-        if step is None: self.step = frame
+    def __init__(self, duration=None, step=None, path=None, filename=None, frame=None):
+        assert duration is not None or frame is not None, "Either duration or frame must be specified"
+        
+        if frame is not None:
+            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
+            if duration is None:
+                duration = frame
+            
+        self.duration = duration
+        if step is None: self.step = duration
         else: self.step = step
 
         if path is None: path = os.getcwd()
@@ -239,7 +248,7 @@ class FrameStepper(SelectionGenerator):
         self.file_durations = self.file_durations[self.file_durations > 0].tolist()
 
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in self.file_durations]
+        self.num_segs = [int(np.ceil((dur - self.duration) / self.step)) + 1 for dur in self.file_durations]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
         self.reset()
@@ -251,7 +260,7 @@ class FrameStepper(SelectionGenerator):
                 audio_sel: dict
                     Audio selection
         """
-        audio_sel = {'data_dir':self.dir, 'filename': self.files[self.file_id], 'offset':self.time, 'duration':self.frame}
+        audio_sel = {'data_dir':self.dir, 'filename': self.files[self.file_id], 'offset':self.time, 'duration':self.duration}
         self.time += self.step #increment time       
         self.seg_id += 1 #increment segment ID
         if self.seg_id == self.num_segs[self.file_id]: self._next_file() #if this was the last segment, jump to the next file
@@ -438,12 +447,12 @@ class AudioLoader():
 class AudioFrameLoader(AudioLoader):
     """ Load segments of audio data from .wav files. 
 
-        Loads segments of uniform duration 'frame', with successive segments
+        Loads segments of uniform length 'duration', with successive segments
         displaced by an amount 'step'. (If 'step' is not specified, it is 
-        set equal to 'frame'.)
+        set equal to 'duration'.)
 
         Args:
-            frame: float
+            duration: float
                 Segment duration in seconds. Can also be specified via the 'duration' 
                 item of the 'repres' dictionary.
             step: float
@@ -467,6 +476,8 @@ class AudioFrameLoader(AudioLoader):
                 Increasing the batch size can help reduce computational time.
                 The default batch size is 1. 
                 You can also specify batch_size='file' to load one wav file at the time.
+            frame: float
+                Same as duration. Only included for backward compatibility. Will be removed in future versions.
 
         Examples:
             >>> import librosa
@@ -479,7 +490,7 @@ class AudioFrameLoader(AudioLoader):
             >>> # specify the audio representation
             >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
             >>> # create an object for loading 30-s long spectrogram segments, using a step size of 15 s (50% overlap) 
-            >>> loader = AudioFrameLoader(frame=30., step=15., filename=filename, repres=rep)
+            >>> loader = AudioFrameLoader(duration=30., step=15., filename=filename, repres=rep)
             >>> # print number of segments
             >>> print(loader.num())
             8
@@ -493,22 +504,27 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, **kwargs):
+    def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
+                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, frame=None, **kwargs):
+
+        if frame is not None:
+            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
+            if duration is None:
+                duration = frame
 
         if isinstance(repres, list): r0 = repres[0]
         else: r0 = repres
 
-        assert 'duration' in r0.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
+        assert 'duration' in r0.keys() or duration is not None, 'duration must be specified either with the duration argument or in the audio representation dictionary'
 
-        if frame is None: frame = r0['duration']
+        if duration is None: duration = r0['duration']
 
-        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != frame:
-            print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
+        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != duration:
+            print("Warning: Mismatch between duration argument ({0:.3f} s) and duration parameter in audio representation ({1:.3f} s). The latter value will be ignored.")
 
         assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
 
-        super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
+        super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, filename=filename), 
             channel=channel, annotations=annotations, repres=repres, **kwargs)
 
         self.transforms_list = []
@@ -555,7 +571,7 @@ class AudioFrameLoader(AudioLoader):
             data_dir = audio_sel['data_dir']
             filename = audio_sel['filename']            
 
-        duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
+        duration = self.sel_gen.duration + self.sel_gen.step * (self.batch_size - 1)
 
         # load the data without applying transforms
         self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, 
@@ -567,7 +583,7 @@ class AudioFrameLoader(AudioLoader):
         for i in range(len(self.transforms_list)):
 
             # segment the data
-            self.batch[i] = self.batch[i].segment(window=self.sel_gen.frame, step=self.sel_gen.step)
+            self.batch[i] = self.batch[i].segment(window=self.sel_gen.duration, step=self.sel_gen.step)
 
             # apply the transforms to each segment separately 
             with warnings.catch_warnings():
