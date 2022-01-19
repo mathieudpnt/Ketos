@@ -1,6 +1,12 @@
 Change log
 ==========
 
+**Version 2.4.2** (Month Day, 2022)
+
+ * In :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and :class:`FrameStepper <ketos.audio.audio_loader.FrameStepper>` the 
+   `frame` argument has been renamed to `duration` for consistency with the rest of ketos. The `frame` argument is still there for backward 
+   compatibility. 
+
 **Version 2.4.1** (December 18, 2021)
 
  * Improved structure and rewamp style of html docs
