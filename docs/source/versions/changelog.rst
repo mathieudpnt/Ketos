@@ -3,6 +3,9 @@ Change log
 
 **Version 2.4.2** (Month Day, 2022)
 
+ * Extended Tensorflow compatibility to include versions 2.6 and 2.7. (Note: If you are using Tensorflow 2.6, make sure that your Keras 
+   version is also 2.6. Normally, when you install Tensorflow with pip, the correct Keras version will automatically be installed, but 
+   specifically for Tensorflow 2.6, pip will wrongly install Keras 2.7 causing a mis-match between the two packages.) 
  * In :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and :class:`FrameStepper <ketos.audio.audio_loader.FrameStepper>` the 
    `frame` argument has been renamed to `duration` for consistency with the rest of ketos. The `frame` argument is still there for backward 
    compatibility. 
