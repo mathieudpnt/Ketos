@@ -3,6 +3,9 @@ Change log
 
 **Version 2.4.2** (Month Day, 2022)
 
+ * For each processed selection the :meth:`create_database <ketos.data_handling.database_interface.create_database>` function checks 
+   if the selection start and end times are within the audio file duration and issues a warning if this is not the case. (Requires 
+   verbose to be set to True, which is the default setting.)   
  * Extended Tensorflow compatibility to include versions 2.6 and 2.7. (Note: If you are using Tensorflow 2.6, make sure that your Keras 
    version is also 2.6. Normally, when you install Tensorflow with pip, the correct Keras version will automatically be installed, but 
    specifically for Tensorflow 2.6, pip will wrongly install Keras 2.7 causing a mis-match between the two packages.) 

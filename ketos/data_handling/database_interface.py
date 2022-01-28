@@ -37,6 +37,7 @@
 
 import os
 import tables
+import librosa
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -425,7 +426,7 @@ def write_annot(table, data_index, annots):
         row.append()
         table.flush()
 
-def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label=None, id=None):
+def write_audio(table, data, attrs={}, id=None):
     """ Write an audio object, typically a waveform or spectrogram, to a HDF5 table.
 
         Args:
@@ -450,9 +451,6 @@ def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label
             index: int
                 Index of row that the audio object was saved to.
     """
-    #write_source = ("filename" in table.colnames)
-    #write_label  = ("label" in table.colnames)
-
     row = table.row
     index = table.nrows
 
@@ -469,13 +467,6 @@ def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label
     for key,value in attrs.items(): #loop over instance attributes
         if key in table.colnames: #check that table has appropriate column
             if value is not None: row[key] = value #write value to appropriate field
-
-#    if write_source:
-#        if filename is not None: row['filename'] = filename  #pass filename to table
-#        if offset is not None:   row['offset'] = offset  #pass offset to table
-
-#    if write_label:
-#        if label is not None: row['label'] = label  #pass label to table
     
     row.append()
     table.flush()
@@ -728,7 +719,42 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
         audio_objs = audio_class.stack(audio_objs)
 
     return audio_objs
+
+def generate_warning_on_file_duration(start, end, file_path, file_duration):
+    """ Generate warning message if the selection start or end time is outside of the audio file's duration.
+
+        Args:
+            start: float
+                Annotation start time with respect to beginning of file in seconds.
+            end: float
+                Annotation end time with respect to beginning of file in seconds.
+            file_path: str
+                Full path of the audio file.
+            file_duration: float
+                Audio file length in seconds.
+    """
+    # total length of selection
+    len_tot = end - start
+    # determine how much of the selection is outside the file
+    len_outside = max(0, -start) + max(0, end - file_duration)
     
+    # print warnings if selection end is zero or negative
+    if (end <= 0):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time ({end:.2f}s) is earlier than the start of the file")
+
+    # print warnings if selection start is later than the file end time
+    if (start > file_duration):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection start time ({start:.2f}s) is later than the end of the file")
+
+    #print a warning that the selection has 0 or negative length (end before start)
+    if (len_tot <= 0):
+         print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time is less than or equal to the selection start time.")
+         
+    # print a warning that a fraction larger than 50% of the selection is outside the file
+    if (len_outside > 0.5 * len_tot):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: at least half of the selection duration ({end-start:.2f}s) does not fall within the file")
+
+
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
@@ -750,6 +776,9 @@ def create_database(output_file, data_dir, selections, channel=0,
         
         If the method encounters problems loading/writing a sound clipe, it continues 
         while printing a warning
+        
+        If the start/end time of the annotation is outside the range of the audio file
+        the function shows warning message
     
         Args:
             output_file:str
@@ -815,7 +844,8 @@ def create_database(output_file, data_dir, selections, channel=0,
                     ’w’: Write; a new file is created (an existing file with the same name would be deleted). 
                     ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created. This is the default.
                     ’r+’: It is similar to ‘a’, but the file must already exist.
-    """    
+    """   
+    
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
@@ -826,11 +856,30 @@ def create_database(output_file, data_dir, selections, channel=0,
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
     
+    file_duration_mapping = dict()
+    
     for i in tqdm(range(loader.num()), disable = not progress_bar):
-        loader_filename=loader.sel_gen.get_selection(id=i)['filename']
+        audio_selection = loader.sel_gen.get_selection(id=i)
+        loader_filename = audio_selection['filename']
         
+        # Get full file path and name
+        file_full_path = os.path.join(audio_selection['data_dir'], loader_filename)
+        
+        file_duration = file_duration_mapping.get(file_full_path)
         try:
+            # If file duration does not exist in the dict, get file duration in seconds
+            if (file_duration == None):
+                file_duration = librosa.get_duration(filename=file_full_path)
+                file_duration_mapping[file_full_path] = file_duration
+            
+            if verbose:
+                # check if selection is within audio file
+                start = audio_selection['offset']
+                end = audio_selection['offset'] + audio_selection['duration']
+                generate_warning_on_file_duration(start, end, file_full_path, file_duration)
+
             x = next(loader)
+
         except Exception as e:
             if(verbose):
                 print("Warning: while loading {0}, Message: {1}".format(loader_filename, str(e)))
@@ -838,6 +887,7 @@ def create_database(output_file, data_dir, selections, channel=0,
         
         try:
             writer.write(x=x, path=path_to_dataset, name='data')
+
         except Exception as e:
             if(verbose):
                 print("Warning: while writing {0}, Message: {1}".format(loader_filename, str(e)))
