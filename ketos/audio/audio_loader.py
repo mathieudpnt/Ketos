@@ -175,6 +175,7 @@ class SelectionTableIterator(SelectionGenerator):
         """
         audio_sel = {'data_dir': self.dir}
         audio_sel['filename'] = self.sel.index.values[id][0]
+        
         # current row
         s = self.sel.iloc[id]
         # start time

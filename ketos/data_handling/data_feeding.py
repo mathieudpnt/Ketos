@@ -100,7 +100,7 @@ class BatchGenerator():
                 Array containing the data labels. 
                 This array is expected to have a one-toone correspondence to the x array (i.e.: y[0] is expected to have the label for x[0], y[1] for x[1], etc).
                 If there are multiple labels for each data instance in x, use a data_table and an annot_table instead.
-            selec_indices: list of ints
+            select_indices: list of ints
                 Indices of those instances that will retrieved from the HDF5 table by the 
                 BatchGenerator. By default all instances are retrieved.
             output_transform_func: function

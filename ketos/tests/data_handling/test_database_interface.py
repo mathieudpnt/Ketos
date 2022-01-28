@@ -26,6 +26,7 @@
 
 """ Unit tests for the 'data_handling.database_interface' module within the ketos library
 """
+import sys
 import pytest
 import tables
 import os
@@ -812,5 +813,24 @@ def test_create_database_with_exception_handling(sine_wave_file):
     assert '/assets/data' in db
     specs = di.load_audio(table=db.root.assets.data)
     assert len(specs) == 2
+    db.close()
+    os.remove(out)
+    
+def test_create_database_check_file_duration(sine_wave_file):
+    """ Check if database can be created if selections are outside file """
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db16.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav'], 
+                        'start':[2.6, 0.1, -11.0, 4.5, -0.7],
+                        'end':[3.6, 1.1, -8.0, 5.5, 0.3],
+                        'label':[1, 1, 2, 1, 2]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=True, progress_bar=False)
+    # check database contents
+    db = di.open_file(out, 'r')
+    assert '/assets/data' in db
+    specs = di.load_audio(table=db.root.assets.data)
+    assert len(specs) == 3
     db.close()
     os.remove(out)
