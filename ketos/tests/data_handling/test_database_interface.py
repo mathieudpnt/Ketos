@@ -45,6 +45,20 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
+def test_open_file_create_dir():
+    """ Test if that a directory is created if it does not already exist """
+    folder = os.path.join(path_to_tmp, 'new_folder')
+    if os.path.isdir(folder): os.rmdir(folder) #remove folder if it already exists
+    file_path = os.path.join(folder, 'db.h5')
+    for mode in ['w','a']:
+        assert not os.path.isdir(folder) #check that folder does not exist before attempt to open
+        h5file = di.open_file(file_path, mode='w')
+        h5file.close()
+        assert os.path.isfile(file_path) #check that file has been created
+        os.remove(file_path) #clean
+        os.rmdir(folder) #clean
+
+
 def test_open_non_existing_table():
     """ Test if the expected exception is raised when the table does not exist """
     # open h5 file
