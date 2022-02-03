@@ -27,6 +27,7 @@
 import tensorflow as tf
 from .losses import FScoreLoss
 from ...data_handling.parsing import parse_audio_representation
+from ketos.utils import ensure_dir
 from zipfile import ZipFile
 from glob import glob
 from shutil import rmtree
@@ -830,7 +831,7 @@ class NNInterface():
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
 
-    def save_model(self, model_file, checkpoint_name=None, audio_repr=None, audio_repr_file=None):
+    def save_model(self, model_file, checkpoint_name=None, audio_repr=None, audio_repr_file=None, create_dir=True):
         """ Save the current neural network instance as a ketos (.kt) model file.
 
             The file includes the recipe necessary to build the network architecture and the parameter weights.
@@ -861,6 +862,9 @@ class NNInterface():
                     Optional path to an audio representation .json file. 
                     If passed, it will be added to the .kt file.
                     Overwrites audio_repr.
+                create_dir: bool
+                    If the output directory does not exist, it will be automatically created. 
+                    Default is True.
         """
         if audio_repr_file is not None:
             f = open(audio_repr_file, 'r')
@@ -868,6 +872,8 @@ class NNInterface():
             f.close()
 
         recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
+
+        if create_dir: ensure_dir(model_file)
 
         with ZipFile(model_file, 'w') as zip:
             

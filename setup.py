@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 #   $ twine upload dist/*
 
 setup(name='ketos',
-      version='2.4.1',
+      version='2.4.2',
       description="MERIDIAN Python package for deep-learning based acoustic detectors and classifiers",
       url='https://gitlab.meridian.cs.dal.ca/public_projects/ketos',
       author='Fabio Frazao, Oliver Kirsebom',

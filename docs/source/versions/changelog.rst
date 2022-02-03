@@ -3,6 +3,10 @@ Change log
 
 **Version 2.4.2** (Month Day, 2022)
 
+ * Disabled automatic import of data_handling, audio, and neural_networks submodules.
+ * Output directories will be automatically created if they do not already exist when calling 
+   :meth:`create_database <ketos.data_handling.database_interface.create_database>` and
+   :meth:`save_model <ketos.neural_networks.dev_utils.nn_interface.save_model>`. 
  * For each processed selection the :meth:`create_database <ketos.data_handling.database_interface.create_database>` function checks 
    if the selection start and end times are within the audio file duration and issues a warning if this is not the case. (Requires 
    verbose to be set to True, which is the default setting.)   
