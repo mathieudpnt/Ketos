@@ -510,7 +510,7 @@ def five_time_stamped_wave_files():
     for i in range(N):
         fname = 'empty_HMS_12_ 5_ {0}__DMY_23_ 2_84.wav'.format(i)
         full_path = os.path.join(folder, fname)
-        a = Waveform(rate=1000, data=np.zeros(500))
+        a = Waveform(rate=1000, data=np.random.uniform(size=500))
         a.to_wav(full_path)
         files.append(full_path)
 
