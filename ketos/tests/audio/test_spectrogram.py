@@ -134,9 +134,9 @@ def test_cropped_mag_spec_has_correct_frequency_axis_range(sine_audio):
     """Test that when we crop a spectrogram along the frequency axis, we get the correct range"""
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
     spec.crop(freq_max=4000)
-    assert pytest.approx(spec.freq_max(), 4000, 2*spec.freq_res())
+    assert np.abs(spec.freq_max() - 4000) < 2*spec.freq_res()
     spec.crop(freq_min=1000)
-    assert pytest.approx(spec.freq_min(), 1000, 2*spec.freq_res())
+    assert np.abs(spec.freq_min() - 1000) < 2*spec.freq_res()
 
 def test_blur_time_axis():
     """Test that blurring along time axis gives expected results"""
@@ -307,7 +307,7 @@ def test_resize_mag_spec_with_time_res(sine_audio):
     spec = MagSpectrogram.from_waveform(audio=sine_audio, window=0.2, step=0.05)
     new_spec = spec.deepcopy()
     new_spec.resize(time_res=0.2)
-    assert pytest.approx(new_spec.time_res(), 0.2, abs=0.001)
+    assert np.abs(new_spec.time_res() - 0.2) < 0.001
     assert new_spec.freq_res() == spec.freq_res()
     n_bins = int(spec.data.shape[0] * spec.time_res() / new_spec.time_res())
     assert new_spec.data.shape == (n_bins, spec.data.shape[1])
