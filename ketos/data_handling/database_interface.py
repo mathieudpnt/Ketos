@@ -180,7 +180,7 @@ def create_table(h5file, path, name, description, data_name='data', chunkshape=N
             >>> # Show the table description, with the field names (columns)
             >>> # and information about types and shapes
             >>> my_table
-            /group1/table_data (Table(0,), fletcher32, shuffle, zlib(1)) ''
+            /group1/table_data (Table(0,)fletcher32, shuffle, zlib(1)) ''
               description := {
               "data": Float32Col(shape=(32, 64), dflt=0.0, pos=0),
               "filename": StringCol(itemsize=100, shape=(), dflt=b'', pos=1),

@@ -147,7 +147,7 @@ def test_add_audio_signals(sine_audio):
     t = sine_audio.duration()
     v = np.copy(sine_audio.data)
     sine_audio.add(signal=sine_audio)
-    assert pytest.approx(sine_audio.duration(), t, abs=0.00001)
+    assert np.abs(sine_audio.duration() - t) < 0.00001
     assert np.all(np.abs(sine_audio.data - 2*v) < 0.00001)
     
 def test_add_audio_signals_with_offset(sine_audio):

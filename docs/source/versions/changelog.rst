@@ -3,6 +3,8 @@ Change log
 
 **Version 2.4.2** (Month Day, 2022)
 
+ * Extended Tensorflow compatibility to <=2.8
+ * Extended Python compatibility to <=3.9.10
  * Disabled automatic import of data_handling, audio, and neural_networks submodules.
  * Output directories will be automatically created if they do not already exist when calling 
    :meth:`create_database <ketos.data_handling.database_interface.create_database>` and

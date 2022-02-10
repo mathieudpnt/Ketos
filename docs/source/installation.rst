@@ -8,7 +8,7 @@ Ketos is available on the Python package index repository and the latest version
     pip install ketos
 
 
-Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6, 3.7, or 3.8. 
+Because Ketos uses TensorFlow as the deep learning framework, at this time it requires pip 20.0 or higher and python 3.6-3.9.
 
 Note that GPU support depends on CUDA®-enabled graphics cards and the necessary drivers and libraries. 
 Refer to  https://www.tensorflow.org/install/gpu for more information further instructions.
