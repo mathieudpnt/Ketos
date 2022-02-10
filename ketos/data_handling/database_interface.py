@@ -867,7 +867,7 @@ def create_database(output_file, data_dir, selections, channel=0,
     file_duration_mapping = dict()
     
     for i in tqdm(range(loader.num()), disable = not progress_bar):
-        audio_selection = loader.sel_gen.get_selection(id=i)
+        audio_selection = loader.get_selection(id=i)
         loader_filename = audio_selection['filename']
         
         # Get full file path and name
