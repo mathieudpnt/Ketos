@@ -27,11 +27,18 @@
 """ Unit tests for the 'utils' module within the ketos library
 """
 
+import os
+import shutil
 import pytest
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
-    detect_peaks, str_is_int, signif
+    detect_peaks, str_is_int, signif, ensure_dir
+
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
 def test_tostring():
@@ -109,3 +116,12 @@ def test_str_is_int():
 def test_signif():
     assert signif(1234,2) == 1200
     assert np.all(signif([1236,-4444],3) == [1240, -4440])
+
+def test_ensure_dir():
+    ensure_dir("x") #do nothing
+    ensure_dir("./x") #do nothing
+    folder = os.path.join(path_to_tmp, 'subfolder')
+    file_path = os.path.join(folder, 'file.txt') 
+    ensure_dir(file_path)
+    os.path.isdir(folder)
+    shutil.rmtree(folder)

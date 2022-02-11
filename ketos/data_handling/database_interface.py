@@ -1217,7 +1217,7 @@ class AudioWriter():
 
     def _open_file(self):
         """ Open a new database file, if none is open
-        """                
+        """            
         if self.file is None:
             if self.mode == 'a':
                 fname = self.base + self.ext
@@ -1225,6 +1225,7 @@ class AudioWriter():
                 fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
 
             self.file = open_file(path=fname, mode=self.mode, create_dir=self.create_dir)
+
             self.file_counter += 1
 
     def _detect_annot_type(self, x):
