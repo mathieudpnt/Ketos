@@ -44,7 +44,7 @@ def test_shape():
     gfb = GammatoneFilterBank.from_wav('ketos/tests/assets/grunt1.wav', num_chan=20, freq_min=10, rate=1000)
     # check that the filter bank frequencies are as expected
     assert len(gfb.freqs) == 20
-    assert pytest.approx(np.min(gfb.freqs), 10, abs=1e-6)
+    assert np.abs(np.min(gfb.freqs) - 10) < 1e-6
     # check that the data object has correct y-axis dimension
     assert gfb.get_data().shape[1] == 20
 

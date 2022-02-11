@@ -101,6 +101,7 @@ class SelectionGenerator():
         """        
         pass
     
+
 class SelectionTableIterator(SelectionGenerator):
     """ Iterates over entries in a selection table.
 
@@ -111,7 +112,8 @@ class SelectionTableIterator(SelectionGenerator):
                 Selection table
             duration: float
                 Use this argument to enforce uniform duration of all selections.
-                Any selection longer than the specified duration will be shortened
+                Any selection longer than the specified duration will be shortened at the end.
+                Any selection shorter than the specified duration will be extended at the end.
             include_attrs: bool
                 If True, load data from all attribute columns in the selection table. Default is False.
             attrs: list(str)
@@ -175,41 +177,56 @@ class SelectionTableIterator(SelectionGenerator):
         """
         audio_sel = {'data_dir': self.dir}
         audio_sel['filename'] = self.sel.index.values[id][0]
+        
         # current row
         s = self.sel.iloc[id]
+
         # start time
         if 'start' in s.keys(): offset = s['start']
         else: offset = 0
         audio_sel['offset'] = offset
+
         # duration
         if self.duration is not None: audio_sel['duration'] = self.duration
         elif 'end' in s.keys(): audio_sel['duration'] = s['end'] - offset
+
         # label
         if 'label' in self.sel.columns.values: audio_sel['label'] = s['label']
+
         # attribute columns
         for col in self.attrs: audio_sel[col] = s[col]
+
         return audio_sel
 
 
 class FrameStepper(SelectionGenerator):
-    """ Generates selections with uniform duration 'frame', with successive selections 
+    """ Generates selections with uniform length 'duration', with successive selections 
         displaced by a fixed amount 'step' (If 'step' is not specified, it is set equal 
-        to 'frame'.)
+        to 'duration'.)
 
         Args: 
-            frame: float
-                Frame length in seconds.
+            duration: float
+                Selection length in seconds.
             step: float
-                Separation between consecutive frames in seconds. If None, the step size 
-                equals the frame length.
+                Separation between consecutive selections in seconds. If None, the step size 
+                equals the selection length.
             path: str
                 Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
                 Relative path to a single .wav file or a list of .wav files. Optional.
+            frame: float
+                Same as duration. Only included for backward compatibility. Will be removed in future versions.
     """
-    def __init__(self, frame, step=None, path=None, filename=None):
-        self.frame = frame
-        if step is None: self.step = frame
+    def __init__(self, duration=None, step=None, path=None, filename=None, frame=None):
+        assert duration is not None or frame is not None, "Either duration or frame must be specified"
+        
+        if frame is not None:
+            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
+            if duration is None:
+                duration = frame
+            
+        self.duration = duration
+        if step is None: self.step = duration
         else: self.step = step
 
         if path is None: path = os.getcwd()
@@ -239,7 +256,7 @@ class FrameStepper(SelectionGenerator):
         self.file_durations = self.file_durations[self.file_durations > 0].tolist()
 
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((dur - self.frame) / self.step)) + 1 for dur in self.file_durations]
+        self.num_segs = [int(np.ceil((dur - self.duration) / self.step)) + 1 for dur in self.file_durations]
         self.num_segs_tot = np.sum(np.array(self.num_segs))
 
         self.reset()
@@ -251,7 +268,7 @@ class FrameStepper(SelectionGenerator):
                 audio_sel: dict
                     Audio selection
         """
-        audio_sel = {'data_dir':self.dir, 'filename': self.files[self.file_id], 'offset':self.time, 'duration':self.frame}
+        audio_sel = {'data_dir':self.dir, 'filename': self.files[self.file_id], 'offset':self.time, 'duration':self.duration}
         self.time += self.step #increment time       
         self.seg_id += 1 #increment segment ID
         if self.seg_id == self.num_segs[self.file_id]: self._next_file() #if this was the last segment, jump to the next file
@@ -306,12 +323,15 @@ class FrameStepper(SelectionGenerator):
         """
         return self.file_durations
 
+
 class AudioLoader():
     """ Class for loading segments of audio data from .wav files. 
 
         Several representations of the audio data are possible, including 
         waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
         and CQT spectrogram.
+
+        TODO: Change default value of `stop` argument to True.
 
         Args:
             selection_gen: SelectionGenerator
@@ -322,7 +342,7 @@ class AudioLoader():
                 Annotation table
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.  
+                required to initialize the class using the `from_wav` method.  
                 
                     * Waveform: 
                         (rate), (resample_method)
@@ -336,11 +356,21 @@ class AudioLoader():
                 Optionally, may also contain the key 'normalize_wav' which can have value True or False. 
                 If True, the waveform is normalized zero mean (mean=0) and (std=1) unity standard deviation.
                 It is also possible to specify multiple audio presentations as a list.
+            batch_size: int
+                Load segments in batches rather than one at the time. 
+            stop: bool
+                Raise StopIteration when all selections have been loaded. Default is False.
+
+        Attributes:
+            cfg: list(dict)
+                Audio representation dictionaries.
+        
         Examples:
             See child classes :class:`audio.audio_loader.AudioFrameLoader` and 
             :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
-    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, **kwargs):
+    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, 
+                        batch_size=1, stop=False, **kwargs):
         repres = copy.deepcopy(repres)
         if not isinstance(repres, list): repres = [repres]
         self.typ, self.cfg = [], []
@@ -350,22 +380,67 @@ class AudioLoader():
             self.cfg.append(r)
 
         self.channel = channel
-        self.sel_gen = selection_gen
+        self.selection_gen = selection_gen
         self.annot = annotations
         self.kwargs = kwargs
+        self.batch_size = batch_size
+        self.stop = stop
+        self.reset()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        """ Load next waveform segment or compute next spectrogram.
+        """ Load next audio segment or batch of audio segments.
+
+            Depending on how the loader was initialized, the return value can either be 
+            an instance of :class:`BaseAudio <ketos.audio.base_audio.BaseAudio>` (or, 
+            more commonly, a instance of one of its derived classes such as the 
+            :class:`Waveform <ketos.audio.waveform.Waveform>` or 
+            :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`
+            classes), a list of such objects, or a nested listed of such objects. 
+
+            Some examples:
+
+             * If the loader was initialized with the audio representation `repres={'type':'Waveform'}` 
+               and with `batch_size=1` (default), the return value will be a single 
+               instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
+
+             * If the loader was initialized with the audio representation 
+               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               and with `batch_size=1` (default), the return value will be a list 
+               of length 2, where the first entry holds an instance of 
+               :class:`Waveform <ketos.audio.waveform.Waveform>` and the second entry holds an instance 
+               of :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`.
+
+             * If the loader was initialized with the audio representation 
+               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               and with `batch_size>1`, the return value will be a nested list with outer 
+               length equal to `batch_size` and inner length 2, corresponding to the number of 
+               audio representations.
+
+            If the loader was initialized with `stop=True` this method will raise `StopIteration` 
+            when all the selections have been loaded.
 
             Returns: 
-                : Waveform or Spectrogram
-                    Next segment
+                a: BaseAudio, list(BaseAudio), or list(list(BaseAudio))
+                    Next segment or next batch of segments
         """
-        audio_sel = next(self.sel_gen)
-        return self.load(**audio_sel, **self.kwargs)
+        if self.counter == self.num():
+            if self.stop:
+                raise StopIteration
+            else:
+                self.reset()
+
+        a = []
+        for _ in range(self.batch_size):
+            if self.counter < self.num():
+                selection = next(self.selection_gen)
+                a.append(self.load(**selection, **self.kwargs))
+                self.counter += 1
+
+        if self.batch_size == 1: a = a[0]
+        return a
 
     def num(self):
         """ Returns total number of segments.
@@ -374,7 +449,7 @@ class AudioLoader():
                 : int
                     Total number of segments.
         """
-        return self.sel_gen.num()
+        return self.selection_gen.num()
 
     def load(self, data_dir, filename, offset=0, duration=None, label=None, apply_transforms=True, **kwargs):
         """ Load audio segment for specified file and time.
@@ -395,7 +470,7 @@ class AudioLoader():
                     Apply transforms. Default is True.
         
             Returns: 
-                seg: BaseAudio
+                seg: BaseAudio or list(BaseAudio)
                     Audio segment
         """
         path = os.path.join(data_dir, filename)
@@ -426,29 +501,34 @@ class AudioLoader():
 
             segs.append(seg)           
 
-        if len(segs)==1: segs=segs[0]
+        if len(segs) == 1: segs = segs[0]
 
         return segs
 
     def reset(self):
         """ Resets the audio loader to the beginning.
         """        
-        self.sel_gen.reset()
+        self.selection_gen.reset()
+        self.counter = 0
+
 
 class AudioFrameLoader(AudioLoader):
-    """ Load segments of audio data from .wav files. 
+    """ Load audio segments by sliding a fixed-size frame across the recording.
 
-        Loads segments of uniform duration 'frame', with successive segments
-        displaced by an amount 'step'. (If 'step' is not specified, it is 
-        set equal to 'frame'.)
+        The frame size is specified with the 'duration' argument, while the 'step'
+        argument may be used to specify the step size. (If 'step' is not specified, 
+        it is set equal to 'duration'.)
+
+        TODO: Remove frame argument
+        TODO: Change default value of `stop` argument to True.
 
         Args:
-            frame: float
+            duration: float
                 Segment duration in seconds. Can also be specified via the 'duration' 
                 item of the 'repres' dictionary.
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
-                equals the segment duration.
+                equals the segment duration. 
             path: str
                 Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
@@ -462,11 +542,12 @@ class AudioFrameLoader(AudioLoader):
                 required to initialize the class using the from_wav method.  
                 It is also possible to specify multiple audio presentations as a list. These 
                 presentations must have the same duration.
-            batch_size: int or str
+            batch_size: int
                 Load segments in batches rather than one at the time. 
-                Increasing the batch size can help reduce computational time.
-                The default batch size is 1. 
-                You can also specify batch_size='file' to load one wav file at the time.
+            stop: bool
+                Raise StopIteration if the iteration exceeds the number of available selections. Default is False.
+            frame: float
+                Same as duration. Only included for backward compatibility. Will be removed in future versions.
 
         Examples:
             >>> import librosa
@@ -479,7 +560,7 @@ class AudioFrameLoader(AudioLoader):
             >>> # specify the audio representation
             >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
             >>> # create an object for loading 30-s long spectrogram segments, using a step size of 15 s (50% overlap) 
-            >>> loader = AudioFrameLoader(frame=30., step=15., filename=filename, repres=rep)
+            >>> loader = AudioFrameLoader(duration=30., step=15., filename=filename, repres=rep)
             >>> # print number of segments
             >>> print(loader.num())
             8
@@ -493,106 +574,25 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, frame=None, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, **kwargs):
+    def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
+                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, 
+                    stop=False, frame=None, **kwargs):
 
-        if isinstance(repres, list): r0 = repres[0]
-        else: r0 = repres
+        if frame != None:
+            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
+            if duration == None: duration = frame
 
-        assert 'duration' in r0.keys() or frame is not None, 'duration must be specified either via the frame argument or the duration item of the repres dictionary'
+        if batch_size > 1:
+            print("Warning: batch_size > 1 results in different behaviour for ketos versions >= 2.4.2 than earlier \
+                   versions. You may want to check out the AudioFrameEfficientLoader class.")
 
-        if frame is None: frame = r0['duration']
+        duration = _get_duration(repres, duration)
 
-        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != frame:
-            print("Warning: Mismatch between frame size ({0:.3f} s) and duration ({1:.3f} s). The latter value will be ignored.")
+        assert duration != None, 'duration must be specified either with the duration \
+            argument or in the audio representation dictionary'
 
-        assert (isinstance(batch_size, int) and batch_size >= 1) or (isinstance(batch_size, str) and batch_size.lower() == 'file'), 'Batch size must be a positive integer or have the string value file'
-
-        super().__init__(selection_gen=FrameStepper(frame=frame, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres, **kwargs)
-
-        self.transforms_list = []
-        for config in self.cfg:
-            transforms = config['transforms'] if 'transforms' in config.keys() else []
-            self.transforms_list.append(transforms)
-
-        if isinstance(batch_size, int):
-            self.max_batch_size = batch_size
-        else:
-            self.max_batch_size = np.inf
-
-        if self.max_batch_size > 1:
-            audio_sel = next(self.sel_gen)
-            self.offset = audio_sel['offset']
-            self.data_dir = audio_sel['data_dir']
-            self.filename = audio_sel['filename']
-            self.load_next_batch()
-
-    def __next__(self):
-        """ Load next waveform segment or compute next spectrogram.
-
-            Returns: 
-                : Waveform or Spectrogram
-                    Next segment
-        """
-        if self.max_batch_size == 1:
-            return super().__next__()        
-        else:
-            return self.next_in_batch()
-
-    def load_next_batch(self):
-        """ Load the next batch of waveforms or spectrograms.
-        """
-        self.batch_size = 0
-        self.counter = 0
-        offset = np.inf
-        data_dir = self.data_dir
-        filename = self.filename
-        while data_dir == self.data_dir and filename == self.filename and offset > self.offset and self.batch_size < self.max_batch_size:
-            self.batch_size += 1
-            audio_sel = next(self.sel_gen)
-            offset = audio_sel['offset']
-            data_dir = audio_sel['data_dir']
-            filename = audio_sel['filename']            
-
-        duration = self.sel_gen.frame + self.sel_gen.step * (self.batch_size - 1)
-
-        # load the data without applying transforms
-        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, 
-            duration=duration, label=None, apply_transforms=False, **self.kwargs)
-
-        if not isinstance(self.batch, list): self.batch = [self.batch]
-
-        # loop over the representations
-        for i in range(len(self.transforms_list)):
-
-            # segment the data
-            self.batch[i] = self.batch[i].segment(window=self.sel_gen.frame, step=self.sel_gen.step)
-
-            # apply the transforms to each segment separately 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")        
-                for j in range(len(self.batch[i])):
-                    self.batch[i][j].apply_transforms(self.transforms_list[i])
-
-
-        if len(self.batch) == 1: self.batch = self.batch[0]
-
-        self.offset = offset
-        self.data_dir = data_dir
-        self.filename = filename
-
-    def next_in_batch(self):
-        """ Load the next waveform or spectrogram in the batch.
-        
-            Returns: 
-                a: Waveform or Spectrogram
-                    Next segment
-        """
-        if self.counter >= len(self.batch): self.load_next_batch()
-        a = self.batch[self.counter]
-        self.counter += 1
-        return a
+        super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, filename=filename), 
+            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, **kwargs)
 
     def get_file_paths(self, fullpath=True):
         """ Get the paths to the audio files associated with this instance.
@@ -605,7 +605,7 @@ class AudioFrameLoader(AudioLoader):
                 ans: list
                     List of file paths
         """
-        return self.sel_gen.get_file_paths(fullpath=fullpath)
+        return self.selection_gen.get_file_paths(fullpath=fullpath)
 
     def get_file_durations(self):
         """ Get the durations of the audio files associated with this instance.
@@ -614,41 +614,276 @@ class AudioFrameLoader(AudioLoader):
                 ans: list
                     List of file durations in seconds
         """
-        return self.sel_gen.get_file_durations()
+        return self.selection_gen.get_file_durations()
 
-class AudioSelectionLoader(AudioLoader):
-    """ Load segments of audio data from .wav files. 
 
-        The segments to be loaded are specified via a selection table.
+class AudioFrameEfficientLoader(AudioFrameLoader):
+    """ Load audio segments by sliding a fixed-size frame across the recording.
+
+        AudioFrameEfficientLoader implements a more efficient approach to loading 
+        overlapping audio segments and converting them to spectrograms. 
+        Rather than loading and converting one frame at the time, the 
+        AudioFrameEfficientLoader loads a longer frame and converts it to a 
+        spectrogram which is split up into the desired shorter frames.
+
+        Use the `num_frames` argument to specify how many frames are loaded into 
+        memory at a time.
+
+        While the segments are loaded into memory in batches, they are by default 
+        returned one at a time. Use the `return_as_batch` argument to change this
+        behaviour.
 
         Args:
-            selections: pandas DataFrame
-                Selection table
+            duration: float
+                Segment duration in seconds. Can also be specified via the 'duration' 
+                item of the 'repres' dictionary.
+            step: float
+                Separation between consecutive segments in seconds. If None, the step size 
+                equals the segment duration. 
             path: str
-                Path to folder containing .wav files
+                Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
                 relative path to a single .wav file or a list of .wav files. Optional
+            channel: int
+                For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
-                Annotation table
+                Annotation table. Optional.
             repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the from_wav method.  
+                It is also possible to specify multiple audio presentations as a list. These 
+                presentations must have the same duration.
+            num_frames: int
+                Load segments in batches of size `num_frames` rather than one at the time. 
+                Increasing `num_frames` can help reduce computational time.
+                You can also specify `num_frames='file'` to load one wav file at the time.
+            return_as_batch: bool
+                Whether to return the segments individually or in batches of size `num_frames`.
+                The default behaviour is to return the segments individually.
+    """
+    def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
+                    annotations=None, repres={'type': 'Waveform'}, num_frames=12, 
+                    return_as_batch=False, **kwargs):
+
+        assert (isinstance(num_frames, int) and num_frames >= 1) or \
+            (isinstance(num_frames, str) and num_frames.lower() == 'file'), \
+            'Argument `num_frames` must be a positive integer or have the string value `file`'
+
+        super().__init__(duration=duration, step=step, path=path, filename=filename, 
+                    channel=channel, annotations=annotations, repres=repres, **kwargs)
+
+        self.return_as_batch = return_as_batch
+
+        self.transforms_list = []
+        for config in self.cfg:
+            transforms = config['transforms'] if 'transforms' in config.keys() else []
+            self.transforms_list.append(transforms)
+
+        if isinstance(num_frames, int):
+            self.max_batch_size = num_frames
+        else:
+            self.max_batch_size = np.inf
+
+        audio_sel = next(self.selection_gen)
+        self.offset = audio_sel['offset']
+        self.data_dir = audio_sel['data_dir']
+        self.filename = audio_sel['filename']
+
+    def __next__(self):
+        """ Load the next audio segment or batch of audio segments.
+
+            Depending on how the loader was initialized, the return value can either be 
+            an instance of :class:`BaseAudio <ketos.audio.base_audio.BaseAudio>` (or, 
+            more commonly, a instance of one of its derived classes such as the 
+            :class:`Waveform <ketos.audio.waveform.Waveform>` or 
+            :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`
+            classes), a list of such objects, or a nested listed of such objects. 
+
+            Some examples:
+
+             * If the loader was initialized with the audio representation `repres={'type':'Waveform'}` 
+               and with `return_as_batch=False` (default), the return value will be a single 
+               instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
+
+             * If the loader was initialized with the audio representation 
+               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               and with `return_as_batch=False` (default), the return value will be a list 
+               of length 2, where the first entry holds an instance of 
+               :class:`Waveform <ketos.audio.waveform.Waveform>` and the second entry holds an instance 
+               of :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`.
+
+             * If the loader was initialized with the audio representation 
+               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               and with `return_as_batch=True`, the return value will be a nested list with outer 
+               length equal to `num_frames` and inner length 2, corresponding to the number of 
+               audio representations.
+
+            Returns: 
+                : BaseAudio, list(BaseAudio), or list(list(BaseAudio))
+                    Next segment or next batch of segments
+        """
+        if self.return_as_batch:
+            self.load_next_batch()
+            return self.batch
+        else:           
+            return self.next_in_batch()
+
+    def next_in_batch(self):
+        """ Load the next audio segment.
+        
+            Returns: 
+                a: BaseAudio or list(BaseAudio)
+                    Next audio segment
+        """
+        if self.counter == 0 or self.counter >= len(self.batch): 
+            self.load_next_batch()
+        
+        a = self.batch[self.counter]
+        self.counter += 1
+        return a
+
+    def load_next_batch(self):
+        """ Load the next batch of audio objects.
+        """
+        self.batch_size = 0
+        self.counter = 0
+        offset = np.inf
+        data_dir = self.data_dir
+        filename = self.filename
+        while data_dir == self.data_dir and filename == self.filename and offset > self.offset and self.batch_size < self.max_batch_size:
+            self.batch_size += 1
+            audio_sel = next(self.selection_gen)
+            offset = audio_sel['offset']
+            data_dir = audio_sel['data_dir']
+            filename = audio_sel['filename']            
+
+        duration = self.selection_gen.duration + self.selection_gen.step * (self.batch_size - 1)
+
+        # load the data without applying transforms
+        self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, 
+            duration=duration, label=None, apply_transforms=False, **self.kwargs)
+
+        if not isinstance(self.batch, list): self.batch = [self.batch]
+
+        # loop over the representations
+        for i in range(len(self.transforms_list)):
+
+            # segment the data
+            self.batch[i] = self.batch[i].segment(window=self.selection_gen.duration, step=self.selection_gen.step)
+
+            # apply the transforms to each segment separately 
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")        
+                for j in range(len(self.batch[i])):
+                    self.batch[i][j].apply_transforms(self.transforms_list[i])
+
+        if len(self.batch) == 1: self.batch = self.batch[0]
+
+        self.offset = offset
+        self.data_dir = data_dir
+        self.filename = filename
+
+
+class AudioSelectionLoader(AudioLoader):
+    """ Load segments of data from audio files. 
+
+        The segments to be loaded are specified via a selection table.
+
+        Note: It is possible to enforce all segments to have the same length by 
+        specifyng a `duration` parameter in the audio representation dictionary.
+        Selections that are shorter than the specified duration will be extended
+        at the end, and selections that are longer will be cropped.
+        For example, specifying
+
+            >>> repres = {'type': 'Waveform', 'duration': '3.0s'}
+
+        would result in all loaded segments having a length of precisely 3 seconds, 
+        even if some of the selections deviate from this length. For example, the 
+        selection [9, 14] would be shortened to [9, 12] and the selection [0.2, 2.0]
+        would be extended to [0.2, 3.2].
+
+        TODO: Change default value of `stop` argument to True.
+
+        Args:
+            selections: pandas DataFrame
+                Selection table.
+            path: str
+                Path to folder containing the audio files.
+            filename: str or list(str)
+                Relative path to a single audio file or a list of audio files. Optional.
+            annotations: pandas DataFrame
+                Annotation table. Optional.
+            repres: dict or list(dict)
+                Audio data representation. Must contain the key 'type' as well as any arguments 
+                required to initialize the class using the `from_wav` method.  
                 It is also possible to specify multiple audio presentations as a list.
+                The default representation is the raw, unaltered waveform.
             include_attrs: bool
                 If True, load data from all attribute columns in the selection table. Default is False.
             attrs: list(str)
                 Specify the names of the attribute columns that you wish to load data from. 
-                Overwrites include_attrs if specified. If None, all columns will be loaded provided that 
-                include_attrs=True.
+                Overwrites include_attrs if specified. If None, all columns will be loaded if 
+                `include_attrs=True`.
+            batch_size: int
+                Load segments in batches rather than one at the time. 
+            stop: bool
+                Raise StopIteration if the iteration exceeds the number of available selections. Default is False.
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-        include_attrs=False, attrs=None, **kwargs):
+        include_attrs=False, attrs=None, batch_size=1, stop=False, **kwargs):
 
-        if isinstance(repres, list): r0 = repres[0]
-        else: r0 = repres
+        duration = _get_duration(repres)
 
-        if 'duration' in r0.keys(): duration = r0['duration']
-        else: duration = None
+        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, 
+            selection_table=selections, duration=duration, include_attrs=include_attrs, 
+            attrs=attrs), channel=channel, annotations=annotations, repres=repres, 
+            batch_size=batch_size, stop=stop, **kwargs)
 
-        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, selection_table=selections, duration=duration, include_attrs=include_attrs, attrs=attrs), 
-            channel=channel, annotations=annotations, repres=repres, **kwargs)
+    def get_selection(self, id):
+        """ Returns the audio selection with a given id.
+
+            Args:
+                id: int
+                    The id within the selection table to be searched        
+            Returns:
+                audio_sel: dict
+                    Audio selection
+        """
+        return self.selection_gen.get_selection(id)
+
+
+def _get_duration(repres, duration=None):
+    """ Helper function.
+    
+        Extracts the duration parameter from the audio presentation 
+        dictionary, if available.
+
+        If the expected duration is specified via the `duration` argument, 
+        the function checks if it is consistent with the value extracted 
+        from the dictionary. If this is not the case, a warning is issued 
+        and the return value is the expected value.
+
+        If the audio representation does not contain a duration parameter
+        and the expected duration is not specified, the return value is None.
+
+        Args:
+            repres: dict or list(dict)
+                One or several audio representations.
+            duration: float
+                Duration in seconds. Optional
+
+        Returns:
+            duration: float
+                Duration in seconds
+    """
+    r0 = repres[0] if isinstance(repres, list) else repres
+
+    if duration is not None:
+        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != duration:
+            print("Warning: Mismatch between duration argument ({0:.3f} s) and duration parameter in \
+                    audio representation ({1:.3f} s). The latter value will be ignored.")
+
+    else:
+        duration = r0['duration'] if 'duration' in r0.keys() else None
+
+    return duration

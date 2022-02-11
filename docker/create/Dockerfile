@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.7-stretch
+FROM python:3.9.10
 
 # Set the working directory to /app
 WORKDIR /app
@@ -8,7 +8,6 @@ WORKDIR /app
 COPY ketos/ /app/ketos
 COPY requirements.txt /app
 COPY setup.py /app
-COPY sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz /app
 
 # Update base container install
 RUN apt-get update
@@ -22,6 +21,9 @@ RUN apt-get install -y --no-install-recommends libsndfile1
 # Clean
 RUN rm -rf /var/lib/apt/lists/*
 
+# Upgrade to latest version of pip
+RUN pip install pip --upgrade
+
 # Install packages specified in requirements.txt
 RUN pip install -r requirements.txt
 
@@ -31,6 +33,5 @@ RUN pip install aural-features
 
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-2.4.0.tar.gz
-RUN pip install sphinx_mer_rtd_theme-0.4.3.dev0.tar.gz
+RUN pip install dist/ketos-2.4.2.tar.gz
 

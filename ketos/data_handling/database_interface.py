@@ -37,11 +37,12 @@
 
 import os
 import tables
+import librosa
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from skimage.transform import resize
-from ketos.utils import tostring
+from ketos.utils import tostring, ensure_dir
 from ketos.audio.base_audio import BaseAudio
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
@@ -79,7 +80,7 @@ def create_table_col(dtype, shape=()):
         print(f'Warning: column type {dtype} not recognized. Column will not be created')
         return None
 
-def open_file(path, mode):
+def open_file(path, mode, create_dir=True):
     """ Open an HDF5 database file.
 
         Wrapper function around tables.open_file: 
@@ -90,15 +91,20 @@ def open_file(path, mode):
                 The file's full path.
             mode: str
                 The mode to open the file. It can be one of the following:
-                    * ’r’: Read-only; no data can be modified.
-                    * ’w’: Write; a new file is created (an existing file with the same name would be deleted).
-                    * ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
-                    * ’r+’: It is similar to ‘a’, but the file must already exist.
+                    * `r`: Read-only; no data can be modified.
+                    * `w`: Write; a new file is created (an existing file with the same name would be deleted).
+                    * `a`: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    * `r+`: It is similar to `a`, but the file must already exist.
+            create_dir: bool
+                If the directory does not exist, it will be automatically created. Default is True.
+                Only applies if the mode is `w` or `a`, 
 
         Returns:
             : table.File object
                 The h5file.
     """
+    if mode in ['w', 'a'] and create_dir: ensure_dir(path)
+
     return tables.open_file(path, mode)
 
 def open_table(h5file, table_path):
@@ -174,7 +180,7 @@ def create_table(h5file, path, name, description, data_name='data', chunkshape=N
             >>> # Show the table description, with the field names (columns)
             >>> # and information about types and shapes
             >>> my_table
-            /group1/table_data (Table(0,), fletcher32, shuffle, zlib(1)) ''
+            /group1/table_data (Table(0,)fletcher32, shuffle, zlib(1)) ''
               description := {
               "data": Float32Col(shape=(32, 64), dflt=0.0, pos=0),
               "filename": StringCol(itemsize=100, shape=(), dflt=b'', pos=1),
@@ -425,7 +431,7 @@ def write_annot(table, data_index, annots):
         row.append()
         table.flush()
 
-def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label=None, id=None):
+def write_audio(table, data, attrs={}, id=None):
     """ Write an audio object, typically a waveform or spectrogram, to a HDF5 table.
 
         Args:
@@ -450,9 +456,6 @@ def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label
             index: int
                 Index of row that the audio object was saved to.
     """
-    #write_source = ("filename" in table.colnames)
-    #write_label  = ("label" in table.colnames)
-
     row = table.row
     index = table.nrows
 
@@ -469,13 +472,6 @@ def write_audio(table, data, attrs={}, id=None): #filename=None, offset=0, label
     for key,value in attrs.items(): #loop over instance attributes
         if key in table.colnames: #check that table has appropriate column
             if value is not None: row[key] = value #write value to appropriate field
-
-#    if write_source:
-#        if filename is not None: row['filename'] = filename  #pass filename to table
-#        if offset is not None:   row['offset'] = offset  #pass offset to table
-
-#    if write_label:
-#        if label is not None: row['label'] = label  #pass label to table
     
     row.append()
     table.flush()
@@ -728,13 +724,48 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
         audio_objs = audio_class.stack(audio_objs)
 
     return audio_objs
+
+def generate_warning_on_file_duration(start, end, file_path, file_duration):
+    """ Generate warning message if the selection start or end time is outside of the audio file's duration.
+
+        Args:
+            start: float
+                Annotation start time with respect to beginning of file in seconds.
+            end: float
+                Annotation end time with respect to beginning of file in seconds.
+            file_path: str
+                Full path of the audio file.
+            file_duration: float
+                Audio file length in seconds.
+    """
+    # total length of selection
+    len_tot = end - start
+    # determine how much of the selection is outside the file
+    len_outside = max(0, -start) + max(0, end - file_duration)
     
+    # print warnings if selection end is zero or negative
+    if (end <= 0):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time ({end:.2f}s) is earlier than the start of the file")
+
+    # print warnings if selection start is later than the file end time
+    if (start > file_duration):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection start time ({start:.2f}s) is later than the end of the file")
+
+    #print a warning that the selection has 0 or negative length (end before start)
+    if (len_tot <= 0):
+         print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time is less than or equal to the selection start time.")
+         
+    # print a warning that a fraction larger than 50% of the selection is outside the file
+    if (len_outside > 0.5 * len_tot):
+        print(f"Warning: while processing {os.path.basename(file_path)}, Message: at least half of the selection duration ({end-start:.2f}s) does not fall within the file")
+
+
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
     allow_resizing=1, include_source=True, include_label=True, 
     include_attrs=False, attrs=None, data_name=None, index_cols=None,
-    mode='a'):
+    mode='a', create_dir=True):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -750,6 +781,9 @@ def create_database(output_file, data_dir, selections, channel=0,
         
         If the method encounters problems loading/writing a sound clipe, it continues 
         while printing a warning
+        
+        If the start/end time of the annotation is outside the range of the audio file
+        the function shows warning message
     
         Args:
             output_file:str
@@ -812,25 +846,48 @@ def create_database(output_file, data_dir, selections, channel=0,
                 For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
             mode: str
                 The mode to open the file. It can be one of the following:
-                    ’w’: Write; a new file is created (an existing file with the same name would be deleted). 
-                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created. This is the default.
-                    ’r+’: It is similar to ‘a’, but the file must already exist.
-    """    
+                    `w`: Write; a new file is created (an existing file with the same name would be deleted). 
+                    `a`: Append; an existing file is opened for reading and writing, and if the file does not exist it is created. This is the default.
+                    `r+`: It is similar to `a`, but the file must already exist.
+            create_dir: bool
+                If the output directory does not exist, it will be automatically created. Default is True.
+                Only applies if the mode is `w` or `a`, 
+    """       
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
     writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode=mode,
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
-        include_source=include_source, include_label=include_label, data_name=data_name, index_cols=index_cols)
+        include_source=include_source, include_label=include_label, data_name=data_name, 
+        index_cols=index_cols, create_dir=create_dir)
     
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
     
+    file_duration_mapping = dict()
+    
     for i in tqdm(range(loader.num()), disable = not progress_bar):
-        loader_filename=loader.sel_gen.get_selection(id=i)['filename']
+        audio_selection = loader.get_selection(id=i)
+        loader_filename = audio_selection['filename']
         
+        # Get full file path and name
+        file_full_path = os.path.join(audio_selection['data_dir'], loader_filename)
+        
+        file_duration = file_duration_mapping.get(file_full_path)
         try:
+            # If file duration does not exist in the dict, get file duration in seconds
+            if (file_duration == None):
+                file_duration = librosa.get_duration(filename=file_full_path)
+                file_duration_mapping[file_full_path] = file_duration
+            
+            if verbose:
+                # check if selection is within audio file
+                start = audio_selection['offset']
+                end = audio_selection['offset'] + audio_selection['duration']
+                generate_warning_on_file_duration(start, end, file_full_path, file_duration)
+
             x = next(loader)
+
         except Exception as e:
             if(verbose):
                 print("Warning: while loading {0}, Message: {1}".format(loader_filename, str(e)))
@@ -838,6 +895,7 @@ def create_database(output_file, data_dir, selections, channel=0,
         
         try:
             writer.write(x=x, path=path_to_dataset, name='data')
+
         except Exception as e:
             if(verbose):
                 print("Warning: while writing {0}, Message: {1}".format(loader_filename, str(e)))
@@ -864,9 +922,9 @@ class AudioWriter():
                 Print relevant information during execution such as no. of files written to disk
             mode: str
                 The mode to open the file. It can be one of the following:
-                    ’w’: Write; a new file is created (an existing file with the same name would be deleted). This is the default.
-                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
-                    ’r+’: It is similar to ‘a’, but the file must already exist.
+                    `w`: Write; a new file is created (an existing file with the same name would be deleted). This is the default.
+                    `a`: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    `r+`: It is similar to `a`, but the file must already exist.
             discard_wrong_shape: bool
                 Discard objects that do not have the same shape as previously saved objects. Default is False.
             allow_resizing: int
@@ -887,6 +945,9 @@ class AudioWriter():
             data_name: str or list(str) 
                 Name(s) of the data columns. If None is specified, the data column is named 'data', 
                 or 'data0', 'data1', ... if the table contains multiple data columns.
+            create_dir: bool
+                If the output directory does not exist, it will be automatically created. Default is True.
+                Only applies if the mode is `w` or `a`, 
 
         Attributes:
             base: str
@@ -913,10 +974,9 @@ class AudioWriter():
                 Print relevant information during execution such as files written to disk
             mode: str
                 The mode to open the file. It can be one of the following:
-                    ’r’: Read-only; no data can be modified.
-                    ’w’: Write; a new file is created (an existing file with the same name would be deleted).
-                    ’a’: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
-                    ’r+’: It is similar to ‘a’, but the file must already exist.
+                    `w`: Write; a new file is created (an existing file with the same name would be deleted).
+                    `a`: Append; an existing file is opened for reading and writing, and if the file does not exist it is created.
+                    `r+`: It is similar to `a`, but the file must already exist.
             discard_wrong_shape: bool
                 Discard objects that do not have the same shape as previously saved objects. Default is False.
             allow_resizing: int
@@ -944,10 +1004,13 @@ class AudioWriter():
             index_cols: str og list(str)
                 Create indices for the specified columns in the data table to allow for faster queries.
                 For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
+            create_dir: bool
+                If the output directory does not exist, it will be automatically created. Default is True.
+                Only applies if the mode is `w` or `a`, 
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
         allow_resizing=1, include_source=True, include_label=True, include_attrs=True, 
-        max_filename_len=100, data_name=None, index_cols=None):
+        max_filename_len=100, data_name=None, index_cols=None, create_dir=True):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
@@ -969,6 +1032,7 @@ class AudioWriter():
         self.include_attrs = include_attrs
         self.filename_len = max_filename_len
         self.data_name = data_name
+        self.create_dir = create_dir
         if index_cols is None:
             self.index_cols = []
         elif isinstance(index_cols, str):
@@ -1160,7 +1224,7 @@ class AudioWriter():
             else:
                 fname = self.base + '_{:03d}'.format(self.file_counter) + self.ext
 
-            self.file = open_file(fname, self.mode)
+            self.file = open_file(path=fname, mode=self.mode, create_dir=self.create_dir)
             self.file_counter += 1
 
     def _detect_annot_type(self, x):
