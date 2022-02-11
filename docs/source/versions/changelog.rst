@@ -1,7 +1,12 @@
 Change log
 ==========
 
-**Version 2.4.2** (Month Day, 2022)
+**Version 2.4.3** (February 11, 2022)
+
+ * Fixed bug in :func:`ensure_dir <ketos.utils.ensure_dir>`
+
+
+**Version 2.4.2** (February 11, 2022)
 
  * Extended Tensorflow compatibility to <=2.8
  * Extended Python compatibility to <=3.9.10

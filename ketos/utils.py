@@ -35,6 +35,7 @@ import pandas as pd
 from scipy.signal import find_peaks
 from functools import reduce
 
+
 def factors(n):    
     """ Returns sorted set of all divisors of n
 
@@ -61,7 +62,7 @@ def ensure_dir(file_path):
                 Full path to destination
     """
     directory = os.path.dirname(file_path)
-    if not os.path.exists(directory):
+    if directory != "" and directory != "." and not os.path.exists(directory):
         os.makedirs(directory)
 
 def random_floats(size=1, low=0, high=1, seed=1):
