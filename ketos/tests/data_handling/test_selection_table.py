@@ -225,11 +225,15 @@ def test_select_step(annot_table_std):
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
-def test_time_shift(annot_table_std):
+def test_time_shift():
     row = pd.Series({'label':3.00,'start':0.00,'end':3.30,'annot_id':0.00,'length':3.30,'start_new':-0.35})
     res = st.time_shift(annot=row, time_ref=row['start_new'], length=4.0, min_overlap=0.8, step=0.5)
     d = '''label  start  end  annot_id  length  start_new
-0    3.0    0.0  3.3       0.0     3.3      -0.35'''
+0    3.0    0.0  3.3       0.0     3.3      -1.35
+1    3.0    0.0  3.3       0.0     3.3      -0.85
+2    3.0    0.0  3.3       0.0     3.3      -0.35
+3    3.0    0.0  3.3       0.0     3.3       0.15
+4    3.0    0.0  3.3       0.0     3.3       0.65'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 

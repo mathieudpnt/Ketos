@@ -349,6 +349,35 @@ class Spectrogram(BaseAudioTime):
 
         self.waveform_transform_log = waveform_transform_log
 
+    @classmethod
+    def infer_shape(cls, **kwargs):
+        """ Infers the spectrogram shape that would result if the class were 
+            instantiated with a specific set of parameter values.
+            Returns a None value if the shape could not be inferred.
+            Accepts the same list of arguments as the `from_wav` method, 
+            which is implemented in the child classes.
+
+            Note: The current implementation involves computing a dummy spectrogram.
+            Therefore, if this method is called repeatedly the computational overhead 
+            can become substantial.
+
+            Returns:
+                : tuple
+                    Inferred shape. If the parameter value do not allow 
+                    the shape be inferred, a None value is returned.
+        """
+        if 'duration' in kwargs.keys() and 'rate' in kwargs.keys() and hasattr(cls, 'from_waveform'):
+            sr = kwargs['rate']
+            num_samples = int(kwargs['duration'] * sr)
+            y = np.zeros(num_samples)
+            wf = Waveform(data=y, rate=sr)
+            kwargs.pop('rate', None)
+            kwargs.pop('duration', None)
+            x = cls.from_waveform(wf, **kwargs)
+            return x.get_data().shape
+        else:
+            return None
+
     def get_repres_attrs(self):
         """ Get audio representation attributes """ 
         attrs = super().get_repres_attrs()

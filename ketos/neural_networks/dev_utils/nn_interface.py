@@ -28,13 +28,14 @@ import tensorflow as tf
 from .losses import FScoreLoss
 from ...data_handling.parsing import parse_audio_representation
 from ketos.utils import ensure_dir
+from ketos.neural_networks.dev_utils.export import get_export_function
 from zipfile import ZipFile
-from glob import glob
 from shutil import rmtree
 import numpy as np
 import pandas as pd
 import json
 import os
+import warnings
 
 
 class RecipeCompat():
@@ -339,7 +340,7 @@ class NNInterface():
 
             Args:
                 input:numpy.array
-                    An input instance. Must be of shape (n,m) or (k,n,m).
+                    An input instance. Must have 2 or 3 dimensions.
 
             Raises:
                 ValueError if input does not have 2 or 3 dimensions.
@@ -370,11 +371,11 @@ class NNInterface():
                 (1, 5, 5, 1)
         """
         if input.ndim == 2:
-            transformed_input = input.reshape(1,input.shape[0], input.shape[1],1)
+            transformed_input = input.reshape(1, input.shape[0], input.shape[1], 1)
         elif input.ndim == 3:
-            transformed_input = input.reshape(input.shape[0],input.shape[1], input.shape[2],1)
+            transformed_input = input.reshape(input.shape[0], input.shape[1], input.shape[2], 1)
         else:
-            raise ValueError("Expected input to have 2 or 3 dimensions, got {}({}) instead".format(input.ndim, input.shape))
+            raise ValueError("Expected input to have 2 or 3 dimensions, got {} ({}) instead".format(input.ndim, input.shape))
 
         return transformed_input
 
@@ -669,49 +670,75 @@ class NNInterface():
         instance = cls._build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
         instance.model.load_weights(latest_checkpoint)
+        instance.checkpoint_dir = weights_path
         return instance
 
 
     @classmethod
-    def load_model_file(cls, model_file, new_model_folder, overwrite=True, load_audio_repr=False,  replace_top=False, diff_n_classes=None):
+    def load_model_file(cls, model_file, new_model_folder='kt-tmp', overwrite=True, load_audio_repr=False, 
+            replace_top=False, diff_n_classes=None):
+        """ Same as :meth:`NNInterface.load`.
+
+            Only included for backward compatibility.
+            Will be removed in future versions.
+        """
+        warnings.warn("load_model_file is deprecated and will be removed in future versions. Use load instead.", category=DeprecationWarning)
+
+        return cls.load(model_file=model_file, new_model_folder=new_model_folder, overwrite=overwrite, 
+            load_audio_repr=load_audio_repr, replace_top=replace_top, diff_n_classes=diff_n_classes)
+
+
+    @classmethod
+    def load(cls, model_file, new_model_folder='kt-tmp', overwrite=True, load_audio_repr=False, 
+            replace_top=False, diff_n_classes=None):
         """ Load a model from a ketos (.kt) model file.
 
             Args:
                 model_file:str
                     Path to the ketos (.kt) file
                 new_model_folder:str
-                    Path to folder where files associated with the model will be stored.
+                    Path to folder where files associated with the model will be stored. 
+                    By default the files will be saved to a folder named 'kt-tmp' created 
+                    in the current working directory.
                 overwrite: bool
-                    If True, the 'new_model_folder' will be overwritten.
+                    If True, the 'new_model_folder' will be overwritten. Default is True.
                 replace_top: bool
-                    If True, the classification top of the model will be replaced by a new, untrained one.
-                    What is actually replaced (i.e.: what exactly is the "top") is defined by the architecture.
-                    It is usually a block of dense layers with the appropriate activations. Default is False.
+                    If True, the classification top of the model will be replaced by a new, 
+                    untrained one. What is actually replaced (i.e.: what exactly is the "top") 
+                    is defined by the architecture. It is usually a block of dense layers with 
+                    the appropriate activations. Default is False.
                 diff_n_classes: int
                     Only relevant when 'replace_top' is True.
-                    If the new model should have a different number of classes it can be specified by this parameter.
-                    If left to none, the new model will have the same number of classes as the original.
+                    If the new model should have a different number of classes it can be specified 
+                    by this parameter. If left as None, the new model will have the same number of 
+                    classes as the original model.
                 load_audio_repr: bool
-                    If True, look for an audio representation included with the model. 
+                    If True, also return a dictionary with the audio representation. 
                     
             Raises:
-                FileExistsError: If the 'new_model_folder' already exists and 'overwite' is False.
+                FileExistsError: If the 'new_model_folder' already exists and 'overwrite' is False.
 
             Returns:
-                model_instance: The loaded model
-                audio_repr: If load_audio_repr is True, also return a dictionary with the loaded audio representation.
+                model_instance: 
+                    The loaded model
+                audio_repr: 
+                    If load_audio_repr is True, also return a dictionary with the audio representation.
         """
         try:
             os.makedirs(new_model_folder)
+        
         except FileExistsError:
             if overwrite == True:
                 rmtree(new_model_folder)
                 os.makedirs(new_model_folder)
+        
             else:
-                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name that does not exist or set 'overwrite' to True to replace the existing folder")
+                raise FileExistsError("Ketos needs a new folder for this model. Choose a folder name " \
+                    + "that does not exist or set 'overwrite' to True to replace the existing folder")
 
         with ZipFile(model_file, 'r') as zip:
             zip.extractall(path=new_model_folder)
+        
         recipe = cls._read_recipe_file(os.path.join(new_model_folder,"recipe.json"))
         model_instance = cls._load_model(recipe,  os.path.join(new_model_folder, "checkpoints"))
 
@@ -719,6 +746,7 @@ class NNInterface():
             new_n_classes = recipe['n_classes']
             if diff_n_classes is not None:
                 new_n_classes = diff_n_classes
+            
             model_with_new_top = model_instance.model.clone_with_new_top(n_classes=new_n_classes)
             model_instance.model = model_with_new_top
                
@@ -728,6 +756,7 @@ class NNInterface():
             json_content = json.load(f)
             for section, rep in json_content.items():
                 audio_repr.append({section:parse_audio_representation(rep)})
+            
             return model_instance, audio_repr
         
         return model_instance
@@ -753,6 +782,18 @@ class NNInterface():
 
     @classmethod
     def build_from_recipe_file(cls, recipe_file):
+        """ Same as :meth:`NNInterface.build`.
+
+            Only included for backward compatibility.
+            Will be removed in future versions.
+        """
+        warnings.warn("build_from_recipe_file is deprecated and will be removed in future versions. Use build instead.", category=DeprecationWarning)
+
+        return cls.build(recipe_file)
+
+
+    @classmethod
+    def build(cls, recipe_file):
         """ Build a model from a recipe file
 
             Args:
@@ -766,7 +807,7 @@ class NNInterface():
         recipe = cls._read_recipe_file(recipe_file)
         instance = cls._build_from_recipe(recipe)
         return instance
-       
+
 
     def __init__(self, optimizer, loss_function, metrics):
         
@@ -831,77 +872,74 @@ class NNInterface():
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
 
-    def save_model(self, model_file, checkpoint_name=None, audio_repr=None, audio_repr_file=None, create_dir=True):
-        """ Save the current neural network instance as a ketos (.kt) model file.
+    def save_model(self, model_file=None, output_name=None, **kwargs):
+        """ Same as :meth:`NNInterface.save`.
 
-            The file includes the recipe necessary to build the network architecture and the parameter weights.
+            Only included for backward compatibility.
+            Will be removed in future versions.
+        """
+        warnings.warn("save_model is deprecated and will be removed in future versions. Use save instead.", category=DeprecationWarning)
+
+        self.save(model_file=model_file, output_name=output_name, **kwargs)
+
+
+    def save(self, model_file=None, output_name=None, checkpoint_name=None, **kwargs):
+        """ Save the trained model to a file.
+
+            The model can be saved to three different formats: 
+
+             * ketos (.kt)
+             * protobuf (.pb)
+             * ketos-protobuf (.ktpb), compatible with PAMGuard
+
+            The format will be inferred from the extension given to the output file, as 
+            follows
+
+             * .kt (or any other extension): ketos 
+             * .pb: protobuf
+             * .ktpb: ketos-protobuf (PAMGuard compatible)
+
+            The save method accepts different optional arguments depending on the format.
+            See the documentation of export functions for more information:
+            
+             * ketos: :func:`export.export_to_ketos`
+             * protobuf: :func:`export.export_to_protobuf`
+             * ketos-protobuf: :func:`export.export_to_ketos_protobuf`
+
+            TODO: remove deprecated argument model_file
 
             Args:
-                model_file: str
-                    Path to the .kt file. 
+                output_name: str
+                    Path to the output file
                 checkpoint_name: str
-                    The name of the checkpoint to be loaded (e.g.:cp-0015.ckpt).
+                    The name of the checkpoint to be saved (e.g.:cp-0015.ckpt).
                     If None, will use the latest checkpoints
                 audio_repr: dict
-                    Optional audio representation dictionary. 
-                    If passed, it will be added to the .kt file.
-                    For example,
-                        
-                    >>> audio_repr = {"spectrogram": {
-                    ...                   "type": "MagSpectrogram",
-                    ...                   "rate": "1000 Hz", 
-                    ...                   "window": "0.256 s",
-                    ...                   "step": "0.032 s",
-                    ...                   "freq_min": "0 Hz",
-                    ...                   "freq_max": "500 Hz",
-                    ...                   "window_func": "hamming",
-                    ...                   "transforms": [{"name":"normalize"}]}
-                    ...              }    
-
-                audio_repr_file: str
-                    Optional path to an audio representation .json file. 
-                    If passed, it will be added to the .kt file.
-                    Overwrites audio_repr.
-                create_dir: bool
-                    If the output directory does not exist, it will be automatically created. 
-                    Default is True.
+                    Audio representation dictionary. Optional for the ketos format (.kt), 
+                    required for the ketos-protobuf (.ktpb) format, not applicable for 
+                    the protobuf (.pb) format. It is also possible to specify the path 
+                    to a json file containing the audio representation.
         """
-        if audio_repr_file is not None:
-            f = open(audio_repr_file, 'r')
-            audio_repr = json.load(f)
-            f.close()
+        if model_file is not None:
+            warnings.warn("model_file is deprecated and will be removed in future versions. Use output_name instead.", category=DeprecationWarning)
+            if output_name is None:
+                output_name = model_file
 
-        recipe_path = os.path.join(self.checkpoint_dir, 'recipe.json')
-
-        if create_dir: ensure_dir(model_file)
-
-        with ZipFile(model_file, 'w') as zip:
-            
-            if checkpoint_name is not None:
-                checkpoints = glob(os.path.join(self.checkpoint_dir, checkpoint_name) + '*')
-                assert len(checkpoints) > 0, "The checkpoint name '{}' was not found in the checkpoints_dir ({})".format(checkpoint_name, self.checkpoint_dir)
-
-            else:            
+        # attempt to load weights from checkpoint
+        if isinstance(self.checkpoint_dir, str) and os.path.isdir(self.checkpoint_dir):
+            if checkpoint_name == None:
                 latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-                assert isinstance(latest,str), "No checkpoints were found at the checkpoint_dir ({})".format(self.checkpoint_dir) 
-                checkpoints = glob(latest + '*')                                                                                                                 
+                checkpoint_name = os.path.basename(latest)
 
-            self.save_recipe_file(recipe_path)
+            self.model.load_weights(os.path.join(self.checkpoint_dir, checkpoint_name))
 
-            zip.write(recipe_path, "recipe.json")
+        else:
+            print(f"Warning: model.checkpoint_dir does not point to a valid directory ({self.model.checkpoint_dir})")
 
-            if audio_repr is not None:
-                audio_repr_path = os.path.join(self.checkpoint_dir, "audio_repr.json")
-                with open(audio_repr_path, 'w') as json_repr:
-                    json.dump(audio_repr, json_repr)
-                
-                zip.write(audio_repr_path, "audio_repr.json")
+        f = get_export_function(output_name)
 
-            zip.write(os.path.join(self.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
-            for c in checkpoints:
-                 zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
+        f(model=self, output_name=output_name, checkpoint_name=checkpoint_name, **kwargs)
 
-        os.remove(recipe_path)
 
     @property
     def train_generator(self):
@@ -1038,7 +1076,7 @@ class NNInterface():
     
     @property
     def early_stopping_monitor(self):
-        """ Sets an early stopping monitor.
+        r""" Sets an early stopping monitor.
 
             An early stopping monitor is a dictionary specifying
             how a target metric should be monitored during training.
@@ -1102,7 +1140,7 @@ class NNInterface():
         """
 
         self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)
-        tensorboard_callback.set_model(self.model)
+        self.tensorboard_callback.set_model(self.model)
         
     def _print_metrics(self, metric_values):
         """ Print the metric values to the screen.

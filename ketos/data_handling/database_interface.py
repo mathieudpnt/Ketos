@@ -36,6 +36,7 @@
 """
 
 import os
+import warnings
 import tables
 import librosa
 import numpy as np
@@ -745,19 +746,24 @@ def generate_warning_on_file_duration(start, end, file_path, file_duration):
     
     # print warnings if selection end is zero or negative
     if (end <= 0):
-        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time ({end:.2f}s) is earlier than the start of the file")
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: selection end time ({end:.2f}s) is earlier than the start of the file", category=UserWarning)
 
     # print warnings if selection start is later than the file end time
     if (start > file_duration):
-        print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection start time ({start:.2f}s) is later than the end of the file")
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: selection start time ({start:.2f}s) is later than the end of the file", category=UserWarning)
 
     #print a warning that the selection has 0 or negative length (end before start)
     if (len_tot <= 0):
-         print(f"Warning: while processing {os.path.basename(file_path)}, Message: selection end time is less than or equal to the selection start time.")
+         warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            "Message: selection end time is less than or equal to the selection start time.", category=UserWarning)
          
     # print a warning that a fraction larger than 50% of the selection is outside the file
     if (len_outside > 0.5 * len_tot):
-        print(f"Warning: while processing {os.path.basename(file_path)}, Message: at least half of the selection duration ({end-start:.2f}s) does not fall within the file")
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: at least half of the selection ({start:.2f}s,{end:.2f}s) does not " \
+            "fall within the file", category=UserWarning)
 
 
 def create_database(output_file, data_dir, selections, channel=0, 
@@ -765,7 +771,7 @@ def create_database(output_file, data_dir, selections, channel=0,
     max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
     allow_resizing=1, include_source=True, include_label=True, 
     include_attrs=False, attrs=None, data_name=None, index_cols=None,
-    mode='a', create_dir=True):
+    mode='a', create_dir=True, discard_outside=False):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -780,10 +786,8 @@ def create_database(output_file, data_dir, selections, channel=0,
         files ('data_dir') will be used.
         
         If the method encounters problems loading/writing a sound clipe, it continues 
-        while printing a warning
-        
-        If the start/end time of the annotation is outside the range of the audio file
-        the function shows warning message
+        while printing a warning. If the start/end time of the annotation is outside the 
+        range of the audio file the function shows warning messages if verbose=True.
     
         Args:
             output_file:str
@@ -852,6 +856,8 @@ def create_database(output_file, data_dir, selections, channel=0,
             create_dir: bool
                 If the output directory does not exist, it will be automatically created. Default is True.
                 Only applies if the mode is `w` or `a`, 
+            discard_outside: bool
+                Discard selections that extend beyond file start/end times. Default is False.
     """       
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
@@ -880,25 +886,36 @@ def create_database(output_file, data_dir, selections, channel=0,
                 file_duration = librosa.get_duration(filename=file_full_path)
                 file_duration_mapping[file_full_path] = file_duration
             
+            start = audio_selection['offset']
+            end = audio_selection['offset'] + audio_selection['duration']
+
+            # discard selections that extend beyond file start/end
+            len_outside = max(0, -start) + max(0, end - file_duration)
+            if discard_outside and len_outside > 0:
+                if verbose:
+                    warnings.warn(f"discarding selection ({start:.2f},{end:.2f}) from {loader_filename} because it extends beyond " \
+                        f"the start/end time of the file with duration {file_duration:.2f}s", category=UserWarning)    
+
+                loader.skip()
+                continue
+
             if verbose:
                 # check if selection is within audio file
-                start = audio_selection['offset']
-                end = audio_selection['offset'] + audio_selection['duration']
                 generate_warning_on_file_duration(start, end, file_full_path, file_duration)
 
             x = next(loader)
 
         except Exception as e:
-            if(verbose):
-                print("Warning: while loading {0}, Message: {1}".format(loader_filename, str(e)))
+            if verbose:
+                warnings.warn(f"while loading {loader_filename}, Message: {str(e)}", category=UserWarning)
             continue
         
         try:
             writer.write(x=x, path=path_to_dataset, name='data')
 
         except Exception as e:
-            if(verbose):
-                print("Warning: while writing {0}, Message: {1}".format(loader_filename, str(e)))
+            if verbose:
+                warnings.warn(f"while writing audio selection from {loader_filename}, Message: {str(e)}", category=UserWarning)
 
     writer.close()
 

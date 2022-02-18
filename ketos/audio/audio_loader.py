@@ -426,6 +426,23 @@ class AudioLoader():
                 a: BaseAudio, list(BaseAudio), or list(list(BaseAudio))
                     Next segment or next batch of segments
         """
+        return self._next_batch(load=True)
+
+    def skip(self):
+        """ Skip to the next audio segment or batch of audio segments
+            without loading the current one.
+        """        
+        self._next_batch(load=False)
+
+    def _next_batch(self, load=True):
+        """ Load next audio segment or batch of audio segments.
+
+            Helper function for :meth:`__next()__` and :meth:`skip()`.
+
+            Args:
+                load: bool
+                    Whether to load the audio data.
+        """
         if self.counter == self.num():
             if self.stop:
                 raise StopIteration
@@ -436,11 +453,13 @@ class AudioLoader():
         for _ in range(self.batch_size):
             if self.counter < self.num():
                 selection = next(self.selection_gen)
-                a.append(self.load(**selection, **self.kwargs))
+                if load:
+                    a.append(self.load(**selection, **self.kwargs))
                 self.counter += 1
 
-        if self.batch_size == 1: a = a[0]
-        return a
+        if load:
+            if self.batch_size == 1: a = a[0]
+            return a
 
     def num(self):
         """ Returns total number of segments.
