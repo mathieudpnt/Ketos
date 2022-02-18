@@ -59,7 +59,29 @@ audio_std_params = {'type':                     {'type':str,   'unit':None},
                     'filter_min_hz':            {'type':float, 'unit':'Hz'},
                     'decibel':                  {'type':bool,  'unit':None}
                     }
+
+
+def is_encoded(s):
+    """ Check that the audio presentation has been encoded.
+
+        More specifically, the method checks that items specified as having a 
+        physical unit in `audio_std_params`, have string values.
     
+        Args:
+            s: dict
+                Audio representation  
+
+        Returns:
+            : bool
+                True, if the audio representation is encoded. False, otherwise.
+    """
+    for key, value in s.items():
+        if key in audio_std_params.keys() and \
+                audio_std_params[key]['unit'] != None and not isinstance(value, str):
+            return False
+
+    return True
+
 
 def load_audio_representation(path, name=None, return_unparsed=False):
     """ Load audio representation from JSON file.
@@ -100,7 +122,7 @@ def load_audio_representation(path, name=None, return_unparsed=False):
     """
     with open(path, 'r') as fil:
         data = json.load(fil)
-        if name is not None: 
+        if name != None: 
             data = data[name]
         if not return_unparsed:
             data = parse_audio_representation(data)

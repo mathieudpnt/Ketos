@@ -176,6 +176,30 @@ class BaseAudio():
 
         self.kwargs = kwargs
 
+    @staticmethod
+    def infer_shape(**kwargs):
+        """ Infers the data shape that would result if the class were 
+            instantiated with a specific set of parameter values.
+
+            Returns a None value if `duration` or `rate` are not specified.
+
+            Args:
+                duration: float
+                    Duration in seconds
+                rate: float
+                    Sampling rate in Hz
+
+            Returns:
+                : tuple
+                    Inferred shape. If the parameter value do not allow 
+                    the shape be inferred, a None value is returned.
+        """
+        if 'duration' in kwargs.keys() and 'rate' in kwargs.keys():
+            num_samples = int(kwargs['duration'] * kwargs['rate'])
+            return (num_samples,)
+        else:
+            return None
+
     def get(self):
         """ Get a copy of this instance """ 
         return self.__class__(data=self.get_data(), annot=self.get_annotations(), **self.get_kwargs())

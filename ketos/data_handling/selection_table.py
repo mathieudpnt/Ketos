@@ -86,7 +86,7 @@ import os
 import librosa
 import numpy as np
 import pandas as pd
-from ketos.utils import str_is_int
+from ketos.utils import str_is_int, fractional_overlap
 from ketos.data_handling.data_handling import find_wave_files
 
 
@@ -525,7 +525,8 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the selection interval and the  
-                annotation, expressed as a fraction of the selection length. Only used if step > 0. 
+                annotation, expressed as a fraction of whichever is shorter, the annotation 
+                duration or the selection length. Only used if step > 0. 
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
@@ -564,8 +565,8 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             >>> 
             >>> #Create a selection table by defining intervals of fixed 
             >>> #length around every annotation.
-            >>> #Set the length to 3.0 sec and require a minimum overlap of 
-            >>> #0.16*3.0=0.48 sec between selection and annotations.
+            >>> #Set the length to 3.0 sec and require a minimum overlap of 16%
+            >>> #between selection and annotations.
             >>> #Also, create multiple time-shifted versions of the same selection
             >>> #using a step size of 1.0 sec.     
             >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, center=True, keep_id=True) 
@@ -703,7 +704,8 @@ def time_shift(annot, time_ref, length, step, min_overlap):
                 time. The default value is 0.
             min_overlap: float
                 Minimum required overlap between the selection intervals and the original 
-                annotation, expressed as a fraction of the selection length.   
+                annotation, expressed as a fraction of whichever is smaller, the annotation 
+                duration or the selection length.   
 
         Results:
             df: pandas DataFrame
@@ -738,35 +740,21 @@ def time_shift(annot, time_ref, length, step, min_overlap):
     elif isinstance(annot, pd.Series):
         row = annot.copy()
     
-    row['start_new'] = np.nan
-    
-    t = time_ref
-    t1 = row['start']
-    t2 = row['end']
-
-    t_min = t1 - (1 - min_overlap) * length
-    t_max = t2 - min_overlap * length
-
-    num_steps_back = 0
-    num_steps_forw = 0
-
-    if t_min < t: num_steps_back = int(np.floor((t - t_min) / step))
-    if t_max > t: num_steps_forw = int(np.floor((t_max - t) / step))
-
     row['start_new'] = time_ref
     rows_new = [row]
 
-    # step backwards
-    for i in range(num_steps_back):
-        ri = row.copy()
-        ri['start_new'] = t - (i + 1) * step
-        rows_new.append(ri)
-
-    # step forwards
-    for i in range(num_steps_forw):
-        ri = row.copy()
-        ri['start_new'] = t + (i + 1) * step
-        rows_new.append(ri)
+    # step backwards and forwards
+    for sign in [-1, 1]:
+        counter = 1
+        while True:
+            t0 = time_ref + sign * counter * step
+            o = fractional_overlap(a=(t0,t0+length), b=(row['start'], row['end']))
+            if o < min_overlap: 
+                break
+            ri = row.copy()
+            ri['start_new'] = t0
+            rows_new.append(ri)
+            counter += 1
 
     # create DataFrame
     df = pd.DataFrame(rows_new)

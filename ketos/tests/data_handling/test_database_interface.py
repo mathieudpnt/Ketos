@@ -848,3 +848,22 @@ def test_create_database_check_file_duration(sine_wave_file):
     assert len(specs) == 3
     db.close()
     os.remove(out)
+
+def test_create_database_discard_outside(sine_wave_file):
+    """ Check selections outside the file are not saved """
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db16.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav'], 
+                        'start':[0.6, 0.1, -0.2, 4.5],
+                        'end':[1.6, 1.1, 0.8, 5.5],
+                        'label':[1, 1, 2, 1]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=True, progress_bar=False, discard_outside=True)
+    # check database contents
+    db = di.open_file(out, 'r')
+    assert '/assets/data' in db
+    specs = di.load_audio(table=db.root.assets.data)
+    db.close()
+    os.remove(out)
+    assert len(specs) == 2

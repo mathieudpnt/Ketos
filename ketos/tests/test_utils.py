@@ -33,13 +33,17 @@ import pytest
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
-    detect_peaks, str_is_int, signif, ensure_dir
+    detect_peaks, str_is_int, signif, ensure_dir, fractional_overlap
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
-path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_assets = os.path.join(current_dir, "assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
+
+def test_fractional_overlap():
+    f = fractional_overlap(a=(3,7), b=(5.5,10))
+    assert f == 0.375
 
 def test_tostring():
     box = (1,2,3)

@@ -36,6 +36,27 @@ from scipy.signal import find_peaks
 from functools import reduce
 
 
+def fractional_overlap(a, b):
+    ''' Compute the fractional overlap of two intervals, defined as
+        (length of overlap) / (length of the shortest interval of the two).
+        For example, if a=(3,7) and b=(5.5,10), the overlap interval is 
+        (5.5,7) which has length 1.5. Interval a has length 4 while b has 
+        length 4.5. Therefore, the fractional overlap is 1.5/4 = 0.375 = 37.5%.
+
+        Args:
+            a,b: tuples
+                Start and end points of the two intervals
+
+        Returns:
+            : float
+                The fractional overlap.
+    '''
+    c1 = max(a[0], b[0])
+    c2 = min(a[1], b[1])
+    if a[1] - a[0] == 0 or b[1] - b[0] == 0:
+        return 0        
+    return (c2 - c1) / min(a[1] - a[0], b[1] - b[0])
+
 def factors(n):    
     """ Returns sorted set of all divisors of n
 

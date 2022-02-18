@@ -64,3 +64,11 @@ def test_encode_audio_representation():
     assert s['window'] == '0.032 s'
     assert s['dummy'] == ['x', 'y']
     assert s['transforms'] == []
+
+def test_is_encoded():
+    s = {'window': 0.032, 'dummy': 'xx'}
+    assert not jp.is_encoded(s)
+    s = {'window': '0.032s', 'dummy': 'xx'}
+    assert jp.is_encoded(s)
+    s = {'step':0.32, 'window': '0.032s', 'dummy': 'xx'}
+    assert not jp.is_encoded(s)
