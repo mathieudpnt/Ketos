@@ -1124,6 +1124,7 @@ def segment_files(table, length, step=None, pad=True):
 
     # compute number of segments for each file
     table['num'] = (table['duration'] - length) / step + 1
+    table.num = table.num.apply(lambda x: np.maximum(x, 0))
     if pad: 
         table.num = table.num.apply(np.ceil).astype(int)
     else:

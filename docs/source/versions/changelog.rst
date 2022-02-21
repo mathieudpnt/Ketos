@@ -3,6 +3,7 @@ Change log
 
 **Version 2.5.0** (Month, Day, 2022)
 
+ * Bug fix in :meth:`segment_files <ketos.data_handling.selection_table.segment_files>`.
  * New method :meth:`skip <ketos.audio.audio_loader.AudioLoader.skip>`.
  * New argument `discard_outside` added to :meth:`create_database <ketos.data_handling.database_interface.create_database>`
  * Corrected error in stepping algorithm for creating selections with 
