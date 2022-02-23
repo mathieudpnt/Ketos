@@ -233,7 +233,7 @@ def test_to1hot(class_label, n_classes, expected):
 
 def test_transform_batch():
     inputs = np.random.rand(10,5,5)
-    labels = np.array([1,0,0,0,1,0,0,1,1,1],  dtype=[('label','<i4')])
+    labels = np.array([1,0,0,0,1,0,0,1,1,1])
 
     X,Y = NNInterface.transform_batch(inputs, labels)
 
@@ -680,7 +680,7 @@ def test_run_on_batch(instance_of_MLPInterface):
     assert np.array_equal(pred, np.array([0,1,1,0,0]))
 
     assert scores.shape == (5,)
-    assert np.array_equal(scores, np.array([0.5086525,1.,1., 0.5086525, 0.5086525], dtype=scores.dtype))
+    np.testing.assert_array_almost_equal(scores, np.array([0.5086525,1.,1., 0.5086525, 0.5086525], dtype=scores.dtype), decimal=7)
 
 def test_run_on_batch_raw_output(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
@@ -708,7 +708,7 @@ def test_run_on_instance(instance_of_MLPInterface):
     assert pred.shape == (1,)
     assert pred == 0
     assert scores.shape == (1,)
-    assert np.array_equal(scores, np.array([0.5086525], dtype=scores.dtype))
+    np.testing.assert_array_almost_equal(scores, np.array([0.5086525], dtype=scores.dtype), decimal=7)
 
 def test_run_on_instance_raw_output(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
@@ -719,7 +719,7 @@ def test_run_on_instance_raw_output(instance_of_MLPInterface):
     
     scores = instance_of_MLPInterface.run_on_instance(x, return_raw_output=True)
     assert scores.shape == (1,2)
-    assert np.array_equal(scores, np.array([[0.5086525 , 0.49134743]], dtype=scores.dtype))
+    np.testing.assert_array_almost_equal(scores, np.array([[0.5086525 , 0.49134743]], dtype=scores.dtype), decimal=7)
      
 def test_run_on_test_generator(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
@@ -730,10 +730,10 @@ def test_run_on_test_generator(instance_of_MLPInterface):
     assert np.array_equal(pred, np.array([0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1]))
 
     assert scores.shape == (20,)
-    assert np.array_equal(scores, np.array([0.5086525, 1.,1., 0.5086525, 0.5086525,
+    np.testing.assert_array_almost_equal(scores, np.array([0.5086525, 1.,1., 0.5086525, 0.5086525,
                                           0.5086525, 1., 0.5086525, 1.,0.5086525,
                                           0.5086525, 1., 0.5086525, 1., 1.,
-                                          1., 0.5086525, 1., 0.5086525, 1.], dtype=scores.dtype))
+                                          1., 0.5086525, 1., 0.5086525, 1.], dtype=scores.dtype), decimal=7)
 
 def test_run_on_test_generator_metrics(instance_of_MLPInterface):
     """ Test that the run_on_test_generator method returns validation metrics """

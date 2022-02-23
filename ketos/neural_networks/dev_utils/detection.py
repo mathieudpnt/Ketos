@@ -277,6 +277,8 @@ def process(provider, **kwargs):
 def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buffer=0, win_len=1, group=False, progress_bar=False, merge=False):
     """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
 
+        TODO: Improve the implementation so that it is not limited to audio_loader.batch_size = 1
+
         Args:
             audio_loader: a ketos.audio.audio_loader.AudioFrameLoader object
                 An audio loader that computes spectrograms from the audio audio files as requested
@@ -305,6 +307,8 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
                 If a list of threshold values is specified, the returned object will be a list of lists with len(detections) = len(thresholds)         
     """
     assert isinstance(win_len, int) and win_len%2 == 1, 'win_len must be an odd integer'
+
+    assert audio_loader.batch_size == 1, "audio_loader must have batch size of 1"
 
     thresholds = threshold if isinstance(threshold, list) else [threshold]
         

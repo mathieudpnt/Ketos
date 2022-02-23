@@ -27,6 +27,7 @@ def mock_audio_loader(batch):
     data, support = batch
     audio_loader = MagicMock()
     audio_loader.current = 0
+    audio_loader.batch_size = 1
 
     def mock_next(self):
         if self.current == 30: 

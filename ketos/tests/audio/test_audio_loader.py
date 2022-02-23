@@ -357,16 +357,21 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start   end  freq_min  freq_max
 0      1    0.0  0.20       NaN       NaN
 1      3    0.0  0.06       NaN       NaN'''
+# 0      0    0.0  0.20       NaN       NaN
+# 1      2    0.0  0.06       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start  end  freq_min  freq_max
 0      2   0.08  0.3       NaN       NaN'''
+# 0      1   0.08  0.3       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)

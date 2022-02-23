@@ -88,6 +88,7 @@ import numpy as np
 import pandas as pd
 from ketos.utils import str_is_int, fractional_overlap
 from ketos.data_handling.data_handling import find_wave_files
+import warnings
 
 
 def unfold(table, sep=','):
@@ -151,8 +152,8 @@ def empty_selection_table():
     df = use_multi_indexing(df, 'sel_id')
     return df
 
-def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=None,\
-    backgr_labels=[], unfold_labels=False, label_sep=',', trim_table=False,
+def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, signal_labels=None,\
+    backgr_labels=None, unfold_labels=False, label_sep=',', trim_table=False,
     return_label_dict=False, sort_by_filename_start=False):
     """ Standardize the annotation table format.
 
@@ -164,8 +165,9 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
         The table headings are renamed to conform with the ketos standard naming convention, following the 
         name mapping specified by the user. 
 
-        Signal labels are mapped to integers 1,2,3,... while background labels are mapped to 0, 
+        Deprecated: Signal labels are mapped to integers 1,2,3,... while background labels are mapped to 0, 
         and any remaining labels are mapped to -1.
+        In the next version, all labels are mapped to integers 0,1,2,3,... and any remaining labels are mapped to -1.
 
         Note that the standardized output table has two levels of indices, the first index being the 
         filename and the second index the annotation identifier. 
@@ -180,12 +182,19 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
             mapper: dict
                 Dictionary mapping the headings of the input table to the 
                 standard ketos headings.
+            labels: list, or list of lists
+                Labels of interest. Will be mapped to 0,1,2,3,...
+                Several labels can be mapped to the same integer by using nested lists. For example, 
+                signal_labels=[A,[B,C]] would result in A being mapped to 0 and B and C both being mapped 
+                to 1.
             signal_labels: list, or list of lists
+                Deprecated and will be removed in a future version. Use labels instead.
                 Labels of interest. Will be mapped to 1,2,3,...
                 Several labels can be mapped to the same integer by using nested lists. For example, 
                 signal_labels=[A,[B,C]] would result in A being mapped to 1 and B and C both being mapped 
                 to 2.
             backgr_labels: list
+                Deprecated and will be removed in a future version. Use labels instead.
                 Labels will be grouped into a common "background" class (0).
             unfold_labels: bool
                 Should be set to True if any of the rows have multiple labels. 
@@ -236,24 +245,56 @@ def standardize(table=None, filename=None, sep=',', mapper=None, signal_labels=N
     # cast label column to str
     df = df.astype({'label': 'str'})
     # create list of unique labels in input table
-    labels = np.sort(np.unique(df['label'].values)).tolist()
+    unique_labels = np.sort(np.unique(df['label'].values)).tolist()
 
-    if signal_labels is None:
-        signal_labels = [x for x in labels if x not in backgr_labels]
+    if labels is not None:
+        assert isinstance(labels, list), 'labels is not a list or list of lists. Found {0}'.format(type(labels))
+        if backgr_labels is not None:
+            warnings.warn("Warning: labels specified, ignoring backgr_labels.")
+        if signal_labels is not None:
+            warnings.warn("Warning: labels specified, ignoring signal_labels.")
 
-    # cast to str
-    backgr_labels = cast_to_str(backgr_labels)
-    signal_labels, signal_labels_flat = cast_to_str(signal_labels, nested=True)
+        labels, labels_flat = cast_to_str(labels, nested=True)
 
-    # separate out background labels, if any
-    for x in backgr_labels:
-        assert x in labels, 'label {0} not found in input table'.format(x)
-    
-    # discard remaining labels
-    discard_labels = [x for x in labels if x not in signal_labels_flat and x not in backgr_labels]
+        # Check if the mapped labels are in the unique labels
+        for x in labels_flat:
+            assert x in unique_labels, 'label {0} not found in input table'.format(x)
 
-    # create label dictionary and apply to label column in DataFrame
-    _label_dict = create_label_dict(signal_labels, backgr_labels, discard_labels)
+        # discard remaining labels
+        discard_labels = [x for x in unique_labels if x not in labels_flat]
+
+        # create label dictionary and apply to label column in DataFrame
+        _label_dict = _create_label_dict(labels, discard_labels)
+
+    # TODO: remove content of else in the next major version
+    else:
+        if backgr_labels is None: 
+            backgr_labels = []
+        else:
+            warnings.warn("backgr_labels is deprecated and will be removed in a future version. Use labels instead.")
+
+        if signal_labels is None:
+            warnings.warn("The default implementation of standardize will change. In a future version \
+                labels will be mapped to 0,1,2... instead of 1,2,3...")
+            signal_labels = [x for x in unique_labels if x not in backgr_labels]
+        else:
+            warnings.warn("signal_labels is deprecated and will be removed in a future version. Use labels instead.")
+
+        # cast to str
+        backgr_labels = cast_to_str(backgr_labels)
+        signal_labels, signal_labels_flat = cast_to_str(signal_labels, nested=True)
+
+        # separate out background labels, if any
+        for x in backgr_labels:
+            assert x in unique_labels, 'label {0} not found in input table'.format(x)
+        
+        # discard remaining labels
+        discard_labels = [x for x in unique_labels if x not in signal_labels_flat and x not in backgr_labels]
+
+        # create label dictionary and apply to label column in DataFrame
+        # [backgr_labels] + signal_labels will maintain previous functionality of create_label_dict when it allowed 
+        # for backgrnd labels and signal labels to be separated
+        _label_dict = _create_label_dict([backgr_labels] + signal_labels, discard_labels)
     df['label'] = df['label'].apply(lambda x: _label_dict.get(x))
 
     # cast integer dict keys from str back to int
@@ -393,7 +434,7 @@ def is_standardized(table, has_time=False, verbose=True):
 
     return res
 
-def create_label_dict(signal_labels, backgr_labels, discard_labels):
+def _create_label_dict(labels, discard_labels=None):
     """ Create label dictionary, following the convetion:
 
             * signal_labels are mapped to 1,2,3,...
@@ -415,11 +456,12 @@ def create_label_dict(signal_labels, backgr_labels, discard_labels):
             label_dict: dict
                 Dict that maps old labels to new labels.
     """
-    label_dict = dict()    
-    for l in discard_labels: label_dict[l] = -1
-    for l in backgr_labels: label_dict[l] = 0
-    num = 1
-    for l in signal_labels:
+
+    label_dict = dict()  
+    if discard_labels is not None:  
+        for l in discard_labels: label_dict[l] = -1
+    num = 0
+    for l in labels:
         if isinstance(l, list):
             for ll in l:
                 label_dict[ll] = num
@@ -492,7 +534,7 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def select(annotations, length, step=0, min_overlap=0, center=False,\
+def select(annotations, length, step=0, min_overlap=0, background_label=0, center=False,\
     discard_long=False, keep_id=False, label=None):
     """ Generate a selection table by defining intervals of fixed length around 
         every annotated section of the audio data. Each selection created in this 
@@ -530,6 +572,9 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
                 The requirement is imposed on all annotations (labeled 1,2,3,...) except 
                 background annotations (labeled 0) which are always required to have an 
                 overlap of 1.0.
+            background_label: int or None
+                The value of the backgrounf lable. Use None if there is no background label
+                The default value is 0
             center: bool
                 Center annotations. Default is False.
             discard_long: bool
@@ -569,7 +614,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
             >>> #between selection and annotations.
             >>> #Also, create multiple time-shifted versions of the same selection
             >>> #using a step size of 1.0 sec.     
-            >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, center=True, keep_id=True) 
+            >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, background_label=None, center=True, keep_id=True) 
             >>> print(df_sel.round(2))
                               label  start    end  annot_id
             filename  sel_id                               
@@ -639,7 +684,9 @@ def select(annotations, length, step=0, min_overlap=0, center=False,\
         for idx,row in df.iterrows():
             t = row['start_new']
 
-            if row['label'] == 0:
+            # TODO: Currently, the default value of background labels is 0. We should consider if we should set it to 
+            # None in a future version, and if so, issue a warning for now.
+            if row['label'] == background_label:
                 ovl = 1
             else:
                 ovl = min_overlap
@@ -782,8 +829,171 @@ def file_duration_table(path, search_subdirs=False):
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
     return pd.DataFrame({'filename':paths, 'duration':durations})
 
+def create_rndm_selections(files, length, num, label=0, annotations=None, no_overlap=False, trim_table=False, buffer=0):
+    """ Create selections of uniform length, randomly distributed across the 
+        data set and not overlapping with any annotations. The created selections
+        will have a label value defined by the 'label' parameter.
+
+        The random sampling is performed without regard to already created 
+        selections. Therefore, it is in principle possible that some of the created 
+        selections will overlap, although in practice this will only occur with very 
+        small probability, unless the number of requested selections (num) is very 
+        large and/or the (annotation-free part of) the data set is small in size.
+
+        To avoid any overlap, set the 'no_overlap' to True, but note that this can 
+        lead to longer execution times.
+
+        Use the 'buffer' argument to ensure a minimum separation between
+        selections and the annotated segments. This can be useful if the annotation 
+        start and end times are not always fully accurate.
+
+        Args:
+            files: pandas DataFrame
+                Table with file durations in seconds. 
+                Should contain columns named 'filename' and 'duration'.
+            length: float
+                Selection length in seconds.
+            num: int
+                Number of selections to be created.
+            label: int
+                Value to be assigned to the created selections.
+            annotations: pandas DataFrame
+                Annotation table. Optional.
+            no_overlap: bool
+                If True, randomly selected segments will have no overlap.
+            trim_table: bool
+                Keep only the columns prescribed by the Ketos annotation format.
+            buffer: float
+                Minimum separation in seconds between the background selections and the annotated segments.
+                The default value is zero.
+
+        Returns:
+            table_backgr: pandas DataFrame
+                Output selection table.
+
+        Example:
+            >>> import pandas as pd
+            >>> import numpy as np
+            >>> from ketos.data_handling.selection_table import select
+            >>> 
+            >>> #Ensure reproducible results by fixing the random number generator seed.
+            >>> np.random.seed(3)
+            >>> 
+            >>> #Load and inspect the annotations.
+            >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
+            >>> print(df)
+                filename  start   end  label
+            0  file1.wav    7.0   8.1      1
+            1  file1.wav    8.5  12.5      0
+            2  file1.wav   13.1  14.0      1
+            3  file2.wav    2.2   3.1      1
+            4  file2.wav    5.8   6.8      1
+            5  file2.wav    9.0  13.0      0
+            >>>
+            >>> #Standardize annotation table format
+            >>> df, label_dict = standardize(df, return_label_dict=True)
+            >>> print(df)
+                                start   end  label
+            filename  annot_id                    
+            file1.wav 0           7.0   8.1      2
+                      1           8.5  12.5      1
+                      2          13.1  14.0      2
+            file2.wav 0           2.2   3.1      2
+                      1           5.8   6.8      2
+                      2           9.0  13.0      1
+            >>>
+            >>> #Enter file durations into a pandas DataFrame
+            >>> file_dur = pd.DataFrame({'filename':['file1.wav','file2.wav','file3.wav',], 'duration':[18.,20.,15.]})
+            >>> 
+            >>> #Create randomly sampled background selection with fixed 3.0-s length.
+            >>> df_bgr = create_rndm_selections(annotations=df, files=file_dur, length=3.0, num=12, trim_table=True) 
+            >>> print(df_bgr.round(2))
+                              start    end  label
+            filename  sel_id                     
+            file1.wav 0        1.06   4.06      0
+                      1        1.31   4.31      0
+                      2        2.26   5.26      0
+            file2.wav 0       13.56  16.56      0
+                      1       14.76  17.76      0
+                      2       15.50  18.50      0
+                      3       16.16  19.16      0
+            file3.wav 0        2.33   5.33      0
+                      1        7.29  10.29      0
+                      2        7.44  10.44      0
+                      3        9.20  12.20      0
+                      4       10.94  13.94      0
+    """
+    if len(files) == 0:
+        return empty_selection_table()
+
+    assert isinstance(label, int), 'label is not int. Found {0}'.format(type(label))
+
+    # compute lengths, and discard segments shorter than requested length
+    c = files[['filename','duration']]
+
+    if 'offset' in files.columns.names: c['offset'] = files['offset']
+    else: c['offset'] = 0
+
+    c.reset_index(drop=True, inplace=True)
+    c['length'] = c['duration'] - length
+    c = c[c['length'] >= 0]
+
+    # cumulative length 
+    cs = c['length'].cumsum().values.astype(float)
+    cs = np.concatenate(([0],cs))
+
+    # output
+    filename, start, end = [], [], []
+
+    # randomply sample
+    df = pd.DataFrame()
+    while (len(df) < num):
+        times = np.random.random_sample(num) * cs[-1]
+        for t in times:
+            idx = np.argmax(t < cs) - 1
+            row = c.iloc[idx]
+            fname = row['filename']
+            start = t - cs[idx] + row['offset']
+            end   = start + length
+
+            if annotations is not None:
+                q = query(annotations, filename=fname, start=start-buffer, end=end+buffer)
+                if len(q) > 0: continue
+
+            if no_overlap and len(df) > 0:
+                q = query(df.set_index(df.filename), filename=fname, start=start, end=end)
+                if len(q) > 0: continue
+
+            x = {'start':start, 'end':end}
+            y = files[files['filename']==fname].iloc[0].to_dict()
+            z = {**x, **y}
+            df = df.append(z, ignore_index=True)
+
+            if len(df) == num: break
+
+    # sort by filename and offset
+    df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
+
+    # re-order columns
+    col_names = ['filename','start','end']
+    if not trim_table:
+        names = df.columns.values.tolist()
+        for name in col_names: names.remove(name)
+        col_names += names
+
+    df = df[col_names]
+
+    df['label'] = label #add label
+
+    # transform to multi-indexing
+    df = use_multi_indexing(df, 'sel_id')
+
+    return df
+
+
 def create_rndm_backgr_selections(files, length, num, annotations=None, no_overlap=False, trim_table=False, buffer=0):
-    """ Create background selections of uniform length, randomly distributed across the 
+    """ Deprecation warning: create_rndm_backgr_selections is deprecated, use create_rndm_selections instead.
+        Create background selections of uniform length, randomly distributed across the 
         data set and not overlapping with any annotations, including those labelled 0.
 
         The random sampling is performed without regard to already created background 
@@ -873,70 +1083,8 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
                       3        9.20  12.20      0
                       4       10.94  13.94      0
     """
-    if len(files) == 0:
-        return empty_selection_table()
-
-    # compute lengths, and discard segments shorter than requested length
-    c = files[['filename','duration']]
-
-    if 'offset' in files.columns.names: c['offset'] = files['offset']
-    else: c['offset'] = 0
-
-    c.reset_index(drop=True, inplace=True)
-    c['length'] = c['duration'] - length
-    c = c[c['length'] >= 0]
-
-    # cumulative length 
-    cs = c['length'].cumsum().values.astype(float)
-    cs = np.concatenate(([0],cs))
-
-    # output
-    filename, start, end = [], [], []
-
-    # randomply sample
-    df = pd.DataFrame()
-    while (len(df) < num):
-        times = np.random.random_sample(num) * cs[-1]
-        for t in times:
-            idx = np.argmax(t < cs) - 1
-            row = c.iloc[idx]
-            fname = row['filename']
-            start = t - cs[idx] + row['offset']
-            end   = start + length
-
-            if annotations is not None:
-                q = query(annotations, filename=fname, start=start-buffer, end=end+buffer)
-                if len(q) > 0: continue
-
-            if no_overlap and len(df) > 0:
-                q = query(df.set_index(df.filename), filename=fname, start=start, end=end)
-                if len(q) > 0: continue
-
-            x = {'start':start, 'end':end}
-            y = files[files['filename']==fname].iloc[0].to_dict()
-            z = {**x, **y}
-            df = df.append(z, ignore_index=True)
-
-            if len(df) == num: break
-
-    # sort by filename and offset
-    df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
-
-    # re-order columns
-    col_names = ['filename','start','end']
-    if not trim_table:
-        names = df.columns.values.tolist()
-        for name in col_names: names.remove(name)
-        col_names += names
-
-    df = df[col_names]
-
-    df['label'] = 0 #add label
-
-    # transform to multi-indexing
-    df = use_multi_indexing(df, 'sel_id')
-
-    return df
+    warnings.warn("create_rndm_backgr_selections is deprecated and will be removed in a future version. Use create_rndm_selections() instead")
+    return create_rndm_selections(files, length, num, label=0, annotations=annotations, no_overlap=no_overlap, trim_table=trim_table, buffer=buffer)
 
 def random_choice(df, siz):
     """ Randomly select a specified number of elements from a table.
@@ -963,7 +1111,7 @@ def random_choice(df, siz):
     return df
 
 def select_by_segmenting(files, length, annotations=None, step=None,
-    pad=True, discard_empty=False, keep_only_empty=False):
+    pad=True, discard_empty=False, keep_only_empty=False, label_empty=0):
     """ Generate a selection table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
         
@@ -995,6 +1143,9 @@ def select_by_segmenting(files, length, annotations=None, step=None,
             keep_only_empty: bool
                 If True, only selections *without* any annotations are used, and 
                 only the selections table is returned. Default is False. 
+            label_empty: int
+                Only relevant if keep_only_empty is True. Value to be assigned to
+                selections without annotations. Default is 0.
 
         Returns:
             sel: pandas DataFrame
@@ -1091,7 +1242,7 @@ def select_by_segmenting(files, length, annotations=None, step=None,
 
             elif keep_only_empty: 
                 sel = sel.loc[~sel.index.isin(indices)].sort_index()
-                sel['label'] = 0
+                sel['label'] = label_empty
                 return sel
         else:
             return sel, annot
