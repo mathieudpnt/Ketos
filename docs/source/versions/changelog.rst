@@ -3,6 +3,19 @@ Change log
 
 **Version 2.5.0** (Month, Day, 2022)
 
+ * Overall, we are changing the way we handle backgr_labels. Previously, we reserved label 0 for backgr. This will no longer be the case going forward.
+   backgr labels will be treated as any other:
+ * Added new argument to the BatchGenerator class called map_labels with a default value of True. When true, will map labels to incremental integers
+   0,1,2,3...
+ * selection_table.create_label_dict is now an internal method
+ * selection_table.standardize function deprecated signal_labels and backgr_labels in favor of the new labels argument which combine the functionality
+   of both
+ * selection_table.select new argument background_label. Default value of 0. The value assigned to the background labels.
+ * selection_table.create_rndm_backgr_selections is now deprecated in favor of create_rndm_selections.
+ * new method selection_table.create_rndm_selections. Creates ramdnom selection with a label that must be defined by the user. Similar functionality 
+   to create_rndm_backgr_selections function
+ * Added new argument to selection_table.select_by_segmenting called label_empty with default value of 0. Only relevant if keep_only_empty=True.
+   Value is assigned to selections without annotations
  * Bug fix in :meth:`segment_files <ketos.data_handling.selection_table.segment_files>`.
  * New method :meth:`skip <ketos.audio.audio_loader.AudioLoader.skip>`.
  * New argument `discard_outside` added to :meth:`create_database <ketos.data_handling.database_interface.create_database>`

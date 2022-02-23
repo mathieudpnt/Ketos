@@ -106,6 +106,9 @@ class BatchGenerator():
             output_transform_func: function
                 A function to be applied to the batch, transforming the instances. Must accept 
                 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
+            map_labels: bool
+                If True, maps all labels to integers 0,1,2,3... The NeuralNetworks expect labels to be incremental and starting from 0. 
+                Default is True
             x_field: str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
@@ -161,13 +164,13 @@ class BatchGenerator():
             >>> for e in range(n_epochs):
             ...    for batch_num in range(train_generator.n_batches):
             ...        ids, batch_X, batch_Y = next(train_generator)
-            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3} labels for instance {4}: {5}".format(e, batch_num, ids, batch_X.shape, ids[0], batch_Y[0]['label']))
-            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [2 3]
-            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [2 3]
-            epoch:0, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [2 3]
-            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [2 3]
-            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [2 3]
-            epoch:1, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [2 3]
+            ...        print("epoch:{0}, batch {1} | instance ids:{2}, X batch shape: {3} labels for instance {4}: {5}".format(e, batch_num, ids, batch_X.shape, ids[0], batch_Y[0]))
+            epoch:0, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [0 1]
+            epoch:0, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [0 1]
+            epoch:0, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [0 1]
+            epoch:1, batch 0 | instance ids:[0, 1, 2], X batch shape: (3, 12, 12) labels for instance 0: [0 1]
+            epoch:1, batch 1 | instance ids:[3, 4, 5], X batch shape: (3, 12, 12) labels for instance 3: [0 1]
+            epoch:1, batch 2 | instance ids:[6, 7, 8, 9, 10], X batch shape: (5, 12, 12) labels for instance 6: [0 1]
             >>> h5.close() #close the database handle.
             >>> # Creating a Batch Generator from a data tables that includes annotations
             >>> h5 = open_file("ketos/tests/assets/mini_narw.h5", 'r') # create the database handle  
@@ -194,12 +197,13 @@ class BatchGenerator():
             >>> h5.close()
     """
     def __init__(self, batch_size, data_table=None, annot_in_data_table=True, annot_table=None, x=None, y=None, 
-                    select_indices=None, output_transform_func=None, x_field='data', y_field='label',
+                    select_indices=None, output_transform_func=None, map_labels=True, x_field='data', y_field='label',
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None, n_extend=0):
 
         self.from_memory = x is not None and y is not None
         self.annot_in_data_table = annot_in_data_table
         self.filter = filter
+        self.map_labels = map_labels
         
         if self.from_memory:
             #TODO: Reinstate 'check_data_sanity' once it is more more flexible
@@ -210,6 +214,9 @@ class BatchGenerator():
             # for pre-processing purposes. 
 
             #check_data_sanity(x, y) 
+            if y.ndim > 1:
+                warnings.warn("y has 2-dimansions, assuming the array is one-hot encoded. Otherwise use annot_table")
+                self.map_labels = False
             self.x = x
             self.y = y
 
@@ -254,10 +261,47 @@ class BatchGenerator():
 
         self.n_batches = int(self.n_instances // self.batch_size)
 
+        self.mapper = None
+
+        # This is a very ugly check to solve a test error on the detection module where the y parameter is being misused to
+        # pass on detections instead of labels. We should go over the detection module
+        # TODO: fix detection module
+        if self.from_memory and self.y.dtype.names and self.y.dtype.names[0] == 'filename':
+            self.map_labels = False
+
+        if self.map_labels:
+            self.mapper = self.__create_label_mapping__()
+
         self.entry_indices = self.__update_indices__()
 
         self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__(n_extend)
-    
+
+    def __create_label_mapping__(self):
+        """Maps the labels values to incremental integer values starting from 0.
+
+            E.g. a dataset with labels 2,3,5 will be mapped to 0,1,2
+
+            Goes through every row in the dataset once to identify the unique labels
+
+            Return
+                dict
+                    A dictionary that contains the mapping maps the values each original label to the new label
+        """
+        if self.from_memory:
+            # Pandas unique function is significantly faster than numpy's according to its documentation
+            # Ravel is an array method that returns a flattened view (if possible) of a multidimensional array. This can be potentially faster
+            # The argument 'K' tells the method to flatten the array in the order the elements are stored in the memory
+            unique_labels = np.sort(pd.unique(self.y.ravel('K'))) # get array of unique values
+            return dict(zip(unique_labels, np.arange(len(unique_labels))))
+
+        if self.annot:
+            table = self.annot
+        else:
+            table = self.data
+     
+        unique_labels = np.sort(pd.unique(table.col(self.y_field[0]))) # get array of unique values
+        return dict(zip(unique_labels, np.arange(len(unique_labels))))
+
     def __update_indices__(self):
         """Updates the indices used to divide the instances into batches.
 
@@ -355,19 +399,33 @@ class BatchGenerator():
         if self.from_memory:
             X = np.take(self.x, indices, axis=0)
             Y = np.take(self.y, indices, axis=0)
-        
+    
+            if self.map_labels:
+                Y = np.array([self.mapper[x] for x in Y])
+            
         else:
             X = self.data[indices][self.x_field]
 
-            if self.annot_in_data_table == True:            
-                Y = self.data[indices][self.y_field]
+            if self.annot_in_data_table == True:
+                Y = self.data[indices][self.y_field]['label']
+
+                if self.map_labels:
+                    for idx, label in enumerate(Y):
+                        Y[idx] = self.mapper[label]  
             else:
                 assert annot_indices is not None, "row indices for annotation table must be specified"
+                
+                data_indexes = self.annot.col('data_index')[annot_indices]
+                Y = self.annot[annot_indices][self.y_field]
 
-                Y = self.annot[annot_indices][['data_index'] + self.y_field]
-                Y = np.split(Y[self.y_field], np.cumsum(np.unique(Y['data_index'], return_counts=True)[1])[:-1])
-                Y = np.array(Y)
-            
+                # Mapping the values
+                if self.map_labels:
+                    for idx, label in enumerate(Y):
+                        Y[idx] = self.mapper[label[self.y_field[0]]]
+
+                Y = np.split(Y, np.cumsum(np.unique(data_indexes, return_counts=True)[1])[:-1])
+                Y = np.array(Y)['label']
+
         if self.output_transform_func is not None:
             X,Y = self.output_transform_func(X,Y)
 

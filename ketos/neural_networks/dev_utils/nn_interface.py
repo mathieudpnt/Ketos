@@ -281,7 +281,7 @@ class NNInterface():
     
 
     @classmethod
-    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
+    def transform_batch(cls, x, y, n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method 
@@ -312,7 +312,7 @@ class NNInterface():
                 (10, 5, 5)
 
                 >>> # Create a batch of 10 labels (0 or 1)
-                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
+                >>> labels = np.random.choice([0,1], size=10)
                 >>> labels.shape
                 (10,)
 
@@ -323,8 +323,14 @@ class NNInterface():
                 >>> transformed_labels.shape
                 (10, 2)
         """
-        X = cls._transform_input(x)
-        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+        X = cls._transform_input(x)      
+ 
+        if y.dtype.names is not None:
+            # Keeping for now for backwards compatibility
+            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
+            warnings.warn("Deprecation warning: In a future version, the label parameter y will be a numpy aray or list and will not accept ['label'] keyword")
+        else:    
+            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y])
         return (X,Y)
 
 
