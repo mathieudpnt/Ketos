@@ -98,7 +98,6 @@ def test_export_to_ketos_protobuf_infer_shape():
     model_path = os.path.join(path_to_assets, 'narw_resnet.kt')
     tmp_path = os.path.join(path_to_tmp, 'tmp_folder')
     model, audio_repr = load_model_file(model_path, tmp_path, load_audio_repr=True)
-    print(audio_repr)
     output_path = os.path.join(path_to_tmp, 'narw1.ktpb')
 
     with pytest.raises(AssertionError):
@@ -149,7 +148,8 @@ def test_export_to_ketos():
     """Test export resnet to ketos format"""
     model_path = os.path.join(path_to_assets, 'narw_resnet.kt')
     tmp_path = os.path.join(path_to_tmp, 'tmp_folder')
-    model = load_model_file(model_path, tmp_path)
+    model, audio_repr = load_model_file(model_path, tmp_path, load_audio_repr=True)
+    audio_repr = audio_repr[0]
 
     # check that we can save model
     output_path = os.path.join(path_to_tmp, 'narw3.kt')
@@ -160,6 +160,17 @@ def test_export_to_ketos():
     output_path = os.path.join(path_to_tmp, 'narw4.kt')
     exp.export_to_ketos(model=model, output_name=output_path, checkpoint_name="cp-0030.ckpt")
     assert os.path.isfile(output_path)
+
+    # check that audio representation is saved correctly
+    output_path = os.path.join(path_to_tmp, 'narw5.kt')
+    exp.export_to_ketos(model=model, output_name=output_path, audio_repr=audio_repr)
+    assert os.path.isfile(output_path)
+
+    with ZipFile(output_path, 'r') as zip:
+        zip.extractall(path=tmp_path)
+    audio_repr = load_audio_representation(os.path.join(tmp_path, 'audio_repr.json'))
+    assert audio_repr['spectrogram']['window'] == audio_repr['spectrogram']['window']
+    shutil.rmtree(tmp_path) #clean up
 
 
 def test_get_export_function():

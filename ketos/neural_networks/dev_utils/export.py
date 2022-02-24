@@ -414,6 +414,9 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
         if isinstance(audio_repr, str) and audio_repr[-4:] == "json":
             audio_repr = pa.load_audio_representation(audio_repr, return_unparsed=True)
 
+        if not pa.is_encoded(audio_repr):
+            audio_repr = pa.encode_audio_representation(audio_repr)
+
         audio_repr_path = os.path.join(tmp_folder, "audio_repr.json")
         with open(audio_repr_path, 'w') as json_repr:
             json.dump(audio_repr, json_repr)

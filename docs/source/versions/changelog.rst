@@ -3,6 +3,7 @@ Change log
 
 **Version 2.5.0** (Month, Day, 2022)
 
+ * Bug fix in :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>`.
  * Overall, we are changing the way we handle backgr_labels. Previously, we reserved label 0 for backgr. This will no longer be the case going forward.
    backgr labels will be treated as any other:
  * Added new argument to the BatchGenerator class called map_labels with a default value of True. When true, will map labels to incremental integers
