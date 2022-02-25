@@ -3,6 +3,7 @@ Change log
 
 **Version 2.5.0** (Month, Day, 2022)
 
+ * Bug fix in parsing module (ensure that audio representations are encoded correctly when passed as a nested dict).
  * Bug fix in :meth:`train_loop <ketos.neural_networks.dev_utils.nn_interface.train_loop>` (ensure `last_epoch_with_improvement` attr is always initialized)
  * Bug fix in :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>`.
  * Overall, we are changing the way we handle backgr_labels. Previously, we reserved label 0 for backgr. This will no longer be the case going forward.
