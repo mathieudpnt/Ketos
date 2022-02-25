@@ -1304,7 +1304,7 @@ class NNInterface():
         if early_stopping == True:
             early_stopping_metric = []
             best_metric_value = None
-            last_epoch_with_improvement = 0
+            self.last_epoch_with_improvement = 0
             epochs_without_improvement = 0
             should_stop = False
             checkpoint_freq = 1
