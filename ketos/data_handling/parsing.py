@@ -75,10 +75,13 @@ def is_encoded(s):
             : bool
                 True, if the audio representation is encoded. False, otherwise.
     """
-    for key, value in s.items():
-        if key in audio_std_params.keys() and \
-                audio_std_params[key]['unit'] != None and not isinstance(value, str):
-            return False
+    s_dict = {'s': s} if 'type' in s.keys() else s
+        
+    for _,s in s_dict.items():     
+        for key, value in s.items():
+            if key in audio_std_params.keys() and \
+                    audio_std_params[key]['unit'] != None and not isinstance(value, str):
+                return False
 
     return True
 
@@ -219,9 +222,12 @@ def encode_audio_representation(s):
             s: dict
                 Encoded audio representation
     """
-    for key,value in s.items():
-        s[key] = encode_parameter(name=key, value=value)
+    s_dict = {'s': s} if 'type' in s.keys() else s     
+    for i,s in s_dict.items():         
+        for key,value in s.items():
+            s_dict[i][key] = encode_parameter(name=key, value=value)
 
+    s = s_dict['s'] if 's' in s_dict.keys() else s_dict
     return s
 
 def encode_parameter(name, value):

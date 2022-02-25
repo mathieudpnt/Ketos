@@ -170,6 +170,7 @@ def test_export_to_ketos():
         zip.extractall(path=tmp_path)
     audio_repr = load_audio_representation(os.path.join(tmp_path, 'audio_repr.json'))
     assert audio_repr['spectrogram']['window'] == audio_repr['spectrogram']['window']
+    
     shutil.rmtree(tmp_path) #clean up
 
 

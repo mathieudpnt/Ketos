@@ -59,16 +59,25 @@ def test_encode_parameter():
     assert jp.encode_parameter(name='window3', value=[8.2]) == [8.2]
 
 def test_encode_audio_representation():
-    s = {'window': 0.032, 'dummy': ['x', 'y'], 'transforms':[]}
+    s = {'type': 'bla', 'window': 0.032, 'dummy': ['x', 'y'], 'transforms':[]}
     s = jp.encode_audio_representation(s)
     assert s['window'] == '0.032 s'
     assert s['dummy'] == ['x', 'y']
     assert s['transforms'] == []
+    s = {'myrep': {'type': 'bla', 'window': 0.032, 'dummy': ['x', 'y'], 'transforms':[]}}
+    s = jp.encode_audio_representation(s)
+    assert s['myrep']['window'] == '0.032 s'
+    assert s['myrep']['dummy'] == ['x', 'y']
+    assert s['myrep']['transforms'] == []
 
 def test_is_encoded():
-    s = {'window': 0.032, 'dummy': 'xx'}
+    s = {'type': 'bla', 'window': 0.032, 'dummy': 'xx'}
     assert not jp.is_encoded(s)
-    s = {'window': '0.032s', 'dummy': 'xx'}
+    s = {'type': 'bla', 'window': '0.032s', 'dummy': 'xx'}
     assert jp.is_encoded(s)
-    s = {'step':0.32, 'window': '0.032s', 'dummy': 'xx'}
+    s = {'type': 'bla', 'step':0.32, 'window': '0.032s', 'dummy': 'xx'}
     assert not jp.is_encoded(s)
+    s = {'myrepr': {'type': 'bla', 'step':0.32, 'window': '0.032s', 'dummy': 'xx'}}
+    assert not jp.is_encoded(s)
+    s = {'myrepr': {'type': 'bla', 'step':"0.32s"}}
+    assert jp.is_encoded(s)
