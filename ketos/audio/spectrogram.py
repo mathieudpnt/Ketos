@@ -1122,6 +1122,11 @@ class MagSpectrogram(Spectrogram):
 
         # sampling rate of recovered audio signal
         rate = len(audio) / (self.duration() + (num_fft - step_len) / target_rate)
+
+        # crop at both ends to obtain correct length for waveform
+        num_samples = int(self.duration() * rate)
+        num_cut = int(0.5 * (num_fft - step_len))
+        audio = audio[num_cut:num_cut+num_samples]
         
         return Waveform(rate=rate, data=audio)
 

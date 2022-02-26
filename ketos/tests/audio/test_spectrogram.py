@@ -33,6 +33,7 @@ import copy
 import os
 from ketos.audio.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
+from ketos.audio.waveform import Waveform
 from ketos.audio.utils.axis import LinearAxis
 from ketos.audio.utils.misc import from_decibel
 
@@ -198,6 +199,22 @@ def test_recover_waveform_after_freq_crop(sine_audio):
     audio = spec.recover_waveform(num_iters=10, phase_angle=0)
     assert audio.rate == pytest.approx(2*2300, abs=0.5)
 
+def test_recover_waveform_with_phase():
+    """ Test that the recovered waveform matches the original waveform
+        if the appropriate complex phase angle is used"""
+    wf = Waveform.morlet(rate=20000, frequency=100., width=0.1, displacement=0.3/100., samples=20000)
+    duration = wf.duration()
+    win = duration / 20
+    step = duration / 100
+    spec = MagSpectrogram.from_waveform(audio=wf, window=win, step=step, compute_phase=True)
+    wf_r = spec.recover_waveform(num_iters=25)
+    assert wf_r.rate == wf.rate
+    assert wf_r.duration() == wf.duration()
+    y = wf.get_data()
+    yr = wf_r.get_data()
+    assert y.shape == y.shape
+    assert np.all(np.abs(yr - y) < 1e-2 * np.max(np.abs(y))) #agree within 1% of max value
+    
 def test_mag_from_wav(sine_wave_file):
     # duration is even integer multiply of step size
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
