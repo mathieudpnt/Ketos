@@ -47,6 +47,60 @@ from ketos.audio.utils.axis import LinearAxis
 from ketos.audio.base_audio import BaseAudioTime, segment_data
 import ketos.audio.utils.misc as aum
 
+
+def plot(waveforms, labels="", figsize=(5,4), title="", offset=0, duration=None):
+    """ Plot one or several waveforms superimposed on one another.
+
+        Note: The resulting figure can be shown (fig.show())
+        or saved (fig.savefig(file_name))
+
+        Args:
+            waveforms: Waveform or list(Waveform)
+                Waveforms to be plotted
+            labels: str or list(str)
+                Labels used to identify the waveforms. 
+                Must have the same length as waveforms.
+            figsize: tuple
+                Figure size
+            title: str
+                Figure title.
+            offset, duration: float
+                Start time and length of the plotted segment in seconds. 
+                If not specified, the full waveform will be plotted.
+        
+        Returns:
+            fig: matplotlib.figure.Figure
+                Figure object.
+    """
+    if isinstance(waveforms, Waveform): waveforms = [waveforms]
+    if isinstance(labels, str): labels = [labels]
+
+    assert len(waveforms) == len(labels), "waveforms and labels must have the same length"
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
+
+    colors = [f"C{i}" for i in range(6)]
+    lstyles = ['-','--',':','-.']
+
+    for i,wf in enumerate(waveforms):
+        start = min(offset, wf.duration())
+        end = wf.duration()
+        if duration != None: end = min(end, start + duration)
+        wfc = wf.crop(start=start, end=end, make_copy=True)
+        col = colors[i%len(colors)]
+        lsty = lstyles[i%len(lstyles)]
+        x = np.linspace(start=start, stop=end, num=wfc.data.shape[0])
+        y = wfc.get_data()
+        ax.plot(x, y, label=labels[i], color=col, linestyle=lsty)
+        ax.set_xlabel(wfc.time_ax.label)
+        ax.set_ylabel('Amplitude')
+        ax.set_title(title)
+
+    if len(waveforms) > 1: ax.legend()
+
+    return fig
+
+
 class Waveform(BaseAudioTime):
     """ Audio signal
 
@@ -693,37 +747,30 @@ class Waveform(BaseAudioTime):
         bins = signal.data.shape[0]
         self.data[b:b+bins] = self.data[b:b+bins] + scale * signal.data
 
-    def resample(self, new_rate):
+    def resample(self, new_rate, resample_method='scipy'):
         """ Resample the acoustic signal with an arbitrary sampling rate.
-
-        Note: Code adapted from Kahl et al. (2017)
-              Paper: http://ceur-ws.org/Vol-1866/paper_143.pdf
-              Code:  https://github.com/kahst/BirdCLEF2017/blob/master/birdCLEF_spec.py  
 
         Args:
             new_rate: int
                 New sampling rate in Hz
+            resample_method: str
+                Resampling method. Only relevant if `rate` is specified. Options are
+                    * kaiser_best
+                    * kaiser_fast
+                    * scipy (default)
+                    * polyphase
+                    
+                See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
+                for details on the individual methods.
         """
         if len(self.data) < 2:
             self.rate = new_rate
 
         else:                
-            orig_rate = self.rate
-            sig = self.data
-
-            duration = sig.shape[0] / orig_rate
-
-            time_old  = np.linspace(0, duration, sig.shape[0])
-            time_new  = np.linspace(0, duration, int(sig.shape[0] * new_rate / orig_rate))
-
-            interpolator = interpolate.interp1d(time_old, sig.T)
-            new_audio = interpolator(time_new).T
-
-            new_sig = np.round(new_audio).astype(sig.dtype)
-
+            self.data = librosa.core.resample(self.get_data(), orig_sr=self.rate, target_sr=new_rate, res_type=resample_method)
             self.rate = new_rate
-            self.data = new_sig
-            self.time_ax = LinearAxis(bins=self.data.shape[0], extent=(0., self.data.shape[0] / self.rate), label='Time (s)') #new time axis
+
+        self.time_ax = LinearAxis(bins=self.data.shape[0], extent=(0., self.data.shape[0] / self.rate), label='Time (s)') #new time axis
 
 
 def _smoothclamp(x, mi, mx): 
