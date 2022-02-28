@@ -1130,6 +1130,42 @@ class MagSpectrogram(Spectrogram):
         
         return Waveform(rate=rate, data=audio)
 
+    def plot_phase_angle(self, figsize=(5,4), cmap='viridis'):
+        """ Plot the complex phase matrix.
+
+            Returns None if the complex phase has not been computed.
+            
+            Set compute_phase=True when you initialize the spectrogram to ensure 
+            that the phase is computed.
+
+            Note: The resulting figure can be shown (fig.show())
+            or saved (fig.savefig(file_name))
+
+            Args:
+                figsize: tuple
+                    Figure size
+                cmap: string
+                    The colormap to be used. The colormaps available can be 
+                    seen here: https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
+            Returns:
+                fig: matplotlib.figure.Figure
+                    A figure object.
+        """
+        fig, ax = super(Spectrogram, self).plot(figsize)
+
+        x = self.get_phase_angle() # select image data  
+        if x is None: 
+            warnings.warn(f"The complex phase angle has not been computed and can therefore not be plotted. "\
+                "Make sure to initialize the spectrogram with compute_phase=True to be able to plot the phase.", category=UserWarning)
+            return None      
+
+        extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
+        img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent)# draw image
+        ax.set_ylabel(self.freq_ax.label) # axis label        
+        fig.colorbar(img, ax=ax)# colobar
+            
+        return fig
+
 class PowerSpectrogram(Spectrogram):
     """ Power Spectrogram.
     

@@ -3,6 +3,7 @@ Change log
 
 **Version 2.5.0** (Month, Day, 2022)
 
+ * New method :meth:`plot_phase_angle <ketos.audio.spectrogram.MagSpectrogram.plot_phase_angle>` for plotting complex phase angle.
  * New method :meth:`plot <ketos.audio.waveform.plot>` for plotting multiple waveforms superimposed on one another.
  * Modified :meth:`resample <ketos.audio.waveform.Waveform.resample>` to use librosa's resampling function.
  * Bug fix in :meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>` (ensure that output waveform as correct length).
