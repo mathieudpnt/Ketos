@@ -25,9 +25,9 @@ copyright = '2020 MERIDIAN'
 author = 'Fabio Frazao, Oliver Kirsebom'
 
 # The short X.Y version
-version = '2.4'
+version = '2.5'
 # The full version, including alpha/beta/rc tags
-release = '2.4.3'
+release = '2.5.0'
 
 
 # -- General configuration ---------------------------------------------------

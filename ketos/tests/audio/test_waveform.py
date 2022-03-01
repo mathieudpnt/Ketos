@@ -237,3 +237,9 @@ def test_segment():
     mor = Waveform.morlet(rate=100, frequency=5, width=0.5)
     segs = mor.segment(window=2., step=1.)
     assert segs[0].get_filename() == 'morlet'
+
+def test_infer_shape(sine_wave_file):
+    """Test that we can infer the shape of a Waveform"""
+    kwargs = {'duration':17.2, 'rate':8000}
+    wf = Waveform.from_wav(path=sine_wave_file, **kwargs)
+    assert Waveform.infer_shape(**kwargs) == wf.get_data().shape

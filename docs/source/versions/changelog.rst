@@ -1,6 +1,38 @@
 Change log
 ==========
 
+**Version 2.5.0** (Month, Day, 2022)
+
+ * New method :meth:`plot_phase_angle <ketos.audio.spectrogram.MagSpectrogram.plot_phase_angle>` for plotting complex phase angle.
+ * New method :meth:`plot <ketos.audio.waveform.plot>` for plotting multiple waveforms superimposed on one another.
+ * Modified :meth:`resample <ketos.audio.waveform.Waveform.resample>` to use librosa's resampling function.
+ * Bug fix in :meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>` (ensure that output waveform as correct length).
+ * Bug fix in parsing module (ensure that audio representations are encoded correctly when passed as a nested dict).
+ * Bug fix in :meth:`train_loop <ketos.neural_networks.dev_utils.nn_interface.train_loop>` (ensure `last_epoch_with_improvement` attr is always initialized)
+ * Bug fix in :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>`.
+ * Overall, we are changing the way we handle backgr_labels. Previously, we reserved label 0 for backgr. This will no longer be the case going forward.
+   backgr labels will be treated as any other:
+ * Added new argument to the BatchGenerator class called map_labels with a default value of True. When true, will map labels to incremental integers
+   0,1,2,3...
+ * selection_table.create_label_dict is now an internal method
+ * selection_table.standardize function deprecated signal_labels and backgr_labels in favor of the new labels argument which combine the functionality
+   of both
+ * selection_table.select new argument background_label. Default value of 0. The value assigned to the background labels.
+ * selection_table.create_rndm_backgr_selections is now deprecated in favor of create_rndm_selections.
+ * new method selection_table.create_rndm_selections. Creates ramdnom selection with a label that must be defined by the user. Similar functionality 
+   to create_rndm_backgr_selections function
+ * Added new argument to selection_table.select_by_segmenting called label_empty with default value of 0. Only relevant if keep_only_empty=True.
+   Value is assigned to selections without annotations
+ * Bug fix in :meth:`segment_files <ketos.data_handling.selection_table.segment_files>`.
+ * New method :meth:`skip <ketos.audio.audio_loader.AudioLoader.skip>`.
+ * New argument `discard_outside` added to :meth:`create_database <ketos.data_handling.database_interface.create_database>`
+ * Corrected error in stepping algorithm for creating selections with :meth:`select <ketos.data_handling.selection_table.select>`.
+ * Created short-hand versions of the methods `save_model` (`save`), `load_model_file` (`load`), and `build_from_recipe_file` (`build`) in the `nn_interface` module. The long-hand versions are retained for backward compatibility.
+ * New method `is_encoded` in parsing module
+ * New method `export_to_ketos` in export module
+ * New method `infer_shape` in the audio module
+
+
 **Version 2.4.3** (February 11, 2022)
 
  * Fixed bug in :func:`ensure_dir <ketos.utils.ensure_dir>`

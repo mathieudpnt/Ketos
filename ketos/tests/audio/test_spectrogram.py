@@ -33,6 +33,7 @@ import copy
 import os
 from ketos.audio.spectrogram import MagSpectrogram,\
     PowerSpectrogram, MelSpectrogram, Spectrogram, CQTSpectrogram
+from ketos.audio.waveform import Waveform
 from ketos.audio.utils.axis import LinearAxis
 from ketos.audio.utils.misc import from_decibel
 
@@ -198,6 +199,22 @@ def test_recover_waveform_after_freq_crop(sine_audio):
     audio = spec.recover_waveform(num_iters=10, phase_angle=0)
     assert audio.rate == pytest.approx(2*2300, abs=0.5)
 
+def test_recover_waveform_with_phase():
+    """ Test that the recovered waveform matches the original waveform
+        if the appropriate complex phase angle is used"""
+    wf = Waveform.morlet(rate=20000, frequency=100., width=0.1, displacement=0.3/100., samples=20000)
+    duration = wf.duration()
+    win = duration / 20
+    step = duration / 100
+    spec = MagSpectrogram.from_waveform(audio=wf, window=win, step=step, compute_phase=True)
+    wf_r = spec.recover_waveform(num_iters=25)
+    assert wf_r.rate == wf.rate
+    assert wf_r.duration() == wf.duration()
+    y = wf.get_data()
+    yr = wf_r.get_data()
+    assert y.shape == y.shape
+    assert np.all(np.abs(yr - y) < 1e-2 * np.max(np.abs(y))) #agree within 1% of max value
+    
 def test_mag_from_wav(sine_wave_file):
     # duration is even integer multiply of step size
     spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.02)
@@ -334,3 +351,31 @@ def test_resize_mel_spec(sine_audio):
     new_spec = spec.deepcopy()
     new_spec.resize(shape=(6,10))
     assert new_spec.data.shape == (6,10)
+
+def test_infer_shape_mag_spec(sine_wave_file):
+    """Test that we can infer the shape of a magnitude spectrogram"""
+    kwargs = {'window':0.2, 'step':0.05}
+    # without duration and rate the shape cannot be inferred
+    assert MagSpectrogram.infer_shape(**kwargs) == None
+    # when we include these parameters, the shape can be inferred
+    kwargs['duration'] = 0.8
+    kwargs['rate'] = 12000
+    spec = MagSpectrogram.from_wav(path=sine_wave_file, **kwargs)
+    assert MagSpectrogram.infer_shape(**kwargs) == spec.get_data().shape
+    # if we cut on frequency, the inferred shape is still okay
+    kwargs['freq_min'] = 300
+    kwargs['freq_max'] = 4000
+    spec = MagSpectrogram.from_wav(path=sine_wave_file, **kwargs)
+    assert MagSpectrogram.infer_shape(**kwargs) == spec.get_data().shape
+
+def test_infer_shape_cqt_spec(sine_wave_file):
+    """Test that we can infer the shape of a CQT spectrogram"""
+    kwargs = {'step':0.05, 'bins_per_oct':8, 'duration':0.72, 'rate':8000}
+    spec = CQTSpectrogram.from_wav(path=sine_wave_file, **kwargs)
+    assert CQTSpectrogram.infer_shape(**kwargs) == spec.get_data().shape
+
+def test_infer_shape_mel_spec(sine_wave_file):
+    """Test that we can infer the shape of a Mel spectrogram"""
+    kwargs = {'window':0.2, 'step':0.05, 'duration':7.2, 'rate':8000}
+    spec = MelSpectrogram.from_wav(path=sine_wave_file, **kwargs)
+    assert MelSpectrogram.infer_shape(**kwargs) == spec.get_data().shape

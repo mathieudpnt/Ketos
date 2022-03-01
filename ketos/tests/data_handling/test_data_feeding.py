@@ -61,7 +61,7 @@ def test_one_batch():
     assert X.shape == (5, 94, 129)
     np.testing.assert_array_equal(X, five_specs)
     assert Y.shape == (5,)
-    np.testing.assert_array_equal(Y['label'], five_labels)
+    np.testing.assert_array_equal(Y, five_labels)
 
     h5.close()
 
@@ -74,11 +74,11 @@ def test_multiple_data_fields():
 
     five_specs = train_data[:5]['spec']
     five_gammas = train_data[:5]['gamma']
-    five_labels = train_data[:5]['label']
-    
+    five_labels = [0,0,0,0,0]
+
     five_labels = [np.array(l) for l in five_labels]
 
-    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True, map_labels=True) #create a batch generator 
     ids, X, Y = next(train_generator)
     
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
@@ -91,7 +91,37 @@ def test_multiple_data_fields():
     np.testing.assert_array_equal(specs, five_specs)
     np.testing.assert_array_equal(gammas, five_gammas)
     assert Y.shape == (5,)
-    np.testing.assert_array_equal(Y['label'], five_labels)
+    np.testing.assert_array_equal(Y, five_labels)
+
+    h5.close()
+
+def test_multiple_data_fields_map_labels_false():
+    """ Test if one batch has the expected shape and contents when loading multiple data fields 
+        from the same table when the map labels parameter of the batch generator is false
+    """
+    h5 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    train_data = open_table(h5, "/train/data")
+
+    five_specs = train_data[:5]['spec']
+    five_gammas = train_data[:5]['gamma']
+    five_labels = train_data[:5]['label']
+
+    five_labels = [np.array(l) for l in five_labels]
+
+    train_generator = BatchGenerator(data_table=train_data, batch_size=5, map_labels=False, x_field=['spec','gamma'], return_batch_ids=True) #create a batch generator 
+    ids, X, Y = next(train_generator)
+    
+    np.testing.assert_array_equal(ids,[0,1,2,3,4])
+    assert len(X) == 5
+    assert len(X[0]) == 2
+    assert X[0]['spec'].shape == (94, 129)
+    assert X[0]['gamma'].shape == (3000, 20)
+    specs = [x[0] for x in X]
+    gammas = [x[1] for x in X]
+    np.testing.assert_array_equal(specs, five_specs)
+    np.testing.assert_array_equal(gammas, five_gammas)
+    assert Y.shape == (5,)
+    np.testing.assert_array_equal(Y, five_labels)
 
     h5.close()
 
@@ -101,17 +131,17 @@ def test_output_for_strong_annotations():
     h5 = open_file(os.path.join(path_to_assets, "11x_same_spec.h5"), 'r') # create the database handle  
     data = open_table(h5, "/group_1/table_data")
     annot = open_table(h5, "/group_1/table_annot")
-        
-    expected_y = np.array([[annot[0]['label'],annot[1]['label']],
-                            [annot[2]['label'],annot[3]['label']],
-                            [annot[4]['label'],annot[5]['label']],
-                            [annot[6]['label'],annot[7]['label']],
-                            [annot[8]['label'],annot[9]['label']]])
+
+    expected_y = np.array([[0,1],
+                            [0,1],
+                            [0,1],
+                            [0,1],
+                            [0,1]])
                             
-    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
+    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False, map_labels=True)
     
     _, Y = next(train_generator)
-    np.testing.assert_array_equal(Y['label'], expected_y)
+    np.testing.assert_array_equal(Y, expected_y)
 
     h5.close()
     
@@ -327,17 +357,17 @@ def test_refresh_on_epoch_end_annot():
 
         
         np.testing.assert_array_equal(ids,expected_ids[epoch][0])
-        np.testing.assert_array_equal(Y['label'],expected_labels[epoch][0])
+        np.testing.assert_array_equal(Y,expected_labels[epoch][0])
         #batch 1
         ids, X, Y = next(train_generator)
      
         np.testing.assert_array_equal(ids,expected_ids[epoch][1])
-        np.testing.assert_array_equal(Y['label'],expected_labels[epoch][1])
+        np.testing.assert_array_equal(Y,expected_labels[epoch][1])
         #batch 2
         ids, X, Y = next(train_generator)
      
         np.testing.assert_array_equal(ids,expected_ids[epoch][2])
-        np.testing.assert_array_equal(Y['label'],expected_labels[epoch][2])
+        np.testing.assert_array_equal(Y,expected_labels[epoch][2])
         
        
     
@@ -436,9 +466,9 @@ def test_joint_batch_gen():
 
     assert len(Y) == 5
     for i in range(3):
-        np.testing.assert_array_equal(Y[i][0], three_labels[i])
+        np.testing.assert_array_equal(Y[i], three_labels[i])
     for i in range(2):
-        np.testing.assert_array_equal(Y[3+i][0], three_labels[i])
+        np.testing.assert_array_equal(Y[3+i], three_labels[i])
 
     h51.close()
     h52.close()
@@ -477,9 +507,9 @@ def test_joint_batch_gen_ids():
 
     assert len(Y) == 5
     for i in range(3):
-        np.testing.assert_array_equal(Y[i][0], three_labels[i])
+        np.testing.assert_array_equal(Y[i], three_labels[i])
     for i in range(2):
-        np.testing.assert_array_equal(Y[3+i][0], three_labels[i])
+        np.testing.assert_array_equal(Y[3+i], three_labels[i])
 
     h51.close()
     h52.close()
@@ -526,12 +556,12 @@ def test_joint_batch_gen_multi_modal():
 
     three_specs = tbl1.col('spec')[:3]
     three_gammas = tbl1.col('gamma')[:3]
-    three_labels = tbl1.col('label')[:3]
-
+    # three_labels = tbl1.col('label')[:3]
+    three_labels = [0, 0, 0]
     three_labels = [np.array(l) for l in three_labels]
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'])  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'])  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True)  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
     ids, X, Y = next(gen)
@@ -556,7 +586,7 @@ def test_joint_batch_gen_multi_modal():
     np.testing.assert_array_equal(gammas[3:], three_gammas[:2])
 
     assert len(Y) == 5
-    labels = [y[0] for y in Y]
+    labels = [y for y in Y]
     np.testing.assert_array_equal(labels[:3], three_labels)
     np.testing.assert_array_equal(labels[3:], three_labels[:2])
 
@@ -573,17 +603,17 @@ def test_joint_batch_gen_multi_modal_transform():
 
     three_specs = tbl1.col('spec')[:3]
     three_gammas = tbl1.col('gamma')[:3]
-    three_labels = tbl1.col('label')[:3]
+    three_labels = [0, 0, 0]
 
     three_labels = [np.array(l) for l in three_labels]
 
     def transform_batch(X, Y):
         X = [[x['spec'][:,:,np.newaxis], x['gamma'][:,:,np.newaxis]] for x in X]
-        Y = np.array([label for label in Y['label']])        
+        Y = np.array([label for label in Y])        
         return (X,Y)
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min") 
     X, Y = next(gen)

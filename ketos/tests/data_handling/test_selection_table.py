@@ -82,17 +82,16 @@ def test_empty_selection_table():
 
 def test_create_label_dict():
     l1 = [0, 'gg', -17, 'whale']
-    l2 = [-33, 1, 'boat']
-    l3 = [999]
-    d = st.create_label_dict(l1, l2, l3)
-    ans = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 4}
+    l2 = [999]
+    d = st._create_label_dict(l1, l2)
+    ans = {999: -1, 0: 0, 'gg':1, -17: 2, 'whale': 3}
     assert d == ans
 
 def test_create_label_dict_can_handle_nested_list():
-    l1 = [0, 'gg', [-17, 'whale']]
-    l2 = [-33, 1, 'boat']
+    l1 = [[-33, 1, 'boat']]
+    l2 = [0, 'gg', [-17, 'whale']]   
     l3 = [999]
-    d = st.create_label_dict(l1, l2, l3)
+    d = st._create_label_dict(l1+l2, l3)
     ans = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 3}
     assert d == ans
 
@@ -111,6 +110,18 @@ f1.wav   0             4    1.0  4.3
 f1.wav   1             2    4.0  7.3
 f2.wav   0             5    2.0  5.3
 f2.wav   1             1    5.0  8.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
+def test_standardize_with_labels(annot_table_std):
+    res = st.standardize(annot_table_std, labels=[-1,0,1,2,3])
+    d = '''filename annot_id label  start  end                   
+f0.wav   0             2    0.0  3.3
+f0.wav   1             1    3.0  6.3
+f1.wav   0             3    1.0  4.3
+f1.wav   1             1    4.0  7.3
+f2.wav   0             4    2.0  5.3
+f2.wav   1             0    5.0  8.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
@@ -225,11 +236,15 @@ def test_select_step(annot_table_std):
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
-def test_time_shift(annot_table_std):
+def test_time_shift():
     row = pd.Series({'label':3.00,'start':0.00,'end':3.30,'annot_id':0.00,'length':3.30,'start_new':-0.35})
     res = st.time_shift(annot=row, time_ref=row['start_new'], length=4.0, min_overlap=0.8, step=0.5)
     d = '''label  start  end  annot_id  length  start_new
-0    3.0    0.0  3.3       0.0     3.3      -0.35'''
+0    3.0    0.0  3.3       0.0     3.3      -1.35
+1    3.0    0.0  3.3       0.0     3.3      -0.85
+2    3.0    0.0  3.3       0.0     3.3      -0.35
+3    3.0    0.0  3.3       0.0     3.3       0.15
+4    3.0    0.0  3.3       0.0     3.3       0.65'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
@@ -251,6 +266,17 @@ def test_select_with_varying_overlap(annot_table_std):
         num_sel.append(len(res))
 
     assert np.all(np.diff(num_sel) >= 0)
+
+def test_create_rndm_selections_with_label(file_duration_table):
+    np.random.seed(1)
+    dur = file_duration_table 
+    num = 5
+    df_bgr = st.create_rndm_selections(files=dur, length=2.0, num=num, label=6)
+    assert len(df_bgr) == num
+    # assert selections have uniform length
+    assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
+    # assert all selection have label = 0
+    assert np.all(df_bgr.label.values == 6)
 
 def test_create_rndm_backgr_selections(file_duration_table):
     """ Test if can generate a random selection of background 
@@ -419,6 +445,36 @@ f5.wav   1         4.0  20.0
 f5.wav   2         8.0  24.0
 f5.wav   3        12.0  28.0
 f5.wav   4        16.0  32.0'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
+
+def test_select_by_segmenting_label_empty(annot_table_std, file_duration_table):
+    a = st.standardize(annot_table_std)
+    f = file_duration_table
+    sel = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, keep_only_empty=True, label_empty=6, pad=False)
+    # check selection table
+    d = '''filename sel_id start end label
+f0.wav   2         8.0  24.0  6
+f0.wav   3        12.0  28.0  6
+f1.wav   2         8.0  24.0  6
+f1.wav   3        12.0  28.0  6
+f2.wav   3        12.0  28.0  6
+f2.wav   4        16.0  32.0  6
+f3.wav   0         0.0  16.0  6
+f3.wav   1         4.0  20.0  6
+f3.wav   2         8.0  24.0  6
+f3.wav   3        12.0  28.0  6
+f3.wav   4        16.0  32.0  6
+f4.wav   0         0.0  16.0  6
+f4.wav   1         4.0  20.0  6
+f4.wav   2         8.0  24.0  6
+f4.wav   3        12.0  28.0  6
+f4.wav   4        16.0  32.0  6
+f5.wav   0         0.0  16.0  6
+f5.wav   1         4.0  20.0  6
+f5.wav   2         8.0  24.0  6
+f5.wav   3        12.0  28.0  6
+f5.wav   4        16.0  32.0  6'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
 

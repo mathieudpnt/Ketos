@@ -312,6 +312,20 @@ def test_audio_select_loader_mag(five_time_stamped_wave_files):
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
 
+def test_audio_select_loader_can_skip(five_time_stamped_wave_files):
+    """ Test that the audio selection loader can skip segments""" 
+    rep = {'type':'Waveform','rate':1000}
+    # create a selection table
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    assert loader.num() == 2
+    loader.skip()
+    s = next(loader)
+    assert s.duration() == pytest.approx(0.30, abs=1e-6)
+
 def test_audio_select_loader_with_labels(five_time_stamped_wave_files):
     """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with labels""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
@@ -343,16 +357,21 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start   end  freq_min  freq_max
 0      1    0.0  0.20       NaN       NaN
 1      3    0.0  0.06       NaN       NaN'''
+# 0      0    0.0  0.20       NaN       NaN
+# 1      2    0.0  0.06       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start  end  freq_min  freq_max
 0      2   0.08  0.3       NaN       NaN'''
+# 0      1   0.08  0.3       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)

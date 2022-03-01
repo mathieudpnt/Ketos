@@ -32,6 +32,7 @@ import os
 import numpy as np
 import scipy.signal as sg
 import ketos.audio.utils.misc as aum
+from ketos.utils import morlet_func
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
@@ -188,7 +189,9 @@ def test_to_decibel_returns_inf_if_input_is_negative():
     y = aum.to_decibel(x)
     assert np.ma.getmask(y) == True
 
-def test_spec2wave():
+def test_spec2wave_sine_without_phase():
+    ''' Check that we can reconstruct a sine waveform from a magnitude 
+        spectrogram without considering the complex phase'''
     # 1-s sinus signal with frequency of 10 Hz and 1 kHz sampling rate
     x = np.arange(1000)
     sig = np.sin(2 * np.pi * 10 * x / 1000) 
@@ -203,3 +206,26 @@ def test_spec2wave():
     assert sig.shape == aud.shape
     fft = np.fft.rfft(aud)
     assert np.argmax(fft) == int(10. / 500. * len(fft))
+
+def test_spec2wave_morlet_with_phase():
+    ''' Check that we can reconstruct a Morlet waveform from a magnitude 
+        spectrogram considering also the complex phase'''
+    # superposition of two Morlet wavelets
+    sr = 20000
+    x = np.linspace(start=0, stop=1, num=int(sr))
+    y = morlet_func(time=x, frequency=100., width=0.1, displacement=0.5+0.3/100.) \
+        + morlet_func(time=x, frequency=60., width=0.1, displacement=0.5+0.7/60.)
+    # compute STFT, including complex phase
+    win_fun = 'hamming'
+    seg_args = dict(win_len=1000, step_len=200, offset_len=0)
+    mag, freq_max, num_fft, seg_args, phase = aum.stft(x=y, rate=sr, seg_args=seg_args, window_func=win_fun, compute_phase=True)
+    img = aum.from_decibel(mag)
+    # recover waveform
+    yr = aum.spec2wave(image=img, phase_angle=phase, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
+    # check that recovered signal matches the original within 1% of max amplitude
+    assert yr.shape == y.shape
+    assert np.all(np.abs(yr - y) < 1e-2 * np.max(np.abs(y)))
+    # now, recover waveform without using phase 
+    yr2 = aum.spec2wave(image=img, phase_angle=0, num_fft=num_fft, step_len=seg_args['step_len'], num_iters=50, window_func=win_fun)
+    # check that recovered signal does not match the original
+    assert np.any(np.abs(yr2 - y) > 0.1 * np.max(np.abs(y))) #deviation of more than 10%

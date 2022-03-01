@@ -1025,7 +1025,7 @@ class ResNetInterface(NNInterface):
 
 class ResNet1DInterface(ResNetInterface): 
     @classmethod
-    def transform_batch(cls, x, y, y_fields=['label'], n_classes=2):
+    def transform_batch(cls, x, y, n_classes=2):
         """ Transforms a training batch into the format expected by the network.
 
             When this interface is subclassed to make new neural_network classes, this method can be overwritten to
@@ -1056,7 +1056,7 @@ class ResNet1DInterface(ResNetInterface):
 
                     
                 >>> # Create a batch of 10 labels (0 or 1)
-                >>> labels = np.random.choice([0,1], size=10).astype([('label','<i4')])
+                >>> labels = np.random.choice([0,1], size=10)
                 >>> labels.shape
                 (10,)
 
@@ -1069,7 +1069,10 @@ class ResNet1DInterface(ResNetInterface):
                 
         """
         X = cls._transform_input(x)
-        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])        
+        if y.dtype.names is not None:
+            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])  
+        else:    
+            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y])        
 
         return (X,Y)
 
