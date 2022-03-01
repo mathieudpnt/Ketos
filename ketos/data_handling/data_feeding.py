@@ -158,7 +158,7 @@ class BatchGenerator():
             >>> data_table = open_table(h5, "/group_1/table_data")
             >>> annot_table = open_table(h5, "/group_1/table_annot")
             >>> #Create a BatchGenerator from a data_table and separate annotations in a anot_table
-            >>> train_generator = BatchGenerator(data_table=data_table, annot_in_data_table=False, annot_table=annot_table,  batch_size=3, x_field='data', return_batch_ids=True) #create a batch generator 
+            >>> train_generator = BatchGenerator(data_table=data_table, annot_in_data_table=False, annot_table=annot_table, batch_size=3, x_field='data', return_batch_ids=True, map_labels=True) #create a batch generator 
             >>> #Run 2 epochs. 
             >>> n_epochs = 2    
             >>> for e in range(n_epochs):
