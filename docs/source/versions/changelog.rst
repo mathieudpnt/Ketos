@@ -26,11 +26,8 @@ Change log
  * Bug fix in :meth:`segment_files <ketos.data_handling.selection_table.segment_files>`.
  * New method :meth:`skip <ketos.audio.audio_loader.AudioLoader.skip>`.
  * New argument `discard_outside` added to :meth:`create_database <ketos.data_handling.database_interface.create_database>`
- * Corrected error in stepping algorithm for creating selections with 
-    :meth:`select <ketos.data_handling.selection_table.select>`.
- * Created short-hand versions of the methods `save_model` (`save`), `load_model_file` (`load`), 
-    and `build_from_recipe_file` (`build`) in the `nn_interface` module. The long-hand versions are 
-    retained for backward compatibility.
+ * Corrected error in stepping algorithm for creating selections with :meth:`select <ketos.data_handling.selection_table.select>`.
+ * Created short-hand versions of the methods `save_model` (`save`), `load_model_file` (`load`), and `build_from_recipe_file` (`build`) in the `nn_interface` module. The long-hand versions are retained for backward compatibility.
  * New method `is_encoded` in parsing module
  * New method `export_to_ketos` in export module
  * New method `infer_shape` in the audio module
