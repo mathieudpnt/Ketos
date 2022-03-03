@@ -4,6 +4,7 @@ Change log
 
 **Version 2.5.1** (Month Day, Year)
 
+ * Option to save metadata added to :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>` interface
  * Bug fix in :meth:`write <ketos.data_handling.database_interface.write>` (check that annotation object is not None before attempting to save)
 
 
