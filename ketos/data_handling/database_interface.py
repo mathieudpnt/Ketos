@@ -1224,7 +1224,7 @@ class AudioWriter():
             tbl = create_table(h5file=self.file, path=path, name=name, description=descr, data_name=self.data_name)
             tbl_dict = {'table': tbl}
 
-            if annot_type is 'strong': 
+            if annot_type == 'strong': 
                 descr_annot = table_description_annot(freq_range=freq_range)
                 tbl_annot = create_table(h5file=self.file, path=path, name=name+'_annot', description=descr_annot)
                 tbl_dict['table_annot'] = tbl_annot
