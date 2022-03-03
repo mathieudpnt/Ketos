@@ -655,7 +655,7 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
     assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
 
     # select labels
-    if label != None:
+    if label is not None:
         if isinstance(label, int): label = [label]
         df = df[df['label'].isin(label)]
 

@@ -78,7 +78,7 @@ def test_multiple_data_fields():
 
     five_labels = [np.array(l) for l in five_labels]
 
-    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True, map_labels=True) #create a batch generator 
     ids, X, Y = next(train_generator)
     
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
@@ -138,7 +138,7 @@ def test_output_for_strong_annotations():
                             [0,1],
                             [0,1]])
                             
-    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
+    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False, map_labels=True)
     
     _, Y = next(train_generator)
     np.testing.assert_array_equal(Y, expected_y)
@@ -560,8 +560,8 @@ def test_joint_batch_gen_multi_modal():
     three_labels = [0, 0, 0]
     three_labels = [np.array(l) for l in three_labels]
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'])  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'])  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True)  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
     ids, X, Y = next(gen)
@@ -612,8 +612,8 @@ def test_joint_batch_gen_multi_modal_transform():
         Y = np.array([label for label in Y])        
         return (X,Y)
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'],  output_transform_func=transform_batch)  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min") 
     X, Y = next(gen)

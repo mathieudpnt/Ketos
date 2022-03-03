@@ -107,8 +107,8 @@ class BatchGenerator():
                 A function to be applied to the batch, transforming the instances. Must accept 
                 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             map_labels: bool
-                If True, maps all labels to integers 0,1,2,3... The NeuralNetworks expect labels to be incremental and starting from 0. 
-                Default is True
+                If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be incremental and starting from 0. 
+                Default is False.
             x_field: str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
@@ -158,7 +158,7 @@ class BatchGenerator():
             >>> data_table = open_table(h5, "/group_1/table_data")
             >>> annot_table = open_table(h5, "/group_1/table_annot")
             >>> #Create a BatchGenerator from a data_table and separate annotations in a anot_table
-            >>> train_generator = BatchGenerator(data_table=data_table, annot_in_data_table=False, annot_table=annot_table,  batch_size=3, x_field='data', return_batch_ids=True) #create a batch generator 
+            >>> train_generator = BatchGenerator(data_table=data_table, annot_in_data_table=False, annot_table=annot_table, batch_size=3, x_field='data', return_batch_ids=True, map_labels=True) #create a batch generator 
             >>> #Run 2 epochs. 
             >>> n_epochs = 2    
             >>> for e in range(n_epochs):
@@ -197,7 +197,7 @@ class BatchGenerator():
             >>> h5.close()
     """
     def __init__(self, batch_size, data_table=None, annot_in_data_table=True, annot_table=None, x=None, y=None, 
-                    select_indices=None, output_transform_func=None, map_labels=True, x_field='data', y_field='label',
+                    select_indices=None, output_transform_func=None, map_labels=False, x_field='data', y_field='label',
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None, n_extend=0):
 
         self.from_memory = x is not None and y is not None

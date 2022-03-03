@@ -9,6 +9,9 @@ Change log
 
 **Version 2.5.0** (March 1, 2022)
 
+ * New method :meth:`plot_phase_angle <ketos.audio.spectrogram.MagSpectrogram.plot_phase_angle>` for plotting complex phase angle.
+ * New method :meth:`plot <ketos.audio.waveform.plot>` for plotting multiple waveforms superimposed on one another.
+ * Modified :meth:`resample <ketos.audio.waveform.Waveform.resample>` to use librosa's resampling function.
  * Bug fix in :meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>` (ensure that output waveform as correct length).
  * Bug fix in parsing module (ensure that audio representations are encoded correctly when passed as a nested dict).
  * Bug fix in :meth:`train_loop <ketos.neural_networks.dev_utils.nn_interface.train_loop>` (ensure `last_epoch_with_improvement` attr is always initialized)
@@ -29,11 +32,8 @@ Change log
  * Bug fix in :meth:`segment_files <ketos.data_handling.selection_table.segment_files>`.
  * New method :meth:`skip <ketos.audio.audio_loader.AudioLoader.skip>`.
  * New argument `discard_outside` added to :meth:`create_database <ketos.data_handling.database_interface.create_database>`
- * Corrected error in stepping algorithm for creating selections with 
-    :meth:`select <ketos.data_handling.selection_table.select>`.
- * Created short-hand versions of the methods `save_model` (`save`), `load_model_file` (`load`), 
-    and `build_from_recipe_file` (`build`) in the `nn_interface` module. The long-hand versions are 
-    retained for backward compatibility.
+ * Corrected error in stepping algorithm for creating selections with :meth:`select <ketos.data_handling.selection_table.select>`.
+ * Created short-hand versions of the methods `save_model` (`save`), `load_model_file` (`load`), and `build_from_recipe_file` (`build`) in the `nn_interface` module. The long-hand versions are retained for backward compatibility.
  * New method `is_encoded` in parsing module
  * New method `export_to_ketos` in export module
  * New method `infer_shape` in the audio module
