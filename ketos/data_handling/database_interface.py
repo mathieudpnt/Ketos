@@ -486,7 +486,7 @@ def write(x, table, table_annot=None, id=None):
         will be used as a unique identifier for the spectrogram.
 
         When a list of audio objects is provided, only the instance
-        attributes (filename, offset, label, etc.) of the first 
+        attributes (filename, offset, label, annotations, etc.) of the first 
         object is written to the table.
 
         Args:
@@ -574,7 +574,9 @@ def write(x, table, table_annot=None, id=None):
     data_index = write_audio(table=table, data=data, attrs=attrs[0], id=id)
 
     if table_annot is not None:
-        write_annot(table=table_annot, data_index=data_index, annots=x[0].get_annotations())
+        annots = x[0].get_annotations()
+        if annots is not None:
+            write_annot(table=table_annot, data_index=data_index, annots=annots)
 
 def filter_by_label(table, label):
     """ Find all audio objects in the table with the specified label.

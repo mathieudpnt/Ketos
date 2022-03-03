@@ -1,7 +1,13 @@
 Change log
 ==========
 
-**Version 2.5.0** (Month, Day, 2022)
+
+**Version 2.5.1** (Month Day, Year)
+
+ * Bug fix in :meth:`write <ketos.data_handling.database_interface.write>` (check that annotation object is not None before attempting to save)
+
+
+**Version 2.5.0** (March 1, 2022)
 
  * Bug fix in :meth:`recover_waveform <ketos.audio.spectrogram.MagSpectrogram.recover_waveform>` (ensure that output waveform as correct length).
  * Bug fix in parsing module (ensure that audio representations are encoded correctly when passed as a nested dict).
