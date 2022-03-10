@@ -216,7 +216,7 @@ def test_parse_datetime_with_urban_sharks_format():
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt is not None
-    assert dt.year == 2084
+    assert dt.year == 1984
     assert dt.month == 2
     assert dt.day == 23
     assert dt.hour == 12

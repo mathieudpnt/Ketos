@@ -470,6 +470,11 @@ class Spectrogram(BaseAudioTime):
         # crop frequency axis
         b1, b2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
+        # add frequency information to log
+        if not make_copy:
+            self.transform_log[-1]['freq_min'] = freq_min
+            self.transform_log[-1]['freq_max'] = freq_max
+
         # crop image
         spec.data = spec.data[:, b1:b2+1]
 
