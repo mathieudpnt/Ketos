@@ -344,7 +344,7 @@ def export_to_protobuf(model, output_name=None, output_folder=None, tmp_folder="
 
 
 def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=None, audio_repr_file=None, 
-                 tmp_folder="tmp_export_folder", overwrite=True, **kwargs):
+                 tmp_folder="tmp_export_folder", overwrite=True, metadata=None, **kwargs):
     r""" Export a ketos model to ketos format (\*.kt).
 
         If the output directory does not already exist, it is automatically created.
@@ -387,6 +387,8 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
                 unless 'overwrite' is set to True.
             overwrite: bool    
                 If True and the folder specified in 'tmp_folder' exists, the folder will be overwritten.
+            metadata: dict
+                Optional metadata dictionary. If passed, it will be added to the \*.kt file. 
     """
     if audio_repr_file != None:
         print("Warning: audio_repr_file is deprecated and will be removed in future versions. Use audio_repr instead.")
@@ -420,8 +422,17 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
         audio_repr_path = os.path.join(tmp_folder, "audio_repr.json")
         with open(audio_repr_path, 'w') as json_repr:
             json.dump(audio_repr, json_repr)
+
     else:
         audio_repr_path = None
+
+    # save metadata
+    if metadata is not None:
+        metadata_path = os.path.join(tmp_folder, "metadata.json")
+        with open(metadata_path, 'w') as json_repr:
+            json.dump(metadata, json_repr)
+    else:
+        metadata_path = None
 
     # save checkpoints to tmp folder 
     checkpoint_dir = os.path.join(tmp_folder, "checkpoints")
@@ -438,6 +449,10 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
         if audio_repr_path is not None:
             zip.write(audio_repr_path, "audio_repr.json")
 
+        # save metadata
+        if metadata_path is not None:
+            zip.write(metadata_path, "metadata.json")
+
         # save checkpoints
         zip.write(os.path.join(checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
         checkpoints = glob(os.path.join(checkpoint_dir, checkpoint_name) + '*')
@@ -446,44 +461,3 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
 
     # tidy up
     shutil.rmtree(tmp_folder)
-
-
-"""
-
-    assert isinstance(model.checkpoint_dir, str) and os.path.isdir(model.checkpoint_dir), \
-        f"model.checkpoint_dir does not point to a valid directory ({model.checkpoint_dir})"
-
-    recipe_path = os.path.join(model.checkpoint_dir, 'recipe.json')
-
-    # if the output directory does not already exist, create it
-    ensure_dir(output_name)
-
-    with ZipFile(output_name, 'w') as zip:
-        
-        if checkpoint_name is not None:
-            checkpoints = glob(os.path.join(model.checkpoint_dir, checkpoint_name) + '*')
-            assert len(checkpoints) > 0, f"The checkpoint name '{checkpoint_name}' was not " \
-                + "found in the checkpoints_dir ({model.checkpoint_dir})"
-
-        else:
-            latest = tf.train.latest_checkpoint(model.checkpoint_dir)
-            assert isinstance(latest,str), f"No checkpoints were found at the checkpoint_dir ({model.checkpoint_dir})" 
-            checkpoints = glob(latest + '*')                                                                                                                 
-
-        model.save_recipe_file(recipe_path)
-
-        zip.write(recipe_path, "recipe.json")
-
-        if audio_repr is not None:
-            audio_repr_path = os.path.join(model.checkpoint_dir, "audio_repr.json")
-            with open(audio_repr_path, 'w') as json_repr:
-                json.dump(audio_repr, json_repr)
-            
-            zip.write(audio_repr_path, "audio_repr.json")
-
-        zip.write(os.path.join(model.checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
-        for c in checkpoints:
-                zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
-
-    os.remove(recipe_path)
-"""

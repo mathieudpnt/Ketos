@@ -30,6 +30,7 @@ import sys
 import pytest
 import tables
 import os
+import datetime as dt
 import numpy as np
 import pandas as pd
 from io import StringIO
@@ -728,6 +729,20 @@ def test_create_database_with_single_wav_file(sine_wave_file):
     assert '/assets/data' in fil
     specs = di.load_audio(table=fil.root.assets.data)
     assert len(specs) == 2
+    assert np.all(di.open_table(fil, "/assets/data").attrs.unique_labels == [1,2])
+    fil.close()
+    os.remove(out)
+
+def test_create_database_specify_labels(sine_wave_file):
+    data_dir = os.path.dirname(sine_wave_file)
+    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
+    sel = use_multi_indexing(sel, 'sel_id')
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, progress_bar=False, unique_labels=[3,4,5])
+    # check database contents
+    fil = di.open_file(out, 'r')
+    assert np.all(di.open_table(fil, "/assets/data").attrs.unique_labels == [3,4,5])
     fil.close()
     os.remove(out)
 
@@ -742,6 +757,7 @@ def test_create_database_ids(sine_wave_file):
     db = di.open_file(out, 'r')
     data_table = db.get_node("/test/data")
     np.testing.assert_array_equal(data_table[:]['id'],[0,1,2,3])
+    assert np.all(di.open_table(db, "/test/data").attrs.unique_labels == [1,2])
     db.close()
     os.remove(out)
 
@@ -769,12 +785,14 @@ def test_create_database_with_attrs(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db13.h5')
     rep = {'type': 'Waveform'}
-    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'comment':['big','bigger']})
+    t = [dt.datetime(2002,2,23,14,20,30), dt.datetime(2012,2,23,14,20,30)]
+    sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'comment':['big','bigger'], 't':t})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, progress_bar=False, include_attrs=True)
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
+
     wfs = di.load_audio(table=fil.root.assets.data)
     wf = wfs[0]
     assert type(wf) == Waveform
@@ -784,13 +802,22 @@ def test_create_database_with_attrs(sine_wave_file):
     wf = wfs[1]
     attrs = wf.get_instance_attrs()
     assert attrs['comment'] == 'bigger'
+
+    wf = wfs[0]
+    attrs = wf.get_instance_attrs()
+    assert 't' in attrs.keys()
+    assert attrs['t'] == t[0].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
+    wf = wfs[1]
+    attrs = wf.get_instance_attrs()
+    assert attrs['t'] == t[1].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
+
     fil.close()
     os.remove(out)
 
 def test_create_database_with_indices(sine_wave_file):
     """ Create a database with indices for some columns"""
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db13.h5')
+    out = os.path.join(path_to_assets, 'tmp/db14.h5')
     rep = {'type': 'Waveform'}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'extra_id':[13,14]})
     sel = use_multi_indexing(sel, 'sel_id')

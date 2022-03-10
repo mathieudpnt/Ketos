@@ -259,6 +259,9 @@ def encode_parameter(name, value):
         unit = param['unit']
         if unit is not None:
             encoded_value = f'{value} {unit}'
+        typ = param['type']
+        if typ == bool:
+            encoded_value = str(value).lower()        
 
     return encoded_value
 

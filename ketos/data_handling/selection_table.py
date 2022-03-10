@@ -84,11 +84,11 @@
 
 import os
 import librosa
+import warnings
 import numpy as np
 import pandas as pd
 from ketos.utils import str_is_int, fractional_overlap
-from ketos.data_handling.data_handling import find_wave_files
-import warnings
+from ketos.data_handling.data_handling import find_wave_files, parse_datetime
 
 
 def unfold(table, sep=','):
@@ -154,7 +154,7 @@ def empty_selection_table():
 
 def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, signal_labels=None,\
     backgr_labels=None, unfold_labels=False, label_sep=',', trim_table=False,
-    return_label_dict=False, sort_by_filename_start=False):
+    return_label_dict=False, sort_by_filename_start=False, datetime_format=None):
     """ Standardize the annotation table format.
 
         The input table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -207,6 +207,14 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
                 Return label dictionary. Default is False.
             sort_by_filename_start: bool
                 Automatically sort the table by filename (first) and start time (second). Default is False.
+            datetime_format: str
+                String defining the date-time format. 
+                Example: %d_%m_%Y* would capture "14_3_1999.txt".
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives.
+                If specified, the method will look for a column named 'datetime' and, if found, attempt to parse the 
+                values in this column. If your datetime column has a different name, use the `mapper` argument to change 
+                its name to 'datetime'. If the method does not find a column named 'datetime' it will attempt to 
+                parse the datetime information from the filename column.
 
         Returns:
             table_std: pandas DataFrame
@@ -295,6 +303,7 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
         # [backgr_labels] + signal_labels will maintain previous functionality of create_label_dict when it allowed 
         # for backgrnd labels and signal labels to be separated
         _label_dict = _create_label_dict([backgr_labels] + signal_labels, discard_labels)
+    
     df['label'] = df['label'].apply(lambda x: _label_dict.get(x))
 
     # cast integer dict keys from str back to int
@@ -306,6 +315,16 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
     if sort_by_filename_start:
         df.sort_values(by=['filename','start'], inplace=True, ignore_index=True)
 
+    # convert path to format suitable for the operating that is being used
+    df['filename'] = df['filename'].apply(lambda x: x.replace("\\","/") if os.name == "posix" else x.replace("/","\\"))
+
+    # parse datetime field
+    if datetime_format is not None:
+        if 'datetime' in df.columns.values:
+            df['datetime'] = df['datetime'].apply(lambda x: parse_datetime(x, fmt=datetime_format))
+        else:
+            df['datetime'] = df.apply(lambda x: parse_datetime(os.path.basename(x.filename), fmt=datetime_format), axis=1)
+    
     # transform to multi-indexing
     df = use_multi_indexing(df, 'annot_id')
 
@@ -534,11 +553,26 @@ def cast_to_str(labels, nested=False):
 
         return labels_str, labels_str_flat
 
-def select(annotations, length, step=0, min_overlap=0, background_label=0, center=False,\
-    discard_long=False, keep_id=False, label=None):
+def select(annotations, length, step=0, min_overlap=0, center=False, discard_long=False, 
+    keep_id=False, keep_freq=False, label=None, avoid_label=None, discard_outside=False, files=None):
     """ Generate a selection table by defining intervals of fixed length around 
-        every annotated section of the audio data. Each selection created in this 
-        way is chracterized by a single, integer-valued, label.
+        annotated sections of the audio data. Each selection created in this 
+        way is characterized by a single, integer-valued, label.
+
+        This approach to generating selections lends itself well to cases in which 
+        the annotated sections are well separated and rarely overlap. If this is not 
+        the case, you may find the related function :func:`data_handling.selection_table.select_by_segmenting` 
+        more useful.
+
+        By default all annotated sections are used for generating selections except 
+        those with label -1 which are ignored. Use the `label` argument to only 
+        generate selections for specific labels. 
+
+        Conversely, the argument `avoid_label` can be used to ensure that the generated 
+        selections do not overlap with annotated sections with specific labels. For example, 
+        if `label=[1,2]` and `avoid_label=[4]`, selections will be generated for every 
+        annotated section with label 1 or 2, but any selection that happens to overlap with 
+        an annotated sections with label 4 will be discarded. 
 
         The input table must have the standardized Ketos format and contain call-level 
         annotations, see :func:`data_handling.selection_table.standardize`.
@@ -546,15 +580,16 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
         The output table uses two levels of indexing, the first level being the 
         filename and the second level being a selection id.
 
-        The generated selections have uniform length given by the length argument. 
-        
-        Note that the selections may have negative start times and/or stop times 
-        that exceed the file duration.
+        The generated selections have uniform length given by the `length` argument. Annotated 
+        sections longer than the specified length will be cropped (unless discard_long=True) 
+        whereas shorter sections will be extended to achieve the specified length. 
 
-        Annotations longer than the specified selection length will be cropped, unless the 
-        step is set to a value larger than 0.
+        The `step` and `min_overlap` arguments may be used to generate multiple, time-shifted 
+        selections for every annotated sections.
 
-        Annotations with label -1 are discarded.
+        Note that the selections may have negative start times and/or end times 
+        that exceed the file duration, unless discard_outside=True in which case only 
+        selections with start times and end times within the file duration are returned.
 
         Args:
             annotations: pandas DataFrame
@@ -562,19 +597,12 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
             length: float
                 Selection length in seconds.
             step: float
-                Produce multiple selections for each annotation by shifting the selection 
+                Produce multiple selections for each annotated  section by shifting the selection 
                 window in steps of length step (in seconds) both forward and backward in 
                 time. The default value is 0.
             min_overlap: float
-                Minimum required overlap between the selection interval and the  
-                annotation, expressed as a fraction of whichever is shorter, the annotation 
-                duration or the selection length. Only used if step > 0. 
-                The requirement is imposed on all annotations (labeled 1,2,3,...) except 
-                background annotations (labeled 0) which are always required to have an 
-                overlap of 1.0.
-            background_label: int or None
-                The value of the backgrounf lable. Use None if there is no background label
-                The default value is 0
+                Minimum required overlap between the selection and the annotated section, expressed 
+                as a fraction of whichever of the two is shorter. Only used if step > 0. 
             center: bool
                 Center annotations. Default is False.
             discard_long: bool
@@ -582,11 +610,22 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
             keep_id: bool
                 For each generated selection, include the id of the annotation from which 
                 the selection was generated.
+            keep_freq: bool
+                For each generated selection, include the min and max frequency, if known.
             label: int or list(int)
-                Only create selections for annotations with these labels.
+                Only create selections for annotated sections with these labels.
+            avoid_label: int, list(int) or str
+                Avoid overlap with annotated sections with these labels. If overlap is to be avoided 
+                with all other labels but the labels specified by the `label` argument, set `avoid_label="ALL"`.
+            discard_outside: bool
+                Discard selections that extend beyond file duration. Requires that a file duration 
+                table is specified via the `files` argument.
+            files: pandas DataFrame
+                Table with file durations in seconds. Must contain columns named 'filename' and 'duration'.
+                Only required if `discard_outside=True`.
 
         Results:
-            table_sel: pandas DataFrame
+            df: pandas DataFrame
                 Output selection table.
 
         Example:
@@ -614,7 +653,7 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
             >>> #between selection and annotations.
             >>> #Also, create multiple time-shifted versions of the same selection
             >>> #using a step size of 1.0 sec.     
-            >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, background_label=None, center=True, keep_id=True) 
+            >>> df_sel = select(df, length=3.0, step=1.0, min_overlap=0.16, center=True, keep_id=True) 
             >>> print(df_sel.round(2))
                               label  start    end  annot_id
             filename  sel_id                               
@@ -655,7 +694,7 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
     assert is_standardized(df, has_time=True), 'Annotation table appears not to have the expected structure.'
 
     # select labels
-    if label != None:
+    if label is not None:
         if isinstance(label, int): label = [label]
         df = df[df['label'].isin(label)]
 
@@ -683,15 +722,7 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
         df_new = None
         for idx,row in df.iterrows():
             t = row['start_new']
-
-            # TODO: Currently, the default value of background labels is 0. We should consider if we should set it to 
-            # None in a future version, and if so, issue a warning for now.
-            if row['label'] == background_label:
-                ovl = 1
-            else:
-                ovl = min_overlap
-
-            df_shift = time_shift(annot=row, time_ref=t, length=length, min_overlap=ovl, step=step)
+            df_shift = time_shift(annot=row, time_ref=t, length=length, min_overlap=min_overlap, step=step)
             df_shift['filename'] = idx[0]
 
             if df_new is None:
@@ -727,8 +758,40 @@ def select(annotations, length, step=0, min_overlap=0, background_label=0, cente
     # ensure label is integer
     df = df.astype({'label':int})
 
-    table_sel = df
-    return table_sel
+    # discard selections that overlap with unwanted annotations
+    if avoid_label is not None:
+
+        if isinstance(avoid_label, int): 
+            avoid_label = [avoid_label]
+
+        elif isinstance(avoid_label, str) and avoid_label.lower() == "all" and label is not None:
+            labels = pd.unique(annotations.label)
+            avoid_label = labels[~np.isin(labels,label)]
+            avoid_label = avoid_label.tolist()
+
+        if isinstance(avoid_label, list):
+            def func(y, start, end, label):
+                y = y[(y.label.isin(label)) & (y.end>=start) & (y.start<=end)]
+                return len(y)
+            
+            df['overlap'] = df.apply(lambda x: func(annotations.loc[x.name[0]], label=avoid_label, start=x.start, end=x.end), axis=1)
+            df = df[df['overlap']==0]
+            df = df.drop(columns=['overlap'])
+        
+    # discard selections that extend beyond duration of file
+    if discard_outside:
+        if files is None:
+            warnings.warn("discard_outside=True requires files to be specified")
+        else:
+            files = files.set_index('filename')
+            df['outside'] = df.apply(lambda x: (x.start < 0) or (x.end > files.loc[x.name[0]].duration), axis=1)
+            df = df[df['outside']==False]
+            df = df.drop(columns=['outside'])
+
+    if not keep_freq:
+        df = df.drop(columns=['freq_min','freq_max'], errors='ignore')
+
+    return df
 
 def time_shift(annot, time_ref, length, step, min_overlap):
     """ Create multiple instances of the same selection by stepping in time, both 
@@ -811,7 +874,7 @@ def time_shift(annot, time_ref, length, step, min_overlap):
 
     return df
 
-def file_duration_table(path, search_subdirs=False):
+def file_duration_table(path, search_subdirs=False, datetime_format=None):
     """ Create file duration table.
 
         Args:
@@ -820,14 +883,24 @@ def file_duration_table(path, search_subdirs=False):
             search_subdirs: bool
                 If True, search include also any audio files in subdirectories.
                 Default is False.
+            datetime_format: str
+                String defining the date-time format. 
+                Example: %d_%m_%Y* would capture "14_3_1999.txt".
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives.
+                If specified, the method will attempt to parse the datetime information from the filename.
 
         Returns:
             df: pandas DataFrame
-                File duration table. Columns: filename, duration
+                File duration table. Columns: filename, duration, (datetime)
     """
     paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
     durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
-    return pd.DataFrame({'filename':paths, 'duration':durations})
+    df = pd.DataFrame({'filename':paths, 'duration':durations})
+    if datetime_format is None:
+        return df
+
+    df['datetime'] = df.apply(lambda x: parse_datetime(os.path.basename(x.filename), fmt=datetime_format), axis=1)
+    return df
 
 def create_rndm_selections(files, length, num, label=0, annotations=None, no_overlap=False, trim_table=False, buffer=0):
     """ Create selections of uniform length, randomly distributed across the 
@@ -1111,7 +1184,8 @@ def random_choice(df, siz):
     return df
 
 def select_by_segmenting(files, length, annotations=None, step=None,
-    pad=True, discard_empty=False, keep_only_empty=False, label_empty=0):
+    pad=True, discard_empty=False, keep_only_empty=False, label_empty=0, 
+    avoid_label=None):
     """ Generate a selection table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
         
@@ -1122,6 +1196,10 @@ def select_by_segmenting(files, length, annotations=None, step=None,
         Therefore, the method returns not one, but two tables: A selection table indexed by 
         filename and segment id, and an annotation table indexed by filename, segment id, 
         and annotation id.
+
+        However, if `keep_only_empty=True` only a selection table is returned. This table 
+        has a column named `label` with all entries having the same value, as specified via
+        the `label_empty` argument.
 
         Args:
             files: pandas DataFrame
@@ -1146,6 +1224,9 @@ def select_by_segmenting(files, length, annotations=None, step=None,
             label_empty: int
                 Only relevant if keep_only_empty is True. Value to be assigned to
                 selections without annotations. Default is 0.
+            avoid_label: int or list(int)
+                If specified, only selections without annotations with these labels 
+                are used.
 
         Returns:
             sel: pandas DataFrame
@@ -1244,6 +1325,16 @@ def select_by_segmenting(files, length, annotations=None, step=None,
                 sel = sel.loc[~sel.index.isin(indices)].sort_index()
                 sel['label'] = label_empty
                 return sel
+
+        elif avoid_label is not None:
+            if isinstance(avoid_label, int): 
+                avoid_label = [avoid_label]
+
+            annot_avoid = annot[annot.label.isin(avoid_label)]
+            indices_avoid = list(set([(a, b) for a, b, c in annot_avoid.index.tolist()]))
+            sel = sel.loc[~sel.index.isin(indices_avoid)].sort_index()
+            return sel, annot
+
         else:
             return sel, annot
             

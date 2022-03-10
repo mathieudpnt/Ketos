@@ -1,7 +1,25 @@
 Change log
 ==========
 
-**Version 2.5.0** (Month, Day, 2022)
+
+**Version 2.5.1** (Month Day, Year)
+
+ * Minor bug fix in :meth:`encode_parameter <ketos.data_handling.parsing.encode_parameter>`.
+ * Generalized :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` to accept audio representations with different durations.
+ * :meth:`select <ketos.data_handling.selection_table.select>` allows user to specify unwanted labels and to discard selections that extend outside the file.
+ * :meth:`create_database <ketos.data_handling.database_interface.create_database>` converts the annotations table to use best possible dtypes to avoid mixed types
+ * :meth:`file_duration_table <ketos.data_handling.selection_table.file_duration_table>` can parse datetime information from filename.
+ * datetime attributes can be saved to databases  
+ * :meth:`standardize <ketos.data_handling.selection_table.standardize>` can parse datetime field.
+ * :meth:`standardize <ketos.data_handling.selection_table.standardize>` converts paths to the format appropriate for the operating system that is being used.
+ * New pad argument in :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and minor bug fix.
+ * Label mapping now also implemented in :class:`JointBatchGen <ketos.data_handling.data_feeding.JointBatchGen>`. Enabled by Default.
+ * :meth:`create_database <ketos.data_handling.database_interface.create_database>` stores list of unique labels in table attribute 
+ * Option to save metadata added to :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>` interface
+ * Bug fix in :meth:`write <ketos.data_handling.database_interface.write>` (check that annotation object is not None before attempting to save)
+
+
+**Version 2.5.0** (March 1, 2022)
 
  * New method :meth:`plot_phase_angle <ketos.audio.spectrogram.MagSpectrogram.plot_phase_angle>` for plotting complex phase angle.
  * New method :meth:`plot <ketos.audio.waveform.plot>` for plotting multiple waveforms superimposed on one another.

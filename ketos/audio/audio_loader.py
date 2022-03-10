@@ -182,19 +182,36 @@ class SelectionTableIterator(SelectionGenerator):
         s = self.sel.iloc[id]
 
         # start time
-        if 'start' in s.keys(): offset = s['start']
-        else: offset = 0
-        audio_sel['offset'] = offset
+        if 'start' in s.keys(): 
+            offset = s['start']
+        else: 
+            offset = 0
 
         # duration
-        if self.duration is not None: audio_sel['duration'] = self.duration
-        elif 'end' in s.keys(): audio_sel['duration'] = s['end'] - offset
+        if self.duration is not None: 
+            duration = self.duration
+        elif 'end' in s.keys(): 
+            duration = s['end'] - offset
+        else:
+            duration = None
+
+        # if needed, adjust offset to ensure selection is centered correctly
+        # (only works if end time is known)
+        if duration is not None and 'end' in s.keys():
+            offset += 0.5 * (s['end'] - offset - duration)
+
+        # pass offset and duration to dict
+        audio_sel['offset'] = offset
+        if duration is not None:
+            audio_sel['duration'] = duration
 
         # label
-        if 'label' in self.sel.columns.values: audio_sel['label'] = s['label']
+        if 'label' in self.sel.columns.values: 
+            audio_sel['label'] = s['label']
 
         # attribute columns
-        for col in self.attrs: audio_sel[col] = s[col]
+        for col in self.attrs: 
+            audio_sel[col] = s[col]
 
         return audio_sel
 
@@ -214,10 +231,12 @@ class FrameStepper(SelectionGenerator):
                 Path to folder containing .wav files. If None is specified, the current directory will be used.
             filename: str or list(str)
                 Relative path to a single .wav file or a list of .wav files. Optional.
+            pad: bool
+                If True (default), the last segment is allowed to extend beyond the endpoint of the audio file.
             frame: float
                 Same as duration. Only included for backward compatibility. Will be removed in future versions.
     """
-    def __init__(self, duration=None, step=None, path=None, filename=None, frame=None):
+    def __init__(self, duration=None, step=None, path=None, filename=None, pad=True, frame=None):
         assert duration is not None or frame is not None, "Either duration or frame must be specified"
         
         if frame is not None:
@@ -253,11 +272,17 @@ class FrameStepper(SelectionGenerator):
 
         # discard any files with 0 second duration
         self.files = np.array(self.files)[self.file_durations > 0].tolist()
-        self.file_durations = self.file_durations[self.file_durations > 0].tolist()
+        self.file_durations = self.file_durations[self.file_durations > 0]
 
         # obtain file durations and compute number of frames for each file
-        self.num_segs = [int(np.ceil((dur - self.duration) / self.step)) + 1 for dur in self.file_durations]
-        self.num_segs_tot = np.sum(np.array(self.num_segs))
+        self.num_segs = np.maximum((self.file_durations - self.duration) / self.step + 1, 1)
+        if pad:
+            self.num_segs = np.ceil(self.num_segs).astype(int)        
+        else:
+            self.num_segs = np.floor(self.num_segs).astype(int)        
+
+#        self.num_segs = [int(max(1, (dur - self.duration) / self.step + 1)) for dur in self.file_durations]
+        self.num_segs_tot = np.sum(self.num_segs)
 
         self.reset()
 
@@ -321,7 +346,7 @@ class FrameStepper(SelectionGenerator):
                 ans: list
                     List of file durations in seconds
         """
-        return self.file_durations
+        return self.file_durations.tolist()
 
 
 class AudioLoader():
@@ -360,6 +385,8 @@ class AudioLoader():
                 Load segments in batches rather than one at the time. 
             stop: bool
                 Raise StopIteration when all selections have been loaded. Default is False.
+            same_duration: bool
+                Enforce same duration for all selections. Default is False.
 
         Attributes:
             cfg: list(dict)
@@ -370,13 +397,14 @@ class AudioLoader():
             :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-                        batch_size=1, stop=False, **kwargs):
+                        batch_size=1, stop=False, same_duration=False, **kwargs):
         repres = copy.deepcopy(repres)
         if not isinstance(repres, list): repres = [repres]
-        self.typ, self.cfg = [], []
+        self.typ, self.cfg, self.repr_duration = [], [], [] #type, config, duration        
         for r in repres:
             self.typ.append(r.pop('type'))
-            if 'duration' in r.keys(): r.pop('duration')
+            repr_duration = r.pop('duration') if 'duration' in r.keys() else None
+            self.repr_duration.append(repr_duration)
             self.cfg.append(r)
 
         self.channel = channel
@@ -385,6 +413,7 @@ class AudioLoader():
         self.kwargs = kwargs
         self.batch_size = batch_size
         self.stop = stop
+        self.same_duration = same_duration
         self.reset()
 
     def __iter__(self):
@@ -497,22 +526,38 @@ class AudioLoader():
         # load audio
         # (ignore warnings from the from_wav method)
         segs = []
-        for typ,cfg in zip(self.typ, self.cfg):
+        for i in range(len(self.typ)):
+
+            typ = self.typ[i]
+            cfg = self.cfg[i]
+            repr_duration = self.repr_duration[i] 
+
+            _kwargs = kwargs.copy()
+            _kwargs.update(cfg)
+            if not apply_transforms and 'transforms' in _kwargs.keys(): 
+                del _kwargs['transforms']
+
+            # adjust durations and offsets to match duration specified in audio representation dictionary
+            # while keeping selection window centered at its original position
+            if repr_duration is not None and not self.same_duration:
+                _duration = repr_duration
+                if duration is not None:
+                    _offset = offset + 0.5 * (duration - repr_duration)
+            else:
+                _duration = duration
+                _offset = offset
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")        
-                _kwargs = kwargs.copy()
-                _kwargs.update(cfg)
-                if not apply_transforms and 'transforms' in _kwargs.keys(): del _kwargs['transforms']
-                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, 
-                                                            duration=duration, id=filename, **_kwargs)
+                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=_offset, 
+                                                            duration=_duration, id=filename, **_kwargs)
         
             # add annotations
             if label is not None:
                 seg.label = label
 
             if self.annot is not None:
-                q = query(self.annot, filename=os.path.basename(path), start=offset, end=offset+duration)
+                q = query(self.annot, filename=filename, start=offset, end=offset+duration)
                 if len(q) > 0:
                     q['start'] = np.maximum(0, q['start'].values - offset)
                     q['end']   = np.minimum(q['end'].values - offset, seg.duration())
@@ -565,6 +610,8 @@ class AudioFrameLoader(AudioLoader):
                 Load segments in batches rather than one at the time. 
             stop: bool
                 Raise StopIteration if the iteration exceeds the number of available selections. Default is False.
+            pad: bool
+                If True (default), the last segment is allowed to extend beyond the endpoint of the audio file.
             frame: float
                 Same as duration. Only included for backward compatibility. Will be removed in future versions.
 
@@ -595,7 +642,7 @@ class AudioFrameLoader(AudioLoader):
     """
     def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
                     annotations=None, repres={'type': 'Waveform'}, batch_size=1, 
-                    stop=False, frame=None, **kwargs):
+                    stop=False, pad=True, frame=None, **kwargs):
 
         if frame != None:
             print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
@@ -605,13 +652,16 @@ class AudioFrameLoader(AudioLoader):
             print("Warning: batch_size > 1 results in different behaviour for ketos versions >= 2.4.2 than earlier \
                    versions. You may want to check out the AudioFrameEfficientLoader class.")
 
+        same_duration = (duration is not None) #enforce same duration for all selections
+
         duration = _get_duration(repres, duration)
 
         assert duration != None, 'duration must be specified either with the duration \
             argument or in the audio representation dictionary'
 
         super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, **kwargs)
+            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, pad=pad, 
+            same_duration=same_duration, **kwargs)
 
     def get_file_paths(self, fullpath=True):
         """ Get the paths to the audio files associated with this instance.
@@ -811,15 +861,15 @@ class AudioSelectionLoader(AudioLoader):
         Note: It is possible to enforce all segments to have the same length by 
         specifyng a `duration` parameter in the audio representation dictionary.
         Selections that are shorter than the specified duration will be extended
-        at the end, and selections that are longer will be cropped.
+        symmetrically, and selections that are longer will be cropped.
         For example, specifying
 
             >>> repres = {'type': 'Waveform', 'duration': '3.0s'}
 
         would result in all loaded segments having a length of precisely 3 seconds, 
         even if some of the selections deviate from this length. For example, the 
-        selection [9, 14] would be shortened to [9, 12] and the selection [0.2, 2.0]
-        would be extended to [0.2, 3.2].
+        selection [9, 14] would be shortened to [10, 13] and the selection [0.2, 2.0]
+        would be extended to [-0.4, 2.6].
 
         TODO: Change default value of `stop` argument to True.
 
@@ -874,7 +924,7 @@ class AudioSelectionLoader(AudioLoader):
 def _get_duration(repres, duration=None):
     """ Helper function.
     
-        Extracts the duration parameter from the audio presentation 
+        Extracts the duration parameter from the (primary) audio presentation 
         dictionary, if available.
 
         If the expected duration is specified via the `duration` argument, 
@@ -887,7 +937,8 @@ def _get_duration(repres, duration=None):
 
         Args:
             repres: dict or list(dict)
-                One or several audio representations.
+                One or several audio representations. Only the duration of the 
+                first (primary) audio representation is considered. 
             duration: float
                 Duration in seconds. Optional
 
@@ -899,8 +950,9 @@ def _get_duration(repres, duration=None):
 
     if duration is not None:
         if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != duration:
-            print("Warning: Mismatch between duration argument ({0:.3f} s) and duration parameter in \
-                    audio representation ({1:.3f} s). The latter value will be ignored.")
+            print(f"Warning: Mismatch detected between the value of the duration argument ({duration:.3f} s) "\
+                    f"and the duration specified in the (primary) audio representation dictionary "\
+                    f"({r0['duration']:.3f} s). The latter value will be ignored.")
 
     else:
         duration = r0['duration'] if 'duration' in r0.keys() else None

@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from ketos.__init__ import __version__
 
 # create distribution and upload to pypi.org with:
 #   $ python setup.py sdist bdist_wheel
 #   $ twine upload dist/*
 
 setup(name='ketos',
-      version='2.5.0',
+      version=__version__,
       description="MERIDIAN Python package for deep-learning based acoustic detectors and classifiers",
       url='https://gitlab.meridian.cs.dal.ca/public_projects/ketos',
       author='Fabio Frazao, Oliver Kirsebom',

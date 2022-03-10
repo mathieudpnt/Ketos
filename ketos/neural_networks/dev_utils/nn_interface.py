@@ -675,7 +675,7 @@ class NNInterface():
         """
         instance = cls._build_from_recipe(recipe) 
         latest_checkpoint = tf.train.latest_checkpoint(weights_path)
-        instance.model.load_weights(latest_checkpoint)
+        instance.model.load_weights(latest_checkpoint).expect_partial()
         instance.checkpoint_dir = weights_path
         return instance
 

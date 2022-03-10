@@ -76,9 +76,14 @@ def rel_path_unix(path, start=None):
     return u
 
 def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
-    """Parse date-time data from string.
+    """ Parse date-time data from string.
        
-       Returns None if parsing fails.
+        Returns None if parsing fails.
+
+        If the year is encoded with only two figures, it is parsed to 
+        the most recent past year ending in those two figures. For 
+        example, 45 would be parsed to 1945 (assuming that the program 
+        is being executed in a year earlier than 2045).
         
         Args:
             to_parse: str
@@ -86,8 +91,7 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             fmt: str
                 String defining the date-time format. 
                 Example: %d_%m_%Y* would capture "14_3_1999.txt"
-                See https://pypi.org/project/datetime-glob/ for a list of valid directives
-                
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives                
             replace_spaces: str
                 If string contains spaces, replaces them with this string
 
@@ -125,7 +129,6 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             >>> result.second
             3
     """
-
     # replace spaces
     to_parse = to_parse.replace(' ', replace_spaces)
     
@@ -135,7 +138,10 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
         if match is None:
             return None
         else:
-            return match.as_datetime()
+            dt = match.as_datetime()
+            if dt > datetime.datetime.now() and "%y" in fmt: dt = dt.replace(year=dt.year-100)
+
+            return dt
 
     return None
 
