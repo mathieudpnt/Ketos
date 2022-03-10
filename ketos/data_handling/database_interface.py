@@ -39,6 +39,7 @@ import os
 import warnings
 import tables
 import librosa
+import datetime as dt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -472,7 +473,14 @@ def write_audio(table, data, attrs={}, id=None):
 
     for key,value in attrs.items(): #loop over instance attributes
         if key in table.colnames: #check that table has appropriate column
-            if value is not None: row[key] = value #write value to appropriate field
+            if value is not None: 
+                if isinstance(value, dt.datetime):
+                    if pd.isnull(value):
+                        value = ""
+                    else:
+                        value = value.strftime("%Y%m%d_%H:%M:%S") #convert datetime object to string
+
+                row[key] = value #write value to appropriate field
     
     row.append()
     table.flush()
@@ -769,11 +777,11 @@ def generate_warning_on_file_duration(start, end, file_path, file_duration):
 
 
 def create_database(output_file, data_dir, selections, channel=0, 
-    audio_repres={'type': 'Waveform'}, annotations=None, dataset_name=None,
-    max_size=None, verbose=True, progress_bar=True, discard_wrong_shape=False, 
-    allow_resizing=1, include_source=True, include_label=True, 
-    include_attrs=False, attrs=None, data_name=None, index_cols=None,
-    mode='a', create_dir=True, discard_outside=False):
+    audio_repres={'type': 'Waveform'}, annotations=None, unique_labels=None, 
+    dataset_name=None, max_size=None, verbose=True, progress_bar=True, 
+    discard_wrong_shape=False, allow_resizing=1, include_source=True, 
+    include_label=True, include_attrs=False, attrs=None, data_name=None, 
+    index_cols=None, mode='a', create_dir=True, discard_outside=False):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -810,6 +818,9 @@ def create_database(output_file, data_dir, selections, channel=0,
                 multiple audio representations as a list.
             annotations: pandas DataFrame
                 Annotation table. Optional.
+            unique_labels: list(int)
+                List of labels occurring in the dataset. If not specified, the labels will be inferred 
+                from the selections or the annotations.
             dataset_name:str
                 Name of the node (HDF5 group) within the database (e.g.: 'train')
                 Under this node, two datasets will be created: 'data' and 'data_annot',
@@ -861,6 +872,18 @@ def create_database(output_file, data_dir, selections, channel=0,
             discard_outside: bool
                 Discard selections that extend beyond file start/end times. Default is False.
     """       
+    selections = selections.convert_dtypes() #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
+
+    if unique_labels is None:
+        df = selections if annotations is None else annotations
+        if 'label' not in df.columns.values:
+            warnings.warn("Labels could not be inferred because the selection table "\
+                "does not contain a column named 'label'. The database will be created "\
+                "without labels. Note that this may cause issues if the database is supposed "\
+                "to be used as a training set for training a neural network.")
+        else:
+            unique_labels = np.sort(pd.unique(df.label.ravel('K')))
+
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
@@ -918,6 +941,9 @@ def create_database(output_file, data_dir, selections, channel=0,
         except Exception as e:
             if verbose:
                 warnings.warn(f"while writing audio selection from {loader_filename}, Message: {str(e)}", category=UserWarning)
+
+    if unique_labels is not None:
+        writer.write_attr("unique_labels", unique_labels)
 
     writer.close()
 
@@ -1070,6 +1096,35 @@ class AudioWriter():
         """
         self.path = path
         self.name = name
+
+    def write_attr(self, attr_name, attr_value, path=None, name=None):
+        """ Write attribute to a table in the database file
+
+            If path and name are not specified, the object will be 
+            saved to the current directory (as set with the cd() method).
+
+            See https://www.pytables.org/usersguide/libref/declarative_classes.html#the-attributeset-class 
+            for details on how various Python types are saved as attributes 
+            to HDF5 tables.
+
+            Args:
+                attr_name: str
+                    Attribute name
+                attr_value: 
+                    Value to be saved
+                path: str
+                    Path to the group containing the table
+                name: str
+                    Name of the table
+        """
+        if path is None: path = self.path
+        if name is None: name = self.name
+        self.set_table(path, name)
+        self._open_file() 
+        tbl_dict = self._open_tables(path=path, name=name)
+        for _,tbl in tbl_dict.items():
+            setattr(tbl.attrs, attr_name, attr_value)
+
 
     def write(self, x, path=None, name=None):
         """ Write waveform or spectrogram object to a table in the database file
@@ -1271,7 +1326,7 @@ class AudioWriter():
             if isinstance(value, np.ndarray):
                 attr['shape'] = value.shape
                 attr['type'] = str(value.dtype)
-            elif isinstance(value, str):
+            elif isinstance(value, (str,dt.datetime)):
                 attr['shape'] = self.filename_len
                 attr['type'] = 'str'
             elif isinstance(value, float):
@@ -1281,7 +1336,7 @@ class AudioWriter():
                 attr['shape'] = ()
                 attr['type'] = 'int'
             else:
-                print(f'Warning: attribute {key} with type {type(value)} cannot be saved to table')
+                warnings.warn(f'Warning: attribute {key} with type {type(value)} cannot be saved to table', UserWarning)
                 continue
 
             attr_list.append(attr)

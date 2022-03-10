@@ -43,6 +43,63 @@ path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 path_to_tmp = os.path.join(path_to_assets,'tmp')
 
 
+def test_get_unique_labels_and_mapping_db_without_attr():
+    """ Check that we can retrive a list of unique labels from a table
+        that does not contain a unique_labels attribute.
+        Also check that the correct label mapping is automatically created. 
+    """
+    f = open_file(os.path.join(path_to_assets, "db.h5"), 'r') 
+    tbl = open_table(f, "/audio")
+    g = BatchGenerator(data_table=tbl, batch_size=2)
+    ul = g.get_unique_labels()
+    assert isinstance(ul, np.ndarray)
+    assert np.all(ul == [1,3,5]) 
+    ul = g.get_unique_labels() #get them a second time
+    assert isinstance(ul, np.ndarray)
+    assert np.all(ul == [1,3,5]) 
+    assert g.mapper == {1:0, 3:1, 5:2}
+    f.close()  
+
+def test_get_unique_labels_and_mapping_db_with_attr():
+    """ Check that we can retrive a list of unique labels from a table
+        that does contain a unique_labels attribute.
+        Also check that the correct label mapping is automatically created. 
+        Finally, check that attribute is ignored if indices are specified.
+    """
+    f = open_file(os.path.join(path_to_assets, "db-ul.h5"), 'r') 
+    tbl = open_table(f, "/audio")
+    # create batch generator with all instances
+    g = BatchGenerator(data_table=tbl, batch_size=2)
+    ul = g.get_unique_labels()
+    assert isinstance(ul, np.ndarray)
+    assert np.all(ul == [2,4]) 
+    assert g.mapper == {2:0, 4:1}
+    # create batch generator with specific indices
+    g = BatchGenerator(data_table=tbl, batch_size=2, select_indices=[0,1,2])
+    ul = g.get_unique_labels()
+    assert isinstance(ul, np.ndarray)
+    assert np.all(ul == [1,3,5]) 
+    assert g.mapper == {1:0, 3:1, 5:2}
+    f.close()  
+
+def test_get_unique_labels_and_mapping_joint_batch_generator():
+    """ Check that we can retrive a list of unique labels from a joint batch generator.
+        Also check that the correct label mapping is automatically created. 
+    """
+    f1 = open_file(os.path.join(path_to_assets, "db.h5"), 'r') 
+    tbl1 = open_table(f1, "/audio")
+    g1 = BatchGenerator(data_table=tbl1, batch_size=2)
+    f2 = open_file(os.path.join(path_to_assets, "db-ul.h5"), 'r') 
+    tbl2 = open_table(f2, "/audio")
+    g2 = BatchGenerator(data_table=tbl2, batch_size=2)
+    g = JointBatchGen([g1, g2])
+    ul = g.get_unique_labels()
+    assert isinstance(ul, np.ndarray)
+    assert np.all(ul == [1,2,3,4,5]) 
+    assert g.mapper == {1:0, 2:1, 3:2, 4:3, 5:4}
+    f1.close()  
+    f2.close()  
+
 def test_one_batch():
     """ Test if one batch has the expected shape and contents
     """
@@ -78,7 +135,7 @@ def test_multiple_data_fields():
 
     five_labels = [np.array(l) for l in five_labels]
 
-    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True, map_labels=True) #create a batch generator 
+    train_generator = BatchGenerator(data_table=train_data, batch_size=5, x_field=['spec','gamma'], return_batch_ids=True) #create a batch generator 
     ids, X, Y = next(train_generator)
     
     np.testing.assert_array_equal(ids,[0,1,2,3,4])
@@ -138,7 +195,7 @@ def test_output_for_strong_annotations():
                             [0,1],
                             [0,1]])
                             
-    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False, map_labels=True)
+    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
     
     _, Y = next(train_generator)
     np.testing.assert_array_equal(Y, expected_y)
@@ -560,8 +617,8 @@ def test_joint_batch_gen_multi_modal():
     three_labels = [0, 0, 0]
     three_labels = [np.array(l) for l in three_labels]
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True)  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True)  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'])  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'])  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min", return_batch_ids=True) 
     ids, X, Y = next(gen)
@@ -612,8 +669,8 @@ def test_joint_batch_gen_multi_modal_transform():
         Y = np.array([label for label in Y])        
         return (X,Y)
 
-    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
-    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], map_labels=True, output_transform_func=transform_batch)  
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field=['spec','gamma'], output_transform_func=transform_batch)  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=2, x_field=['spec','gamma'], output_transform_func=transform_batch)  
 
     gen = JointBatchGen([gen1, gen2], n_batches="min") 
     X, Y = next(gen)

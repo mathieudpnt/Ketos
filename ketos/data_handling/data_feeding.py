@@ -108,7 +108,7 @@ class BatchGenerator():
                 'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple.
             map_labels: bool
                 If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be incremental and starting from 0. 
-                Default is False.
+                Default is True.
             x_field: str
                 The name of the column containing the X data in the hdf5_table
             y_field: str
@@ -197,13 +197,14 @@ class BatchGenerator():
             >>> h5.close()
     """
     def __init__(self, batch_size, data_table=None, annot_in_data_table=True, annot_table=None, x=None, y=None, 
-                    select_indices=None, output_transform_func=None, map_labels=False, x_field='data', y_field='label',
+                    select_indices=None, output_transform_func=None, map_labels=True, x_field='data', y_field='label',
                     shuffle=False, refresh_on_epoch_end=False, return_batch_ids=False, filter=None, n_extend=0):
 
         self.from_memory = x is not None and y is not None
         self.annot_in_data_table = annot_in_data_table
         self.filter = filter
         self.map_labels = map_labels
+        self.unique_labels = None
         
         if self.from_memory:
             #TODO: Reinstate 'check_data_sanity' once it is more more flexible
@@ -270,37 +271,76 @@ class BatchGenerator():
             self.map_labels = False
 
         if self.map_labels:
-            self.mapper = self.__create_label_mapping__()
+            check_attr = (select_indices is None)
+            unique_labels = self.get_unique_labels(check_attr)
+            self.__create_label_mapping__(unique_labels)
 
         self.entry_indices = self.__update_indices__()
 
         self.batch_indices_data, self.batch_indices_annot = self.__get_batch_indices__(n_extend)
 
-    def __create_label_mapping__(self):
-        """Maps the labels values to incremental integer values starting from 0.
+    def get_unique_labels(self, check_attr=True):
+        """ Get a list of the labels occurring in the dataset.
+
+            If check_attr=True, the method first checks if the table has an attribute named 
+            'unique_labels'. If the attribute is present, the method simply returns its value.
+
+            If the attibute is not found (or check_attr=False), the method goes through every 
+            instance in the dataset to identify the unique labels.
+
+            The unique labels are stored as a class attribute. Therefore, while the first 
+            call of the method may be slow, subsequent calls will be very fast as the 
+            method will simply return the class attribute value. 
+
+            Args: 
+                check_attr: bool
+                    Check if the table has an attribute named 'unique_labels' and return its 
+                    value, if found.
+
+            Returns:
+                unique_labels: numpy array
+                    List of unique labels in the dataset.
+        """
+        if self.unique_labels is None:
+            if self.from_memory:
+                # Pandas unique function is significantly faster than numpy's according to its documentation
+                # Ravel is an array method that returns a flattened view (if possible) of a multidimensional array. This can be potentially faster
+                # The argument 'K' tells the method to flatten the array in the order the elements are stored in the memory
+                self.unique_labels = np.sort(pd.unique(self.y.ravel('K'))) # get array of unique values
+
+            else:
+                table = self.data if self.annot is None else self.annot
+        
+                if check_attr and 'unique_labels' in table.attrs._f_list("user"):
+                    self.unique_labels = table.attrs.unique_labels
+                    if isinstance(self.unique_labels, list): 
+                        self.unique_labels = np.array(self.unique_labels, dtype=int) #ensure type is np.ndarray and not list
+                else:
+                    self.unique_labels = np.sort(pd.unique(table.col(self.y_field[0]))) 
+    
+        return self.unique_labels
+
+    def apply_label_mapping(self, mapper):
+        """ Map the original labels to a new set of labels
+
+            Args:
+                mapper: dict
+                    A dictionary that maps each of the original labels to a new label
+        """
+        self.map_labels = True
+        self.mapper = mapper        
+
+    def __create_label_mapping__(self, unique_labels):
+        """ Create mapping that maps the original labels to incremental integer values starting from 0.
 
             E.g. a dataset with labels 2,3,5 will be mapped to 0,1,2
 
-            Goes through every row in the dataset once to identify the unique labels
-
-            Return
-                dict
-                    A dictionary that contains the mapping maps the values each original label to the new label
+            Args:
+                unique_labels: numpy array
+                    Unique labels
         """
-        if self.from_memory:
-            # Pandas unique function is significantly faster than numpy's according to its documentation
-            # Ravel is an array method that returns a flattened view (if possible) of a multidimensional array. This can be potentially faster
-            # The argument 'K' tells the method to flatten the array in the order the elements are stored in the memory
-            unique_labels = np.sort(pd.unique(self.y.ravel('K'))) # get array of unique values
-            return dict(zip(unique_labels, np.arange(len(unique_labels))))
-
-        if self.annot:
-            table = self.annot
-        else:
-            table = self.data
-     
-        unique_labels = np.sort(pd.unique(table.col(self.y_field[0]))) # get array of unique values
-        return dict(zip(unique_labels, np.arange(len(unique_labels))))
+        mapper = dict(zip(unique_labels, np.arange(len(unique_labels))))
+        self.apply_label_mapping(mapper)
 
     def __update_indices__(self):
         """Updates the indices used to divide the instances into batches.
@@ -495,6 +535,9 @@ class JointBatchGen():
         return_batch_ids: bool
             If False, each batch will consist of X and Y. If True, the generator index and the instance indices 
             (as they are in the hdf5_table) will be included ((ids, X, Y)). Default is False.
+        map_labels: bool
+            If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be incremental and starting from 0. 
+            Default is True.
 
         Example:
             >>> from tables import open_file
@@ -514,12 +557,15 @@ class JointBatchGen():
             5 2 (3000,) (94, 129)
             >>> h5.close() #close the database handle.
     """
-    def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False, return_batch_ids=False):
+    def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False, 
+                    return_batch_ids=False, map_labels=True):
         self.batch_generators = batch_generators
         self.reset_generators = reset_generators
         self.shuffle = shuffle
         self.return_batch_ids = return_batch_ids
-        
+        self.unique_labels = None
+        self.mapper = None
+
         assert n_batches in ("min", "max") or isinstance(n_batches, int), "n_batches must be 'min', 'max' or an integer"
         if n_batches == "min":
             self.n_batches = min([gen.n_batches for gen in self.batch_generators]) 
@@ -534,6 +580,11 @@ class JointBatchGen():
         for generator in self.batch_generators: 
             generator.return_batch_ids = self.return_batch_ids
 
+        # create label mapping
+        if map_labels:
+            unique_labels = self.get_unique_labels()
+            self.__create_label_mapping__(unique_labels)
+
         # check that the batch generators return consistent data types
         x_sizes = []
         y_sizes = []
@@ -546,11 +597,42 @@ class JointBatchGen():
             y_sizes.append(len(y[0]) if isinstance(y[0], (np.void, list, tuple)) else 0)
             generator.reset()
 
-        assert np.all(np.array(x_sizes)==x_sizes[0]), 'Attempt to join batch generators with different X output formats. Only batch generators with the same X and Y format may be joined'
-        assert np.all(np.array(y_sizes)==y_sizes[0]), 'Attempt to join batch generators with different Y output formats. Only batch generators with the same X and Y format may be joined'
+        assert np.all(np.array(x_sizes)==x_sizes[0]), 'Attempt to join batch generators with different X '\
+            'output formats. Only batch generators with the same X and Y format may be joined'
+        assert np.all(np.array(y_sizes)==y_sizes[0]), 'Attempt to join batch generators with different Y '\
+            'output formats. Only batch generators with the same X and Y format may be joined'
 
         self.xsiz = x_sizes[0]
         self.ysiz = y_sizes[0]
+
+    def get_unique_labels(self):
+        """ Get a list of the labels occurring in the dataset.
+
+            Returns:
+                unique_labels: numpy array
+                    List of unique labels in the dataset.
+        """
+        if self.unique_labels is None:
+            unique_labels = []
+            for generator in self.batch_generators:
+                unique_labels += generator.get_unique_labels().tolist()
+
+            self.unique_labels = np.sort(pd.unique(unique_labels))
+    
+        return self.unique_labels
+
+    def __create_label_mapping__(self, unique_labels):
+        """ Create mapping that maps the original labels to incremental integer values starting from 0.
+
+            E.g. a dataset with labels 2,3,5 will be mapped to 0,1,2
+
+            Args:
+                unique_labels: numpy array
+                    Unique labels
+        """
+        self.mapper = dict(zip(unique_labels, np.arange(len(unique_labels))))
+        for generator in self.batch_generators:
+            generator.apply_label_mapping(self.mapper)  
 
     def __iter__(self):
         return self
