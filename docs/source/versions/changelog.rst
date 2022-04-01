@@ -2,7 +2,12 @@ Change log
 ==========
 
 
-**Version 2.5.1** (Month Day, Year)
+**Version 2.5.2** (Month Day, Year)
+
+ * Added option to specify output transform function in :class:`JointBatchGen <ketos.data_handling.data_feeding.JointBatchGen>`.
+
+
+**Version 2.5.1** (March 10, 2022)
 
  * Minor bug fix in :meth:`encode_parameter <ketos.data_handling.parsing.encode_parameter>`.
  * Generalized :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` to accept audio representations with different durations.

@@ -517,9 +517,6 @@ class JointBatchGen():
         An assertion is made at initialization to check that all batch generators yield data with 
         consistent formats. If the assertion fails, an error is thrown.
 
-        Unlike the individual batch generators, which can be initialized to return sample IDs in addition 
-        to the data arrays X and labels Y, the joint batch generator can only return X and Y.
-
     Args:
         batch_generators: list of BatchGenerator objects
             A list of 2 or more BatchGenerator instances
@@ -538,6 +535,9 @@ class JointBatchGen():
         map_labels: bool
             If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be incremental and starting from 0. 
             Default is True.
+        output_transform_func: function
+            A function to be applied to the joint batch, transforming the instances. Must accept 
+            'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple. 
 
         Example:
             >>> from tables import open_file
@@ -558,13 +558,14 @@ class JointBatchGen():
             >>> h5.close() #close the database handle.
     """
     def __init__(self, batch_generators, n_batches="min", shuffle=False, reset_generators=False, 
-                    return_batch_ids=False, map_labels=True):
+                    return_batch_ids=False, map_labels=True, output_transform_func=None):
         self.batch_generators = batch_generators
         self.reset_generators = reset_generators
         self.shuffle = shuffle
         self.return_batch_ids = return_batch_ids
         self.unique_labels = None
         self.mapper = None
+        self.output_transform_func = output_transform_func
 
         assert n_batches in ("min", "max") or isinstance(n_batches, int), "n_batches must be 'min', 'max' or an integer"
         if n_batches == "min":
@@ -693,6 +694,9 @@ class JointBatchGen():
             if self.reset_generators ==  True:
                 for gen in self.batch_generators:
                     gen.reset()
+
+        if self.output_transform_func is not None:
+            X,Y = self.output_transform_func(X,Y)
 
         if self.return_batch_ids:
             return (ids,X,Y)
