@@ -519,22 +519,25 @@ class JointBatchGen():
 
     Args:
         batch_generators: list of BatchGenerator objects
-            A list of 2 or more BatchGenerator instances
+            A list of 2 or more BatchGenerator instances.
         n_batches: str or int (default:'min')
             The number of batches for the joint generator. It can be an integer number, 'min',
-            which will use the lowest n_batches among the batch generators, or 'max, which will use the highest value
+            which will use the lowest n_batches among the batch generators, or 'max, which will 
+            use the highest value.
         shuffle:bool (default:False)
-            If True, shuffle the joint batch before returning it. Note that this only concerns the joint batches and is independent of wheter the joined generators
-            shuffle or not.
+            If True, shuffle the joint batch before returning it. Note that this only concerns the 
+            joint batches and is independent of wheter the joined generators shuffle or not.
         reset_generators:bool (default:False)
-            If True, reset the current batch counter of each generator whenever the joint generator reaches the n_batches value.
-            This evokes the end-of-epoch behaviour for each batch generator (i.e.: if a  batch generator was created with 'duffle_on_epoch_end=True', then it will shuffle at this time, even if that generator's batch counter is not yet at the maximum)
+            If True, reset the current batch counter of each generator whenever the joint generator 
+            reaches the n_batches value. This evokes the end-of-epoch behaviour for each batch generator 
+            (i.e.: if a  batch generator was created with 'duffle_on_epoch_end=True', then it will 
+            shuffle at this time, even if that generator's batch counter is not yet at the maximum).
         return_batch_ids: bool
-            If False, each batch will consist of X and Y. If True, the generator index and the instance indices 
-            (as they are in the hdf5_table) will be included ((ids, X, Y)). Default is False.
+            If False, each batch will consist of X and Y. If True, the generator index and the instance 
+            indices (as they are in the hdf5_table) will be included ((ids, X, Y)). Default is False.
         map_labels: bool
-            If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be incremental and starting from 0. 
-            Default is True.
+            If True, maps all labels to integers 0,1,2,3... Ketos neural networks expect labels to be 
+            incremental and starting from 0. Default is True.
         output_transform_func: function
             A function to be applied to the joint batch, transforming the instances. Must accept 
             'X' and 'Y' and, after processing, also return  'X' and 'Y' in a tuple. 

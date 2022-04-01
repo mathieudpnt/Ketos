@@ -338,7 +338,7 @@ class NNInterface():
     def _transform_input(cls,input):
         """ Transforms a training input to the format expected by the network.
 
-            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the 
+            Similar to :func:`NNInterface.transform_batch`, but only acts on the 
             inputs (not labels). Mostly used for inference, rather than training.
             When this interface is subclassed to make new neural_network classes, this 
             method can be overwritten to accomodate any transformations required. Common 
