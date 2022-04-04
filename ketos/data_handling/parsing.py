@@ -57,7 +57,8 @@ audio_std_params = {'type':                     {'type':str,   'unit':None},
                     'local_km_window_seconds':  {'type':float, 'unit':'s'},
                     'filter_n':                 {'type':int,   'unit':None},
                     'filter_min_hz':            {'type':float, 'unit':'Hz'},
-                    'decibel':                  {'type':bool,  'unit':None}
+                    'decibel':                  {'type':bool,  'unit':None},
+                    'input_shape':              {'type':list,  'unit':None}
                     }
 
 
@@ -235,10 +236,9 @@ def encode_parameter(name, value):
         unit specified in the `audio_std_params` dictionary. For example, 
         if name='window' and value=4.22, the function returns the str '4.22 s'.
 
-        If the parameter is a tuple, it is converted to a string.
-
-        If the parameter is not found in the `audio_std_params` dictionary 
-        and is not a tuple, the function returns the input value unmodified.
+        If the parameter is not found in the `audio_std_params` dictionary, 
+        the function returns the input value unmodified, unless the parameter 
+        is a tuple in which case it is converted to a string.
     
         Args:
             name: str
@@ -265,9 +265,10 @@ def encode_parameter(name, value):
         if typ == bool:
             encoded_value = str(value).lower()
 
-    if isinstance(value, tuple):
-        encoded_value = ','.join([str(x) for x in value])
-        encoded_value = '(' + encoded_value + ')'
+    else:
+        if isinstance(value, tuple):
+            encoded_value = ','.join([str(x) for x in value])
+            encoded_value = '(' + encoded_value + ')'
 
     return encoded_value
 
