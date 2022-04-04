@@ -278,6 +278,7 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
     """ Use an audio_loader object to compute spectrogram from the audio files and process them with the trained classifier.
 
         TODO: Improve the implementation so that it is not limited to audio_loader.batch_size = 1
+        TODO: Improve handling of multi-modal input data
 
         Args:
             audio_loader: a ketos.audio.audio_loader.AudioFrameLoader object
@@ -328,26 +329,44 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
     specs_prev_batch = []
     duration = None
     step = 0
+    multi_modal = False
 
     for siz in tqdm(batch_sizes, disable = not progress_bar): 
         batch_data, batch_support_data = [], []
 
         # first, collect data from the last specs from previous batch, if any            
         for spec in specs_prev_batch: 
-            batch_data.append(spec.data)
-            support_data = (spec.filename, spec.offset)
+            if isinstance(spec, list): #multi-modal
+                spec_data = [s.get_data() for s in spec]
+                support_data = (spec[0].filename, spec[0].offset)
+                duration = spec[0].duration()
+            else: #single mode
+                spec_data = spec.get_data()
+                support_data = (spec.filename, spec.offset)
+                duration = spec.duration()
+
+            batch_data.append(spec_data)
             batch_support_data.append(support_data)
-            duration = spec.duration()
 
         # then, load specs from present batch
         specs_prev_batch = []
         while len(batch_data) < siz:
             spec = next(audio_loader)
-            batch_data.append(spec.data)
-            support_data = (spec.filename, spec.offset)
+
+            if isinstance(spec, list): #multi-modal
+                spec_data = [s.get_data() for s in spec]
+                support_data = (spec[0].filename, spec[0].offset)
+                duration = spec[0].duration()
+                multi_modal = True
+            else: #single mode
+                spec_data = spec.get_data()
+                support_data = (spec.filename, spec.offset)
+                duration = spec.duration()
+                multi_modal = False
+
+            batch_data.append(spec_data)
             batch_support_data.append(support_data)
             if siz - len(batch_data) < 2 * n_extend: specs_prev_batch.append(spec) # store last few specs
-            duration = spec.duration()
 
         if len(batch_support_data) >= 2:
             step = batch_support_data[1][1] - batch_support_data[0][1]
@@ -355,7 +374,8 @@ def process_audio_loader(audio_loader, model, batch_size=128, threshold=0.5, buf
         if step <= 0: step = duration
 
         batch_support_data = np.array(batch_support_data)
-        batch_data = np.array(batch_data)
+        if not multi_modal:
+            batch_data = np.array(batch_data)
 
         batch_detections = process_batch(batch_data=batch_data, batch_support_data=batch_support_data, model=model, threshold=thresholds, 
                                         buffer=buffer, step=step, spec_dur=duration, win_len=win_len, group=group)
