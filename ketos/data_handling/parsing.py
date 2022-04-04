@@ -235,8 +235,10 @@ def encode_parameter(name, value):
         unit specified in the `audio_std_params` dictionary. For example, 
         if name='window' and value=4.22, the function returns the str '4.22 s'.
 
-        If the parameter is not found in the `audio_std_params` dictionary, 
-        the function returns the input value unmodified.
+        If the parameter is a tuple, it is converted to a string.
+
+        If the parameter is not found in the `audio_std_params` dictionary 
+        and is not a tuple, the function returns the input value unmodified.
     
         Args:
             name: str
@@ -261,7 +263,11 @@ def encode_parameter(name, value):
             encoded_value = f'{value} {unit}'
         typ = param['type']
         if typ == bool:
-            encoded_value = str(value).lower()        
+            encoded_value = str(value).lower()
+
+    if isinstance(value, tuple):
+        encoded_value = ','.join([str(x) for x in value])
+        encoded_value = '(' + encoded_value + ')'
 
     return encoded_value
 

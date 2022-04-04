@@ -57,6 +57,7 @@ def test_encode_parameter():
     assert jp.encode_parameter(name='window', value=8.2) == '8.2 s'
     assert jp.encode_parameter(name='window2', value=8.2) == 8.2
     assert jp.encode_parameter(name='window3', value=[8.2]) == [8.2]
+    assert jp.encode_parameter(name='dummy', value=(8.2, 4, 66)) == "(8.2,4,66)"
 
 def test_encode_audio_representation():
     s = {'type': 'bla', 'window': 0.032, 'dummy': ['x', 'y'], 'transforms':[]}
