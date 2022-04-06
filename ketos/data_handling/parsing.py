@@ -204,8 +204,14 @@ def parse_parameter(name, value):
                         tr['range'] = tuple(map(int, s.split(',')))
 
                     elif tr['name'] == 'resize' and 'shape' in tr.keys():
-                        s = tr['shape'][1:-1]
-                        tr['shape'] = tuple(map(int, s.split(',')))
+                        v = tr['shape']
+                        assert isinstance(v, (list, str)), "shape argument of resize transform must be "\
+                            f"of type 'list' or 'str' whereas a '{type(v)}' was provided"
+                        if isinstance(v, list):
+                            tr['shape'] = tuple(v)
+                        elif isinstance(v, str):
+                            s = v[1:-1]
+                            tr['shape'] = tuple(map(int, s.split(',')))
 
     return parsed_value
 
