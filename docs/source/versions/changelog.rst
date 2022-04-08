@@ -5,7 +5,10 @@ Change log
 **Version 2.5.2** (Month Day, Year)
 
  * Added option to specify output transform function in :class:`JointBatchGen <ketos.data_handling.data_feeding.JointBatchGen>`.
-
+ * New Class :class:`NNArch <ketos.neural_networks.nn_interface.NNArch>` that serves as the parent for specific architecture classes.
+ * Methods for NNArch
+ * :meth:`add_frontend <ketos.neural_networks.nn_interface.NNArch.add_frontend>` allows users to add a frontend block that will always be executed first during training
+ * :meth:`call_frontend <ketos.neural_networks.nn_interface.NNArch.call_frontend>` to be used in the call method of a new NN architecture. Will call the frontend blocks if they exist 
 
 **Version 2.5.1** (March 10, 2022)
 

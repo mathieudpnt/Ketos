@@ -34,7 +34,7 @@
 """
 import tensorflow as tf
 import numpy as np
-from .dev_utils.nn_interface import NNInterface, RecipeCompat
+from .dev_utils.nn_interface import NNInterface, RecipeCompat, NNArch
 import json
 
 
@@ -124,7 +124,7 @@ default_cnn_1d_recipe = {'convolutional_layers':  [{'n_filters':8, "filter_shape
                     }
 
 
-class CNNArch(tf.keras.Model):
+class CNNArch(NNArch):
     """ Implement a Convolutional Neural Network
 
         Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense
@@ -252,7 +252,8 @@ class CNNArch(tf.keras.Model):
         Returns: 
             A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        output = self.convolutional_block(inputs, training=training)
+        output = self.call_frontend(inputs)
+        output = self.convolutional_block(output, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
         
@@ -261,7 +262,7 @@ class CNNArch(tf.keras.Model):
 
 
 
-class CNN1DArch(tf.keras.Model):
+class CNN1DArch(NNArch):
     """ Implement an 1D (temporal) Convolutional Neural Network.
 
         Note: in addition to the dense layers specified in the 'dense_layers' argument, an extra dense \
@@ -391,7 +392,8 @@ class CNN1DArch(tf.keras.Model):
         Returns:
                 A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        output = self.convolutional_block(inputs, training=training)
+        output = self.call_frontend(inputs)
+        output = self.convolutional_block(output, training=training)
         output = self.flatten(output)
         output = self.dense_block(output, training=training)
 

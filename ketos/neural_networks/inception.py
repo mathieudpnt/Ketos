@@ -37,7 +37,7 @@
 """
 
 import tensorflow as tf
-from .dev_utils.nn_interface import RecipeCompat, NNInterface
+from .dev_utils.nn_interface import RecipeCompat, NNInterface, NNArch
 import json
 
 
@@ -152,7 +152,7 @@ class InceptionBlock(tf.keras.Model):
         return out
 
 
-class InceptionArch(tf.keras.Model):
+class InceptionArch(NNArch):
     """ Implements an Inception network, building on InceptionBlocks
 
         Args:
@@ -218,7 +218,8 @@ class InceptionArch(tf.keras.Model):
         Returns:
                 A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        output = self.conv1(inputs, training=training)
+        output = self.call_frontend(inputs)
+        output = self.conv1(output, training=training)
         output = self.blocks(output, training=training)
         output = self.avg_pool(output)
         output = self.dense(output)

@@ -7,11 +7,8 @@ tf.random.set_seed(2000)
 
 
 import pytest
-#import numpy as np
-#import tensorflow as tf
-from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterface
+from ketos.neural_networks.dev_utils.nn_interface import RecipeCompat, NNInterface, NNArch
 from ketos.neural_networks.dev_utils.losses import FScoreLoss
-#from ketos.neural_networks.metrics import Precision, Recall, Accuracy, FScore
 from ketos.data_handling.data_feeding import BatchGenerator
 from unittest.mock import Mock, patch
 import os
@@ -49,7 +46,7 @@ def MLPInterface_subclass():
     """ A simple MLP inheriting from NNInterface
     """
     
-    class MLP(tf.keras.Model):
+    class MLP(NNArch):
         def __init__(self, n_neurons, activation):
             super(MLP, self).__init__()
 
@@ -57,14 +54,9 @@ def MLPInterface_subclass():
             self.final_node = tf.keras.layers.Dense(2, 'softmax')
 
         def call(self, inputs):
-            print(inputs.shape)
-            # output = self.dense(inputs)
-            # output = tf.expand_dims(output, -1)
-            # print(output.shape)
-            output = self.dense(inputs)
-            print(output.shape)
+            output = self.call_frontend(inputs)
+            output = self.dense(output)
             output = self.final_node(output)
-            print(output.shape)
             return output
 
             
@@ -93,13 +85,6 @@ def MLPInterface_subclass():
             transformed_output = (max_class, max_class_conf)
             
             return transformed_output
-
-
-        # @classmethod
-        # def transform_train_batch(cls, x, y, n_classes=2):
-        #     X = x
-        #     Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
-        #     return (X, Y)
 
 
 
@@ -145,11 +130,6 @@ def MLPInterface_subclass():
             super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
             self.n_neurons = n_neurons
             self.activation = activation
-
-            # self.optimizer=optimizer
-            # self.loss_function=loss_function
-            # self.metrics=metrics
-            
             self.model = MLP(n_neurons=n_neurons, activation=activation)
             
 
@@ -184,9 +164,6 @@ def instance_of_MLPInterface(MLPInterface_subclass):
     train_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
     val_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
     test_generator = BatchGenerator(batch_size=5, x=data, y=labels, shuffle=True)
-    # train_generator = BatchGenerator(batch_size=5, data_table=train_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    # val_generator = BatchGenerator(batch_size=5, data_table=val_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
-    # test_generator = BatchGenerator(batch_size=5, data_table=test_table, output_transform_func=MLPInterface_subclass.transform_train_batch, x_field='data', y_field='label')
     
 
     instance = MLPInterface_subclass(activation='relu', n_neurons=64, optimizer=recipe['optimizer'],
@@ -253,17 +230,17 @@ def test_transform_batch():
 
 
 def test_transform_input():
-     input1 = np.random.rand(5,5)        
-     input2 = np.random.rand(1,5,5)
+    input1 = np.random.rand(5,5)        
+    input2 = np.random.rand(1,5,5)
 
-     output1 = NNInterface._transform_input(input1)
-     output2 = NNInterface._transform_input(input2)
+    output1 = NNInterface._transform_input(input1)
+    output2 = NNInterface._transform_input(input2)
 
-     assert output1.shape == (1,5,5,1)
-     assert output2.shape == (1,5,5,1)
+    assert output1.shape == (1,5,5,1)
+    assert output2.shape == (1,5,5,1)
 
-     assert np.array_equal(output1[0,:,:,0], input1)
-     assert np.array_equal(output2[0,:,:,0], input2[0,:,:])
+    assert np.array_equal(output1[0,:,:,0], input1)
+    assert np.array_equal(output2[0,:,:,0], input2[0,:,:])
 
 
 def test_transform_output():
@@ -362,9 +339,7 @@ def test_write_recipe_file(recipe_dict):
     read_recipe =  NNInterface._read_recipe_file(destination, return_recipe_compat=False)
     #If return_recipe_compat is False, the result should be a recipe dictionary just like the recipe_dict used to write the file
     assert read_recipe == recipe_dict
-    # assert read_recipe['optimizer'] == recipe_dict['optimizer']
-    # assert read_recipe['loss_function'] == recipe_dict['loss_function']
-    # assert read_recipe['metrics'] == recipe_dict['metrics']
+
 
     read_recipe =  NNInterface._read_recipe_file(destination, return_recipe_compat=True)
     #If return_recipe_compat is True, the result will be a dictionary with RecipeCompat objects for the optimizer, loss_functions and metrics (actually a lis of RecipCompat objects) 
@@ -401,7 +376,6 @@ def test_save_recipe_file(instance_of_MLPInterface):
 
     read_recipe = instance._read_recipe_file(path_to_saved_recipe)
 
-    #assert read_recipe == recipe
 
     assert read_recipe['n_neurons'] == 64
     assert read_recipe['activation'] == 'relu'
@@ -449,7 +423,6 @@ def test_train_loop_early_stop_metric_decrease(instance_of_MLPInterface):
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
        loss = next(train_loss_values)
-       print(loss)
        self._train_loss.result.return_value = loss#next(train_loss_values)
 
     patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
@@ -486,7 +459,6 @@ def test_train_loop_early_stop_metric_decrease_baseline(instance_of_MLPInterface
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
        loss = next(train_loss_values)
-       print(loss)
        self._train_loss.result.return_value = loss#next(train_loss_values)
 
     patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
@@ -528,7 +500,6 @@ def test_train_loop_early_stop_metric_increase(instance_of_MLPInterface):
     def mock_train_step(self, inputs, labels):
        self._train_loss = Mock()
        loss = next(train_loss_values)
-       print(loss)
        self._train_loss.result.return_value = loss#next(train_loss_values)
 
     patcher = patch('ketos.neural_networks.dev_utils.nn_interface.NNInterface._train_step', new=mock_train_step)
@@ -681,6 +652,21 @@ def test_run_on_batch(instance_of_MLPInterface):
 
     assert scores.shape == (5,)
     np.testing.assert_array_almost_equal(scores, np.array([0.5086525,1.,1., 0.5086525, 0.5086525], dtype=scores.dtype), decimal=7)
+
+def test_frontend_layer(instance_of_MLPInterface):
+    frontend_layer = tf.keras.layers.Dense(64, activation='relu')
+    instance_of_MLPInterface.model.add_frontend(frontend_layer)
+    instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
+    instance_of_MLPInterface.train_loop(n_epochs=5)
+    instance_of_MLPInterface.test_generator.batch_count = 0 #reset batch generator
+    X,y = next(instance_of_MLPInterface.test_generator)
+
+    pred, scores = instance_of_MLPInterface.run_on_batch(X, transform_input=True, return_raw_output=False)
+    assert pred.shape == (5,)
+    assert np.array_equal(pred, np.array([0,1,1,0,0]))
+
+    assert scores.shape == (5,)
+    np.testing.assert_array_almost_equal(scores, np.array([0.5122282, 0.9999663, 0.9999663, 0.5122282, 0.5122282], dtype=scores.dtype), decimal=7)
 
 def test_run_on_batch_raw_output(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_train_loop_checkpoints")
