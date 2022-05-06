@@ -44,8 +44,10 @@ def fractional_overlap(a, b):
         length 4.5. Therefore, the fractional overlap is 1.5/4 = 0.375 = 37.5%.
 
         Args:
-            a,b: tuples
-                Start and end points of the two intervals
+            a: tuple
+                One interval.
+            b: tuple
+                Another interval.
 
         Returns:
             : float

@@ -65,7 +65,7 @@ def test_export_to_ketos_protobuf():
     assert os.path.isfile(os.path.join(tmp_path, 'audio_repr.json'))
 
     # load audio representation
-    audio_repr = load_audio_representation(os.path.join(tmp_path, 'audio_repr.json'))
+    audio_repr = load_audio_representation(os.path.join(tmp_path, 'audio_repr.json'), return_unparsed=True)
     assert 'spectrogram' in audio_repr
 
     # check that duration was written to file
@@ -170,6 +170,17 @@ def test_export_to_ketos():
         zip.extractall(path=tmp_path)
     audio_repr = load_audio_representation(os.path.join(tmp_path, 'audio_repr.json'))
     assert audio_repr['spectrogram']['window'] == audio_repr['spectrogram']['window']
+    
+    shutil.rmtree(tmp_path) #clean up
+
+    # check that we can save extra files to the .kt archive
+    output_path = os.path.join(path_to_tmp, 'narw6.kt')
+    exp.export_to_ketos(model=model, output_name=output_path, extra=os.path.join(path_to_assets, "annot_001.csv"))
+    assert os.path.isfile(output_path)
+
+    with ZipFile(output_path, 'r') as zip:
+        zip.extractall(path=tmp_path)
+    assert os.path.exists(os.path.join(tmp_path, "annot_001.csv"))
     
     shutil.rmtree(tmp_path) #clean up
 

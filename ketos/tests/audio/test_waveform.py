@@ -27,7 +27,7 @@
 """ Unit tests for the 'audio' module within the ketos library
 """
 import pytest
-from ketos.audio.waveform import Waveform
+from ketos.audio.waveform import Waveform, merge, get_duration
 import numpy as np
 import warnings
 
@@ -52,6 +52,20 @@ def test_from_wav(sine_wave_file, sine_wave):
     assert a.filename == "sine_wave.wav"
     assert np.all(np.isclose(a.data, sig, atol=0.001))
 
+def test_from_multiple_files(sine_wave_file, sine_wave):
+    """ Test if an audio signal can be created from multiple audio files"""
+    #same offset and duration
+    a = Waveform.from_wav([sine_wave_file, sine_wave_file])  
+    assert a.duration() == 6.0
+    assert a.rate == 44100
+    assert a.filename == "sine_wave.wav"
+    assert np.all(np.isclose(a.data[:100], sine_wave[1][:100], atol=0.001))
+    #different offsets and duration
+    a = Waveform.from_wav([sine_wave_file, sine_wave_file], offset=[0.2, 0.4], duration=[1.2, 0.8])  
+    assert a.duration() == 2.0
+    i0 = int(a.rate * 0.2)
+    assert np.all(np.isclose(a.data[:100], sine_wave[1][i0:i0+100], atol=0.001))
+
 def test_from_wav_zero_pad(sine_wave_file, sine_wave):
     """ Test if an audio signal can be created from a wav file
         if offset + duration exceed the file length"""
@@ -59,7 +73,7 @@ def test_from_wav_zero_pad(sine_wave_file, sine_wave):
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        a = Waveform.from_wav(sine_wave_file, offset=2, duration=4)
+        a = Waveform.from_wav(sine_wave_file, offset=2, duration=4, pad_mode="zero")
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
@@ -74,12 +88,12 @@ def test_from_wav_zero_pad(sine_wave_file, sine_wave):
 
 def test_from_wav_negative_offset(sine_wave_file, sine_wave):
     """ Test if an audio signal can be created from a wav file
-        if offset + duration exceed the file length"""
+        with negative offset and zero padding"""
     with warnings.catch_warnings(record=True) as w:
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        a = Waveform.from_wav(sine_wave_file, offset=-2, duration=4)
+        a = Waveform.from_wav(sine_wave_file, offset=-2, duration=4, pad_mode="zero")
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
@@ -90,6 +104,24 @@ def test_from_wav_negative_offset(sine_wave_file, sine_wave):
         assert a.duration() == 4.
         assert a.rate == 44100
         assert a.filename == "sine_wave.wav"
+        assert np.all(np.isclose(a.data, sig, atol=0.001))
+
+def test_from_wav_negative_offset_pad_with_reflection(sine_wave_file, sine_wave):
+    """ Test if an audio signal can be created from a wav file
+        with negative offset and reflective padding"""
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        # Trigger a warning.
+        a = Waveform.from_wav(sine_wave_file, offset=-1, duration=3, pad_mode='reflect')
+        # Verify some things about the warning
+        assert len(w) == 1
+        assert issubclass(w[-1].category, RuntimeWarning)
+        assert "Waveform padded with its own reflection to achieve desired length" in str(w[-1].message)
+        # Verify some things about the waveform
+        sig = sine_wave[1][:2*44100] #first 2 seconds of the sine wave
+        sig = np.concatenate([sig[44100:0:-1],sig[:]]) #pre-pend reflection
+        assert a.duration() == 3.
         assert np.all(np.isclose(a.data, sig, atol=0.001))
 
 def test_from_wav_offset_exceeds_file_duration(sine_wave_file, sine_wave):
@@ -103,7 +135,7 @@ def test_from_wav_offset_exceeds_file_duration(sine_wave_file, sine_wave):
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
-        assert "Offset exceeds file length. Empty waveform returned" in str(w[-1].message)
+        assert "Offset exceeds file duration. Empty waveform returned" in str(w[-1].message)
         # Verify some things about the waveform
         assert a.duration() == 0.
         assert a.rate == 8000
@@ -129,6 +161,13 @@ def test_from_wav_norm(sine_wave_file_half, sine_wave):
     assert np.isclose(np.std(a.data), 1, atol=1e-12)
     assert a.transform_log == [{'name':'normalize','mean':0,'std':1}]
 
+def test_from_wav_path_is_None():
+    """ Test if a zero waveform can be created by specifying path=None"""
+    a = Waveform.from_wav(None, rate=1000, duration=3.0)
+    assert np.all(np.isclose(a.data, 0, atol=1e-12))
+    assert a.duration() == 3.0
+    assert len(a.data) == 3000
+
 def test_append_audio_signal(sine_audio):
     """Test if we can append an audio signal to itself"""
     audio_orig = sine_audio.deepcopy()
@@ -140,7 +179,21 @@ def test_append_audio_signal_with_overlap(sine_audio):
     """Test if we can append an audio signal to itself"""
     audio_orig = sine_audio.deepcopy()
     sine_audio.append(sine_audio, n_smooth=100)
-    assert sine_audio.duration() == 2 * audio_orig.duration() - 100/sine_audio.rate
+    assert sine_audio.duration() == 2 * audio_orig.duration()
+
+def test_merge_audio_signals(sine_audio):
+    """Test that we can merge multiple audio signals"""
+    wf = merge([sine_audio, sine_audio, sine_audio], smooth=0.01)
+    assert wf.duration() == 3 * sine_audio.duration()
+
+def test_get_duration(sine_wave_file):
+    """Test that we can predict the duration of an audio signal 
+       obtained by merging several files"""
+    path = [sine_wave_file, None, sine_wave_file]
+    offset = [1.0, 0, -0.5]
+    duration = [1.2, 0.7, None]
+    d = get_duration(path=path, offset=offset, duration=duration)
+    assert d == [1.2, 0.7, 3.5]
 
 def test_add_audio_signals(sine_audio):
     """Test if we can add an audio signal to itself"""

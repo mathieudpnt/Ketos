@@ -231,7 +231,7 @@ def test_mag_from_wav(sine_wave_file):
         # Trigger a warning.
         spec = MagSpectrogram.from_wav(sine_wave_file, window=0.2, step=0.01, offset=4.0)
         # Verify some things about the warning
-        assert len(w) == 2
+        assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
         assert "Empty spectrogram returned" in str(w[-1].message)
         # Verify some things about the spectrogram
@@ -262,6 +262,12 @@ def test_mag_from_wav_time_shift():
     spec1 = MagSpectrogram.from_wav(fname, window=0.1, step=0.02, offset=0.12, duration=0.4, freq_max=800)
     n_shift = int(0.12 / 0.02)
     assert np.all(np.isclose(spec0.get_data()[n_shift:], spec1.get_data()[:-n_shift], rtol=1e-6))
+
+def test_mag_from_wav_multiple_files():
+    """ Check that we can load a spectrogram spanning multiple audio files """
+    fname = os.path.join(path_to_assets, 'grunt1.wav')
+    spec = MagSpectrogram.from_wav([fname, None, fname], window=0.1, step=0.02, offset=[0, 0, 0.1], duration=[0.8, 0.3, 0.6], freq_max=800)
+    assert np.isclose(spec.duration(), 0.8 + 0.3 + 0.6, atol=1e-12)
 
 def test_mag_from_wav_id(sine_wave_file):
     """ Test that mag spectrogram created with from_wav method 
