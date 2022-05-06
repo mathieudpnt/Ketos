@@ -35,6 +35,7 @@
 """
 import os
 import copy
+import pandas as pd
 import numpy as np
 import librosa
 import warnings
@@ -110,10 +111,6 @@ class SelectionTableIterator(SelectionGenerator):
                 Path to top folder containing audio files.
             selection_table: pandas DataFrame
                 Selection table
-            duration: float
-                Use this argument to enforce uniform duration of all selections.
-                Any selection longer than the specified duration will be shortened at the end.
-                Any selection shorter than the specified duration will be extended at the end.
             include_attrs: bool
                 If True, load data from all attribute columns in the selection table. Default is False.
             attrs: list(str)
@@ -121,11 +118,10 @@ class SelectionTableIterator(SelectionGenerator):
                 Overwrites include_attrs if specified. If None, all columns will be loaded provided that 
                 include_attrs=True.
     """
-    def __init__(self, data_dir, selection_table, duration=None, include_attrs=False, attrs=None):
+    def __init__(self, data_dir, selection_table, include_attrs=False, attrs=None):
         self.sel = selection_table
-        self.duration = duration
         self.dir = data_dir
-        self.row_id = 0
+        self.counter = 0
 
         all_attrs = list(self.sel.columns.values)
         for col in ['start', 'end', 'label']: 
@@ -140,6 +136,16 @@ class SelectionTableIterator(SelectionGenerator):
         else:
             self.attrs = []
 
+        # determine if the selection table has been formatted according to 
+        # the new ketos style (>=2.6.0) or the old style 
+        self._new_style = (self.sel.index.names[0] == "sel_id")
+
+        if self._new_style:
+            self.sel_ids = self.sel.index.get_level_values(0).unique()
+            self.num_sel = len(self.sel_ids)
+        else:
+            self.num_sel = len(self.sel)
+
     def __next__(self):
         """ Returns the next audio selection.
 
@@ -147,8 +153,8 @@ class SelectionTableIterator(SelectionGenerator):
                 audio_sel: dict
                     Audio selection
         """
-        audio_sel = self.get_selection(id=self.row_id)
-        self.row_id = (self.row_id + 1) % len(self.sel) #update row no.
+        audio_sel = self.get_selection(self.counter)
+        self.counter = (self.counter + 1) % self.num() #update selection counter
         return audio_sel
 
     def num(self):
@@ -158,62 +164,73 @@ class SelectionTableIterator(SelectionGenerator):
                 : int
                     Total number of selections.
         """
-        return len(self.sel)
+        return self.num_sel
 
     def reset(self):
         """ Resets the selection generator to the beginning of the selection table.
         """        
-        self.row_id = 0
+        self.counter = 0
         
-    def get_selection(self, id):
-        """ Returns the audio selection with a given id.
+    def get_selection(self, n):
+        """ Returns the n-th audio selection in the table.
 
             Args:
-                id: int
-                    The id within the selection table to be searched        
-            Returns:
-                audio_sel: dict
-                    Audio selection
-        """
-        audio_sel = {'data_dir': self.dir}
-        audio_sel['filename'] = self.sel.index.values[id][0]
-        
-        # current row
-        s = self.sel.iloc[id]
+                n: int
+                    The index (0,1,2,...) of the desired selection.
 
+            Returns:
+                res: dict
+                    The selection
+        """
+        res = {'data_dir': self.dir}
+
+        if self._new_style:
+            selection = self.sel.loc[self.sel_ids[n]]
+            res['filename'] = selection.index.values            
+        
+        else:
+            selection = self.sel.iloc[n]
+            res['filename'] = self.sel.index.values[n][0]
+        
         # start time
-        if 'start' in s.keys(): 
-            offset = s['start']
+        if 'start' in selection.keys(): 
+            offset = selection['start']
         else: 
             offset = 0
 
         # duration
-        if self.duration is not None: 
-            duration = self.duration
-        elif 'end' in s.keys(): 
-            duration = s['end'] - offset
+        if 'end' in selection.keys(): 
+            duration = selection['end'] - offset
         else:
             duration = None
 
-        # if needed, adjust offset to ensure selection is centered correctly
-        # (only works if end time is known)
-        if duration is not None and 'end' in s.keys():
-            offset += 0.5 * (s['end'] - offset - duration)
-
-        # pass offset and duration to dict
-        audio_sel['offset'] = offset
+        # pass offset and duration to return dict
+        res['offset'] = offset
         if duration is not None:
-            audio_sel['duration'] = duration
+            res['duration'] = duration
 
         # label
         if 'label' in self.sel.columns.values: 
-            audio_sel['label'] = s['label']
+            res['label'] = selection['label']
 
         # attribute columns
         for col in self.attrs: 
-            audio_sel[col] = s[col]
+            res[col] = selection[col]
 
-        return audio_sel
+        # for new style, convert pandas Series to numpy arrays
+        if self._new_style:
+            for key in res.keys():
+                if isinstance(res[key], pd.Series):
+                    res[key] = res[key].values
+                    if key in ["offset", "duration"]:
+                        res[key] = res[key].astype(float) #ensure float
+
+        # OBS: for labels and attributes, use only the first entry
+        for col in ["label"] + self.attrs:
+            if col in res.keys() and np.ndim(res[col]) > 0:
+                res[col] = res[col][0]
+        
+        return res
 
 
 class FrameStepper(SelectionGenerator):
@@ -281,7 +298,6 @@ class FrameStepper(SelectionGenerator):
         else:
             self.num_segs = np.floor(self.num_segs).astype(int)        
 
-#        self.num_segs = [int(max(1, (dur - self.duration) / self.step + 1)) for dur in self.file_durations]
         self.num_segs_tot = np.sum(self.num_segs)
 
         self.reset()
@@ -349,14 +365,54 @@ class FrameStepper(SelectionGenerator):
         return self.file_durations.tolist()
 
 
+def _file_limits_warning(start, end, file_path, file_duration):
+    """ Helper function for the AudioLoader class.
+    
+        Generates warning messages if the selection start or end time is outside of the audio file's limits.
+
+        Args:
+            start: float
+                Selection start time with respect to beginning of file in seconds.
+            end: float
+                Selection end time with respect to beginning of file in seconds.
+            file_path: str
+                Full path of the audio file.
+            file_duration: float
+                Audio file length in seconds.
+    """
+    # total length of selection
+    len_tot = end - start
+    # determine how much of the selection is outside the file
+    len_outside = max(0, -start) + max(0, end - file_duration)
+    
+    # print warnings if selection end is zero or negative
+    if (end <= 0):
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: selection end time ({end:.2f}s) is earlier than the start of the file", category=UserWarning)
+
+    # print warnings if selection start is later than the file end time
+    if (start > file_duration):
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: selection start time ({start:.2f}s) is later than the end of the file", category=UserWarning)
+
+    #print a warning that the selection has 0 or negative length (end before start)
+    if (len_tot <= 0):
+         warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            "Message: selection end time is less than or equal to the selection start time.", category=UserWarning)
+         
+    # print a warning that a fraction larger than 50% of the selection is outside the file
+    if (len_outside > 0.5 * len_tot):
+        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
+            f"Message: at least half of the selection ({start:.2f}s,{end:.2f}s) does not " \
+            "fall within the file", category=UserWarning)
+
+
 class AudioLoader():
     """ Class for loading segments of audio data from .wav files. 
 
         Several representations of the audio data are possible, including 
         waveform, magnitude spectrogram, power spectrogram, mel spectrogram, 
         and CQT spectrogram.
-
-        TODO: Change default value of `stop` argument to True.
 
         Args:
             selection_gen: SelectionGenerator
@@ -378,15 +434,11 @@ class AudioLoader():
                     * CQTSpectrogram:
                         step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
 
-                Optionally, may also contain the key 'normalize_wav' which can have value True or False. 
-                If True, the waveform is normalized zero mean (mean=0) and (std=1) unity standard deviation.
-                It is also possible to specify multiple audio presentations as a list.
+                It is also possible to specify multiple audio presentations as a list or a nested dictionary.
             batch_size: int
                 Load segments in batches rather than one at the time. 
             stop: bool
-                Raise StopIteration when all selections have been loaded. Default is False.
-            same_duration: bool
-                Enforce same duration for all selections. Default is False.
+                Raise StopIteration when all selections have been loaded. Default is True.
 
         Attributes:
             cfg: list(dict)
@@ -397,14 +449,18 @@ class AudioLoader():
             :class:`audio.audio_loader.AudioSelectionLoader`.            
     """
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-                        batch_size=1, stop=False, same_duration=False, **kwargs):
+                        batch_size=1, stop=True, **kwargs):
         repres = copy.deepcopy(repres)
-        if not isinstance(repres, list): repres = [repres]
+
+        if isinstance(repres, list):
+            repres = {i: r for i,r in enumerate(repres)} #convert list to dict with keys 0,1,2...
+        if not isinstance(list(repres.values())[0], dict): #if not a nested dict, make it nested with key 0
+            repres = {0: repres}
+
         self.typ, self.cfg, self.repr_duration = [], [], [] #type, config, duration        
-        for r in repres:
+        for r in repres.values():
             self.typ.append(r.pop('type'))
-            repr_duration = r.pop('duration') if 'duration' in r.keys() else None
-            self.repr_duration.append(repr_duration)
+            r.pop('duration', None)
             self.cfg.append(r)
 
         self.channel = channel
@@ -413,7 +469,7 @@ class AudioLoader():
         self.kwargs = kwargs
         self.batch_size = batch_size
         self.stop = stop
-        self.same_duration = same_duration
+        self.file_durations = dict()
         self.reset()
 
     def __iter__(self):
@@ -455,8 +511,11 @@ class AudioLoader():
                 a: BaseAudio, list(BaseAudio), or list(list(BaseAudio))
                     Next segment or next batch of segments
         """
-        return self._next_batch(load=True)
-
+        try:
+            return self._next_batch(load=True)
+        except Exception as e:
+            warnings.warn(f"While loading entry no. {self.counter}, Message: {str(e)}", category=UserWarning)
+            
     def skip(self):
         """ Skip to the next audio segment or batch of audio segments
             without loading the current one.
@@ -521,47 +580,62 @@ class AudioLoader():
                 seg: BaseAudio or list(BaseAudio)
                     Audio segment
         """
-        path = os.path.join(data_dir, filename)
+        # convert scalar args to arrays
+        if np.ndim(filename) == 0:
+            filename = [filename]
+            offset = np.array([offset], dtype=float)
+            if duration is None:
+                duration = [None]
+            else:
+                duration = np.array([duration], dtype=float)
+
+
+        path = [os.path.join(data_dir, fname) for fname in filename]
+        id = filename[0]
+
+        # issue warnings if selections extend beyond file limits
+        for i in range(len(path)):  
+            p = path[i]          
+            file_duration = self.file_durations.get(p)
+            # If file duration does not exist in the dict, get file duration and add it to the dict
+            if file_duration == None:
+                file_duration = librosa.get_duration(filename=p)
+                self.file_durations[p] = file_duration
+
+            start = offset[i]
+            end = file_duration - start if duration[i] is None else start + duration[i]
+            _file_limits_warning(start=start, end=end, file_path=p, file_duration=file_duration)
+
 
         # load audio
-        # (ignore warnings from the from_wav method)
         segs = []
         for i in range(len(self.typ)):
 
             typ = self.typ[i]
             cfg = self.cfg[i]
-            repr_duration = self.repr_duration[i] 
 
             _kwargs = kwargs.copy()
             _kwargs.update(cfg)
-            if not apply_transforms and 'transforms' in _kwargs.keys(): 
-                del _kwargs['transforms']
-
-            # adjust durations and offsets to match duration specified in audio representation dictionary
-            # while keeping selection window centered at its original position
-            if repr_duration is not None and not self.same_duration:
-                _duration = repr_duration
-                if duration is not None:
-                    _offset = offset + 0.5 * (duration - repr_duration)
-            else:
-                _duration = duration
-                _offset = offset
+            if not apply_transforms:
+                _kwargs.pop('transforms', None)
 
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore")        
-                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=_offset, 
-                                                            duration=_duration, id=filename, **_kwargs)
-        
-            # add annotations
+                warnings.simplefilter("ignore") 
+                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, duration=duration, id=id, **_kwargs)
+
+            # add label
             if label is not None:
                 seg.label = label
 
+            # add annotations
             if self.annot is not None:
-                q = query(self.annot, filename=filename, start=offset, end=offset+duration)
-                if len(q) > 0:
-                    q['start'] = np.maximum(0, q['start'].values - offset)
-                    q['end']   = np.minimum(q['end'].values - offset, seg.duration())
-                    seg.annotate(df=q)  
+                file_offset = np.concatenate([[0],np.cumsum(duration)[:-1]])
+                for j in range(len(filename)):
+                    q = query(self.annot, filename=filename[j], start=offset[j], end=offset[j]+duration[j])
+                    if len(q) > 0:
+                        q['start'] += file_offset[j] - offset[j]
+                        q['end']   += file_offset[j] - offset[j]
+                        seg.annotate(df=q)  
 
             segs.append(seg)           
 
@@ -583,13 +657,9 @@ class AudioFrameLoader(AudioLoader):
         argument may be used to specify the step size. (If 'step' is not specified, 
         it is set equal to 'duration'.)
 
-        TODO: Remove frame argument
-        TODO: Change default value of `stop` argument to True.
-
         Args:
             duration: float
-                Segment duration in seconds. Can also be specified via the 'duration' 
-                item of the 'repres' dictionary.
+                Segment duration in seconds. 
             step: float
                 Separation between consecutive segments in seconds. If None, the step size 
                 equals the segment duration. 
@@ -612,8 +682,6 @@ class AudioFrameLoader(AudioLoader):
                 Raise StopIteration if the iteration exceeds the number of available selections. Default is False.
             pad: bool
                 If True (default), the last segment is allowed to extend beyond the endpoint of the audio file.
-            frame: float
-                Same as duration. Only included for backward compatibility. Will be removed in future versions.
 
         Examples:
             >>> import librosa
@@ -640,28 +708,16 @@ class AudioFrameLoader(AudioLoader):
             
             .. image:: ../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
-    def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
+    def __init__(self, duration, step=None, path=None, filename=None, channel=0, 
                     annotations=None, repres={'type': 'Waveform'}, batch_size=1, 
-                    stop=False, pad=True, frame=None, **kwargs):
-
-        if frame != None:
-            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
-            if duration == None: duration = frame
+                    stop=True, pad=True, **kwargs):
 
         if batch_size > 1:
             print("Warning: batch_size > 1 results in different behaviour for ketos versions >= 2.4.2 than earlier \
                    versions. You may want to check out the AudioFrameEfficientLoader class.")
 
-        same_duration = (duration is not None) #enforce same duration for all selections
-
-        duration = _get_duration(repres, duration)
-
-        assert duration != None, 'duration must be specified either with the duration \
-            argument or in the audio representation dictionary'
-
         super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, pad=pad, 
-            same_duration=same_duration, **kwargs)
+            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, pad=pad, **kwargs)
 
     def get_file_paths(self, fullpath=True):
         """ Get the paths to the audio files associated with this instance.
@@ -858,20 +914,9 @@ class AudioSelectionLoader(AudioLoader):
 
         The segments to be loaded are specified via a selection table.
 
-        Note: It is possible to enforce all segments to have the same length by 
-        specifyng a `duration` parameter in the audio representation dictionary.
-        Selections that are shorter than the specified duration will be extended
-        symmetrically, and selections that are longer will be cropped.
-        For example, specifying
-
-            >>> repres = {'type': 'Waveform', 'duration': '3.0s'}
-
-        would result in all loaded segments having a length of precisely 3 seconds, 
-        even if some of the selections deviate from this length. For example, the 
-        selection [9, 14] would be shortened to [10, 13] and the selection [0.2, 2.0]
-        would be extended to [-0.4, 2.6].
-
-        TODO: Change default value of `stop` argument to True.
+        Note: If the audio representation contains a `duration` parameter its value 
+        will be ignored, as the duration of each selection is determined by the start 
+        and end times in the selection table.
 
         Args:
             selections: pandas DataFrame
@@ -882,10 +927,10 @@ class AudioSelectionLoader(AudioLoader):
                 Relative path to a single audio file or a list of audio files. Optional.
             annotations: pandas DataFrame
                 Annotation table. Optional.
-            repres: dict or list(dict)
+            repres: dict
                 Audio data representation. Must contain the key 'type' as well as any arguments 
                 required to initialize the class using the `from_wav` method.  
-                It is also possible to specify multiple audio presentations as a list.
+                It is also possible to specify multiple audio presentations as a list or a nested dictionary.
                 The default representation is the raw, unaltered waveform.
             include_attrs: bool
                 If True, load data from all attribute columns in the selection table. Default is False.
@@ -896,65 +941,27 @@ class AudioSelectionLoader(AudioLoader):
             batch_size: int
                 Load segments in batches rather than one at the time. 
             stop: bool
-                Raise StopIteration if the iteration exceeds the number of available selections. Default is False.
+                Raise StopIteration if the iteration exceeds the number of available selections. Default is True.
     """
     def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-        include_attrs=False, attrs=None, batch_size=1, stop=False, **kwargs):
+        include_attrs=False, attrs=None, batch_size=1, stop=True, **kwargs):
 
-        duration = _get_duration(repres)
+        #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
+        selections = selections.convert_dtypes() 
 
         super().__init__(selection_gen=SelectionTableIterator(data_dir=path, 
-            selection_table=selections, duration=duration, include_attrs=include_attrs, 
+            selection_table=selections, include_attrs=include_attrs, 
             attrs=attrs), channel=channel, annotations=annotations, repres=repres, 
             batch_size=batch_size, stop=stop, **kwargs)
 
-    def get_selection(self, id):
-        """ Returns the audio selection with a given id.
+    def get_selection(self, n):
+        """ Returns the audio selection with the specified index.
 
             Args:
-                id: int
-                    The id within the selection table to be searched        
+                n: int
+                    The index of the desired selection        
             Returns:
                 audio_sel: dict
                     Audio selection
         """
-        return self.selection_gen.get_selection(id)
-
-
-def _get_duration(repres, duration=None):
-    """ Helper function.
-    
-        Extracts the duration parameter from the (primary) audio presentation 
-        dictionary, if available.
-
-        If the expected duration is specified via the `duration` argument, 
-        the function checks if it is consistent with the value extracted 
-        from the dictionary. If this is not the case, a warning is issued 
-        and the return value is the expected value.
-
-        If the audio representation does not contain a duration parameter
-        and the expected duration is not specified, the return value is None.
-
-        Args:
-            repres: dict or list(dict)
-                One or several audio representations. Only the duration of the 
-                first (primary) audio representation is considered. 
-            duration: float
-                Duration in seconds. Optional
-
-        Returns:
-            duration: float
-                Duration in seconds
-    """
-    r0 = repres[0] if isinstance(repres, list) else repres
-
-    if duration is not None:
-        if 'duration' in r0.keys() and r0['duration'] is not None and r0['duration'] != duration:
-            print(f"Warning: Mismatch detected between the value of the duration argument ({duration:.3f} s) "\
-                    f"and the duration specified in the (primary) audio representation dictionary "\
-                    f"({r0['duration']:.3f} s). The latter value will be ignored.")
-
-    else:
-        duration = r0['duration'] if 'duration' in r0.keys() else None
-
-    return duration
+        return self.selection_gen.get_selection(n)

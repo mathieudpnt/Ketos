@@ -42,19 +42,19 @@ path_to_tmp = os.path.join(path_to_assets,'tmp')
 def test_pad_reflect_1d():
     x = np.random.rand(9)
     # default does nothing
-    res = aum.pad_reflect(x)
+    res = aum.pad_reflect(x, invert=True)
     assert np.all(res == x)
     # padding on left only
-    res = aum.pad_reflect(x, pad_left=5)
+    res = aum.pad_reflect(x, pad_left=5, invert=True)
     assert np.all(res[5:] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     # padding on both sides
-    res = aum.pad_reflect(x, pad_left=5, pad_right=2)
+    res = aum.pad_reflect(x, pad_left=5, pad_right=2, invert=True)
     assert np.all(res[5:-2] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
     # pad more than array size
-    res = aum.pad_reflect(x, pad_left=12)
+    res = aum.pad_reflect(x, pad_left=12, invert=True)
     assert np.all(res[12:] == x)
     assert np.all(np.flip(res[4:12], axis=0) == 2*x[0] - x[1:9])
     assert np.all(res[:4] == 0)
@@ -65,11 +65,11 @@ def test_pad_reflect_2d():
     res = aum.pad_reflect(x)
     assert np.all(res == x)
     # padding on left only
-    res = aum.pad_reflect(x, pad_left=5)
+    res = aum.pad_reflect(x, pad_left=5, invert=True)
     assert np.all(res[5:] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     # padding on both sides
-    res = aum.pad_reflect(x, pad_left=5, pad_right=2)
+    res = aum.pad_reflect(x, pad_left=5, pad_right=2, invert=True)
     assert np.all(res[5:-2] == x)
     assert np.all(np.flip(res[:5], axis=0) == 2*x[0] - x[1:6])
     assert np.all(np.flip(res[-2:], axis=0) == 2*x[-1] - x[-3:-1])
@@ -108,8 +108,8 @@ def test_segment_1d():
     assert np.all(ans == res)
     # check that segment with non-zero offset yields expected result
     res = aum.segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
-    ans = np.array([[-3, -2, -1,  0],\
-                    [-1,  0,  1,  2],\
+    ans = np.array([[ 3,  2,  1,  0],\
+                    [ 1,  0,  1,  2],\
                     [ 1,  2,  3,  4]])
     assert np.all(ans == res)
     # check that segment with num_segs not specified yields expected result
@@ -125,7 +125,7 @@ def test_segment_1d():
                     [2, 3, 4, 5],\
                     [4, 5, 6, 7],\
                     [6, 7, 8, 9],\
-                    [8, 9, 10, 11]])
+                    [8, 9, 10, 9]])
     assert np.all(ans == res)
 
 def test_segment_2d():
@@ -155,19 +155,19 @@ def test_segment_pass_args_as_dict():
     assert np.all(ans == res)
 
 def test_stft():
-    # 1-s sinus signal with frequency of 10 Hz and 1 kHz sampling rate
+    # 1-s sinus signal with frequency of 100 Hz and 1 kHz sampling rate
     x = np.arange(1000)
-    sig = np.sin(2 * np.pi * 10 * x / 1000) 
+    sig = np.sin(2 * np.pi * 100 * x / 1000) 
     # compute STFT with window length of 200, step length of 40, and offset of -(200-40)/2=-80
     seg_args = aum.segment_args(rate=1000., duration=1., offset=0., window=0.2, step=0.04)
     mag, freq_max, num_fft, seg_args, phase = aum.stft(x=sig, rate=1000, seg_args=seg_args)
     assert freq_max == 500.
     assert num_fft == 200
     assert seg_args == {'win_len':200, 'step_len':40, 'num_segs':25, 'offset_len':-80}
-    assert np.all(np.argmax(mag, axis=1) == int(10. / 500. * mag.shape[1])) #peak at f=10Hz
+    assert np.all(np.argmax(mag[1:-1], axis=1) == int(100. / 500. * mag.shape[1])) #peak at f=100Hz (except first and last time bin)
     # compute STFT with window size of 0.2 s and step size of 0.04 s, and check that results are identical to above
     x = np.arange(1000)
-    sig = np.sin(2 * np.pi * 10 * x / 1000) 
+    sig = np.sin(2 * np.pi * 100 * x / 1000) 
     mag_s, freq_max_s, num_fft_s, seg_args_s, phase = aum.stft(x=sig, rate=1000, window=0.2, step=0.04)
     assert freq_max_s == freq_max
     assert num_fft_s == num_fft

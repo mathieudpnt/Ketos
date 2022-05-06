@@ -38,7 +38,7 @@
 
 import tensorflow as tf
 import numpy as np
-from .dev_utils.nn_interface import RecipeCompat, NNInterface
+from .dev_utils.nn_interface import RecipeCompat, NNInterface, NNArch
 import json
 
 
@@ -197,7 +197,7 @@ class TransitionBlock(tf.keras.Model):
         return outputs
 
 
-class DenseNetArch(tf.keras.Model):
+class DenseNetArch(NNArch):
     """Implements a DenseNet architecture, building on top of Dense and tansition blocks
 
         Args:
@@ -273,7 +273,8 @@ class DenseNetArch(tf.keras.Model):
         Returns:
                 A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        outputs = self.initial_conv(inputs)
+        outputs = self.call_frontend(inputs)
+        outputs = self.initial_conv(outputs)
         outputs = self.initial_batch_norm(outputs, training=training)
         outputs = self.initial_relu(outputs)
         outputs = self.initial_pool(outputs)

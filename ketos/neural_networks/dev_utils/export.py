@@ -344,7 +344,7 @@ def export_to_protobuf(model, output_name=None, output_folder=None, tmp_folder="
 
 
 def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=None, audio_repr_file=None, 
-                 tmp_folder="tmp_export_folder", overwrite=True, metadata=None, **kwargs):
+                 tmp_folder="tmp_export_folder", overwrite=True, metadata=None, extra=None, **kwargs):
     r""" Export a ketos model to ketos format (\*.kt).
 
         If the output directory does not already exist, it is automatically created.
@@ -388,8 +388,15 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
             overwrite: bool    
                 If True and the folder specified in 'tmp_folder' exists, the folder will be overwritten.
             metadata: dict
-                Optional metadata dictionary. If passed, it will be added to the \*.kt file. 
+                Optional metadata dictionary. If passed, it will be added to the \*.kt output archive file. 
+            extra: str, list(str)
+                Full path to one or several additional files to be saved to the output \*.kt archive file.
     """
+    if extra is None: 
+        extra = []
+    elif isinstance(extra, str):
+        extra = [extra]
+
     if audio_repr_file != None:
         print("Warning: audio_repr_file is deprecated and will be removed in future versions. Use audio_repr instead.")
         if audio_repr == None:
@@ -439,6 +446,13 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
     checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
     model.model.save_weights(checkpoint_path)
 
+    # save any extra contents to the tmp folder
+    extra_path = []
+    for src in extra:
+        dst = os.path.join(tmp_folder, os.path.basename(src))
+        shutil.copy(src, dst)
+        extra_path.append(dst)
+
     # now, archive the contents of the tmp folder
     with ZipFile(output_name, 'w') as zip:
         
@@ -457,7 +471,11 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
         zip.write(os.path.join(checkpoint_dir, "checkpoint"), "checkpoints/checkpoint")
         checkpoints = glob(os.path.join(checkpoint_dir, checkpoint_name) + '*')
         for c in checkpoints:
-                zip.write(c, os.path.join("checkpoints", os.path.basename(c)))            
+                zip.write(c, os.path.join("checkpoints", os.path.basename(c)))       
+
+        # save any extra contents     
+        for ep in extra_path:
+            zip.write(ep, os.path.basename(ep))
 
     # tidy up
     shutil.rmtree(tmp_folder)

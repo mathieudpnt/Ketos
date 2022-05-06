@@ -38,6 +38,7 @@ def mock_audio_loader(batch):
         spec.filename = spec.filename.decode()
         spec.offset = support[self.current][1]
         spec.duration = lambda: 3.0
+        spec.get_data = lambda: spec.data
 
         self.current += 1
 

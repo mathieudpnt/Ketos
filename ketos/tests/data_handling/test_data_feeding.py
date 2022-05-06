@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 from tables import open_file
 from ketos.data_handling.database_interface import open_table
-from ketos.data_handling.data_feeding import BatchGenerator, JointBatchGen
+from ketos.data_handling.data_feeding import BatchGenerator, JointBatchGen, MultiModalBatchGen
 from ketos.neural_networks.resnet import ResNetInterface
 
 
@@ -189,19 +189,46 @@ def test_output_for_strong_annotations():
     data = open_table(h5, "/group_1/table_data")
     annot = open_table(h5, "/group_1/table_annot")
 
-    expected_y = np.array([[0,1],
-                            [0,1],
-                            [0,1],
-                            [0,1],
-                            [0,1]])
+    expected_y = np.array([[0,1], [0,1], [0,1], [0,1], [0,1]])
                             
-    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
+    train_generator = BatchGenerator(batch_size=5, data_table=data, annot_in_data_table=False, 
+        annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
     
     _, Y = next(train_generator)
     np.testing.assert_array_equal(Y, expected_y)
 
     h5.close()
-    
+
+
+def test_output_for_strong_annotations_not_all_samples_have_annotations():
+    """ Test if batch generator returns multiple labels for strongly annotated instances, when 
+        some samples have no annotations
+    """
+    h5 = open_file(os.path.join(path_to_assets, "11x_wf_annot_tbl.h5"), 'r') # create the database handle  
+    data = open_table(h5, "/audio")
+    annot = open_table(h5, "/audio_annot")
+
+    # first, using only one y-field
+    expected_y = np.array([[0, 1], [2], [], [0, 1]])                            
+    train_generator = BatchGenerator(batch_size=4, data_table=data, annot_in_data_table=False, 
+        annot_table=annot, y_field=['label'], shuffle=False, refresh_on_epoch_end=False)
+    _, Y = next(train_generator)
+    np.testing.assert_array_equal(Y, expected_y)
+
+    # first, now let's try with two y-fields
+    dtype = {'names':['label','end'], 'formats':['u1','<f8'], 'offsets':[20,4], 'itemsize':29}
+    expected_y = [np.array([(0, 2.2), (1, 4.2)], dtype=dtype), 
+                  np.array([(2, 6.2)], dtype=dtype), 
+                  np.array([], dtype=dtype), 
+                  np.array([(0, 2.2), (1, 4.2)], dtype=dtype)]                            
+    train_generator = BatchGenerator(batch_size=4, data_table=data, annot_in_data_table=False, 
+        annot_table=annot, y_field=['label','end'], shuffle=False, refresh_on_epoch_end=False)
+    _, Y = next(train_generator)
+    for _Y,_y in zip(Y, expected_y):
+        np.testing.assert_array_equal(_Y, _y)
+
+    h5.close()
+
 
 def test_batch_sequence_same_as_db():
     """ Test if batches are generated with instances in the same order as they appear in the database
@@ -356,14 +383,12 @@ def test_refresh_on_epoch_end():
     train_generator = BatchGenerator(data_table=train_data, batch_size=6, return_batch_ids=True, shuffle=True, refresh_on_epoch_end=True) #create a batch generator 
 
     expected_ids = {'epoch_1': ([17, 19, 11, 18, 13,  6], [16,  1,  9, 14, 12,  5], [2,  4, 10,  0, 15, 7,  3,  8]),    
-                     'epoch_2':  ([3,  8,  7, 17,  9, 16], [ 10,  1,  5, 12,  0, 18], [ 6,  4, 19, 13,  2, 11, 14, 15]),
-                     'epoch_3': ([17,  9,  6, 11,  0,  8], [15, 16, 18,  5,  3, 14], [10,  4,  1, 13,  2, 19,  7, 12])}
+                     'epoch_2':  ([18, 19, 17, 0, 8, 6], [14, 7, 11, 10, 15, 3], [5, 13, 1, 4, 12, 2, 9, 16]),
+                     'epoch_3': ([3, 4, 12, 17, 10, 1], [19, 5, 11, 8, 0, 18], [6, 13, 7, 15, 16, 14, 2, 9])}
                      
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
-        print(train_generator.batch_indices_data)
         #batch 0
         ids, X, _ = next(train_generator)
-        print(epoch)
         np.testing.assert_array_equal(ids,expected_ids[epoch][0])
         #batch 1
         ids, X, _ = next(train_generator)
@@ -371,9 +396,9 @@ def test_refresh_on_epoch_end():
         #batch 2
         ids, X, _ = next(train_generator)
         np.testing.assert_array_equal(ids,expected_ids[epoch][2])
-       
-    
+           
     h5.close()
+
 
 def test_refresh_on_epoch_end_annot():
     """ Test if the correct annotation labels are when the batches are refreshed
@@ -387,10 +412,7 @@ def test_refresh_on_epoch_end_annot():
         X = x
         print(y)
         Y = np.array([(value[0], value[1]) for value in y])
-       
-
         return X,Y
-
 
     ids_in_db = train_data[:]['id']
     train_generator = BatchGenerator(data_table=train_data, batch_size=6,
@@ -398,37 +420,29 @@ def test_refresh_on_epoch_end_annot():
                                      refresh_on_epoch_end=True, output_transform_func=None) #create a batch generator 
 
     expected_ids = {'epoch_1': ([17, 19, 11, 18, 13,  6], [16,  1,  9, 14, 12,  5], [2,  4, 10,  0, 15, 7,  3,  8]),    
-                     'epoch_2':  ([3,  8,  7, 17,  9, 16], [ 10,  1,  5, 12,  0, 18], [ 6,  4, 19, 13,  2, 11, 14, 15]),
-                     'epoch_3': ([17,  9,  6, 11,  0,  8], [15, 16, 18,  5,  3, 14], [10,  4,  1, 13,  2, 19,  7, 12])}
+                     'epoch_2':  ([18, 19, 17, 0, 8, 6], [14, 7, 11, 10, 15, 3], [5, 13, 1, 4, 12, 2, 9, 16]),
+                     'epoch_3': ([3, 4, 12, 17, 10, 1], [19, 5, 11, 8, 0, 18], [6, 13, 7, 15, 16, 14, 2, 9])}
                      
-
     expected_labels = {'epoch_1':  ([0, 0, 0, 0, 0, 1], [0, 1, 1, 0, 0, 1], [1, 1, 0, 1, 0, 1, 1, 1]),
-                     'epoch_2': ([1, 1, 1, 0, 1, 0], [0, 1, 1, 0, 1, 0], [1, 1, 0, 0, 1, 0, 0, 0]),    
-                     'epoch_3': ([0, 1, 1, 0, 1, 1], [0, 0, 0, 1, 1, 0], [0, 1, 1, 0, 1, 0, 1, 0])}
+                     'epoch_2': ([0, 0, 0, 1, 1, 1], [0, 1, 0, 0, 0, 1], [1, 0, 1, 1, 0, 1, 1, 0]),    
+                     'epoch_3': ([1, 1, 0, 0, 0, 1], [0, 1, 0, 1, 1, 0], [1, 0, 1, 0, 0, 0, 1, 1])}
                      
     for epoch in ['epoch_1', 'epoch_2', 'epoch_3']:
         #batch 0
         ids, X, Y = next(train_generator)
-     
-        #print(Y)
-
-        
         np.testing.assert_array_equal(ids,expected_ids[epoch][0])
         np.testing.assert_array_equal(Y,expected_labels[epoch][0])
         #batch 1
-        ids, X, Y = next(train_generator)
-     
+        ids, X, Y = next(train_generator)    
         np.testing.assert_array_equal(ids,expected_ids[epoch][1])
         np.testing.assert_array_equal(Y,expected_labels[epoch][1])
         #batch 2
         ids, X, Y = next(train_generator)
-     
         np.testing.assert_array_equal(ids,expected_ids[epoch][2])
         np.testing.assert_array_equal(Y,expected_labels[epoch][2])
-        
-       
     
     h5.close()
+
 
 def test_output_transform_function():
     """ Test if the function passed as 'instance_function' is applied to the batch
@@ -689,6 +703,45 @@ def test_joint_batch_gen_multi_modal_transform():
     assert len(Y) == 5
     np.testing.assert_array_equal(Y[:3], three_labels)
     np.testing.assert_array_equal(Y[3:], three_labels[:2])
+
+    h51.close()
+    h52.close()
+
+
+def test_multi_modal_batch_generator():
+    """ Test that the multi-modal batch generator behaves as expected
+    """
+    h51 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    h52 = open_file(os.path.join(path_to_assets, "mini_narw_mult.h5"), 'r') # create the database handle  
+    tbl1 = open_table(h51, "/train/data")
+    tbl2 = open_table(h52, "/train/data")
+
+    three_specs = tbl1.col('spec')[:3]
+    three_gammas = tbl1.col('gamma')[:3]
+    three_labels = [0, 0, 0]
+
+    def transform_batch(X, Y):
+        # invert ordering: batch,mode -> mode,batch
+        # also, stack the inner (batch) dimension to create numpy arrays
+        X = [np.stack([x[i] for x in X]) for i in range(len(X[0]))]
+        Y = [np.stack([y[i] for y in Y]) for i in range(len(Y[0]))]
+        # only pick the labels from the first mode:
+        Y = Y[0]
+        return (X,Y)
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field='spec')  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=3, x_field='gamma')  
+    gen = MultiModalBatchGen([gen1, gen2], output_transform_func=transform_batch) 
+    X, Y = next(gen)
+    assert np.all(X[0] == three_specs)
+    assert np.all(X[1] == three_gammas)
+    assert np.all(Y == three_labels)
+
+    gen1 = BatchGenerator(data_table=tbl1, batch_size=3, x_field='spec')  
+    gen2 = BatchGenerator(data_table=tbl2, batch_size=3, x_field='spec')  
+    gen = MultiModalBatchGen([gen1, gen2], shuffle=True, output_transform_func=transform_batch) 
+    X, Y = next(gen)
+    assert np.all(X[0] == X[1])
 
     h51.close()
     h52.close()

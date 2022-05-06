@@ -48,6 +48,128 @@ from ketos.audio.base_audio import BaseAudioTime, segment_data
 import ketos.audio.utils.misc as aum
 
 
+def _validate_wf_args(path, offset, duration):
+    ''' Validate and standardize values
+
+        Args:
+            path: str or list(str)
+                Path to input audio file(s)
+            offset: float or list(float)
+                Start of segment measured in seconds from the start of the file.
+            duration: float or list(float)
+                Segment length in seconds.
+
+        Returns:
+            path, offset, duration: list
+                Validated and standardized values
+    '''
+    if np.ndim(path) == 0:
+        path = [path]
+
+    if np.ndim(offset) == 0:
+        offset = [offset for _ in path]
+
+    if np.ndim(duration) == 0:
+        duration = [duration for _ in path]
+
+    assert len(offset) == len(path), "offset and path must have the same length"
+    assert len(duration) == len(path), "duration and path must have the same length"
+
+    return path, offset, duration
+
+
+def get_sampling_rate(path):
+    ''' Get the (common or lowest) sampling rate of the specified audio segments.
+
+        Args:
+            path: str or list(str)
+                Path to input audio file(s)
+
+        Returns:
+            : float
+                Inferred sampling rate in Hz
+    '''
+    if np.ndim(path) == 0:
+        path = [path]
+        
+    rates = [librosa.get_samplerate(p) for p in path if p is not None]
+
+    if len(rates) == 0:
+        warnings.warn("Sampling rate could not be inferred. This may cause problems.", UserWarning)
+        return None
+
+    elif len(rates) == 1:
+        return rates[0]
+
+    else:
+        if np.sum(np.diff(rates)) > 0:
+            warnings.warn("Audio files have different sampling rates. Files with higher sampling rate "\
+                "will be downsampled to obtain consisten sampling rates as required to stitch the files "\
+                "together.", UserWarning)
+
+        rate = np.min(rates)
+        return rate
+
+def get_duration(path, offset=0, duration=None):
+    ''' Get the durations of the specified audio file segments.
+
+        Args:
+            path: str or list(str)
+                Path to input audio file(s)
+            offset: float or list(float)
+                Start of segment measured in seconds from the start of the file.
+            duration: float or list(float)
+                Segment length in seconds.
+
+        Returns:
+            res: list
+                Durations in seconds
+    '''
+    path, offset, duration = _validate_wf_args(path, offset, duration)
+
+    res = []    
+    for i in range(len(path)):
+        if duration[i] is None:
+            assert path[i] is not None, "duration must be specified if path is None"
+            d = librosa.get_duration(filename=path[i]) - offset[i] 
+        else:
+            d = duration[i]
+
+        res.append(d)
+
+    return res
+    
+
+def merge(waveforms, smooth=0.01):
+    ''' Merge waveforms by stitching them together with the `append` method.
+
+        All waveforms must have the same sampling rate. If this is not the case, 
+        an AssertionError is thrown.
+
+        Args:
+            waveforms: list
+                Waveform instances to be merged
+            smooth: float
+                Width in seconds of the smoothing region used for stitching together audio files.
+
+        Returns:
+            wf0: Instance of Waveform
+                Merged waveforms
+    '''
+    if np.ndim(waveforms) == 0:
+        waveforms = [waveforms]
+
+    if len(waveforms) == 1:
+        return waveforms[0]
+
+    wf0 = waveforms[0].deepcopy()
+    for wf in waveforms[1:]:
+        n_smooth = int(smooth * wf.rate)
+        wf0.append(wf, n_smooth=n_smooth)
+
+    return wf0
+
+
 def plot(waveforms, labels="", figsize=(5,4), title="", offset=0, duration=None):
     """ Plot one or several waveforms superimposed on one another.
 
@@ -170,20 +292,102 @@ class Waveform(BaseAudioTime):
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None, normalize_wav=False, transforms=None, **kwargs):
-        """ Load audio data from wave file.
+        id=None, normalize_wav=False, transforms=None, pad_mode="zero", smooth=0.01, **kwargs):
+        """ Load audio data from one or several audio files.
+
+            When loading from several audio files, the waveforms are stitched together in 
+            the order in which they are provided using the `append` method. Note that only 
+            the name and offset of the first file are stored in the `filename` and `offset` 
+            attributes.  
+
+            Args:
+                path: str or list(str)
+                    Path to input wave file(s).
+                channel: int
+                    In the case of stereo recordings, this argument is used 
+                    to specify which channel to read from. Default is 0.
+                rate: float
+                    Desired sampling rate in Hz. If None, the original sampling rate will be used
+                offset: float or list(float)
+                    Position within the original audio file, in seconds 
+                    measured from the start of the file. Defaults to 0 if not specified.
+                duration: float or list(float)
+                    Length in seconds.
+                resample_method: str
+                    Resampling method. Only relevant if `rate` is specified. Options are
+                        * kaiser_best
+                        * kaiser_fast
+                        * scipy (default)
+                        * polyphase
+                        
+                    See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
+                    for details on the individual methods.
+                id: str
+                    Unique identifier (optional). If provided, it is stored in the `filename` class attribute 
+                    instead of the filename. A common use of the `id` argument is to specify a full or relative 
+                    path to the file, including one or several directory levels.  
+                normalize_wav: bool
+                    Normalize the waveform to have a mean of zero (mean=0) and a standard 
+                    deviation of unity (std=1). Default is False.
+                transforms: list(dict)
+                    List of dictionaries, where each dictionary specifies the name of 
+                    a transformation to be applied to this instance. For example,
+                    {"name":"normalize", "mean":0.5, "std":1.0}
+                smooth: float
+                    Width in seconds of the smoothing region used for stitching together audio files.
+                pad_mode: str
+                    Padding mode. Select between 'reflect' (default) and 'zero'.
+
+            Returns:
+                Instance of Waveform
+                    Audio signal
+
+            Example:
+                >>> from ketos.audio.waveform import Waveform
+                >>> # read audio signal from wav file
+                >>> a = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
+                >>> # show signal
+                >>> fig = a.plot()
+                >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
+                >>> plt.close(fig)
+
+                .. image:: ../../../ketos/tests/assets/tmp/audio_grunt1.png
+        """
+        path, offset, duration = _validate_wf_args(path, offset, duration)
+
+        if rate is None:
+            rate = get_sampling_rate(path)
+
+        waveforms = []
+        for i in range(len(path)):
+            wf = cls._from_single_file(path=path[i], channel=channel, rate=rate, offset=offset[i], 
+                duration=duration[i], resample_method=resample_method, id=id, normalize_wav=normalize_wav, 
+                transforms=transforms, pad_mode=pad_mode, **kwargs)
+
+            waveforms.append(wf)
+
+        wf = merge(waveforms, smooth=smooth)
+        return wf
+
+    @classmethod
+    def _from_single_file(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
+        id=None, normalize_wav=False, transforms=None, pad_mode="reflect", **kwargs):
+        """ Load audio data from a single audio file.
 
             If `duration` (and `offset`) are specified and `offset + duration` exceeds the 
-            length of the wav file, the signal will be padded on the right to achieve the 
-            desired duration. Similarly, if `offset < 0`, the signal will be padded on the 
-            left. In both cases, a RuntimeWarning is issued.
+            length of the audio file, the signal will be padded with its own reflection on 
+            the right to achieve the desired duration. Similarly, if `offset < 0`, the signal 
+            will be padded on the left. In both cases, a RuntimeWarning is issued.
 
             If `offset` exceeds the file duration, an empty waveform is returned and a 
             RuntimeWarning is issued.
 
+            If `path` is None a waveform with length `int(rate * duration)` with purely zero 
+            values will be returned. (Requires that both `rate` and `duration` are specified.)
+
             Args:
                 path: str
-                    Path to input wave file
+                    Path to input audio file
                 channel: int
                     In the case of stereo recordings, this argument is used 
                     to specify which channel to read from. Default is 0.
@@ -204,7 +408,9 @@ class Waveform(BaseAudioTime):
                     See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                     for details on the individual methods.
                 id: str
-                    Unique identifier (optional). If None, the filename will be used.
+                    Unique identifier (optional). If provided, it is stored in the `filename` class attribute 
+                    instead of the filename. A common use of the `id` argument is to specify a full or relative 
+                    path to the file, including one or several directory levels.  
                 normalize_wav: bool
                     Normalize the waveform to have a mean of zero (mean=0) and a standard 
                     deviation of unity (std=1). Default is False.
@@ -212,22 +418,18 @@ class Waveform(BaseAudioTime):
                     List of dictionaries, where each dictionary specifies the name of 
                     a transformation to be applied to this instance. For example,
                     {"name":"normalize", "mean":0.5, "std":1.0}
+                pad_mode: str
+                    Padding mode. Select between 'reflect' (default) and 'zero'.
 
             Returns:
                 Instance of Waveform
                     Audio signal
-
-            Example:
-                >>> from ketos.audio.waveform import Waveform
-                >>> # read audio signal from wav file
-                >>> a = Waveform.from_wav('ketos/tests/assets/grunt1.wav')
-                >>> # show signal
-                >>> fig = a.plot()
-                >>> fig.savefig("ketos/tests/assets/tmp/audio_grunt1.png")
-                >>> plt.close(fig)
-
-                .. image:: ../../../ketos/tests/assets/tmp/audio_grunt1.png
         """
+        if path is None:
+            assert duration is not None, "duration must be specified if path is None"
+            assert rate is not None, "rate must be specified if path is None"
+            return cls(rate=rate, data=np.zeros(int(rate*duration)), filename=id, offset=0)
+
         if transforms is None: transforms = []
 
         assert duration is None or duration >= 0, 'duration must be non-negative'
@@ -246,7 +448,7 @@ class Waveform(BaseAudioTime):
         if offset >= file_duration:
             data = np.array([], dtype=np.float64)
             if rate is None: rate = rate_orig
-            warnings.warn("Offset exceeds file length. Empty waveform returned", RuntimeWarning)
+            warnings.warn("Offset exceeds file duration. Empty waveform returned", RuntimeWarning)
             return cls(rate=rate, data=data, filename=id, offset=offset)
 
         # if the duration is specified to 0, return an empty array
@@ -271,9 +473,9 @@ class Waveform(BaseAudioTime):
         num_pad_left = max(0, num_pad_left)
 
         if duration is not None and duration == 0:
-            data = np.zeros(num_pad_left, dtype=np.float64)
+            data = np.array([], dtype=np.float64)
             if rate is None: rate = rate_orig
-            warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
+            warnings.warn("Stop is before file start. Empty waveform returned", RuntimeWarning)
             return cls(rate=rate, data=data, filename=id, offset=offset)
 
         # determine start and stop times for reading the wav files
@@ -292,12 +494,16 @@ class Waveform(BaseAudioTime):
         else:
             rate = rate_orig
 
-        # pad with zeros on the right, to achieve desired duration, if necessary
+        # pad on left and/or right to achieve desired duration, if necessary
         if duration is not None:
             num_pad_right = max(0, int(duration * rate - data.shape[0]))
             if num_pad_right > 0 or num_pad_left > 0:
-                data = np.pad(data, pad_width=((num_pad_left,num_pad_right)), mode='constant')
-                warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
+                if pad_mode.lower() == 'reflect':
+                    data = aum.pad_reflect(data, pad_left=num_pad_left, pad_right=num_pad_right)
+                    warnings.warn("Waveform padded with its own reflection to achieve desired length", RuntimeWarning)
+                else:
+                    data = aum.pad_zero(data, pad_left=num_pad_left, pad_right=num_pad_right)
+                    warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
 
         if normalize_wav: 
             transforms.append({'name':'normalize','mean':0.0,'std':1.0})
@@ -548,7 +754,12 @@ class Waveform(BaseAudioTime):
             The two audio signals must have the same samling rate.
             
             If n_smooth > 0, a smooth transition is made between the 
-            two signals in a overlap region of length n_smooth.
+            two signals by padding the signals with their reflections 
+            to form an overlap region of length n_smooth in which a 
+            linear transition is made using the `_smoothclamp` function.
+            This is done in manner that ensure that the duration of the 
+            output signal is exactly the sum of the durations of the two 
+            input signals.
 
             Note that the current implementation of the smoothing procedure is 
             quite slow, so it is advisable to use small value for n_smooth.
@@ -587,21 +798,29 @@ class Waveform(BaseAudioTime):
         n_smooth = min(n_smooth, len(self.data) - 1)
         n_smooth = min(n_smooth, len(signal.data) - 1)
 
+        # make sure n_smooth is even
+        n_smooth += n_smooth % 2
+
         if n_smooth == 0:
             self.data = np.concatenate([self.data, signal.data], axis=0)
 
         else:# smoothly join
-            a = self.data[:-n_smooth]
-            ao = self.data[-n_smooth:]
-            bo = signal.data[:n_smooth]
-            b = signal.data[n_smooth:]
+            # extend by own reflections
+            a = np.concatenate([self.data, self.data[-2:int(-2-n_smooth/2):-1]])
+            b = np.concatenate([signal.data[n_smooth//2:0:-1], signal.data])
+
+            # split into separate and overlap 
+            ao = a[-n_smooth:]
+            bo = b[:n_smooth]
+            a = a[:-n_smooth]
+            b = b[n_smooth:]
 
             # compute values in overlap region
             c = np.empty(n_smooth)
             for i in range(n_smooth):
                 w = _smoothclamp(i, 0, n_smooth-1)
                 c[i] = (1.-w) * ao[i] + w * bo[i]
-            
+
             self.data = np.concatenate([a,c,b], axis=0)
         
         # re-init time axis

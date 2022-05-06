@@ -2,7 +2,39 @@ Change log
 ==========
 
 
-**Version 2.5.1** (Month Day, Year)
+**Version 2.6.0** (May 6, 2022)
+
+Note: This version includes some non-backward compatible changes, as detailed below.
+
+Non-backward compatible changes:
+
+ * :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` ignores the duration parameter (if present) in the audio representation dictionary. Furthermore, 
+   the duration argument has been removed from the constructor, which previously allowed standardization of selection window sizes across the selection table. This must now be done by the user before passing the selection table to the audio loader.
+ * Changes to the interface and default behaviour of the :meth:`standardize <ketos.data_handling.selection_table.standardize>` method.
+ * Changed default behaviour of :meth:`num_samples <ketos.audio.utils.misc.pad_reflect>` to *not* invert the signal
+ * :meth:`append <ketos.audio.waveform.Waveform.append>` preserves duration
+ * AudioLoader stores annotation start time and end time without truncation.
+
+Backward compatible changes:
+
+ * Fixed bug in :class:`BatchGenerator <ketos.data_handling.data_feeding.BatchGenerator>` related to loading of labels from separate annotation table.
+ * New :class:`MultiModalBatchGen <ketos.data_handling.data_feeding.MultiModalBatchGen>` class.
+ * :meth:`create_database <ketos.data_handling.database_interface.create_database>` allows multiple audio representations to be specified as a nested dictionary, using keys as names for the data fields in the output table.
+ * :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` generalized to be able to handle new format for selection tables where a single selection may span several files.
+ * Extended Python compatibility to <=3.9.12
+ * Modified (and simplified) :meth:`load_audio_for_spec <ketos.audio.spectrogram.load_audio_for_spec>` so that it re-uses :meth:`from_wav <ketos.audio.waveform.Waveform.from_wav>`.
+ * Added `pad_mode` argument to :meth:`from_wav <ketos.audio.waveform.Waveform.from_wav>` class method.
+ * Minor bug fix in :meth:`num_samples <ketos.audio.utils.misc.num_samples>` for rounding time intervals to integer number of samples.
+ * New method :meth:`append <ketos.audio.waveform.merge>` for stitching together multiple waveforms
+ * `from_wav`` methods can load from multiple audio files
+ * New option in :meth:`export_to_ketos <ketos.neural_networks.dev_utils.export.export_to_ketos>` to save extra files to the output .kt archive.
+ * Added option to specify output transform function in :class:`JointBatchGen <ketos.data_handling.data_feeding.JointBatchGen>`.
+ * New Class :class:`NNArch <ketos.neural_networks.nn_interface.NNArch>` that serves as the parent for specific architecture classes.
+ * Methods for NNArch
+ * :meth:`add_frontend <ketos.neural_networks.nn_interface.NNArch.add_frontend>` allows users to add a frontend block that will always be executed first during training
+ * :meth:`call_frontend <ketos.neural_networks.nn_interface.NNArch.call_frontend>` to be used in the call method of a new NN architecture. Will call the frontend blocks if they exist 
+
+**Version 2.5.1** (March 10, 2022)
 
  * Minor bug fix in :meth:`encode_parameter <ketos.data_handling.parsing.encode_parameter>`.
  * Generalized :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` to accept audio representations with different durations.

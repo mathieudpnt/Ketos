@@ -35,6 +35,7 @@
     frequecy. 
 """
 
+from email.mime import audio
 import os
 import warnings
 import tables
@@ -474,11 +475,14 @@ def write_audio(table, data, attrs={}, id=None):
     for key,value in attrs.items(): #loop over instance attributes
         if key in table.colnames: #check that table has appropriate column
             if value is not None: 
-                if isinstance(value, dt.datetime):
+                if isinstance(value, (dt.datetime,np.datetime64)):
                     if pd.isnull(value):
                         value = ""
                     else:
-                        value = value.strftime("%Y%m%d_%H:%M:%S") #convert datetime object to string
+                        if isinstance(value, np.datetime64):
+                            value = np.datetime_as_string(value)
+                        else:
+                            value = value.strftime("%Y%m%d_%H:%M:%S") #convert datetime object to string
 
                 row[key] = value #write value to appropriate field
     
@@ -736,52 +740,54 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
 
     return audio_objs
 
-def generate_warning_on_file_duration(start, end, file_path, file_duration):
-    """ Generate warning message if the selection start or end time is outside of the audio file's duration.
+
+def _infer_unique_labels(selections):
+    ''' Helper function for the `create_database` function.
+    
+        Attempts to infer unique labels from the selection table. 
 
         Args:
-            start: float
-                Annotation start time with respect to beginning of file in seconds.
-            end: float
-                Annotation end time with respect to beginning of file in seconds.
-            file_path: str
-                Full path of the audio file.
-            file_duration: float
-                Audio file length in seconds.
-    """
-    # total length of selection
-    len_tot = end - start
-    # determine how much of the selection is outside the file
-    len_outside = max(0, -start) + max(0, end - file_duration)
+            selections: pandas DataFrame
+                Selection table
+
+        Returns:
+            : numpy array
+                List of unique labels. None, if the labels could not be inferred.
+    '''
+    if 'label' in selections.columns.values:
+        return np.sort(pd.unique(selections.label.ravel('K')))
     
-    # print warnings if selection end is zero or negative
-    if (end <= 0):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: selection end time ({end:.2f}s) is earlier than the start of the file", category=UserWarning)
+    else:
+        warnings.warn("Labels could not be inferred because the selection table "\
+            "does not contain a column named 'label'. The database will be created "\
+            "without labels. Note that this may cause issues if the database is supposed "\
+            "to be used as a training or test set for machine learning.")
+        
+        return None
 
-    # print warnings if selection start is later than the file end time
-    if (start > file_duration):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: selection start time ({start:.2f}s) is later than the end of the file", category=UserWarning)
 
-    #print a warning that the selection has 0 or negative length (end before start)
-    if (len_tot <= 0):
-         warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            "Message: selection end time is less than or equal to the selection start time.", category=UserWarning)
-         
-    # print a warning that a fraction larger than 50% of the selection is outside the file
-    if (len_outside > 0.5 * len_tot):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: at least half of the selection ({start:.2f}s,{end:.2f}s) does not " \
-            "fall within the file", category=UserWarning)
+def _is_nested_dict(x):
+    """ Helper function for the `create_database` function.
+    
+        Determines if the input is a nested dictionary.    
+
+        Args:
+            x: dict
+                Input
+        
+        Returns:
+            : bool
+                True if `x` is a nested dictionary.
+    """
+    return isinstance(x, dict) and isinstance(list(x.values())[0], dict)
 
 
 def create_database(output_file, data_dir, selections, channel=0, 
     audio_repres={'type': 'Waveform'}, annotations=None, unique_labels=None, 
-    dataset_name=None, max_size=None, verbose=True, progress_bar=True, 
+    dataset_name=None, table_name='data', max_size=None, verbose=True, progress_bar=True, 
     discard_wrong_shape=False, allow_resizing=1, include_source=True, 
-    include_label=True, include_attrs=False, attrs=None, data_name=None, 
-    index_cols=None, mode='a', create_dir=True, discard_outside=False):
+    include_label=True, include_attrs=False, attrs=None, 
+    index_cols=None, mode='a', create_dir=True):
     """ Create a database from a selection table.
 
         Note that all selections must have the same duration. This is necessary to ensure 
@@ -795,9 +801,9 @@ def create_database(output_file, data_dir, selections, channel=0,
         If 'dataset_name' is not specified, the name of the folder containing the audio 
         files ('data_dir') will be used.
         
-        If the method encounters problems loading/writing a sound clipe, it continues 
-        while printing a warning. If the start/end time of the annotation is outside the 
-        range of the audio file the function shows warning messages if verbose=True.
+        Warnings will be printed if the method encounters problems loading/writing audio 
+        data or if the start/end time of a selection is outside the range of the audio 
+        file. The warnings can be suppressed by setting `verbose=False`.
     
         Args:
             output_file:str
@@ -807,15 +813,16 @@ def create_database(output_file, data_dir, selections, channel=0,
                 If the file already exists, new data will be appended to it.
             data_dir:str
                 Path to folder containing \*.wav files.
-            selections: pandas DataFrame
-                Selection table
+            selections: pandas DataFrame or list
+                Selection table. 
             channel: int
                 For stereo recordings, this can be used to select which channel to read from
-            audio_repres: dict or list(dict)
+            audio_repres: dict or list
                 A dictionary containing the parameters used to generate the spectrogram or waveform
                 segments. See :class:~ketos.audio.auio_loader.AudioLoader for details on the 
-                required and optional fields for each type of signal. It is also possible to specify 
-                multiple audio representations as a list.
+                required and optional fields for each type of signal. 
+                It is also possible to specify one or several audio representations as a nested 
+                dictionary, in which case the dictionary keys are used as column names in the output table.
             annotations: pandas DataFrame
                 Annotation table. Optional.
             unique_labels: list(int)
@@ -823,9 +830,11 @@ def create_database(output_file, data_dir, selections, channel=0,
                 from the selections or the annotations.
             dataset_name:str
                 Name of the node (HDF5 group) within the database (e.g.: 'train')
-                Under this node, two datasets will be created: 'data' and 'data_annot',
-                containing the data (spectrograms or waveforms) and the annotations for each
-                entry in the selections_table.                
+                Under this node, two tables will be created, 'data' and 'data_annot',
+                containing the data samples (spectrograms and/or waveforms) and the 
+                annotations associated with each sample, respectively.         
+            table_name: str
+                Table name. Default is 'data'.               
             max_size: int
                 Maximum size of output database file in bytes.
                 If file exceeds this size, it will be split up into several 
@@ -848,104 +857,65 @@ def create_database(output_file, data_dir, selections, channel=0,
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
             include_label: bool
-                Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
+                Include integer label column in data table. Default is True.
             include_attrs: bool
                 If True, load data from attribute columns in the selection table. Default is False.
             attrs: list(str)
                 Specify the names of the attribute columns that you wish to load data from. 
                 Overwrites include_attrs if specified. If None, all columns will be loaded provided that 
                 include_attrs=True.
-            data_name: str or list(str) 
-                Name(s) of the data columns. If None is specified, the data column is named 'data', 
-                or 'data0', 'data1', ... if the table contains multiple data columns.
             index_cols: str og list(str)
                 Create indices for the specified columns in the data table to allow for faster queries.
                 For example, `index_cols="filename"` or `index_cols=["filename", "label"]`
             mode: str
                 The mode to open the file. It can be one of the following:
                     `w`: Write; a new file is created (an existing file with the same name would be deleted). 
-                    `a`: Append; an existing file is opened for reading and writing, and if the file does not exist it is created. This is the default.
+                    `a`: Append; an existing file is opened for reading and writing, and if the file does not 
+                        exist it is created. This is the default.
                     `r+`: It is similar to `a`, but the file must already exist.
             create_dir: bool
                 If the output directory does not exist, it will be automatically created. Default is True.
                 Only applies if the mode is `w` or `a`, 
-            discard_outside: bool
-                Discard selections that extend beyond file start/end times. Default is False.
-    """       
-    selections = selections.convert_dtypes() #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
-
+    """
+    # attempt to automatically infer unique labels
     if unique_labels is None:
-        df = selections if annotations is None else annotations
-        if 'label' not in df.columns.values:
-            warnings.warn("Labels could not be inferred because the selection table "\
-                "does not contain a column named 'label'. The database will be created "\
-                "without labels. Note that this may cause issues if the database is supposed "\
-                "to be used as a training set for training a neural network.")
-        else:
-            unique_labels = np.sort(pd.unique(df.label.ravel('K')))
+        unique_labels = _infer_unique_labels(selections)
 
+    # if audio_repres is a nested dictionary, use the keys as names for the data fields
+    if _is_nested_dict(audio_repres):
+        data_name = [key for key in audio_repres.keys()]
+    else:
+        data_name = None
+
+    # initialize an audio loader
     loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
         repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
 
-    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode=mode,
-        discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
-        include_source=include_source, include_label=include_label, data_name=data_name, 
-        index_cols=index_cols, create_dir=create_dir)
-    
+    # if the group path is not specified, use the name of the data directory
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
     path_to_dataset = dataset_name if dataset_name.startswith('/') else '/' + dataset_name
     
-    file_duration_mapping = dict()
+    # initialize a writer
+    annot_type = "weak" if annotations is None else "strong"
+    writer = AudioWriter(output_file=output_file, max_size=max_size, verbose=verbose, mode=mode,
+        discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
+        include_source=include_source, include_label=include_label, data_name=data_name, 
+        index_cols=index_cols, create_dir=create_dir, table_path=path_to_dataset, table_name=table_name,
+        annot_type=annot_type)
     
+    # loop over all selections and write to database
     for i in tqdm(range(loader.num()), disable = not progress_bar):
-        audio_selection = loader.get_selection(id=i)
-        loader_filename = audio_selection['filename']
-        
-        # Get full file path and name
-        file_full_path = os.path.join(audio_selection['data_dir'], loader_filename)
-        
-        file_duration = file_duration_mapping.get(file_full_path)
+        x = next(loader)
         try:
-            # If file duration does not exist in the dict, get file duration in seconds
-            if (file_duration == None):
-                file_duration = librosa.get_duration(filename=file_full_path)
-                file_duration_mapping[file_full_path] = file_duration
-            
-            start = audio_selection['offset']
-            end = audio_selection['offset'] + audio_selection['duration']
-
-            # discard selections that extend beyond file start/end
-            len_outside = max(0, -start) + max(0, end - file_duration)
-            if discard_outside and len_outside > 0:
-                if verbose:
-                    warnings.warn(f"discarding selection ({start:.2f},{end:.2f}) from {loader_filename} because it extends beyond " \
-                        f"the start/end time of the file with duration {file_duration:.2f}s", category=UserWarning)    
-
-                loader.skip()
-                continue
-
-            if verbose:
-                # check if selection is within audio file
-                generate_warning_on_file_duration(start, end, file_full_path, file_duration)
-
-            x = next(loader)
-
+            writer.write(x)
         except Exception as e:
-            if verbose:
-                warnings.warn(f"while loading {loader_filename}, Message: {str(e)}", category=UserWarning)
-            continue
-        
-        try:
-            writer.write(x=x, path=path_to_dataset, name='data')
-
-        except Exception as e:
-            if verbose:
-                warnings.warn(f"while writing audio selection from {loader_filename}, Message: {str(e)}", category=UserWarning)
+            warnings.warn(f"While writing entry {loader.counter}, Message: {str(e)}", category=UserWarning)
 
     if unique_labels is not None:
         writer.write_attr("unique_labels", unique_labels)
 
     writer.close()
+
 
 class AudioWriter():
     """ Saves waveform or spectrogram objects to a database file (\*.h5).
@@ -981,7 +951,7 @@ class AudioWriter():
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
             include_label: bool
-                Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
+                Include integer label column in data table. Default is True.
             include_attrs: bool
                 If True, attributes returned by the `get_instance_attrs()` method will also be saved 
                 to the table. Default is True.
@@ -993,6 +963,15 @@ class AudioWriter():
             create_dir: bool
                 If the output directory does not exist, it will be automatically created. Default is True.
                 Only applies if the mode is `w` or `a`, 
+            annot_type: str
+                Specify the annotation type. Options are `weak` and `strong`. If not specified, the type will be 
+                inferred from the first instance to be written to the database file. For weakly labelled data, a 
+                extra column named `label` is include in the data table. For strongly labelled data, the annotations 
+                are saved to a separate table.
+            table_path: str
+                Path to the group containing the table
+            table_name: str
+                Name of the table
 
         Attributes:
             base: str
@@ -1037,7 +1016,7 @@ class AudioWriter():
                 spectrogram was generated and the offset within that file, is 
                 saved to the table. Default is True.
             include_label: bool
-                Include integer label column in data table. Only relevant for weakly annotated samples. Default is True.
+                Include integer label column in data table. Default is True.
             include_attrs: bool
                 If True, attributes returned by the `get_instance_attrs()` method will also be saved 
                 to the table. Default is True.
@@ -1052,18 +1031,23 @@ class AudioWriter():
             create_dir: bool
                 If the output directory does not exist, it will be automatically created. Default is True.
                 Only applies if the mode is `w` or `a`, 
+            annot_type: str
+                Annotation type. Options are `weak` and `strong`. If not specified, the type will be 
+                inferred from the first instance to be written to the database file. For strongly labelled 
+                data, the annotations are saved to a separate table.
     """
     def __init__(self, output_file, max_size=1E9, verbose=False, mode='w', discard_wrong_shape=False,
         allow_resizing=1, include_source=True, include_label=True, include_attrs=True, 
-        max_filename_len=100, data_name=None, index_cols=None, create_dir=True):
+        max_filename_len=100, data_name=None, index_cols=None, create_dir=True, annot_type=None,
+        table_path='/', table_name='audio'):
         
         self.base = output_file[:output_file.rfind('.')]
         self.ext = output_file[output_file.rfind('.'):]
         self.file = None
         self.file_counter = 0
         self.max_size = max_size
-        self.path = '/'
-        self.name = 'audio'
+        self.path = table_path
+        self.name = table_name
         self.verbose = verbose
         self.mode = mode
         self.item_counter = 0
@@ -1078,6 +1062,7 @@ class AudioWriter():
         self.filename_len = max_filename_len
         self.data_name = data_name
         self.create_dir = create_dir
+        self.annot_type = annot_type
         if index_cols is None:
             self.index_cols = []
         elif isinstance(index_cols, str):
@@ -1264,12 +1249,19 @@ class AudioWriter():
                 tbl_dict['table_annot'] = self.file.get_node(path, name+'_annot')
 
         elif x is not None:
-            annot_type, freq_range = self._detect_annot_type(x)
-            if self.include_attrs: attrs = self._create_attr_list(x)
-            else: attrs = []
-            include_label = self.include_label and (annot_type == 'weak')
+            if self.annot_type is None:
+                annot_type, freq_range = self._detect_annot_type(x)
+            else:
+                annot_type = self.annot_type
+                freq_range = (annot_type == "strong")
+            
+            if self.include_attrs: 
+                attrs = self._create_attr_list(x)
+            else: 
+                attrs = []
+            
             descr, self.data_name = table_description(data_shape=x, 
-                                      include_label=include_label, 
+                                      include_label=self.include_label, 
                                       include_source=self.include_source,
                                       attrs=attrs, 
                                       filename_len=self.filename_len,
@@ -1326,7 +1318,7 @@ class AudioWriter():
             if isinstance(value, np.ndarray):
                 attr['shape'] = value.shape
                 attr['type'] = str(value.dtype)
-            elif isinstance(value, (str,dt.datetime)):
+            elif isinstance(value, (str,dt.datetime,np.datetime64)):
                 attr['shape'] = self.filename_len
                 attr['type'] = 'str'
             elif isinstance(value, float):

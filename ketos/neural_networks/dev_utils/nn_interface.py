@@ -86,12 +86,79 @@ class RecipeCompat():
         result = self.instance(*args, **kwargs)
         return result
 
+# Every specific architecture class imports this base class
+class NNArch(tf.keras.Model):
+    """ General class for neural network architectures in the ketos.neural_networks module
+
+        This class holds general methods that are common to neural network models.
+        When implementing new neural network architectures, this class should be inherited.
+         
+        Example:
+            The following example shows how to define a new architecture that inherits NNArch. 
+            The architecture can then be used to build an NN interface.
+
+        >>> class MLP(NNArch): # doctest: +SKIP
+        ...    def __init__(self, n_neurons, activation):
+        ...        super(MLP, self).__init__()
+        ... 
+        ...        self.dense = tf.keras.layers.Dense(n_neurons, activation=activation)
+        ...        self.final_node = tf.keras.layers.Dense(1)
+        ... 
+        ...    def call(self, inputs):
+        ...        output = self.call_frontend(inputs)
+        ...        output = self.dense(output)
+        ...        output = self.final_node(output)
+        ...        return output
+
+        With the architecture, the interface to the MLP can be created by subclassing NNInterface:
+
+        >>> class MLPInterface(NNInterface):  # doctest: +SKIP
+        ...     def __init__(self, n_neurons, activation, optimizer, loss_function, metrics):
+        ...         super(MLPInterface, self).__init__(optimizer, loss_function, metrics)
+        ...         self.n_neurons = n_neurons
+        ...         self.activation = activation
+        ...         self.model = MLP(n_neurons=n_neurons, activation=activation)
+
+    """
+    def __init__(self):
+        super(NNArch, self).__init__()
+        self.frontend = None # Initialize as None
+
+    # Adds a frontend layer
+    def add_frontend(self, frontend):    
+        """ Adds a frontend block to the NN architecture. This block can be composed 
+            by any number of layers. add_frontend can be called at any point during 
+            model development by accessing the model instance. 
+        
+            Args:
+                frontend: A tf layer or sequence of layers.
+        """                
+        if self.frontend == None:
+            self.frontend = tf.keras.models.Sequential(name="frontend") #Here we are creating an EMPTY frontend block               
+        self.frontend.add(frontend)
+
+    # This method will be called during call. If no frontend layer is defined, it will simply return the input
+    def call_frontend(self, inputs):
+        """ This method is supposed to be called on the call method of a tenserflow model 
+            pipeline. See specfic architecture implementation for examples.
+
+            Args:
+                inputs: Tensor or list of tensors
+                    A tensor or list of tensors
+
+            Returns:
+                A tensor or list of tensors.
+        """
+        if self.frontend == None: 
+            return inputs
+        else:
+            return self.frontend(inputs)
 
 class NNInterface():
     """ General interface for neural network architectures in the ketos.neural_networks module.
 
         This class implements common methods for neural network models and is supposed to be subclassed. 
-        When implementing new neural network architectures, the interface implemented in this clas can be inherited.
+        When implementing new neural network architectures, the interface implemented in this class can be inherited.
 
     Args:
         optimizer: RecipeCompat object
@@ -338,7 +405,7 @@ class NNInterface():
     def _transform_input(cls,input):
         """ Transforms a training input to the format expected by the network.
 
-            Similar to :func:`NNInterface.transform_train_batch`, but only acts on the 
+            Similar to :func:`NNInterface.transform_batch`, but only acts on the 
             inputs (not labels). Mostly used for inference, rather than training.
             When this interface is subclassed to make new neural_network classes, this 
             method can be overwritten to accomodate any transformations required. Common 

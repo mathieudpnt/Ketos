@@ -37,7 +37,7 @@
 
 import tensorflow as tf
 import numpy as np
-from .dev_utils.nn_interface import RecipeCompat, NNInterface
+from .dev_utils.nn_interface import RecipeCompat, NNInterface, NNArch
 import json
 
 
@@ -320,7 +320,7 @@ class ResNet1DBlock(tf.keras.Model):
         return x
 
 
-class ResNetArch(tf.keras.Model):
+class ResNetArch(NNArch):
     """ Implements a ResNet architecture, building on top of ResNetBlocks.
 
         Args:
@@ -545,7 +545,8 @@ class ResNetArch(tf.keras.Model):
         Returns:
                 A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        output = self.conv_initial(inputs)
+        output = self.call_frontend(inputs)
+        output = self.conv_initial(output)
         output = self.blocks(output, training=training)
         output = self.batch_norm_final(output, training=training)
         output = tf.nn.relu(output)
@@ -557,7 +558,7 @@ class ResNetArch(tf.keras.Model):
     
 
 
-class ResNet1DArch(tf.keras.Model):
+class ResNet1DArch(NNArch):
     """ Implements a 1D (temporal) ResNet architecture, building on top of ResNetBlocks.
 
         Args:
@@ -784,7 +785,8 @@ class ResNet1DArch(tf.keras.Model):
         Returns:
                 A tensor if there is a single output, or a list of tensors if there are more than one outputs.
         """
-        output = self.conv_initial(inputs)
+        output = self.call_frontend(inputs)
+        output = self.conv_initial(output)
         output = self.blocks(output, training=training)
         output = self.batch_norm_final(output, training=training)
         output = tf.nn.relu(output)

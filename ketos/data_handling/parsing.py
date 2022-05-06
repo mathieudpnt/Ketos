@@ -57,7 +57,8 @@ audio_std_params = {'type':                     {'type':str,   'unit':None},
                     'local_km_window_seconds':  {'type':float, 'unit':'s'},
                     'filter_n':                 {'type':int,   'unit':None},
                     'filter_min_hz':            {'type':float, 'unit':'Hz'},
-                    'decibel':                  {'type':bool,  'unit':None}
+                    'decibel':                  {'type':bool,  'unit':None},
+                    'input_shape':              {'type':list,  'unit':None}
                     }
 
 
@@ -143,8 +144,18 @@ def parse_audio_representation(s):
             s: dict
                 Parsed audio representation
     """
-    for key,value in s.items():
-        s[key] = parse_parameter(name=key, value=value)
+    # Determines if the input is a nested dictionary.    
+    is_nested = isinstance(s, dict) and isinstance(list(s.values())[0], dict)
+
+    if not is_nested:
+        s = {0: s}
+
+    for name,params in s.items():
+        for key,value in params.items():
+            s[name][key] = parse_parameter(name=key, value=value)
+
+    if not is_nested:
+        s = s[0]
 
     return s
 
@@ -203,8 +214,14 @@ def parse_parameter(name, value):
                         tr['range'] = tuple(map(int, s.split(',')))
 
                     elif tr['name'] == 'resize' and 'shape' in tr.keys():
-                        s = tr['shape'][1:-1]
-                        tr['shape'] = tuple(map(int, s.split(',')))
+                        v = tr['shape']
+                        assert isinstance(v, (list, str)), "shape argument of resize transform must be "\
+                            f"of type 'list' or 'str' whereas a '{type(v)}' was provided"
+                        if isinstance(v, list):
+                            tr['shape'] = tuple(v)
+                        elif isinstance(v, str):
+                            s = v[1:-1]
+                            tr['shape'] = tuple(map(int, s.split(',')))
 
     return parsed_value
 
@@ -236,7 +253,8 @@ def encode_parameter(name, value):
         if name='window' and value=4.22, the function returns the str '4.22 s'.
 
         If the parameter is not found in the `audio_std_params` dictionary, 
-        the function returns the input value unmodified.
+        the function returns the input value unmodified, unless the parameter 
+        is a tuple in which case it is converted to a string.
     
         Args:
             name: str
@@ -261,7 +279,12 @@ def encode_parameter(name, value):
             encoded_value = f'{value} {unit}'
         typ = param['type']
         if typ == bool:
-            encoded_value = str(value).lower()        
+            encoded_value = str(value).lower()
+
+    else:
+        if isinstance(value, tuple):
+            encoded_value = ','.join([str(x) for x in value])
+            encoded_value = '(' + encoded_value + ')'
 
     return encoded_value
 
