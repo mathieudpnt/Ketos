@@ -61,7 +61,7 @@ from scipy import ndimage
 from skimage.transform import resize
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from ketos.audio.waveform import Waveform
+from ketos.audio.waveform import Waveform, get_duration, get_sampling_rate, _validate_wf_args
 import ketos.audio.utils.misc as aum
 from ketos.audio.utils.axis import LinearAxis, Log2Axis, MelAxis
 from ketos.audio.annotation import AnnotationHandler
@@ -133,18 +133,28 @@ def add_specs(a, b, offset=0, scale=1, make_copy=False):
 
     return ab
 
-def load_audio_for_spec(path, channel, rate, window, step,\
-            offset, duration, resample_method, id=None, normalize_wav=False,
-            transforms=None):
+def load_audio_for_spec(path, channel, rate, window, step, offset, duration, 
+    resample_method, id=None, normalize_wav=False, waveform_transforms=None, 
+    smooth=0.01):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
         The loaded audio covers a time interval that extends slightly beyond 
         that specified, [offset, offset+duration], as needed to compute the 
-        full spectrogram without zero padding at either end. If the lower/upper 
-        boundary of the time interval coincidences with the start/end of the 
-        audio file so that no more data is available, we pad with zeros to achieve
-        the desired length. 
+        full spectrogram without padding with zeros at either end. 
+
+        Moreover, the returned instance has two extra class attributes 
+        not usually associated with instances of the Waveform class,
+
+            * stft_args: dict
+                Parameters to be used for the computation of the 
+                Short-Time Fourier transform
+
+            * len_extend: tuple(int,int) 
+                Length (no. samples) by which the time interval has been 
+                extended at both ends (left, right).
+        
+        Returns None if the requested data segment is empty.
 
         Args:
             path: str
@@ -175,87 +185,64 @@ def load_audio_for_spec(path, channel, rate, window, step,\
             normalize_wav: bool
                 Normalize the waveform to have a mean of zero (mean=0) and a standard 
                 deviation of unity (std=1). Default is False.
+            smooth: float
+                Width in seconds of the smoothing region used for stitching together audio files.
 
         Returns:
             audio: Waveform
                 The audio signal
-            seg_args: tuple(int,int,int,int)
-                Input arguments for :func:`audio.utils.misc.segment`
     """
-    if transforms is None: transforms = []
+    path, offset, duration = _validate_wf_args(path, offset, duration)
 
-    # parse filename
-    if id is None: id = os.path.basename(path)
+    # make copies so we don't change the input arguments
+    offset_ext = offset.copy()
+    duration_ext = duration.copy()
 
     if rate is None:
-        rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
+        rate = get_sampling_rate(path=path)
 
-    file_duration = librosa.get_duration(filename=path) #get file duration
-    file_len = int(file_duration * rate) #file length (number of samples)
-    
-    if duration is None:
-        duration = max(0, file_duration - offset) #if not specified, use file duration minus offset
+    duration_ext = get_duration(path=path, offset=offset, duration=duration_ext)
+    total_duration = np.sum(duration_ext)
 
-    # if duration is 0, use the Waveform.from_wav method to load an empty array
-    if duration == 0:
-        audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
-                offset=offset, duration=duration, resample_method=resample_method, 
-                id=id, normalize_wav=normalize_wav, transforms=transforms)
-        return audio, None
+    if total_duration <= 0:
+        return None
 
-    # compute segmentation parameters
-    seg_args = aum.segment_args(rate=rate, duration=duration,\
-        offset=offset, window=window, step=step)
+    nominal_offset = offset[0]
 
-    num_segs = seg_args['num_segs']
-    offset_len = seg_args['offset_len']
-    win_len = seg_args['win_len']
-    step_len = seg_args['step_len']
+    # compute the arguments for the short-time fourier transform
+    stft_args = aum.segment_args(rate=rate, offset=nominal_offset, window=window, step=step, duration=total_duration)
 
-    com_len = int(num_segs * step_len + win_len) #combined length of frames
+    # modify offset and duration to extend audio segment at both ends
+    offset_ext[0] = stft_args['offset_len'] / rate
+    left_ext = nominal_offset - offset_ext[0]
+    total_duration_ext = int(stft_args['num_segs'] * stft_args['step_len'] + stft_args['win_len']) / rate
+    right_ext = total_duration_ext - total_duration - left_ext
+    duration_ext[0]  += left_ext
+    duration_ext[-1] += right_ext
 
-    # convert back to seconds and compute required amount of zero padding
-    pad_left = max(0, -offset_len)
-    pad_right = max(0, (offset_len + com_len) - file_len)
-    load_offset = max(0, offset_len) / rate
-    audio_len = int(com_len - pad_left - pad_right)
-    duration = audio_len / rate
+    # now load extended audio with from_wav method
+    audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
+        offset=offset_ext, duration=duration_ext, resample_method=resample_method, 
+        id=id, normalize_wav=normalize_wav, transforms=waveform_transforms,
+        smooth=smooth)
 
-    # load audio segment
-    x, rate = librosa.core.load(path=path, sr=rate, offset=load_offset,\
-        duration=duration, mono=False, res_type=resample_method)
+    if len(audio.get_data()) == 0:
+        return None, None
 
-    # select channel (for stereo only)
-    if np.ndim(x) == 2:
-        x = x[channel]
+    # make sure we don't pad twice
+    stft_args["offset_len"] = 0
 
-    # check that loaded audio segment has the expected length (give or take 1 sample).
-    # if this is not the case, load the entire audio file into memory, then cut out the 
-    # relevant section. 
-    if abs(len(x) - audio_len) > 1:
-        x, rate = librosa.core.load(path=path, sr=rate, mono=False)
-        if np.ndim(x) == 2:
-            x = x[channel]
+    # use the correct offset value
+    audio.offset = nominal_offset
 
-        a = max(0, offset_len)
-        b = a + audio_len
-        x = x[a:b]
+    # create extra class attributes
+    audio.stft_args = stft_args
+    n_left_ext = aum.num_samples(left_ext, audio.rate)
+    n_right_ext = aum.num_samples(right_ext, audio.rate)
+    audio.len_extend = (n_left_ext, n_right_ext)
 
-    # pad with own reflection
-    pad_right += max(0, com_len - len(x))
-    x = aum.pad_reflect(x, pad_left=pad_left, pad_right=pad_right)
+    return audio
 
-    # normalize
-    if normalize_wav: 
-        transforms.append({'name':'normalize','mean':0.0,'std':1.0})
-
-    # create Waveform object
-    audio = Waveform(data=x, rate=rate, filename=id, offset=offset, transforms=transforms)
-
-    # to avoid padding twice, set offset to 0
-    seg_args['offset_len'] = 0
-
-    return audio, seg_args
 
 class Spectrogram(BaseAudioTime):
     """ Spectrogram.
@@ -799,6 +786,7 @@ class Spectrogram(BaseAudioTime):
             ax.add_patch(box)
             ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
 
+
 class MagSpectrogram(Spectrogram):
     """ Magnitude Spectrogram.
     
@@ -970,7 +958,7 @@ class MagSpectrogram(Spectrogram):
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, 
             waveform_transforms=None, compute_phase=False, 
-            decibel=True, **kwargs):
+            decibel=True, smooth=0.01, **kwargs):
         """ Create magnitude spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1033,6 +1021,8 @@ class MagSpectrogram(Spectrogram):
                     Compute complex phase angle. Default it False
                 decibel: bool
                     Convert to dB scale
+                smooth: float
+                    Width in seconds of the smoothing region used for stitching together audio files.
 
             Returns:
                 : MagSpectrogram
@@ -1052,16 +1042,16 @@ class MagSpectrogram(Spectrogram):
                 .. image:: ../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
         # load audio
-        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
+        audio = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
-            transforms=waveform_transforms)
+            waveform_transforms=waveform_transforms, smooth=smooth)
 
-        if len(audio.get_data()) == 0:
+        if audio is None:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
             return cls.empty()
 
         # compute spectrogram
-        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
+        return cls.from_waveform(audio=audio, seg_args=audio.stft_args, window_func=window_func, 
             freq_min=freq_min, freq_max=freq_max, transforms=transforms, compute_phase=compute_phase, 
             decibel=decibel, **kwargs)
 
@@ -1170,6 +1160,7 @@ class MagSpectrogram(Spectrogram):
         fig.colorbar(img, ax=ax)# colobar
             
         return fig
+
 
 class PowerSpectrogram(Spectrogram):
     """ Power Spectrogram.
@@ -1310,7 +1301,7 @@ class PowerSpectrogram(Spectrogram):
             window_func='hamming', offset=0, duration=None,
             resample_method='scipy', freq_min=None, freq_max=None,
             id=None, normalize_wav=False, transforms=None, waveform_transforms=None, 
-            decibel=True, **kwargs):            
+            decibel=True, smooth=0.01, **kwargs):            
         """ Create power spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1371,6 +1362,8 @@ class PowerSpectrogram(Spectrogram):
                     {"name":"add_gaussian_noise", "sigma":0.5}
                 decibel: bool
                     Convert to dB scale
+                smooth: float
+                    Width in seconds of the smoothing region used for stitching together audio files.
 
             Returns:
                 spec: MagSpectrogram
@@ -1390,16 +1383,16 @@ class PowerSpectrogram(Spectrogram):
                 .. image:: ../../../ketos/tests/assets/tmp/spec_grunt1.png
         """
         # load audio
-        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,\
+        audio = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
-            transforms=waveform_transforms)
+            waveform_transforms=waveform_transforms)
 
-        if len(audio.get_data()) == 0:
+        if audio is None:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
             return cls.empty()
 
         # compute spectrogram
-        return cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, 
+        return cls.from_waveform(audio=audio, seg_args=audio.stft_args, window_func=window_func, 
             freq_min=freq_min, freq_max=freq_max, transforms=transforms, decibel=decibel, **kwargs)
 
     def freq_res(self):
@@ -1410,6 +1403,7 @@ class PowerSpectrogram(Spectrogram):
                     Frequency resolution in Hz
         """
         return self.freq_ax.bin_width()
+
 
 class MelSpectrogram(Spectrogram):
     """ Mel Spectrogram.
@@ -1537,7 +1531,7 @@ class MelSpectrogram(Spectrogram):
     @classmethod
     def from_wav(cls, path, window, step, channel=0, rate=None, window_func='hamming', num_filters=40,
             offset=0, duration=None, resample_method='scipy', id=None, normalize_wav=False, transforms=None, 
-            waveform_transforms=None, **kwargs):            
+            waveform_transforms=None, smooth=0.01, **kwargs):            
         """ Create Mel spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a portion of the wav file.
@@ -1594,6 +1588,8 @@ class MelSpectrogram(Spectrogram):
                     a transformation to be applied to the waveform before generating 
                     the spectrogram. For example,
                     {"name":"add_gaussian_noise", "sigma":0.5}
+                smooth: float
+                    Width in seconds of the smoothing region used for stitching together audio files.
 
             Returns:
                 spec: MelSpectrogram
@@ -1613,16 +1609,16 @@ class MelSpectrogram(Spectrogram):
                 .. image:: ../../../ketos/tests/assets/tmp/mel_grunt1.png
         """
         # load audio
-        audio, seg_args = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
+        audio = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
-            transforms=waveform_transforms)
+            waveform_transforms=waveform_transforms, smooth=smooth)
 
-        if len(audio.get_data()) == 0:
+        if audio is None:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
             return cls.empty()
 
         # compute spectrogram
-        spec = cls.from_waveform(audio=audio, seg_args=seg_args, window_func=window_func, num_filters=num_filters, 
+        spec = cls.from_waveform(audio=audio, seg_args=audio.stft_args, window_func=window_func, num_filters=num_filters, 
             transforms=transforms, **kwargs)
 
         return spec
@@ -1794,7 +1790,7 @@ class CQTSpectrogram(Spectrogram):
     def from_wav(cls, path, step, bins_per_oct, freq_min=1, freq_max=None,
         channel=0, rate=None, window_func='hann', offset=0, duration=None,
         resample_method='scipy', id=None, normalize_wav=False, transforms=None,
-        waveform_transforms=None, **kwargs):
+        waveform_transforms=None, smooth=0.01, **kwargs):
         """ Create CQT spectrogram directly from wav file.
 
             The arguments offset and duration can be used to select a segment of the audio file.
@@ -1854,6 +1850,8 @@ class CQTSpectrogram(Spectrogram):
                     a transformation to be applied to the waveform before generating 
                     the spectrogram. For example,
                     {"name":"add_gaussian_noise", "sigma":0.5}
+                smooth: float
+                    Width in seconds of the smoothing region used for stitching together audio files.
                     
             Returns:
                 : CQTSpectrogram
@@ -1870,19 +1868,10 @@ class CQTSpectrogram(Spectrogram):
 
                 .. image:: ../../../ketos/tests/assets/tmp/cqt_grunt1.png
         """
-        if rate is None:
-            rate = librosa.get_samplerate(path) #if not specified, use original sampling rate
-
-        file_duration = librosa.get_duration(filename=path) #get file duration
-        file_len = int(file_duration * rate) #file length (number of samples)
-        
-        if duration is None:
-            duration = max(0, file_duration - offset)
-
         # load audio
         audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
             offset=offset, duration=duration, resample_method=resample_method, 
-            id=id, normalize_wav=normalize_wav, transforms=waveform_transforms)
+            id=id, normalize_wav=normalize_wav, transforms=waveform_transforms, smooth=smooth)
 
         if len(audio.get_data()) == 0:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)

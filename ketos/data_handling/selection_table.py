@@ -113,6 +113,7 @@ def unfold(table, sep=','):
     df = df.join(s)
     return df
 
+
 def rename_columns(table, mapper):
     """ Renames the table headings to conform with the ketos naming convention.
 
@@ -129,6 +130,7 @@ def rename_columns(table, mapper):
     """
     return table.rename(columns=mapper)
 
+
 def empty_annot_table():
     """ Create an empty call-level annotation table
 
@@ -141,6 +143,7 @@ def empty_annot_table():
 
     return df
 
+
 def empty_selection_table():
     """ Create an empty selection table
 
@@ -152,9 +155,9 @@ def empty_selection_table():
     df = use_multi_indexing(df, 'sel_id')
     return df
 
-def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, signal_labels=None,\
-    backgr_labels=None, unfold_labels=False, label_sep=',', trim_table=False,
-    return_label_dict=False, sort_by_filename_start=False, datetime_format=None):
+
+def standardize(table=None, path=None, sep=',', mapper=None, labels=None, 
+    start_labels_at_1=False, unfold_labels=False, label_sep=',', trim_table=False, datetime_format=None):
     """ Standardize the annotation table format.
 
         The input table can be passed as a pandas DataFrame or as the filename of a csv file.
@@ -165,48 +168,44 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
         The table headings are renamed to conform with the ketos standard naming convention, following the 
         name mapping specified by the user. 
 
-        Deprecated: Signal labels are mapped to integers 1,2,3,... while background labels are mapped to 0, 
-        and any remaining labels are mapped to -1.
-        In the next version, all labels are mapped to integers 0,1,2,3,... and any remaining labels are mapped to -1.
+        Labels specified by the `labels` argument are mapped to integers 0,1,2,... and any remaining 
+        labels are mapped to -1. 
+
+        Note that the labels can be mapped to 1,2,3,.... instead using the `start_labels_at_1` argument.
+        This can be useful if you want to reserve the label 0 for background/negative samples.
 
         Note that the standardized output table has two levels of indices, the first index being the 
         filename and the second index the annotation identifier. 
 
+        The label mapping is stored as a class attribute named 'label_dict' within the output table 
+        and may be retrieved with `df.attrs['label_dict']`.
+
         Args:
             table: pandas DataFrame
                 Annotation table.
-            filename: str
+            path: str
                 Full path to csv file containing the annotation table. 
             sep: str
                 Separator. Only relevant if filename is specified. Default is ",".
             mapper: dict
-                Dictionary mapping the headings of the input table to the 
-                standard ketos headings.
+                Dictionary mapping the standard ketos headings to the headings of the input table.
+                It is also possible to specify mappings that involve mathematical/logical operations 
+                on the headings of the input table. For example, `{"end": "x['Start'] + x['Duration']"}`.
             labels: list, or list of lists
-                Labels of interest. Will be mapped to 0,1,2,3,...
+                Labels of interest. Will be mapped to 0,1,2,...
                 Several labels can be mapped to the same integer by using nested lists. For example, 
                 signal_labels=[A,[B,C]] would result in A being mapped to 0 and B and C both being mapped 
-                to 1.
-            signal_labels: list, or list of lists
-                Deprecated and will be removed in a future version. Use labels instead.
-                Labels of interest. Will be mapped to 1,2,3,...
-                Several labels can be mapped to the same integer by using nested lists. For example, 
-                signal_labels=[A,[B,C]] would result in A being mapped to 1 and B and C both being mapped 
-                to 2.
-            backgr_labels: list
-                Deprecated and will be removed in a future version. Use labels instead.
-                Labels will be grouped into a common "background" class (0).
+                to 1. Any remaining labels not specified by the `labels` argument are mapped to -1.
+            start_labels_at_1: bool
+                Map labels to 1,2,3,... instead of 0,1,2,... Default is False.
+                Useful if you want to reserve the label 0 for background/negative samples.
             unfold_labels: bool
-                Should be set to True if any of the rows have multiple labels. 
-                Shoudl be set to False otherwise (default).
+                Should be set to True if any of the rows have multiple labels and False otherwise (default).
             label_sep: str
                 Character used to separate multiple labels. Only relevant if unfold_labels is set to True. Default is ",".
             trim_table: bool
-                Keep only the columns prescribed by the Ketos annotation format.
-            return_label_dict: bool
-                Return label dictionary. Default is False.
-            sort_by_filename_start: bool
-                Automatically sort the table by filename (first) and start time (second). Default is False.
+                Keep only the columns prescribed by the Ketos annotation format and any additional columns specified 
+                in the mapper dictionary.
             datetime_format: str
                 String defining the date-time format. 
                 Example: %d_%m_%Y* would capture "14_3_1999.txt".
@@ -217,23 +216,26 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
                 parse the datetime information from the filename column.
 
         Returns:
-            table_std: pandas DataFrame
+            df: pandas DataFrame
                 Standardized annotation table
-            label_dict: dict
-                Dictionary mapping new labels to old labels. Only returned if return_label_dict is True.
     """
-    assert table is not None or filename is not None, 'Either table or filename must be specified'
+    assert table is not None or path is not None, 'Either table or path must be specified'
 
     # load input table
-    if filename is None:
+    if path is None:
         df = table  
     else:
-        assert os.path.exists(filename), 'Could not find input file: {0}'.format(filename)
-        df = pd.read_csv(filename, sep=sep)
+        assert os.path.exists(path), 'Could not find input file: {0}'.format(path)
+        df = pd.read_csv(path, sep=sep)
 
-    # rename columns
+    # map columns
     if mapper is not None:
-        df = df.rename(columns=mapper)
+        for key,value in mapper.items():
+            if value not in df.columns.values:
+                df[key] = df.apply(lambda x: eval(value), axis=1) #first, map mathematical/logical operations
+        for key,value in mapper.items():
+            if value in df.columns.values:
+                df = df.rename(columns={value:key}) #second, map 1-to-1 mappings
 
     # if user has provided duration instead of end time, compute end time
     if 'start' in df.columns.values and 'duration' in df.columns.values and 'end' not in df.columns.values:
@@ -241,7 +243,7 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
 
     # keep only relevant columns
     if trim_table:
-        df = trim(df)
+        df = trim(df, list(mapper.keys()))
 
     # check that dataframe has minimum required columns
     mis = missing_columns(df)
@@ -252,15 +254,16 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
 
     # cast label column to str
     df = df.astype({'label': 'str'})
+
     # create list of unique labels in input table
     unique_labels = np.sort(np.unique(df['label'].values)).tolist()
 
-    if labels is not None:
+    if labels is None:
+        labels = unique_labels
+        discard_labels = []
+        
+    else:
         assert isinstance(labels, list), 'labels is not a list or list of lists. Found {0}'.format(type(labels))
-        if backgr_labels is not None:
-            warnings.warn("Warning: labels specified, ignoring backgr_labels.")
-        if signal_labels is not None:
-            warnings.warn("Warning: labels specified, ignoring signal_labels.")
 
         labels, labels_flat = cast_to_str(labels, nested=True)
 
@@ -271,39 +274,11 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
         # discard remaining labels
         discard_labels = [x for x in unique_labels if x not in labels_flat]
 
-        # create label dictionary and apply to label column in DataFrame
-        _label_dict = _create_label_dict(labels, discard_labels)
 
-    # TODO: remove content of else in the next major version
-    else:
-        if backgr_labels is None: 
-            backgr_labels = []
-        else:
-            warnings.warn("backgr_labels is deprecated and will be removed in a future version. Use labels instead.")
+    # create label dictionary and apply to label column in DataFrame
+    _label_dict = _create_label_dict(labels, discard_labels, start_labels_at_1)
 
-        if signal_labels is None:
-            warnings.warn("The default implementation of standardize will change. In a future version \
-                labels will be mapped to 0,1,2... instead of 1,2,3...")
-            signal_labels = [x for x in unique_labels if x not in backgr_labels]
-        else:
-            warnings.warn("signal_labels is deprecated and will be removed in a future version. Use labels instead.")
-
-        # cast to str
-        backgr_labels = cast_to_str(backgr_labels)
-        signal_labels, signal_labels_flat = cast_to_str(signal_labels, nested=True)
-
-        # separate out background labels, if any
-        for x in backgr_labels:
-            assert x in unique_labels, 'label {0} not found in input table'.format(x)
-        
-        # discard remaining labels
-        discard_labels = [x for x in unique_labels if x not in signal_labels_flat and x not in backgr_labels]
-
-        # create label dictionary and apply to label column in DataFrame
-        # [backgr_labels] + signal_labels will maintain previous functionality of create_label_dict when it allowed 
-        # for backgrnd labels and signal labels to be separated
-        _label_dict = _create_label_dict([backgr_labels] + signal_labels, discard_labels)
-    
+    # convert labels to standardized form 
     df['label'] = df['label'].apply(lambda x: _label_dict.get(x))
 
     # cast integer dict keys from str back to int
@@ -312,10 +287,13 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
         if str_is_int(key): key = int(key)
         label_dict[key] = value
 
-    if sort_by_filename_start:
-        df.sort_values(by=['filename','start'], inplace=True, ignore_index=True)
+    # always sort by filename (first) and start time (second)
+    by = ['filename']
+    if 'start' in df.columns.values: 
+        by += ['start']
+    df.sort_values(by=by, inplace=True, ignore_index=True)
 
-    # convert path to format suitable for the operating that is being used
+    # convert path to format suitable for the operating system that is being used
     df['filename'] = df['filename'].apply(lambda x: x.replace("\\","/") if os.name == "posix" else x.replace("/","\\"))
 
     # parse datetime field
@@ -328,10 +306,11 @@ def standardize(table=None, filename=None, sep=',', mapper=None, labels=None, si
     # transform to multi-indexing
     df = use_multi_indexing(df, 'annot_id')
 
-    table_std = df
+    # store label dictionary as class attribute
+    df.attrs["label_dict"] = label_dict
 
-    if return_label_dict: return table_std, label_dict
-    else: return table_std
+    return df
+
 
 def use_multi_indexing(df, level_1_name):
     """ Change from single-level indexing to double-level indexing. 
@@ -356,21 +335,27 @@ def use_multi_indexing(df, level_1_name):
 
     return df
 
-def trim(table):
+
+def trim(table, extra_cols=None):
     """ Keep only the columns prescribed by the Ketos annotation format.
 
         Args:
             table: pandas DataFrame
                 Annotation table. 
+            extra_cols: list(str)
+                Any additional columns that we wish to keep
 
         Returns:
             table: pandas DataFrame
                 Annotation table, after removal of columns.
     """
     keep_cols = ['filename', 'label', 'start', 'end', 'freq_min', 'freq_max']
+    if extra_cols is not None:
+        keep_cols += extra_cols
     drop_cols = [x for x in table.columns.values if x not in keep_cols]
     table = table.drop(drop_cols, axis=1)
     return table
+
 
 def missing_columns(table, has_time=False):
     """ Check if the table has the minimum required columns.
@@ -391,6 +376,7 @@ def missing_columns(table, has_time=False):
 
     mis = [x for x in required_cols if x not in table.columns.values]
     return mis
+
 
 def is_standardized(table, has_time=False, verbose=True):
     """ Check if the table has the correct indices and the minimum required columns.
@@ -453,7 +439,8 @@ def is_standardized(table, has_time=False, verbose=True):
 
     return res
 
-def _create_label_dict(labels, discard_labels=None):
+
+def _create_label_dict(labels, discard_labels=None, start_labels_at_1=False):
     """ Create label dictionary, following the convetion:
 
             * signal_labels are mapped to 1,2,3,...
@@ -470,16 +457,18 @@ def _create_label_dict(labels, discard_labels=None):
                 Labels will be grouped into a common "background" class (0).
             discard_labels: list
                 Labels will be grouped into a common "discard" class (-1).
+            start_labels_at_1: bool
+                Map labels to 1,2,3,... instead of 0,1,2,... Default is False.
 
         Returns:
             label_dict: dict
                 Dict that maps old labels to new labels.
     """
-
     label_dict = dict()  
     if discard_labels is not None:  
         for l in discard_labels: label_dict[l] = -1
-    num = 0
+    
+    num = 1 if start_labels_at_1 else 0
     for l in labels:
         if isinstance(l, list):
             for ll in l:
@@ -491,6 +480,7 @@ def _create_label_dict(labels, discard_labels=None):
         num += 1
 
     return label_dict
+
 
 def label_occurrence(table):
     """ Identify the unique labels occurring in the table and determine how often 
@@ -636,7 +626,7 @@ def select(annotations, length, step=0, min_overlap=0, center=False, discard_lon
             >>> df = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>>
             >>> #Standardize annotation table format
-            >>> df, label_dict = standardize(df, return_label_dict=True)
+            >>> df = standardize(df, start_labels_at_1=True)
             >>> print(df)
                                 start   end  label
             filename  annot_id                    
@@ -964,7 +954,7 @@ def create_rndm_selections(files, length, num, label=0, annotations=None, no_ove
             5  file2.wav    9.0  13.0      0
             >>>
             >>> #Standardize annotation table format
-            >>> df, label_dict = standardize(df, return_label_dict=True)
+            >>> df = standardize(df, start_labels_at_1=True)
             >>> print(df)
                                 start   end  label
             filename  annot_id                    
@@ -1124,7 +1114,7 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
             5  file2.wav    9.0  13.0      0
             >>>
             >>> #Standardize annotation table format
-            >>> df, label_dict = standardize(df, return_label_dict=True)
+            >>> df = standardize(df, start_labels_at_1=True)
             >>> print(df)
                                 start   end  label
             filename  annot_id                    
@@ -1243,7 +1233,7 @@ def select_by_segmenting(files, length, annotations=None, step=None,
             >>> annot = pd.read_csv("ketos/tests/assets/annot_001.csv")
             >>>
             >>> #Standardize annotation table format
-            >>> annot, label_dict = standardize(annot, return_label_dict=True)
+            >>> annot = standardize(annot, start_labels_at_1=True)
             >>> print(annot)
                                 start   end  label
             filename  annot_id                    
@@ -1282,18 +1272,18 @@ def select_by_segmenting(files, length, annotations=None, step=None,
                                        start   end  label
             filename  sel_id annot_id                    
             file1.wav 0      0           7.0   8.1      2
-                             1           8.5  10.0      1
+                             1           8.5  12.5      1
                       1      0           2.0   3.1      2
                              1           3.5   7.5      1
                              2           8.1   9.0      2
-                      2      1           0.0   2.5      1
+                      2      1          -1.5   2.5      1
                              2           3.1   4.0      2
             file2.wav 0      0           2.2   3.1      2
                              1           5.8   6.8      2
-                             2           9.0  10.0      1
+                             2           9.0  13.0      1
                       1      1           0.8   1.8      2
                              2           4.0   8.0      1
-                      2      2           0.0   3.0      1
+                      2      2          -1.0   3.0      1
     """
     if step is None:
         step = length
@@ -1314,29 +1304,24 @@ def select_by_segmenting(files, length, annotations=None, step=None,
     if annotations is not None:
         annot = segment_annotations(annotations, num=num_segs, length=length, step=step)
 
-        if discard_empty or keep_only_empty:
-            indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
+        # get the indices of those selections that have annotations associated with them
+        indices = list(set([(a, b) for a, b, c in annot.index.tolist()]))
 
-            if discard_empty: 
-                sel = sel.loc[indices].sort_index()
-                return sel, annot
+        if keep_only_empty: 
+            sel = sel.loc[~sel.index.isin(indices)].sort_index()
+            sel['label'] = label_empty
+            return sel
 
-            elif keep_only_empty: 
-                sel = sel.loc[~sel.index.isin(indices)].sort_index()
-                sel['label'] = label_empty
-                return sel
+        if discard_empty: 
+            sel = sel.loc[indices].sort_index()
 
-        elif avoid_label is not None:
-            if isinstance(avoid_label, int): 
-                avoid_label = [avoid_label]
-
+        if avoid_label is not None:
+            if isinstance(avoid_label, int): avoid_label = [avoid_label]
             annot_avoid = annot[annot.label.isin(avoid_label)]
             indices_avoid = list(set([(a, b) for a, b, c in annot_avoid.index.tolist()]))
             sel = sel.loc[~sel.index.isin(indices_avoid)].sort_index()
-            return sel, annot
 
-        else:
-            return sel, annot
+        return sel, annot
             
     else:
         return sel
@@ -1386,7 +1371,7 @@ def segment_files(table, length, step=None, pad=True):
 
     return df
 
-def segment_annotations(table, num, length, step=None):
+def segment_annotations(table, num, length, step=None, compute_overlap=False):
     """ Generate a segmented annotation table by stepping across the audio files, using a fixed 
         step size (step) and fixed selection window size (length). 
         
@@ -1400,6 +1385,9 @@ def segment_annotations(table, num, length, step=None):
             step: float
                 Selection step size in seconds. If None, the step size is set 
                 equal to the selection length.
+            compute_overlap: bool
+                If True, the fractional overlap between the selection window and the annotation 
+                will be computed and added as an extra column in the output table. Default is False.
 
         Returns:
             df: pandas DataFrame
@@ -1416,8 +1404,11 @@ def segment_annotations(table, num, length, step=None):
         a = table[(table.start < t2) & (table.end > t1)].copy()
         if len(a) > 0:
             # shift and crop annotations
-            a['start'] = a['start'].apply(lambda x: max(0, x - t1))
-            a['end'] = a['end'].apply(lambda x: min(length, x - t1))
+            if compute_overlap:
+                a['overlap'] = a.apply(lambda r: fractional_overlap(a=(t1,t2), b=(r.start, r.end)), axis=1)
+
+            a['start'] -= t1 
+            a['end'] -= t1 
             a['sel_id'] = n #map to segment
             segs.append(a)
 

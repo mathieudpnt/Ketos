@@ -763,12 +763,12 @@ def test_create_database_ids(sine_wave_file):
 
 def test_create_database_with_single_wav_file_mult_repres(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db12.h5')
+    out = os.path.join(path_to_assets, 'tmp/db14.h5')
     rep1 = {'type': 'Waveform'}
     rep2 = {'type': 'Mag', 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
     sel = use_multi_indexing(sel, 'sel_id')
-    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=[rep1,rep2], verbose=False, progress_bar=False, data_name=['wf','spec'])
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres={'wf':rep1,'spec':rep2}, verbose=False, progress_bar=False)
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
@@ -779,11 +779,23 @@ def test_create_database_with_single_wav_file_mult_repres(sine_wave_file):
     assert fil.root.assets.data.attrs.data_name == ['wf','spec']
     fil.close()
     os.remove(out)
+    # check that it also works if the audio representations are specified as a list
+    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=[rep1,rep2], verbose=False, progress_bar=False)
+    # check database contents
+    fil = di.open_file(out, 'r')
+    assert '/assets/data' in fil
+    specs = di.load_audio(table=fil.root.assets.data)
+    assert len(specs) == 2
+    assert type(specs[0][0]) == Waveform
+    assert type(specs[0][1]) == MagSpectrogram
+    assert fil.root.assets.data.attrs.data_name == ['data0','data1']
+    fil.close()
+    os.remove(out)
 
 def test_create_database_with_attrs(sine_wave_file):
     """ Create a database including extra attributes from the selection table"""
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db13.h5')
+    out = os.path.join(path_to_assets, 'tmp/db16.h5')
     rep = {'type': 'Waveform'}
     t = [dt.datetime(2002,2,23,14,20,30), dt.datetime(2012,2,23,14,20,30)]
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'comment':['big','bigger'], 't':t})
@@ -817,7 +829,7 @@ def test_create_database_with_attrs(sine_wave_file):
 def test_create_database_with_indices(sine_wave_file):
     """ Create a database with indices for some columns"""
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db14.h5')
+    out = os.path.join(path_to_assets, 'tmp/db17.h5')
     rep = {'type': 'Waveform'}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'extra_id':[13,14]})
     sel = use_multi_indexing(sel, 'sel_id')
@@ -841,7 +853,7 @@ def test_create_database_with_indices(sine_wave_file):
 def test_create_database_with_exception_handling(sine_wave_file):
     """ Check if database can be created if file does not exist """
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db15.h5')
+    out = os.path.join(path_to_assets, 'tmp/db18.h5')
     rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav', 'unknown_file_1.wav', 'sine_wave.wav', 'unknown_file_2.wav'], 
                         'start':[0.1, 0.2, 0.3, 0.4], 
@@ -853,14 +865,14 @@ def test_create_database_with_exception_handling(sine_wave_file):
     db = di.open_file(out, 'r')
     assert '/assets/data' in db
     specs = di.load_audio(table=db.root.assets.data)
-    assert len(specs) == 2
     db.close()
     os.remove(out)
+    assert len(specs) == 2
     
 def test_create_database_check_file_duration(sine_wave_file):
     """ Check if database can be created if selections are outside file """
     data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db16.h5')
+    out = os.path.join(path_to_assets, 'tmp/db19.h5')
     rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav'], 
                         'start':[2.6, 0.1, -11.0, 4.5, -0.7],
@@ -872,25 +884,6 @@ def test_create_database_check_file_duration(sine_wave_file):
     db = di.open_file(out, 'r')
     assert '/assets/data' in db
     specs = di.load_audio(table=db.root.assets.data)
+    db.close()
+    os.remove(out)
     assert len(specs) == 3
-    db.close()
-    os.remove(out)
-
-def test_create_database_discard_outside(sine_wave_file):
-    """ Check selections outside the file are not saved """
-    data_dir = os.path.dirname(sine_wave_file)
-    out = os.path.join(path_to_assets, 'tmp/db16.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
-    sel = pd.DataFrame({'filename':['sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav'], 
-                        'start':[0.6, 0.1, -0.2, 4.5],
-                        'end':[1.6, 1.1, 0.8, 5.5],
-                        'label':[1, 1, 2, 1]})
-    sel = use_multi_indexing(sel, 'sel_id')
-    di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=True, progress_bar=False, discard_outside=True)
-    # check database contents
-    db = di.open_file(out, 'r')
-    assert '/assets/data' in db
-    specs = di.load_audio(table=db.root.assets.data)
-    db.close()
-    os.remove(out)
-    assert len(specs) == 2

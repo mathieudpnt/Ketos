@@ -50,6 +50,7 @@ def test_trim():
     df = st.trim(df)
     assert sorted(df.columns.values) == sorted(standard)
 
+
 def test_missing_columns():
     standard = ['filename','label','start','end','freq_min','freq_max']
     df = pd.DataFrame(columns=standard)
@@ -58,6 +59,7 @@ def test_missing_columns():
     assert len(st.missing_columns(df)) == 0
     df = pd.DataFrame(columns=standard[1:])
     assert sorted(st.missing_columns(df)) == ['filename']
+
 
 def test_is_standardized():
     df = pd.DataFrame({'filename':'test.wav','label':[1],'start':[0],'end':[2],'freq_min':[None],'freq_max':[None]})
@@ -69,11 +71,13 @@ def test_is_standardized():
     df = pd.DataFrame({'filename':'test.wav','label':[1]})
     assert st.is_standardized(df) == False
 
+
 def test_empty_annotation_table():
     df = st.empty_annot_table()
     assert len(df) == 0
     assert np.all(df.columns == ['label', 'start', 'end'])
     assert df.index.names == ['filename', 'annot_id']
+
 
 def test_empty_selection_table():
     df = st.empty_selection_table()
@@ -81,12 +85,14 @@ def test_empty_selection_table():
     assert np.all(df.columns == ['label', 'start', 'end', 'annot_id'])
     assert df.index.names == ['filename', 'sel_id']
 
+
 def test_create_label_dict():
     l1 = [0, 'gg', -17, 'whale']
     l2 = [999]
     d = st._create_label_dict(l1, l2)
     ans = {999: -1, 0: 0, 'gg':1, -17: 2, 'whale': 3}
     assert d == ans
+
 
 def test_create_label_dict_can_handle_nested_list():
     l1 = [[-33, 1, 'boat']]
@@ -96,14 +102,28 @@ def test_create_label_dict_can_handle_nested_list():
     ans = {-33: 0, 1:0, 'boat': 0, 999: -1, 0: 1, 'gg':2, -17: 3, 'whale': 3}
     assert d == ans
 
+
 def test_unfold(annot_table_mult_labels):
     res = st.unfold(annot_table_mult_labels)
     ans = pd.DataFrame({'filename':['f0.wav','f0.wav','f1.wav'], 'label':['1','2','3'], 'start':[0,0,1], 'end':[1,1,2]})
     res = res.reset_index(drop=True)[ans.columns]
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_standardize(annot_table_std):
+    #start labels at 0 (default)
     res = st.standardize(annot_table_std)
+    d = '''filename annot_id label  start  end                   
+f0.wav   0             2    0.0  3.3
+f0.wav   1             1    3.0  6.3
+f1.wav   0             3    1.0  4.3
+f1.wav   1             1    4.0  7.3
+f2.wav   0             4    2.0  5.3
+f2.wav   1             0    5.0  8.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+    #now, start at 1
+    res = st.standardize(annot_table_std, start_labels_at_1=True)
     d = '''filename annot_id label  start  end                   
 f0.wav   0             3    0.0  3.3
 f0.wav   1             2    3.0  6.3
@@ -113,6 +133,7 @@ f2.wav   0             5    2.0  5.3
 f2.wav   1             1    5.0  8.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
 
 def test_standardize_with_labels(annot_table_std):
     res = st.standardize(annot_table_std, labels=[-1,0,1,2,3])
@@ -126,26 +147,28 @@ f2.wav   1             0    5.0  8.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_standardize_from_file(annot_table_file):
-    res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, 
-        signal_labels=[1,'k'], backgr_labels=[-99, 'whale'], return_label_dict=True)
+    res = st.standardize(path=annot_table_file, mapper={'filename': 'fname', 'end': "x['STOP']+x['start']"}, 
+        labels=[[-99, 'whale'],1,'k'])
     ans = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
-    assert d == ans
+    assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
 f0.wav   0             1      0    1
-f1.wav   0            -1      1    2
-f2.wav   0             2      2    3
-f3.wav   0             0      3    4
-f4.wav   0             0      4    5
-f5.wav   0            -1      5    6'''
+f1.wav   0            -1      1    3
+f2.wav   0             2      2    5
+f3.wav   0             0      3    7
+f4.wav   0             0      4    9
+f5.wav   0            -1      5    11'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_standardize_with_nested_list(annot_table_file):
-    res, d = st.standardize(filename=annot_table_file, mapper={'fname': 'filename', 'STOP': 'end'}, 
-        signal_labels=[[1,'whale'],'k'], backgr_labels=[-99], return_label_dict=True)
+    res = st.standardize(path=annot_table_file, mapper={'filename': 'fname', 'end': 'STOP'}, 
+        labels=[-99,[1,'whale'],'k'])
     ans = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
-    assert d == ans
+    assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
 f0.wav   0             1      0    1
 f1.wav   0            -1      1    2
@@ -156,6 +179,7 @@ f5.wav   0            -1      5    6'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_standardize_windows_path(annot_table_std):
     """ Test that relative paths are converted from Windows to Unix style
         when standardizing annotation tables
@@ -165,12 +189,13 @@ def test_standardize_windows_path(annot_table_std):
     annot_table_std['filename'][2] = "folder\\subfolder\\f1.wav"
     res = st.standardize(annot_table_std[:4])
     d = '''filename annot_id label  start  end                   
-f0.wav                    0             1    3.0  6.3
-folder/f1.wav             0             2    0.0  3.3
-folder/f1.wav             1             3    1.0  4.3
-folder/subfolder/f1.wav   0             4    2.0  5.3'''
+f0.wav                    0             0    3.0  6.3
+folder/f1.wav             0             1    0.0  3.3
+folder/f1.wav             1             2    1.0  4.3
+folder/subfolder/f1.wav   0             3    2.0  5.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
 
 def test_standardize_datetime():
     """ Test that datetime information is parsed correctly
@@ -189,7 +214,7 @@ def test_standardize_datetime():
     # datetime field specified
     t = [os.path.basename(f) for f in filenames]
     tbl = pd.DataFrame({'filename':filenames,'label':labels,'t':t})
-    res = st.standardize(tbl, mapper={'t':'datetime'}, datetime_format=fmt)
+    res = st.standardize(tbl, mapper={'datetime':'t'}, datetime_format=fmt)
     assert res['datetime'][0] == dt.datetime(1984, 2, 23, 12, 5, 28) 
     assert res['datetime'][1] == dt.datetime(1924, 3, 23, 12, 5, 28) 
     assert res['datetime'][2] == dt.datetime(1924, 1, 23, 23, 5, 28) 
@@ -199,14 +224,16 @@ def test_standardize_datetime():
     assert res['datetime'][1] == dt.datetime(1924, 3, 23, 12, 5, 28) 
     assert res['datetime'][2] == dt.datetime(1924, 1, 23, 23, 5, 28) 
 
+
 def test_label_occurrence(annot_table_std):
     df = annot_table_std
     oc = st.label_occurrence(df)
     ans = {-1: 1, 0: 2, 1: 1, 2: 1, 3: 1}
     assert oc == ans
 
+
 def test_select_center(annot_table_std):
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     # request length shorter than annotations
     res = st.select(df, length=1, center=True)
     d = '''filename sel_id label  start   end
@@ -230,21 +257,24 @@ f2.wav   1           1   4.15  9.15'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_select_ignores_annotations_with_label_minus_1(annot_table_std):
     df = annot_table_std
     df = st.standardize(df)
     res = st.select(df, length=1, center=True)
     assert len(res[res.label==-1]) == 0
 
+
 def test_select_only_uses_specified_labels(annot_table_std):
     df = annot_table_std
-    df = st.standardize(df)
+    df = st.standardize(df, start_labels_at_1=True)
     res = st.select(df, length=1, center=True, label=[1,3])
     assert np.all(np.isin(res.label.values, [1,3]))
 
+
 def test_select_avoids_certain_labels(annot_table_std):
     df = annot_table_std
-    df = st.standardize(df)
+    df = st.standardize(df, start_labels_at_1=True)
     res = st.select(df, length=3.3, center=True, label=[2,4], avoid_label=[3])
     assert np.all(np.isin(res.label.values,[2,4]))
     assert len(res) == 2
@@ -255,12 +285,14 @@ def test_select_avoids_certain_labels(annot_table_std):
     assert np.all(np.isin(res.label.values,[2,4,1]))
     assert len(res) == 2
 
+
 def test_select_discards_selections_outside_file(annot_table_std):
     df = annot_table_std
-    df = st.standardize(df)
+    df = st.standardize(df, start_labels_at_1=True)
     files = pd.DataFrame({'filename':['f0.wav','f1.wav','f2.wav'], 'duration':[10,10,10]})
     res = st.select(df, length=7.0, center=True, discard_outside=True, files=files)
     assert len(res) == 3
+
 
 def test_select_keeps_extra_attrs(annot_table_std):
     annot_table = annot_table_std.copy()
@@ -270,10 +302,11 @@ def test_select_keeps_extra_attrs(annot_table_std):
     res = st.select(df, length=1, center=True)
     assert 'comment' in res.columns.values
 
+
 def test_select_enforces_overlap(annot_table_std):
     np.random.seed(3)
     df = annot_table_std
-    df = st.standardize(df)
+    df = st.standardize(df, start_labels_at_1=True)
     # requested length: 5.0 sec
     # all annotations have duration: 3.3 sec  (3.3/5.0=0.66)
     length = 5.0
@@ -288,9 +321,10 @@ def test_select_enforces_overlap(annot_table_std):
     assert np.all(t2 >= t1_orig + overlap * length)
     assert np.all(t1 <= t2_orig - overlap * length)
 
+
 def test_select_step(annot_table_std):
     df = annot_table_std
-    df = st.standardize(df)
+    df = st.standardize(df, start_labels_at_1=True)
     N = len(df[df['label']!=-1])
     K = len(df[df['label']==0])
     df_new = st.select(df, length=1, center=True, min_overlap=0, step=0.5, keep_id=True)
@@ -299,6 +333,7 @@ def test_select_step(annot_table_std):
     df_new = st.select(df, length=1, center=True, min_overlap=0.4, step=0.5)
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
+
 
 def test_time_shift():
     row = pd.Series({'label':3.00,'start':0.00,'end':3.30,'annot_id':0.00,'length':3.30,'start_new':-0.35})
@@ -312,10 +347,11 @@ def test_time_shift():
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+
 def test_select_with_varying_overlap(annot_table_std):
     """ Test that the number of selections increases as the 
         minimum required overlap is reduced"""
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     # request length shorter than annotations
     num_sel = []
     for min_overlap in np.linspace(1.0, 0.0, 11):
@@ -331,6 +367,7 @@ def test_select_with_varying_overlap(annot_table_std):
 
     assert np.all(np.diff(num_sel) >= 0)
 
+
 def test_create_rndm_selections_with_label(file_duration_table):
     np.random.seed(1)
     dur = file_duration_table 
@@ -341,6 +378,7 @@ def test_create_rndm_selections_with_label(file_duration_table):
     assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 6)
+
 
 def test_create_rndm_backgr_selections(file_duration_table):
     """ Test if can generate a random selection of background 
@@ -354,6 +392,7 @@ def test_create_rndm_backgr_selections(file_duration_table):
     assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 0)
+
 
 def test_create_rndm_backgr_selections_with_empty_annot(file_duration_table):
     """ Test if can generate a random selection of background 
@@ -369,6 +408,7 @@ def test_create_rndm_backgr_selections_with_empty_annot(file_duration_table):
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 0)
 
+
 def test_create_rndm_backgr_selections_with_empty_file_duration_table(file_duration_table):
     """ Test if can generate a random selection of background 
         selections with an empty annotation table"""
@@ -379,11 +419,12 @@ def test_create_rndm_backgr_selections_with_empty_file_duration_table(file_durat
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == 0
 
+
 def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration_table):
     """ Test if can generate a random selection of background 
         selections while avoiding annotated regions of the recording"""
     np.random.seed(1)
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     num = 5
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
@@ -400,11 +441,12 @@ def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration
         q = st.query(df, start=start_bgr, end=end_bgr, filename=fname)
         assert len(q) == 0
 
+
 def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table):
     """ Check that the random background selection creation method keeps 
         any miscellaneous columns"""
     np.random.seed(1)
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     dur['extra'] = 'testing'
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5)
@@ -412,26 +454,29 @@ def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5, trim_table=True)
     assert 'extra' not in df_bgr.columns.values.tolist()
 
+
 def test_create_rndm_backgr_files_missing_duration(annot_table_std, file_duration_table):
     """ Check that the random background selection creation method works even when 
         some of the files are missing from the file duration list"""
     np.random.seed(1)
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table.drop(0) 
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=11)
+
 
 def test_create_rndm_backgr_nonzero_offset(annot_table_std, file_duration_table):
     """ Check that the random background selection creation method works when file duration 
         table includes offsets"""
     np.random.seed(1)
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     file_duration_table['offset'] = [1, 2, 3, 4, 5, 6]
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=file_duration_table, length=2.0, num=11)
+
 
 def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration_table):
     """ Check that random selections have no overlap"""
     np.random.seed(1)
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     num = 30
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
@@ -450,8 +495,9 @@ def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration
     
     assert num_overlap == 0
 
+
 def test_select_by_segmenting(annot_table_std, file_duration_table):
-    a = st.standardize(annot_table_std)
+    a = st.standardize(annot_table_std, start_labels_at_1=True)
     f = file_duration_table
     sel = st.select_by_segmenting(f, length=5.1, annotations=a, step=4.0, discard_empty=True, pad=True)
     # check selection table
@@ -468,22 +514,23 @@ f2.wav   2         8.0 13.1'''
     # check annotation table
     d = '''filename sel_id annot_id label  start  end
 f0.wav   0      0             3         0.0        3.3
-f0.wav   0      1             2         3.0        5.1
-f0.wav   1      1             2         0.0        2.3
+f0.wav   0      1             2         3.0        6.3
+f0.wav   1      1             2        -1.0        2.3
 f1.wav   0      0             4         1.0        4.3
-f1.wav   0      1             2         4.0        5.1
-f1.wav   1      0             4         0.0        0.3
+f1.wav   0      1             2         4.0        7.3
+f1.wav   1      0             4        -3.0        0.3
 f1.wav   1      1             2         0.0        3.3
-f2.wav   0      0             5         2.0        5.1
-f2.wav   0      1             1         5.0        5.1
-f2.wav   1      0             5         0.0        1.3
+f2.wav   0      0             5         2.0        5.3
+f2.wav   0      1             1         5.0        8.3
+f2.wav   1      0             5        -2.0        1.3
 f2.wav   1      1             1         1.0        4.3
-f2.wav   2      1             1         0.0        0.3'''
+f2.wav   2      1             1        -3.0        0.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
     pd.testing.assert_frame_equal(ans, sel[1][ans.columns.values])
 
+
 def test_select_by_segmenting_keep_only_empty(annot_table_std, file_duration_table):
-    a = st.standardize(annot_table_std)
+    a = st.standardize(annot_table_std, start_labels_at_1=True)
     f = file_duration_table
     sel = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, keep_only_empty=True, pad=False)
     # check selection table
@@ -512,8 +559,9 @@ f5.wav   4        16.0  32.0'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
 
+
 def test_select_by_segmenting_label_empty(annot_table_std, file_duration_table):
-    a = st.standardize(annot_table_std)
+    a = st.standardize(annot_table_std, start_labels_at_1=True)
     f = file_duration_table
     sel = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, keep_only_empty=True, label_empty=6, pad=False)
     # check selection table
@@ -542,8 +590,9 @@ f5.wav   4        16.0  32.0  6'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
 
+
 def test_select_by_segmenting_avoid_label(annot_table_std, file_duration_table):
-    a = st.standardize(annot_table_std)
+    a = st.standardize(annot_table_std, start_labels_at_1=True)
     f = file_duration_table[:2]
     sel, _ = st.select_by_segmenting(f, length=16.0, annotations=a, step=4.0, avoid_label=[3], pad=False)
     # check selection table
@@ -558,8 +607,9 @@ f1.wav   3        12.0  28.0'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, sel[ans.columns.values])
 
+
 def test_query_labeled(annot_table_std):
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     df = st.select(df, length=1, center=True)
     # query for file that does not exist
     q = st.query_labeled(df, filename='fff.wav')
@@ -599,8 +649,9 @@ f2.wav   0           5   3.15  4.15'''
     q = st.query_labeled(df, label=99)
     assert len(q) == 0
 
+
 def test_query_annotated(annot_table_std, file_duration_table):
-    a = st.standardize(annot_table_std)
+    a = st.standardize(annot_table_std, start_labels_at_1=True)
     f = file_duration_table
     sel = st.select_by_segmenting(f, length=5.1, annotations=a, step=4.0, discard_empty=True, pad=True)
     # query for 1 file
@@ -613,14 +664,15 @@ f1.wav   1         4.0  9.1'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(q1, ans[q1.columns.values])
     d = '''filename sel_id annot_id label  start  end  
-f0.wav   0      1             2    3.0  5.1
-f0.wav   1      1             2    0.0  2.3
+f0.wav   0      1             2    3.0  6.3
+f0.wav   1      1             2   -1.0  2.3
 f1.wav   0      0             4    1.0  4.3
-f1.wav   0      1             2    4.0  5.1
-f1.wav   1      0             4    0.0  0.3
+f1.wav   0      1             2    4.0  7.3
+f1.wav   1      0             4   -3.0  0.3
 f1.wav   1      1             2    0.0  3.3'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1,2])
     pd.testing.assert_frame_equal(q2, ans[q2.columns.values])
+
 
 def test_file_duration_table(five_time_stamped_wave_files):
     """ Test that we can generate a file duration table""" 
@@ -646,6 +698,7 @@ empty_HMS_12_ 5_ 4__DMY_23_ 2_84.wav,0.5,1984-02-23 12:05:04'''
     ans = pd.read_csv(StringIO(d)).astype({'datetime':np.datetime64})
     pd.testing.assert_frame_equal(df, ans[df.columns.values])
 
+
 def test_random_choice(annot_table_std, file_duration_table):
     a = st.standardize(annot_table_std)
     f = file_duration_table
@@ -655,8 +708,9 @@ def test_random_choice(annot_table_std, file_duration_table):
     a = st.random_choice(a, siz=2)
     assert len(a) == 2
 
+
 def test_aggregate_duration(annot_table_std):
-    df = st.standardize(annot_table_std)
+    df = st.standardize(annot_table_std, start_labels_at_1=True)
     agg_dur = st.aggregate_duration(df)
     assert agg_dur == 18.9
     agg_dur = st.aggregate_duration(df, label=2)

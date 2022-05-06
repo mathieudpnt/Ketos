@@ -37,7 +37,7 @@ from sys import getsizeof
 from psutil import virtual_memory
 from ketos.utils import complex_value
 
-def pad_reflect(x, pad_left=0, pad_right=0):
+def pad_reflect(x, pad_left=0, pad_right=0, invert=False):
     """ Pad array with its own (inverted) reflection along 
         the first axis (0).
 
@@ -48,6 +48,8 @@ def pad_reflect(x, pad_left=0, pad_right=0):
                 Amount of padding on the left
             pad_right: int
                 Amount of padding on the right
+            invert: bool
+                Whether to invert the reflection. Default is False.
 
         Returns:
             x_padded: numpy.array
@@ -60,7 +62,7 @@ def pad_reflect(x, pad_left=0, pad_right=0):
             [0 1 2 3 4 5 6 7 8]
             >>> arr = pad_reflect(arr, pad_right=3) #pad on the right
             >>> print(arr)
-            [ 0  1  2  3  4  5  6  7  8  9 10 11]
+            [0 1 2 3 4 5 6 7 8 7 6 5]
     """
     if pad_left == 0 and pad_right == 0:
         x_padded = x
@@ -70,12 +72,16 @@ def pad_reflect(x, pad_left=0, pad_right=0):
         pad_right_residual = 0
         x_padded = x.copy()
         if pad_left > 0:
-            x_pad = 2*x[0] - np.flip(x[1:pad_left+1], axis=0)
+            x_pad = np.flip(x[1:pad_left+1], axis=0)
+            if invert:
+                x_pad = 2*x[0] - x_pad
             pad_left_residual = max(0, pad_left - x_pad.shape[0])
             x_padded = np.concatenate((x_pad, x_padded))
 
         if pad_right > 0:
-            x_pad = 2*x[-1] - np.flip(x[-pad_right-1:-1], axis=0)
+            x_pad = np.flip(x[-pad_right-1:-1], axis=0)
+            if invert:
+                x_pad = 2*x[-1] - x_pad
             pad_right_residual = max(0, pad_right - x_pad.shape[0])
             x_padded = np.concatenate((x_padded, x_pad))
 
@@ -155,14 +161,18 @@ def num_samples(time, rate, even=False):
             >>> print(num_samples(rate=1000., time=2.001, even=True))
             2002
     """
-    if even: 
-        n = int(2 * np.ceil(0.5 * time * rate))
-    else:
-        n = int(np.ceil(time * rate))
-    
+    e = np.finfo(np.float32).eps #machine precision
+    f = time * rate
+    n = int(f)
+    if f - n > e:
+        n = int(np.ceil(f))
+        
+    if even and n%2 == 1: 
+        n += 1
+
     return n
 
-def segment_args(rate, duration, offset, window, step):
+def segment_args(rate, offset, window, step, duration):
     """ Computes input arguments for :func:`audio.utils.misc.make_segment` 
         to produce a centered spectrogram with properties as close as possible to 
         those specified.
@@ -170,14 +180,14 @@ def segment_args(rate, duration, offset, window, step):
         Args:
             rate: float
                 Sampling rate in Hz
-            duration: float
-                Duration in seconds
             offset: float
                 Offset in seconds
             window: float
                 Window size in seconds
             step: float
                 Window size in seconds
+            duration: float
+                Duration in seconds
 
         Returns:
             : dict
@@ -248,9 +258,9 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
              [4 5 6 7]]
             >>> y = segment(x, win_len=4, step_len=2, num_segs=3, offset_len=-3)    
             >>> print(y)
-            [[-3 -2 -1  0]
-             [-1  0  1  2]
-             [ 1  2  3  4]]
+            [[3 2 1 0]
+             [1 0 1 2]
+             [1 2 3 4]]
     """
     mem = virtual_memory() #memory available
     siz = getsizeof(x) * win_len / step_len #estimated size of output array
@@ -265,7 +275,7 @@ def segment(x, win_len, step_len, num_segs=None, offset_len=0, pad_mode='reflect
     # pad, if necessary
     pad_left = max(0, -offset_len)
     pad_right = max(0, max(0, offset_len) + num_segs * step_len + win_len - x.shape[0])    
-    if pad_mode == 'reflect':
+    if pad_mode.lower() == 'reflect':
         x_pad = pad_reflect(x, pad_left, pad_right)
     else:
         x_pad = pad_zero(x, pad_left, pad_right)

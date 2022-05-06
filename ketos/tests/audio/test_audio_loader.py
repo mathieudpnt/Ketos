@@ -214,20 +214,6 @@ def test_audio_frame_loader_dur(five_time_stamped_wave_files):
     assert s.duration() == 0.2
     assert loader.selection_gen.file_id == 1
 
-def test_audio_frame_loader_frame_None(five_time_stamped_wave_files):
-    """ Test that we can use the AudioFrameLoader class to compute MagSpectrograms
-        without specifying the frame argument""" 
-    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.2}
-    loader = AudioFrameLoader(path=five_time_stamped_wave_files, repres=rep)
-    assert len(loader.selection_gen.files) == 5
-    s = next(loader)
-    assert s.duration() == 0.2
-    s = next(loader)
-    assert s.duration() == 0.2
-    s = next(loader)
-    assert s.duration() == 0.2
-    assert loader.selection_gen.file_id == 1
-
 def test_audio_frame_loader_overlap(five_time_stamped_wave_files):
     """ Test that we can use the AudioFrameLoader class to compute overlapping 
         MagSpectrograms""" 
@@ -352,17 +338,17 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     sel = use_multi_indexing(sel, 'sel_id')
     # create a annotation table
     ann = pd.DataFrame({'filename':[files[0],files[0],files[1]],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
-    ann = standardize(ann)
+    ann = standardize(ann, start_labels_at_1=True)
     # init loader
     loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start   end  freq_min  freq_max
-0      1    0.0  0.20       NaN       NaN
-1      3    0.0  0.06       NaN       NaN'''
-# 0      0    0.0  0.20       NaN       NaN
-# 1      2    0.0  0.06       NaN       NaN'''
+0      1    -0.05  0.20       NaN       NaN
+1      3    -0.04  0.06       NaN       NaN'''
+# 0      0    -0.05  0.20       NaN       NaN
+# 1      2    -0.04  0.06       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
@@ -370,8 +356,8 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start  end  freq_min  freq_max
-0      2   0.08  0.3       NaN       NaN'''
-# 0      1   0.08  0.3       NaN       NaN'''
+0      2   0.08  0.48       NaN       NaN'''
+# 0      1   0.08  0.48       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
@@ -387,17 +373,17 @@ def test_audio_select_loader_with_annots_subdirs():
     # create a annotation table
     # (note that one of the paths is in Windows format)
     ann = pd.DataFrame({'filename':["subf/w3.wav","subf\\w3.wav","w1.wav"],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
-    ann = standardize(ann)
+    ann = standardize(ann, start_labels_at_1=True)
     # init loader
     loader = AudioSelectionLoader(path=path, selections=sel, annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start   end  freq_min  freq_max
-0      1    0.0  0.20       NaN       NaN
-1      3    0.0  0.06       NaN       NaN'''
-# 0      0    0.0  0.20       NaN       NaN
-# 1      2    0.0  0.06       NaN       NaN'''
+0      1    -0.05  0.20       NaN       NaN
+1      3    -0.04  0.06       NaN       NaN'''
+# 0      0    -0.05  0.20       NaN       NaN
+# 1      2    -0.04  0.06       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
@@ -405,8 +391,8 @@ def test_audio_select_loader_with_annots_subdirs():
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
     d = '''label  start  end  freq_min  freq_max
-0      2   0.08  0.3       NaN       NaN'''
-# 0      1   0.08  0.3       NaN       NaN'''
+0      2   0.08  0.48       NaN       NaN'''
+# 0      1   0.08  0.48       NaN       NaN'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
@@ -478,57 +464,6 @@ def test_audio_frame_loader_subdirs():
     assert s2.filename == "w1.wav"
     s3 = next(loader)
     assert s3.filename == "w2.wav"
-
-def test_audio_select_loader_uniform_duration(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
-        with uniform duration by specifying duration in audio representation dictionary """ 
-    rep = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.3}
-    # create a selection table
-    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
-    sel = pd.DataFrame({'filename':files, 'start':[0.05,0.10,0.15,0.20,0.25], 'end':[0.4,0.4,0.4,0.6,0.6]})
-    sel = use_multi_indexing(sel, 'sel_id')
-    # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
-    assert loader.num() == 5
-    # check uniform duration
-    for i in range(5):
-        s = next(loader)
-        assert s.duration() == rep['duration']
-    # check correctly centered
-    loader.reset()
-    s = next(loader)
-    assert np.abs(s.offset - 0.075) < 1e-12
-    s = next(loader)
-    assert np.abs(s.offset - 0.10) < 1e-12
-    s = next(loader)
-    assert np.abs(s.offset - 0.125) < 1e-12
-    s = next(loader)
-    assert np.abs(s.offset - 0.25) < 1e-12
-    s = next(loader)
-    assert np.abs(s.offset - 0.275) < 1e-12
-
-def test_audio_select_loader_different_durations(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
-        with different durations by specifying different durations in the audio representation dictionaries """ 
-    rep1 = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.3}
-    rep2 = {'type':'MagSpectrogram','window':0.1,'step':0.02,'duration':0.2}
-    # create a selection table
-    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
-    sel = pd.DataFrame({'filename':files, 'start':[0.05,0.10,0.15,0.20,0.25], 'end':[0.4,0.4,0.4,0.6,0.6]})
-    sel = use_multi_indexing(sel, 'sel_id')
-    # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=[rep1,rep2])
-    assert loader.num() == 5
-    # check uniform duration
-    for i in range(5):
-        s = next(loader)
-        assert s[0].duration() == rep1['duration']
-        assert s[1].duration() == rep2['duration']
-    # check correctly centered
-    loader.reset()
-    s = next(loader)
-    assert np.abs(s[0].offset - 0.075) < 1e-12
-    assert np.abs(s[1].offset - 0.125) < 1e-12
 
 def test_audio_select_loader_entire_files(five_time_stamped_wave_files):
     """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
@@ -608,6 +543,59 @@ def test_audio_select_loader_start_end_outside_file(five_time_stamped_wave_files
     for i in range(3):
         s = next(loader)
         assert s.duration() == 0.31
+
+def test_audio_select_loader_with_new_selection_table_style(five_time_stamped_wave_files):
+    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+        for selections in the new (ketos3) selection table format where a single selection 
+        may span several files""" 
+    rep = {'type':'MagSpectrogram','window':0.02,'step':0.01}
+    # gather the audio files
+    files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
+    # create a selection table with two selections, the first of which spans two audio files
+    sel = pd.DataFrame({'sel_id':  [0, 0, 1],
+                        'filename':[files[0], files[1], files[1]],
+                        'start':   [0.0, 0.0, 0.1],
+                        'end':     [0.5, 0.2, 0.8]})
+    sel.set_index(['sel_id', 'filename'], inplace=True)
+    # create a annotation table
+    ann = pd.DataFrame({'filename':[files[0], files[1], files[1]],
+                        'label':[3, 5, 4],
+                        'start':[0.05, 0.06, 0.20],
+                        'end':  [0.30, 0.26, 0.60]})
+    ann = standardize(ann, start_labels_at_1=True)
+    # init loader
+    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, annotations=ann)
+    assert loader.num() == 2
+
+    s = next(loader)
+    assert np.isclose(s.duration(), 0.7, atol=1e-12)
+    assert np.isclose(s.offset, 0.0, atol=1e-12)
+    assert s.filename == os.path.basename(files[0])
+
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
+    d = '''label  start   end  freq_min  freq_max
+0      1   0.05  0.30       NaN       NaN
+1      3   0.56  0.76       NaN       NaN'''
+#0      0   0.05  0.30       NaN       NaN
+#1      2   0.56  0.76       NaN       NaN'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    res = s.get_annotations()[ans.columns.values]
+    pd.testing.assert_frame_equal(ans, res)
+
+    s = next(loader)
+    assert np.isclose(s.duration(), 0.7, atol=1e-12)
+    assert np.isclose(s.offset, 0.1, atol=1e-12)
+    assert s.filename == os.path.basename(files[1])
+
+    #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
+    d = '''label  start   end  freq_min  freq_max
+0      3   -0.04  0.16       NaN       NaN
+1      2    0.10  0.50       NaN       NaN'''
+#0      2   -0.04  0.16       NaN       NaN
+#1      1   0.10  0.50       NaN       NaN'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    res = s.get_annotations()[ans.columns.values]
+    pd.testing.assert_frame_equal(ans, res)
 
 def test_audio_frame_loader_get_files():
     """Test that the get_file_paths method of the AudioFrameLoader class works"""

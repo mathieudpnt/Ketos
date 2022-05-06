@@ -144,8 +144,18 @@ def parse_audio_representation(s):
             s: dict
                 Parsed audio representation
     """
-    for key,value in s.items():
-        s[key] = parse_parameter(name=key, value=value)
+    # Determines if the input is a nested dictionary.    
+    is_nested = isinstance(s, dict) and isinstance(list(s.values())[0], dict)
+
+    if not is_nested:
+        s = {0: s}
+
+    for name,params in s.items():
+        for key,value in params.items():
+            s[name][key] = parse_parameter(name=key, value=value)
+
+    if not is_nested:
+        s = s[0]
 
     return s
 
