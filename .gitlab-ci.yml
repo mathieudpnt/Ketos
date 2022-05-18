@@ -6,8 +6,8 @@ stages:
 - deploy
 - trig
 
-before_script:
-  - pip install --upgrade tensorflow
+#before_script:
+#  - pip install --upgrade tensorflow
 
 after_script:
   - rm -rf ketos/tests/assets/tmp/*
