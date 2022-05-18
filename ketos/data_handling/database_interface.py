@@ -793,10 +793,15 @@ def create_database(output_file, data_dir, selections, channel=0,
         Note that all selections must have the same duration. This is necessary to ensure 
         that all the objects stored in the database have the same dimension.
 
-        If each entry in the selection table can have multiple annotations, these can be 
-        specified with the 'annotations' argument. On the other hand, if each entry in 
-        the selection table is chacterized by a single, integer label, these should be 
-        included as a column named 'label' in the selection table.
+        If each selection is chacterized by a single, integer label, these should be included 
+        as a column named 'label' in the selection table. 
+        
+        In the more general case, where each selection is associated with a set of annotations 
+        (as opposed to a single, integer label), the annotation table must be passed using 
+        the 'annotations' argument. (Note that the annotation table must have the standard 
+        ketos form.) The annotations will be saved to a separate table within the database, 
+        with a field named 'data_index' linking each annotation to a selection in the data 
+        table.
 
         If 'dataset_name' is not specified, the name of the folder containing the audio 
         files ('data_dir') will be used.
@@ -824,7 +829,8 @@ def create_database(output_file, data_dir, selections, channel=0,
                 It is also possible to specify one or several audio representations as a nested 
                 dictionary, in which case the dictionary keys are used as column names in the output table.
             annotations: pandas DataFrame
-                Annotation table. Optional.
+                Annotation table. Optional. Should be used if each selection is associated with a set 
+                of annotations (as opposed to a single, integer label). Must have the standard ketos form.
             unique_labels: list(int)
                 List of labels occurring in the dataset. If not specified, the labels will be inferred 
                 from the selections or the annotations.
