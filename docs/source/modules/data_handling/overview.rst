@@ -54,7 +54,7 @@ And here is a table with call-level annotations and a few extra columns::
 
 Selection tables look similar to annotation tables, except that they are not 
 required to have 'label' column. Instead, they typically only have the columns 
-'start' and 'end', supplemented by a filename index and a selection index.
+'start' and 'end', supplemented by a selection index and a filename index.
 
 When working with annotation tables, the first step is typically to standardize the 
 table format to match the format expected by Ketos. For example, given the annotation 

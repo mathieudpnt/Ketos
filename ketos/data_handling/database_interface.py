@@ -798,10 +798,12 @@ def create_database(output_file, data_dir, selections, channel=0,
         
         In the more general case, where each selection is associated with a set of annotations 
         (as opposed to a single, integer label), the annotation table must be passed using 
-        the 'annotations' argument. (Note that the annotation table must have the standard 
-        ketos form.) The annotations will be saved to a separate table within the database, 
-        with a field named 'data_index' linking each annotation to a selection in the data 
-        table.
+        the 'annotations' argument. The annotations will be saved to a separate table within 
+        the database, with a field named 'data_index' linking each annotation to a selection 
+        in the data table.
+
+        Note that the selection table, and the annotation table, if provided, must both adhere 
+        to the Ketos standard, as defined in the :ref:`selection_table` module.
 
         If 'dataset_name' is not specified, the name of the folder containing the audio 
         files ('data_dir') will be used.

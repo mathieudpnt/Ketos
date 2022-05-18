@@ -28,6 +28,7 @@
 
     This module provides functions for handling annotation tables and creating 
     selection tables. 
+
     A Ketos annotation table always has the column 'label'. 
     For call-level annotations, the table also contains the columns 'start' 
     and 'end', giving the start and end time of the call measured in seconds 
@@ -36,10 +37,10 @@
     minimum and maximum frequencies of the call in Hz, but this is not required.    
     The user may add any number of additional columns.
     Note that the table uses two levels of indices, the first index being the 
-    filename and the second index an annotation identifier. 
+    filename and the second index being an integer to identify annotations 
+    pertaining to the same file. 
 
-    
-    Here is a minimum example:
+    Here is a minimal example of an annotation table,
 
             +----------------------+-------+
             |                      | label |
@@ -59,8 +60,8 @@
             |           | 2        | 1     |
             +-----------+----------+-------+
 
-
-    And here is a table with time information (call-level annotations) and a few extra columns ('min_freq', 'max_freq' and 'file_time_stamp')
+    And here is a more extensive example with time information (call-level annotations) 
+    and a few extra columns ('min_freq', 'max_freq' and 'file_time_stamp'),
 
             +----------------------+-------+------+-------+----------+----------+---------------------+
             |                      | start | end  | label | min_freq | max_freq | file_time_stamp     |
@@ -79,7 +80,30 @@
             |           +----------+-------+------+-------+----------+----------+---------------------+
             |           | 2        | 9.0   | 13.0 | 1     | 178.2    | 304.5    | 2019-02-24 13:30:00 |
             +-----------+----------+-------+------+-------+----------+----------+---------------------+
-    
+
+    Ketos selection tables also use two level of indices. The first index is a unique, integer identifier, 
+    while the second index is the filename. Moreover, selection tables always contain the columns 'start' 
+    and 'end' giving the start and end time of the selection window measured in seconds since the beginning 
+    of the file. This structure allows selections to span multiple files. The user may add any number of 
+    additional columns to a selection table.
+
+    Here is a minimal example of a selection table,
+
+            +--------------------+-------+------+
+            |                    | start | end  |
+            +--------+-----------+-------+------+
+            | sel_id | filename  |              |
+            +--------+-----------+-------+------+
+            | 0      | file1.wav | 1.5   | 4.5  |
+            +--------+-----------+-------+------+
+            | 1      | file1.wav | 12.0  | 15.0 |
+            +--------+-----------+-------+------+
+            |        | file2.wav | 0.0   | 5.0  |
+            +--------+-----------+-------+------+
+            | 2      | file2.wav | 2.0   | 10.0 |
+            +--------+-----------+-------+------+
+            | 3      | file2.wav | 7.0   | 15.0 |
+            +--------+-----------+-------+------+
 """
 
 import os
