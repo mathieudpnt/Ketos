@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 2.6.1** (May 26, 2022)
+
+ * Internally replaced pandas append method with pandas concat due to deprecation.
+
 
 **Version 2.6.0** (May 6, 2022)
 

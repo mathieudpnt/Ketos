@@ -1053,8 +1053,8 @@ def create_rndm_selections(files, length, num, label=0, annotations=None, no_ove
 
             x = {'start':start, 'end':end}
             y = files[files['filename']==fname].iloc[0].to_dict()
-            z = {**x, **y}
-            df = df.append(z, ignore_index=True)
+            z = pd.DataFrame([{**x, **y}])
+            df = pd.concat([df,z], ignore_index=True)
 
             if len(df) == num: break
 
