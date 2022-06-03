@@ -1,7 +1,7 @@
 Change log
 ==========
 
-**Version 2.6.1** (Month Day, Year)
+**Version 2.6.1** (June 3, 2022)
 
  * In :meth:`AudioWriter:close <ketos.data_handling.database_interface.AudioWriter.close>` remove any existing column indices before attempting to reindex them. (Only relevant if appending to an existing database.)
  * Internally replaced pandas append method with pandas concat due to deprecation.
