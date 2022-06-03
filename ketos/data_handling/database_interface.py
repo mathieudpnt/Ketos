@@ -1198,11 +1198,14 @@ class AudioWriter():
             # table to allow faster queries
             # https://www.pytables.org/usersguide/optimization.html
             tbl_dict = self._open_tables(path=self.path, name=self.name)
-            if 'table_annot' in tbl_dict.keys(): tbl_dict['table_annot'].cols.data_index.create_index()
+            if 'table_annot' in tbl_dict.keys(): 
+                tbl_dict['table_annot'].cols.data_index.remove_index() #does nothing if the column is not already indexed.
+                tbl_dict['table_annot'].cols.data_index.create_index()
 
             # create user-specified indices
             for index_col in self.index_cols:
                 if index_col in tbl_dict['table'].cols._v_colnames:
+                    tbl_dict['table'].cols._f_col(index_col).remove_index() #does nothing if the column is not already indexed.
                     tbl_dict['table'].cols._f_col(index_col).create_index()
                 else:
                     if self.verbose:

@@ -333,6 +333,8 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
     # store label dictionary as class attribute
     df.attrs["label_dict"] = label_dict
 
+    df.attrs["start_labels_at_1"] = start_labels_at_1
+
     return df
 
 
