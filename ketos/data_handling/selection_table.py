@@ -999,18 +999,18 @@ def create_rndm_selections(files, length, num, label=0, annotations=None, no_ove
             >>> print(df_bgr.round(2))
                               start    end  label
             filename  sel_id                     
-            file1.wav 0        1.06   4.06      0
-                      1        1.31   4.31      0
-                      2        2.26   5.26      0
-            file2.wav 0       13.56  16.56      0
-                      1       14.76  17.76      0
-                      2       15.50  18.50      0
-                      3       16.16  19.16      0
-            file3.wav 0        2.33   5.33      0
-                      1        7.29  10.29      0
-                      2        7.44  10.44      0
-                      3        9.20  12.20      0
-                      4       10.94  13.94      0
+            file1.wav 0        3.38   6.38      0
+                      1        3.89   6.89      0
+            file2.wav 0       16.52  19.52      0
+            file3.wav 0        0.29   3.29      0
+                      1        2.77   5.77      0
+                      2        3.23   6.23      0
+                      3        5.49   8.49      0
+                      4        5.63   8.63      0
+                      5        6.69   9.69      0
+                      6        6.71   9.71      0
+                      7        8.18  11.18      0
+                      8       10.33  13.33      0
     """
     if len(files) == 0:
         return empty_selection_table()
@@ -1027,39 +1027,60 @@ def create_rndm_selections(files, length, num, label=0, annotations=None, no_ove
     c['length'] = c['duration'] - length
     c = c[c['length'] >= 0]
 
-    # cumulative length 
-    cs = c['length'].cumsum().values.astype(float)
-    cs = np.concatenate(([0],cs))
+    start_list, end_list, filename_list = [], [], []
+    # Converting data from pandas df to lists and numpy array to use inside while loop (Much more efficience than accessing pandas row by row)
+    durations = files['duration'].to_numpy()
+    lengths = c['length'].to_numpy()
+    offsets = c['offset'].to_numpy()
+    filenames = c['filename'].tolist()
 
-    # output
-    filename, start, end = [], [], []
+    cnt = 0
+    probabilities = durations/durations.sum()
 
     # randomply sample
-    df = pd.DataFrame()
-    while (len(df) < num):
-        times = np.random.random_sample(num) * cs[-1]
-        for t in times:
-            idx = np.argmax(t < cs) - 1
-            row = c.iloc[idx]
-            fname = row['filename']
-            start = t - cs[idx] + row['offset']
-            end   = start + length
+    # Loop until we achieve the desired number of samples
+    while cnt < num:
+        # Randomly choose a file to sample from
+        # We want to sample from files with a longer duration with a higher probability than files with a lower duration.
+        # Create array of indexes of size the number of segments to generate
+        indices = np.random.choice(len(c), size=num, replace=True, p=probabilities)
 
+        # Explanation of the following loop: The reason of using a nested for loop here is purely for efficiency.
+        # It could be removed and instead of generating an array of indexes we could reandomly sample one index at a time.
+        # However, random.choice is the most computationaly expensive operation here with O(n + n log m ) when p is specified
+        # By reducing the amount of times we have to call it we are drastically reducing computaitonal time.
+        for idx in indices:
+            # Randomly sample a segment of duration = length from the timeseries
+            t = np.random.random_sample() * lengths[idx]
+            start = t + offsets[idx]
+            end   = start + length
+            fname = filenames[idx]
+
+            # If given, gheck if the sampled segment does not overlap with an annotation
             if annotations is not None:
                 q = query(annotations, filename=fname, start=start-buffer, end=end+buffer)
                 if len(q) > 0: continue
-
-            if no_overlap and len(df) > 0:
-                q = query(df.set_index(df.filename), filename=fname, start=start, end=end)
+            
+            # If set, check if segments do not overlap with each other
+            if no_overlap and cnt > 0:
+                # Query requires passing a df as the first argument, therefore lets create a temporary df
+                tmp_df = pd.DataFrame({'start': start_list, 'end': end_list, 'filename': filename_list})
+                q = query(tmp_df.set_index(tmp_df.filename), filename=fname, start=start, end=end)
                 if len(q) > 0: continue
 
-            x = {'start':start, 'end':end}
-            y = files[files['filename']==fname].iloc[0].to_dict()
-            z = pd.DataFrame([{**x, **y}])
-            df = pd.concat([df,z], ignore_index=True)
+            start_list.append(start)
+            end_list.append(end)
+            filename_list.append(fname)
+            cnt += 1
 
-            if len(df) == num: break
+            if cnt == num:
+                break
 
+    # Create Pandas df at the end
+    df = pd.DataFrame({'start': start_list, 'end': end_list, 'filename': filename_list})
+    # We want to keep all columns that were present in the files dataframe. This is a classic inner join case on the filename
+    df = pd.DataFrame.merge(df, files, on='filename')
+    
     # sort by filename and offset
     df = df.sort_values(by=['filename','start'], axis=0, ascending=[True,True]).reset_index(drop=True)
 
@@ -1159,18 +1180,18 @@ def create_rndm_backgr_selections(files, length, num, annotations=None, no_overl
             >>> print(df_bgr.round(2))
                               start    end  label
             filename  sel_id                     
-            file1.wav 0        1.06   4.06      0
-                      1        1.31   4.31      0
-                      2        2.26   5.26      0
-            file2.wav 0       13.56  16.56      0
-                      1       14.76  17.76      0
-                      2       15.50  18.50      0
-                      3       16.16  19.16      0
-            file3.wav 0        2.33   5.33      0
-                      1        7.29  10.29      0
-                      2        7.44  10.44      0
-                      3        9.20  12.20      0
-                      4       10.94  13.94      0
+            file1.wav 0        3.38   6.38      0
+                      1        3.89   6.89      0
+            file2.wav 0       16.52  19.52      0
+            file3.wav 0        0.29   3.29      0
+                      1        2.77   5.77      0
+                      2        3.23   6.23      0
+                      3        5.49   8.49      0
+                      4        5.63   8.63      0
+                      5        6.69   9.69      0
+                      6        6.71   9.71      0
+                      7        8.18  11.18      0
+                      8       10.33  13.33      0
     """
     warnings.warn("create_rndm_backgr_selections is deprecated and will be removed in a future version. Use create_rndm_selections() instead")
     return create_rndm_selections(files, length, num, label=0, annotations=annotations, no_overlap=no_overlap, trim_table=trim_table, buffer=buffer)

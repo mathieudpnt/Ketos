@@ -430,7 +430,7 @@ def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration
     df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == num
     # assert selections have uniform length
-    assert np.all(df_bgr.end.values - df_bgr.start.values == 2.0)
+    assert np.all(np.abs(df_bgr.end.values - df_bgr.start.values - 2.0) < 1e-9)
     # assert all selection have label = 0
     assert np.all(df_bgr.label.values == 0)
     # assert selections do not overlap with any annotations
