@@ -793,10 +793,17 @@ def create_database(output_file, data_dir, selections, channel=0,
         Note that all selections must have the same duration. This is necessary to ensure 
         that all the objects stored in the database have the same dimension.
 
-        If each entry in the selection table can have multiple annotations, these can be 
-        specified with the 'annotations' argument. On the other hand, if each entry in 
-        the selection table is chacterized by a single, integer label, these should be 
-        included as a column named 'label' in the selection table.
+        If each selection is chacterized by a single, integer label, these should be included 
+        as a column named 'label' in the selection table. 
+        
+        In the more general case, where each selection is associated with a set of annotations 
+        (as opposed to a single, integer label), the annotation table must be passed using 
+        the 'annotations' argument. The annotations will be saved to a separate table within 
+        the database, with a field named 'data_index' linking each annotation to a selection 
+        in the data table.
+
+        Note that the selection table, and the annotation table, if provided, must both adhere 
+        to the Ketos standard, as defined in the :ref:`selection_table` module.
 
         If 'dataset_name' is not specified, the name of the folder containing the audio 
         files ('data_dir') will be used.
@@ -824,7 +831,8 @@ def create_database(output_file, data_dir, selections, channel=0,
                 It is also possible to specify one or several audio representations as a nested 
                 dictionary, in which case the dictionary keys are used as column names in the output table.
             annotations: pandas DataFrame
-                Annotation table. Optional.
+                Annotation table. Optional. Should be used if each selection is associated with a set 
+                of annotations (as opposed to a single, integer label). Must have the standard ketos form.
             unique_labels: list(int)
                 List of labels occurring in the dataset. If not specified, the labels will be inferred 
                 from the selections or the annotations.
@@ -1190,11 +1198,14 @@ class AudioWriter():
             # table to allow faster queries
             # https://www.pytables.org/usersguide/optimization.html
             tbl_dict = self._open_tables(path=self.path, name=self.name)
-            if 'table_annot' in tbl_dict.keys(): tbl_dict['table_annot'].cols.data_index.create_index()
+            if 'table_annot' in tbl_dict.keys(): 
+                tbl_dict['table_annot'].cols.data_index.remove_index() #does nothing if the column is not already indexed.
+                tbl_dict['table_annot'].cols.data_index.create_index()
 
             # create user-specified indices
             for index_col in self.index_cols:
                 if index_col in tbl_dict['table'].cols._v_colnames:
+                    tbl_dict['table'].cols._f_col(index_col).remove_index() #does nothing if the column is not already indexed.
                     tbl_dict['table'].cols._f_col(index_col).create_index()
                 else:
                     if self.verbose:

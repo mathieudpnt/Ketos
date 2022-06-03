@@ -1398,8 +1398,8 @@ class NNInterface():
             if log_csv == True:
                 log_row = [epoch + 1, self._train_loss.result().numpy(), "train"]
                 log_row = log_row + [m.result().numpy() for m in self._train_metrics]
-                log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
-            
+                log_csv_df = pd.concat([log_csv_df, pd.DataFrame([log_row], columns = log_csv_df.columns)], ignore_index=True)
+                
             if log_tensorboard == True:
                 tf.summary.scalar('train_loss', data=self._train_loss.result().numpy(), step=epoch)
                 for m in self._train_metrics:
@@ -1416,7 +1416,7 @@ class NNInterface():
                 if log_csv == True:
                     log_row = [epoch + 1, self._val_loss.result().numpy(), "val"]
                     log_row = log_row + [m.result().numpy() for m in self._val_metrics]
-                    log_csv_df = log_csv_df.append(pd.Series(log_row, index = log_csv_df.columns), ignore_index=True)
+                    log_csv_df = pd.concat([log_csv_df, pd.DataFrame([log_row], columns = log_csv_df.columns)], ignore_index=True)
 
                 if log_tensorboard == True:
                     tf.summary.scalar('val_loss', data=self._val_loss.result().numpy(), step=epoch)
