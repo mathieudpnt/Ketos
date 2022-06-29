@@ -3,6 +3,10 @@ Change log
 
 **Version 2.6.2** (Month Day, Year)
 
+ * :meth:`MagSpectrogram:plot <ketos.audio.spectrogram.MagSpectrogram.plot>` and :meth:`PowerSpectrogram:plot <ketos.audio.spectrogram.PowerSpectrogram.plot>` will no longer display a label dB when `decibel`` is set to False.
+ * `pad_mode="reflect"` is now correctly set as the default instead of `zero`.
+ * The `pad_mode` argument is now correctly propagated from the spectrograms methods.
+ * The code will now give a better more descriptive warning when this pad process occurs. 
  * pad argument in :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` now works as expected when set to False.
  * New method :meth:`ceil <ketos.utils.ceil>`. Allows to ceil to a given decimal instead of to the next integer
  * New method :meth:`floor <ketos.utils.floor>`. Allows to floor to a given decimal instead of to the previous integer

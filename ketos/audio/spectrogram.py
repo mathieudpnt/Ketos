@@ -135,7 +135,7 @@ def add_specs(a, b, offset=0, scale=1, make_copy=False):
 
 def load_audio_for_spec(path, channel, rate, window, step, offset, duration, 
     resample_method, id=None, normalize_wav=False, waveform_transforms=None, 
-    smooth=0.01):
+    smooth=0.01, **kwargs):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -172,7 +172,8 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
             duration: float
                 Length of spectrogrma in seconds.
             resample_method: str
-                Resampling method. Only relevant if `rate` is specified. Options are
+                Resampling method. Only relevant if `rate` is specified. Options are:
+
                     * kaiser_best
                     * kaiser_fast
                     * scipy (default)
@@ -187,6 +188,8 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
                 deviation of unity (std=1). Default is False.
             smooth: float
                 Width in seconds of the smoothing region used for stitching together audio files.
+            \**kwargs: additional keyword arguments
+                    Keyword arguments to be passed to :meth:`ketos.audio.Waveform.from_wav`.
 
         Returns:
             audio: Waveform
@@ -219,12 +222,11 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
     right_ext = total_duration_ext - total_duration - left_ext
     duration_ext[0]  += left_ext
     duration_ext[-1] += right_ext
-
     # now load extended audio with from_wav method
     audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
         offset=offset_ext, duration=duration_ext, resample_method=resample_method, 
         id=id, normalize_wav=normalize_wav, transforms=waveform_transforms,
-        smooth=smooth)
+        smooth=smooth, **kwargs)
 
     if len(audio.get_data()) == 0:
         return None, None
@@ -326,6 +328,7 @@ class Spectrogram(BaseAudioTime):
 
         self.freq_ax = freq_ax
         self.type = type
+        self.decibel = True
 
         self.allowed_transforms.update({'blur': self.blur, 
                                         'enhance_signal': self.enhance_signal,
@@ -757,8 +760,12 @@ class Spectrogram(BaseAudioTime):
         x = self.get_data() # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
         img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent, vmin=vmin, vmax=vmax)# draw image
-        ax.set_ylabel(self.freq_ax.label) # axis label        
-        fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
+        ax.set_ylabel(self.freq_ax.label) # axis label
+        
+        if self.decibel:       
+            fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
+        else:
+            fig.colorbar(img, ax=ax, label='Amplitude')# colobar
 
         # superimpose annotation boxes
         if show_annot: self._draw_annot_boxes(ax)
@@ -947,6 +954,9 @@ class MagSpectrogram(Spectrogram):
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
             waveform_transform_log=audio.transform_log, transforms=transforms, phase_angle=phase, **kwargs)
 
+        # Saving decibel option
+        spec.decibel = decibel
+
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
@@ -1023,6 +1033,8 @@ class MagSpectrogram(Spectrogram):
                     Convert to dB scale
                 smooth: float
                     Width in seconds of the smoothing region used for stitching together audio files.
+                \**kwargs: additional keyword arguments
+                    Keyword arguments to be passed to :meth:`ketos.audio.spectrogram.load_audio_for_spec` and :meth:`ketos.audio.waveform.from_waveform`.
 
             Returns:
                 : MagSpectrogram
@@ -1044,7 +1056,7 @@ class MagSpectrogram(Spectrogram):
         # load audio
         audio = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
-            waveform_transforms=waveform_transforms, smooth=smooth)
+            waveform_transforms=waveform_transforms, smooth=smooth, **kwargs)
 
         if audio is None:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -1291,6 +1303,9 @@ class PowerSpectrogram(Spectrogram):
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
             waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
+        # Saving decibel choice
+        spec.decibel = decibel
+
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
@@ -1447,7 +1462,7 @@ class MelSpectrogram(Spectrogram):
 
         # create frequency axis
         ax = MelAxis(num_filters=num_filters, freq_max=freq_max, start_bin=start_bin, bins=bins, label='Frequency (Hz)')
-
+        
         # create spectrogram
         kwargs.pop('type', None)
         super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,

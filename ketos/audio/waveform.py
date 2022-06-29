@@ -292,7 +292,7 @@ class Waveform(BaseAudioTime):
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None, normalize_wav=False, transforms=None, pad_mode="zero", smooth=0.01, **kwargs):
+        id=None, normalize_wav=False, transforms=None, pad_mode="reflect", smooth=0.01, **kwargs):
         """ Load audio data from one or several audio files.
 
             When loading from several audio files, the waveforms are stitched together in 
@@ -500,10 +500,10 @@ class Waveform(BaseAudioTime):
             if num_pad_right > 0 or num_pad_left > 0:
                 if pad_mode.lower() == 'reflect':
                     data = aum.pad_reflect(data, pad_left=num_pad_left, pad_right=num_pad_right)
-                    warnings.warn("Waveform padded with its own reflection to achieve desired length", RuntimeWarning)
+                    warnings.warn("Waveform padded with its own reflection to achieve required length to compute the stft. {0} samples were padded on the left and {1} samples were padded on the right".format(num_pad_left, num_pad_right), RuntimeWarning)
                 else:
                     data = aum.pad_zero(data, pad_left=num_pad_left, pad_right=num_pad_right)
-                    warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
+                    warnings.warn("Waveform padded with zeros to achieve the required length to compute the stft. {0} samples were padded on the left and {1} samples were padded on the right".format(num_pad_left, num_pad_right), RuntimeWarning)
 
         if normalize_wav: 
             transforms.append({'name':'normalize','mean':0.0,'std':1.0})
