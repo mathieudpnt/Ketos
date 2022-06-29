@@ -283,6 +283,27 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     for _ in range(N):
         _ = next(loader)
 
+def test_audio_frame_loader_number_of_segments_pad_false(sine_wave_file):
+    """ Check that the AudioFrameLoader computes expected number of segments when the pad argument is set to False""" 
+    rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
+    import librosa
+    dur = librosa.core.get_duration(filename=sine_wave_file)
+    # duration is an integer number of lengths
+    l = 0.2
+    loader = AudioFrameLoader(filename=sine_wave_file, pad=False, duration=l, repres=rep)
+
+    assert len(loader.selection_gen.files) == 1
+    N = int(dur / l)
+
+    assert N == loader.selection_gen.num_segs[0]
+    # duration is *not* an integer number of lengths
+    l = 0.21
+    loader = AudioFrameLoader(filename=sine_wave_file, pad=False, duration=l, repres=rep)
+    N = int(np.ceil(dur / l))
+    assert N > loader.selection_gen.num_segs[0]
+    N = int(np.floor(dur / l))
+    assert N == loader.selection_gen.num_segs[0]
+
 def test_audio_select_loader_mag(five_time_stamped_wave_files):
     """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}

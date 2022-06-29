@@ -44,6 +44,7 @@ from ketos.audio.gammatone import GammatoneFilterBank,AuralFeatures
 from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
+from ketos.utils import floor_round_up, ceil_round_down
 
 
 """ Audio representation dictionary 
@@ -294,9 +295,9 @@ class FrameStepper(SelectionGenerator):
         # obtain file durations and compute number of frames for each file
         self.num_segs = np.maximum((self.file_durations - self.duration) / self.step + 1, 1)
         if pad:
-            self.num_segs = np.ceil(self.num_segs).astype(int)        
+            self.num_segs = ceil_round_down(self.num_segs, decimals=6).astype(int)        
         else:
-            self.num_segs = np.floor(self.num_segs).astype(int)        
+            self.num_segs = floor_round_up(self.num_segs, decimals=6).astype(int)               
 
         self.num_segs_tot = np.sum(self.num_segs)
 
@@ -716,8 +717,8 @@ class AudioFrameLoader(AudioLoader):
             print("Warning: batch_size > 1 results in different behaviour for ketos versions >= 2.4.2 than earlier \
                    versions. You may want to check out the AudioFrameEfficientLoader class.")
 
-        super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, pad=pad, **kwargs)
+        super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, pad=pad, filename=filename), 
+            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, **kwargs)
 
     def get_file_paths(self, fullpath=True):
         """ Get the paths to the audio files associated with this instance.

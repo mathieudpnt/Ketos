@@ -3,6 +3,11 @@ Change log
 
 **Version 2.6.2** (Month Day, Year)
 
+ * pad argument in :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` now works as expected when set to False.
+ * New method :meth:`ceil <ketos.utils.ceil>`. Allows to ceil to a given decimal instead of to the next integer
+ * New method :meth:`floor <ketos.utils.floor>`. Allows to floor to a given decimal instead of to the previous integer
+ * New method :meth:`ceil_round_down <ketos.utils.ceil_round_down>`. This method will floor instead of ceil when the number is very close to the previous integer. Useful when dealing with floating point arithmetics.
+ * New method :meth:`floor_round_up <ketos.utils.floor_round_up>`. This method will ceil instead of floor when the number is very close to the next integer. Useful when dealing with floating point arithmetics.
  * :meth:`select <ketos.data_handling.selection_table.select>` will now check for inconsistent start and end times and give appropriate warnings. This fixes a previous infinite loop when the start time was greater than the end time.
  * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
 
