@@ -720,15 +720,25 @@ def select(annotations, length, step=0, min_overlap=0, center=False, discard_lon
     # discard annotations with label -1
     df = df[df['label'] != -1]
 
-    # number of annotations
-    N = len(df)
-
     # compute length of every annotation
     df['length'] = df['end'] - df['start']
 
     # discard annotations longer than the requested length
     if discard_long:
         df = df[df['length'] <= length]
+
+    # We need to ensure that the annotation is valid, that is, the start time must be smaller than end time. 
+    # Otherwise we skip (remove) the annotation and throw a warning
+    negative_length = df[df['length'] < 0] # select rows with the issue to issue warnings
+    
+    if (len(negative_length.index) > 0):
+        df = df[df['length'] >= 0] # remove the rows from the dataframe
+
+        for idx,row in negative_length.iterrows():
+            warnings.warn("File {0}, annotation {1} has a start time ({2}) greater than end time ({3}). Skipping annotation".format(idx[0], idx[1], row['start'], row['end']), category=UserWarning, stacklevel=2)  
+
+    # number of annotations
+    N = len(df)
 
     # alignment of new annotations relative to original ones
     if center:
@@ -864,6 +874,9 @@ def time_shift(annot, time_ref, length, step, min_overlap):
             8  file1.wav      1   12.0  14.0       13.2
             9  file1.wav      1   12.0  14.0       13.4
     """
+    if length <= 0:
+        raise AssertionError("Length must be positive and greater than zero, found {0}".format(length))
+
     if isinstance(annot, dict):
         row = pd.Series(annot)
     elif isinstance(annot, pd.Series):

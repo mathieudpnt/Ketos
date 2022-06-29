@@ -3,6 +3,7 @@ Change log
 
 **Version 2.6.2** (Month Day, Year)
 
+ * :meth:`select <ketos.data_handling.selection_table.select>` will now check for inconsistent start and end times and give appropriate warnings. This fixes a previous infinite loop when the start time was greater than the end time.
  * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
 
 **Version 2.6.1** (June 3, 2022)
