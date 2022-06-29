@@ -1,6 +1,10 @@
 Change log
 ==========
 
+**Version 2.6.2** (Month Day, Year)
+
+ * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
+
 **Version 2.6.1** (June 3, 2022)
 
  * In :meth:`AudioWriter:close <ketos.data_handling.database_interface.AudioWriter.close>` remove any existing column indices before attempting to reindex them. (Only relevant if appending to an existing database.)

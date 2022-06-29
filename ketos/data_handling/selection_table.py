@@ -267,8 +267,11 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     # keep only relevant columns
     if trim_table:
-        df = trim(df, list(mapper.keys()))
-
+        if mapper is not None:
+            df = trim(df, list(mapper.keys()))
+        else:
+            df = trim(df)
+            
     # check that dataframe has minimum required columns
     mis = missing_columns(df)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
