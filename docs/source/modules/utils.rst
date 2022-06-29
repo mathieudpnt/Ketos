@@ -21,3 +21,7 @@ Utilities
     signif
     str_is_int
     tostring
+    ceil
+    floor
+    ceil_round_down
+    floor_round_up
