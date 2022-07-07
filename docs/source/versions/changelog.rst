@@ -14,6 +14,7 @@ Change log
  * New method :meth:`floor_round_up <ketos.utils.floor_round_up>`. This method will ceil instead of floor when the number is very close to the next integer. Useful when dealing with floating point arithmetics.
  * :meth:`select <ketos.data_handling.selection_table.select>` will now check for inconsistent start and end times and give appropriate warnings. This fixes a previous infinite loop when the start time was greater than the end time.
  * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
+ * Removed class :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` in favor of using more primitive classes. See :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` for examples on how to achieve the same functionality.
 
 **Version 2.6.1** (June 3, 2022)
 
