@@ -895,9 +895,13 @@ def create_database(output_file, data_dir, selections, channel=0,
     else:
         data_name = None
 
+    #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
+    selections = selections.convert_dtypes() 
+
     # initialize an audio loader
-    loader = al.AudioSelectionLoader(path=data_dir, selections=selections, channel=channel, 
-        repres=audio_repres, annotations=annotations, include_attrs=include_attrs, attrs=attrs)
+    loader = al.AudioLoader(selection_gen=al.SelectionTableIterator(data_dir=data_dir, 
+        selection_table=selections, include_attrs=include_attrs, 
+        attrs=attrs), channel=channel, annotations=annotations, repres=audio_repres)
 
     # if the group path is not specified, use the name of the data directory
     if dataset_name is None: dataset_name = os.path.basename(data_dir)

@@ -34,7 +34,7 @@ import pandas as pd
 from io import StringIO
 from ketos.audio.waveform import Waveform
 from ketos.audio.spectrogram import MagSpectrogram
-from ketos.audio.audio_loader import AudioFrameLoader, AudioSelectionLoader, AudioFrameEfficientLoader
+from ketos.audio.audio_loader import AudioLoader, AudioFrameLoader, AudioFrameEfficientLoader, SelectionTableIterator
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.parsing import parse_audio_representation
@@ -283,65 +283,44 @@ def test_audio_frame_loader_number_of_segments(sine_wave_file):
     for _ in range(N):
         _ = next(loader)
 
-def test_audio_frame_loader_number_of_segments_pad_false(sine_wave_file):
-    """ Check that the AudioFrameLoader computes expected number of segments when the pad argument is set to False""" 
-    rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
-    import librosa
-    dur = librosa.core.get_duration(filename=sine_wave_file)
-    # duration is an integer number of lengths
-    l = 0.2
-    loader = AudioFrameLoader(filename=sine_wave_file, pad=False, duration=l, repres=rep)
-
-    assert len(loader.selection_gen.files) == 1
-    N = int(dur / l)
-
-    assert N == loader.selection_gen.num_segs[0]
-    # duration is *not* an integer number of lengths
-    l = 0.21
-    loader = AudioFrameLoader(filename=sine_wave_file, pad=False, duration=l, repres=rep)
-    N = int(np.ceil(dur / l))
-    assert N > loader.selection_gen.num_segs[0]
-    N = int(np.floor(dur / l))
-    assert N == loader.selection_gen.num_segs[0]
-
-def test_audio_select_loader_mag(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms""" 
+def test_audio_loader_mag(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
     files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
     sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep)
     assert loader.num() == 2
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
 
-def test_audio_select_loader_can_skip(five_time_stamped_wave_files):
-    """ Test that the audio selection loader can skip segments""" 
+def test_audio_loader_can_skip(five_time_stamped_wave_files):
+    """ Test that the audio loader can skip segments""" 
     rep = {'type':'Waveform','rate':1000}
     # create a selection table
     files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
     sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep)
     assert loader.num() == 2
     loader.skip()
     s = next(loader)
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
 
-def test_audio_select_loader_with_labels(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with labels""" 
+def test_audio_loader_with_labels(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms with labels""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
     files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
     sel = pd.DataFrame({'filename':[files[0],files[1]],'start':[0.10,0.12],'end':[0.46,0.42],'label':[3,5]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     assert s.label == 3
@@ -349,8 +328,8 @@ def test_audio_select_loader_with_labels(five_time_stamped_wave_files):
     assert s.duration() == pytest.approx(0.30, abs=1e-6)
     assert s.label == 5
 
-def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_with_annots(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         while including annotation data""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     files = find_wave_files(path=five_time_stamped_wave_files, return_path=False, search_subdirs=True)
@@ -361,7 +340,7 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     ann = pd.DataFrame({'filename':[files[0],files[0],files[1]],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
     ann = standardize(ann, start_labels_at_1=True)
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, annotations=ann, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
@@ -383,8 +362,8 @@ def test_audio_select_loader_with_annots(five_time_stamped_wave_files):
     res = s.get_annotations()[ans.columns.values]
     pd.testing.assert_frame_equal(ans, res)
 
-def test_audio_select_loader_with_annots_subdirs():
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_with_annots_subdirs():
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         while including annotation data when audio files are loaded from subfolders""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     path = os.path.join(path_to_assets, 'wav_files')
@@ -396,7 +375,7 @@ def test_audio_select_loader_with_annots_subdirs():
     ann = pd.DataFrame({'filename':["subf/w3.wav","subf\\w3.wav","w1.wav"],'label':[3,5,4],'start':[0.05,0.06,0.20],'end':[0.30,0.16,0.60]})
     ann = standardize(ann, start_labels_at_1=True)
     # init loader
-    loader = AudioSelectionLoader(path=path, selections=sel, annotations=ann, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=path, selection_table=sel), annotations=ann, repres=rep)
     s = next(loader)
     assert s.duration() == pytest.approx(0.36, abs=1e-6)
     #TODO: When we deprecate signal_labels and backgrnd labels from standardize method, change following line to:
@@ -445,8 +424,8 @@ def test_audio_frame_loader_accepts_filename_list(five_time_stamped_wave_files, 
     assert s.duration() == 0.5
     assert loader.selection_gen.file_id == 2
 
-def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_stores_source_data(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         and that the spectrograms retain the correct source data (filename, offset) """ 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
@@ -457,7 +436,7 @@ def test_audio_select_loader_stores_source_data(five_time_stamped_wave_files):
     sel = pd.DataFrame({'filename':filename,'start':start,'end':end})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, stop=False)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep, stop=False)
     assert loader.num() == 2
     for i in range(6): #loop over each item 3 times
         s = next(loader)
@@ -486,8 +465,8 @@ def test_audio_frame_loader_subdirs():
     s3 = next(loader)
     assert s3.filename == "w2.wav"
 
-def test_audio_select_loader_entire_files(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_entire_files(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         of entire wav files """ 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
@@ -495,14 +474,14 @@ def test_audio_select_loader_entire_files(five_time_stamped_wave_files):
     sel = pd.DataFrame({'filename':files})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep)
     assert loader.num() == 5
     for i in range(5):
         s = next(loader)
         assert s.duration() == 0.5
 
-def test_audio_select_loader_with_attrs(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with 
+def test_audio_loader_with_attrs(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms with 
         extra attributes from selection table""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
@@ -514,7 +493,7 @@ def test_audio_select_loader_with_attrs(five_time_stamped_wave_files):
                         'conf':[0.31,0.99]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader all attrs
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, include_attrs=True)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel, include_attrs=True), repres=rep)
     s = next(loader)
     attrs = s.get_instance_attrs()
     assert attrs['comment'] == 'big'
@@ -524,15 +503,15 @@ def test_audio_select_loader_with_attrs(five_time_stamped_wave_files):
     assert attrs['comment'] == 'small'
     assert attrs['conf'] == 0.99
     # init loader, selected attrs
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, attrs=['comment','dummy'])
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel, attrs=['comment','dummy']), repres=rep)
     s = next(loader)
     attrs = s.get_instance_attrs()
     assert attrs['comment'] == 'big'
     assert 'conf' not in attrs.keys()
     assert 'dummy' not in attrs.keys()
 
-def test_audio_select_loader_accepts_kwargs(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms with 
+def test_audio_loader_accepts_kwargs(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms with 
         a complex phase""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.02}
     # create a selection table
@@ -544,12 +523,12 @@ def test_audio_select_loader_accepts_kwargs(five_time_stamped_wave_files):
                         'conf':[0.31,0.99]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader all attrs
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, compute_phase=True)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep, compute_phase=True)
     s = next(loader)
     assert np.ndim(s.data) == 3
 
-def test_audio_select_loader_start_end_outside_file(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_start_end_outside_file(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         for selections that extend beyond the limits of the wav file """ 
     rep = {'type':'MagSpectrogram','window':0.02,'step':0.01}
     # create a selection table
@@ -559,14 +538,14 @@ def test_audio_select_loader_start_end_outside_file(five_time_stamped_wave_files
                         'end':[0.11,0.43,0.75]})
     sel = use_multi_indexing(sel, 'sel_id')
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), repres=rep)
     assert loader.num() == 3
     for i in range(3):
         s = next(loader)
         assert s.duration() == 0.31
 
-def test_audio_select_loader_with_new_selection_table_style(five_time_stamped_wave_files):
-    """ Test that we can use the AudioSelectionLoader class to compute MagSpectrograms
+def test_audio_loader_with_new_selection_table_style(five_time_stamped_wave_files):
+    """ Test that we can use the AudioLoader class to compute MagSpectrograms
         for selections in the new (ketos3) selection table format where a single selection 
         may span several files""" 
     rep = {'type':'MagSpectrogram','window':0.02,'step':0.01}
@@ -585,7 +564,7 @@ def test_audio_select_loader_with_new_selection_table_style(five_time_stamped_wa
                         'end':  [0.30, 0.26, 0.60]})
     ann = standardize(ann, start_labels_at_1=True)
     # init loader
-    loader = AudioSelectionLoader(path=five_time_stamped_wave_files, selections=sel, repres=rep, annotations=ann)
+    loader = AudioLoader(selection_gen=SelectionTableIterator(data_dir=five_time_stamped_wave_files, selection_table=sel), annotations=ann, repres=rep)
     assert loader.num() == 2
 
     s = next(loader)

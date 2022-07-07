@@ -30,7 +30,6 @@
 
     Contents:
         AudioLoader class:
-        AudioSelectionLoader class:
         AudioSequenceLoader class
 """
 import os
@@ -446,8 +445,66 @@ class AudioLoader():
                 Audio representation dictionaries.
         
         Examples:
-            See child classes :class:`audio.audio_loader.AudioFrameLoader` and 
-            :class:`audio.audio_loader.AudioSelectionLoader`.            
+
+            Creating an AudioLoader to load selections:         
+            
+            >>> from ketos.audio.audio_loader import AudioLoader, SelectionTableIterator
+            >>> from ketos.data_handling.selection_table import use_multi_indexing
+            >>> import pandas as pd
+            >>> # specify the audio representation
+            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming'}
+            >>> # Load selections
+            >>> sel = pd.DataFrame({'filename':["2min.wav", "2min.wav"],'start':[0.10,0.12],'end':[0.46,0.42]})
+            >>> sel = use_multi_indexing(sel, 'sel_id')
+            >>> # create a generator for iterating over all the selections 
+            >>> generator = SelectionTableIterator(data_dir="ketos/tests/assets/", selection_table=sel)
+            >>> # Create a loader by passing the generator and the representation to the AudioLoader
+            >>> loader = AudioLoader(selection_gen=generator, repres=rep)
+            >>> # print number of segments
+            >>> print(loader.num())
+            2
+            >>> # load and plot the first selection
+            >>> spec = next(loader)
+            >>>
+            >>> import matplotlib.pyplot as plt
+            >>> fig = spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec_loader_2min_0.png")
+            >>> plt.close(fig)
+            
+            .. image:: ../../../ketos/tests/assets/tmp/spec_loader_2min_0.png
+
+            Creating an AudioLoader to load selections made from annotations:   
+
+            >>> from ketos.audio.audio_loader import AudioLoader, SelectionTableIterator
+            >>> from ketos.data_handling.selection_table import standardize
+            >>> import pandas as pd
+            >>> # specify the audio representation
+            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming'}
+            >>> # Load selections
+            >>> annot = pd.DataFrame([{"filename":"2min.wav", "start":2.0, "end":3.0, "label":0},
+            ...         {"filename":"2min.wav", "start":5.0, "end":6.0, "label":0},
+            ...         {"filename":"2min.wav", "start":21.0, "end":22.0, "label":0},
+            ...         {"filename":"2min.wav", "start":25.0, "end":27.0, "label":0}])
+            >>> annot_std = standardize(table=annot)
+            >>> # create a generator for iterating over all the selections 
+            >>> generator = SelectionTableIterator(data_dir="ketos/tests/assets/", selection_table=annot_std)
+            >>> # Create a loader by passing the generator and the representation to the AudioLoader
+            >>> loader = AudioLoader(selection_gen=generator, repres=rep)
+            >>> # print number of segments
+            >>> print(loader.num())
+            4
+            >>> # load and plot the first selection
+            >>> spec = next(loader)
+            >>>
+            >>> import matplotlib.pyplot as plt
+            >>> fig = spec.plot()
+            >>> fig.savefig("ketos/tests/assets/tmp/spec_loader_2min_1.png")
+            >>> plt.close(fig)
+            
+            .. image:: ../../../ketos/tests/assets/tmp/spec_loader_2min_1.png
+
+            For more examples see child class :class:`audio.audio_loader.AudioFrameLoader`   
+
     """
     def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, 
                         batch_size=1, stop=True, **kwargs):
@@ -908,61 +965,3 @@ class AudioFrameEfficientLoader(AudioFrameLoader):
         self.offset = offset
         self.data_dir = data_dir
         self.filename = filename
-
-
-class AudioSelectionLoader(AudioLoader):
-    """ Load segments of data from audio files. 
-
-        The segments to be loaded are specified via a selection table.
-
-        Note: If the audio representation contains a `duration` parameter its value 
-        will be ignored, as the duration of each selection is determined by the start 
-        and end times in the selection table.
-
-        Args:
-            selections: pandas DataFrame
-                Selection table.
-            path: str
-                Path to folder containing the audio files.
-            filename: str or list(str)
-                Relative path to a single audio file or a list of audio files. Optional.
-            annotations: pandas DataFrame
-                Annotation table. Optional.
-            repres: dict
-                Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the `from_wav` method.  
-                It is also possible to specify multiple audio presentations as a list or a nested dictionary.
-                The default representation is the raw, unaltered waveform.
-            include_attrs: bool
-                If True, load data from all attribute columns in the selection table. Default is False.
-            attrs: list(str)
-                Specify the names of the attribute columns that you wish to load data from. 
-                Overwrites include_attrs if specified. If None, all columns will be loaded if 
-                `include_attrs=True`.
-            batch_size: int
-                Load segments in batches rather than one at the time. 
-            stop: bool
-                Raise StopIteration if the iteration exceeds the number of available selections. Default is True.
-    """
-    def __init__(self, path, selections, channel=0, annotations=None, repres={'type': 'Waveform'}, 
-        include_attrs=False, attrs=None, batch_size=1, stop=True, **kwargs):
-
-        #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
-        selections = selections.convert_dtypes() 
-
-        super().__init__(selection_gen=SelectionTableIterator(data_dir=path, 
-            selection_table=selections, include_attrs=include_attrs, 
-            attrs=attrs), channel=channel, annotations=annotations, repres=repres, 
-            batch_size=batch_size, stop=stop, **kwargs)
-
-    def get_selection(self, n):
-        """ Returns the audio selection with the specified index.
-
-            Args:
-                n: int
-                    The index of the desired selection        
-            Returns:
-                audio_sel: dict
-                    Audio selection
-        """
-        return self.selection_gen.get_selection(n)
