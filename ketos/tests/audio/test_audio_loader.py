@@ -29,12 +29,13 @@
 import pytest
 import json
 import os
+import tarfile
 import numpy as np
 import pandas as pd
 from io import StringIO
-from ketos.audio.waveform import Waveform
+from ketos.audio.waveform import Waveform, get_duration
 from ketos.audio.spectrogram import MagSpectrogram
-from ketos.audio.audio_loader import AudioLoader, AudioFrameLoader, AudioFrameEfficientLoader, SelectionTableIterator
+from ketos.audio.audio_loader import AudioLoader, AudioFrameLoader, AudioFrameEfficientLoader, SelectionTableIterator, ArchiveManager
 from ketos.data_handling.selection_table import use_multi_indexing, standardize
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.parsing import parse_audio_representation
@@ -42,6 +43,8 @@ from ketos.audio.utils.misc import from_decibel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
+path_to_tmp = os.path.join(path_to_assets,'tmp')
+
 
 def test_init_audio_frame_loader_with_folder(five_time_stamped_wave_files):
     """ Test that we can initialize an instance of the AudioFrameLoader class from a folder"""
@@ -256,8 +259,7 @@ def test_audio_frame_loader_uniform_length(five_time_stamped_wave_files):
 def test_audio_frame_loader_number_of_segments(sine_wave_file):
     """ Check that the AudioFrameLoader computes expected number of segments""" 
     rep = {'type':'MagSpectrogram','window':0.1,'step':0.01,'rate':2341}
-    import librosa
-    dur = librosa.core.get_duration(filename=sine_wave_file)
+    dur = get_duration(sine_wave_file)[0]
     # duration is an integer number of lengths
     l = 0.2
     loader = AudioFrameLoader(filename=sine_wave_file, duration=l, repres=rep)
@@ -617,3 +619,55 @@ def test_audio_frame_efficient_loader_with_transforms(growing_sine_wave_file):
     wf2 = next(loader)
     assert np.all(wf1_b.get_data() == wf1.get_data())
     assert np.all(wf2_b.get_data() == wf2.get_data())
+
+def test_archive_manager(tar_archive_with_wav_files):
+    """ Test that we can use the ArchiveManager to extract audio files from a tar file """
+    tar_path = tar_archive_with_wav_files
+    m = ArchiveManager(tar_path)
+
+    m.extract("w1.wav")
+    assert os.path.exists(m.extract_dir)
+    assert os.path.exists(os.path.join(m.extract_dir, "w1.wav"))
+    assert len(find_wave_files(m.extract_dir)) == 1
+
+    m.extract(["w1.wav", os.path.join("a","w2.wav")])
+    assert os.path.exists(os.path.join(m.extract_dir, "w1.wav"))
+    assert os.path.exists(os.path.join(m.extract_dir, os.path.join("a","w2.wav")))
+    assert len(find_wave_files(m.extract_dir, search_subdirs=True)) == 2
+
+    m.extract([os.path.join("a","w3.wav")])
+    assert os.path.exists(os.path.join(m.extract_dir, os.path.join("a","w3.wav")))
+    assert len(find_wave_files(m.extract_dir, search_subdirs=True)) == 1
+
+    with pytest.warns(UserWarning):    
+        m.extract("w4.wav")
+
+    m.close()
+    assert not os.path.exists(m.extract_dir)
+
+def test_audio_loader_with_tar_archive(tar_archive_with_wav_files):
+    """ Test that we can use the audio loader to load segments of wav files stored 
+        within a tar archive """
+    tar_path = tar_archive_with_wav_files
+    rep = {'type':'MagSpectrogram','window':0.02,'step':0.01}
+
+    # selection table
+    sel = pd.DataFrame({'sel_id':  [0, 0, 1],
+                        'filename':["w1.wav", os.path.join("a","w2.wav"), os.path.join("a",os.path.join("b","w1.wav"))],
+                        'start':   [0.0, 0.0, 0.1],
+                        'end':     [0.5, 0.2, 0.8]})
+    sel.set_index(['sel_id', 'filename'], inplace=True)
+
+    # audio loader
+    sti = SelectionTableIterator(data_dir=tar_path, selection_table=sel)
+    loader = AudioLoader(selection_gen=sti, repres=rep)
+
+    assert loader.num() == 2
+
+    x = next(loader)
+    assert np.abs(x.duration() - 0.7) < 1e-12
+
+    x = next(loader)
+    assert np.abs(x.duration() - 0.7) < 1e-12
+
+    sti.reset() #ensures that the extraction directory gets removed

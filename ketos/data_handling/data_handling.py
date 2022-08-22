@@ -30,18 +30,15 @@
 """
 import numpy as np
 import pandas as pd
-import librosa
 import os
 import math
 import errno
-import tables
 from subprocess import call
 import soundfile as sf
 from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
-import soundfile
 
 
 def rel_path_unix(path, start=None):

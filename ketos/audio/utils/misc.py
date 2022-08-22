@@ -32,7 +32,6 @@
     both.
 """
 import numpy as np
-import librosa
 from sys import getsizeof
 from psutil import virtual_memory
 from ketos.utils import complex_value
@@ -403,7 +402,9 @@ def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hammi
         step size is determined to be :math:`h = 2^{11} = 2048`, corresponding 
         to a physical bin size of :math:`t_{res} = 2048 / 32000 Hz = 0.064 s`, i.e., about three times as large 
         as the requested step size.
-    
+
+        TODO: If possible, remove librosa dependency
+
         Args:
             x: numpy.array
                 Audio signal 
@@ -430,6 +431,8 @@ def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hammi
             step: float
                 Adjusted step size in seconds.
     """
+    from librosa.core import cqt
+
     f_nyquist = 0.5 * rate
     k_nyquist = int(np.floor(np.log2(f_nyquist / freq_min)))
 
@@ -447,7 +450,7 @@ def cqt(x, rate, step, bins_per_oct, freq_min, freq_max=None, window_func='hammi
     r = int(np.ceil(h / h0))
     h = int(r * h0)
 
-    img = librosa.core.cqt(y=x, sr=rate, hop_length=h, fmin=freq_min, n_bins=bins, bins_per_octave=b, window=window_func)
+    img = cqt(y=x, sr=rate, hop_length=h, fmin=freq_min, n_bins=bins, bins_per_octave=b, window=window_func)
     img = to_decibel(np.abs(img))
     img = np.swapaxes(img, 0, 1)
     
@@ -652,6 +655,8 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
 
         Follows closely the implentation of https://github.com/tensorflow/magenta/blob/master/magenta/models/nsynth/utils.py
 
+        TODO: If possible, remove librosa dependency
+
         Args:
             image: 2d numpy array
                 Magnitude spectrogram, linear scale
@@ -695,6 +700,8 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
 
             .. image:: ../../../ketos/tests/assets/tmp/sig_est.png
     """
+    from librosa import istft, magphase, stft
+    
     # swap axis to conform with librosa 
     image = np.swapaxes(image, 0, 1)
     if np.ndim(phase_angle) == 2: phase_angle = np.swapaxes(phase_angle, 0, 1)
@@ -708,10 +715,10 @@ def spec2wave(image, phase_angle, num_fft, step_len, num_iters, window_func):
 
     # Griffin-Lim iterative algorithm
     for i in range(num_iters):
-        audio = librosa.istft(complex_specgram, **ifft_config)
+        audio = istft(complex_specgram, **ifft_config)
         if i != num_iters - 1:
-            complex_specgram = librosa.stft(audio, **fft_config)
-            _, phase = librosa.magphase(complex_specgram)
+            complex_specgram = stft(audio, **fft_config)
+            _, phase = magphase(complex_specgram)
             angle = np.angle(phase)
             complex_specgram = complex_value(image, angle)
 

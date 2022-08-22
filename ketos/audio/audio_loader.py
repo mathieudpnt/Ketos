@@ -36,9 +36,11 @@ import os
 import copy
 import pandas as pd
 import numpy as np
-import librosa
+import soundfile as sf
+import tarfile
 import warnings
-from ketos.audio.waveform import Waveform
+import shutil
+from ketos.audio.waveform import Waveform, get_duration
 from ketos.audio.gammatone import GammatoneFilterBank,AuralFeatures
 from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
@@ -62,6 +64,107 @@ audio_repres_dict = {'Waveform':Waveform,
                      'Aural': AuralFeatures,
                      'GammatoneFilterBank': GammatoneFilterBank,
                      'Gammatone': GammatoneFilterBank}
+
+
+class ArchiveManager():
+    ''' Class for extracting files from a .tar file.
+
+        Use the method :meth:`ketos.audio.audio_loader.ArchiveManager.extract` to extract one or 
+        several files from the .tar file to a temporary directory.
+
+        Every time a file extraction request is submitted, the contents of the temporary directory 
+        are updated as follows: 
+
+         * Requested files *not* already present in the directory are extracted.
+         * Requested files already present in the directory are left untouched.
+         * Files present in the directory that are not part of the request are removed.
+
+        At any given time, the location of the temporary directory and the paths of the files stored 
+        within the directory can be accessed via the attributes @extract_dir and @extracted_files.
+
+        Args:
+            tar_path: str
+                Path to the .tar file
+            extract_dir: str
+                Path to the directory where the extracted files are temporarily stored. The directory 
+                is automatically created. If a directory already exists at the specified path, all its 
+                contents will be deleted. By default, audio files are extracted to the folder `kt-tmp` 
+                within the current working directory.
+
+        Attributes:
+            tar: TarFile
+                tar object
+            tar_path: str
+                Path to the .tar file
+            extract_dir: str
+                Path to the directory where the extracted files are temporarily stored
+            extracted_files: list
+                Relative paths to the currently extracted files
+    '''
+    def __init__(self, tar_path, extract_dir="kt-tmp"):
+        self.tar_path = tar_path
+        self.tar = tarfile.open(tar_path)
+        self.extract_dir = extract_dir
+        self.extracted_files = []
+        self.close() 
+
+    def _extract_files(self, paths):
+        """ Helper function for extracting files.
+
+            Issues a UserWarning if a file does not exist at the specified 
+            path within the tar archive.
+
+            Args:
+                paths: list
+                    Relative paths to the files to be extracted from within the tar archive
+        """ 
+        for path in paths:
+            try:
+                self.tar.extract(member=path, path=self.extract_dir)
+                self.extracted_files.append(path)
+            except KeyError as e:
+                warnings.warn(f"{path} not found in {self.tar_path}", UserWarning)
+
+    def _remove_files(self, paths):
+        """ Helper function for removing files from the extraction directory.
+
+            Args:
+                paths: list
+                    Relative paths to the files to be removed
+        """ 
+        for path in paths:
+            dst = os.path.join(self.extract_dir, path)
+            os.remove(dst)
+            self.extracted_files.remove(path)
+
+    def extract(self, paths):
+        """ Update the files in the extraction directory.
+
+            Every time this method is called, the contents of the temporary directory 
+            are updated as follows: 
+
+                * Requested files *not* already present in the directory are extracted.
+                * Requested files already present in the directory are left untouched.
+                * Files present in the directory that are not part of the request are removed.
+
+            Args:
+                paths: str or list
+                    Relative path(s) of the files within the tar archive that we want to 
+                    be available in the extraction directory
+        """
+        if isinstance(paths, str):
+            paths = [paths]
+
+        paths_extract = [path for path in paths if path not in self.extracted_files]
+        paths_remove = [path for path in self.extracted_files if path not in paths]
+        self._extract_files(paths_extract)
+        self._remove_files(paths_remove)
+
+    def close(self):
+        """ Remove the extraction directory and its contents 
+        """
+        if os.path.exists(self.extract_dir):
+            shutil.rmtree(self.extract_dir)
 
 
 class SelectionGenerator():
@@ -108,7 +211,7 @@ class SelectionTableIterator(SelectionGenerator):
 
         Args: 
             data_dir: str
-                Path to top folder containing audio files.
+                Path to top folder containing audio files, or a .tar archive file.
             selection_table: pandas DataFrame
                 Selection table
             include_attrs: bool
@@ -117,10 +220,23 @@ class SelectionTableIterator(SelectionGenerator):
                 Specify the names of the attribute columns that you wish to load data from. 
                 Overwrites include_attrs if specified. If None, all columns will be loaded provided that 
                 include_attrs=True.
+            extract_dir: str
+                Temporary directory for storing audio files extracted from a tar archive file. 
+                Only relevant if @data_dir points to a .tar file. The directory will be automatically 
+                created. If a directory already exists at the specified path, all its contents will be 
+                deleted. By default, audio files are extracted to the folder `kt-tmp` within the current
+                working directory. Note that this folder must be deleted manually when it is no longer needed.
     """
-    def __init__(self, data_dir, selection_table, include_attrs=False, attrs=None):
+    def __init__(self, data_dir, selection_table, include_attrs=False, attrs=None, extract_dir="kt-tmp"):
         self.sel = selection_table
-        self.dir = data_dir
+
+        if os.path.isfile(data_dir) and tarfile.is_tarfile(data_dir):
+            self.tar = ArchiveManager(data_dir, extract_dir)
+            self.dir = self.tar.extract_dir
+        else:
+            self.tar = None
+            self.dir = data_dir
+
         self.counter = 0
 
         all_attrs = list(self.sel.columns.values)
@@ -154,6 +270,10 @@ class SelectionTableIterator(SelectionGenerator):
                     Audio selection
         """
         audio_sel = self.get_selection(self.counter)
+
+        if self.tar is not None:
+            self.tar.extract(audio_sel['filename'])
+
         self.counter = (self.counter + 1) % self.num() #update selection counter
         return audio_sel
 
@@ -170,6 +290,8 @@ class SelectionTableIterator(SelectionGenerator):
         """ Resets the selection generator to the beginning of the selection table.
         """        
         self.counter = 0
+        if self.tar is not None:
+            self.tar.close()
         
     def get_selection(self, n):
         """ Returns the n-th audio selection in the table.
@@ -285,7 +407,7 @@ class FrameStepper(SelectionGenerator):
                 self.files = filename
 
         # get file durations
-        self.file_durations = np.array([librosa.get_duration(filename=os.path.join(self.dir, f)) for f in self.files])
+        self.file_durations = np.array(get_duration([os.path.join(self.dir, f) for f in self.files]))
 
         # discard any files with 0 second duration
         self.files = np.array(self.files)[self.file_durations > 0].tolist()
@@ -657,7 +779,7 @@ class AudioLoader():
             file_duration = self.file_durations.get(p)
             # If file duration does not exist in the dict, get file duration and add it to the dict
             if file_duration == None:
-                file_duration = librosa.get_duration(filename=p)
+                file_duration = get_duration(p)[0]
                 self.file_durations[p] = file_duration
 
             start = offset[i]
@@ -742,12 +864,12 @@ class AudioFrameLoader(AudioLoader):
                 If True (default), the last segment is allowed to extend beyond the endpoint of the audio file.
 
         Examples:
-            >>> import librosa
             >>> from ketos.audio.audio_loader import AudioFrameLoader
             >>> # specify path to wav file
             >>> filename = 'ketos/tests/assets/2min.wav'
             >>> # check the duration of the audio file
-            >>> print(librosa.get_duration(filename=filename))
+            >>> from ketos.audio.waveform import get_duration
+            >>> print(get_duration(filename)[0])
             120.832
             >>> # specify the audio representation
             >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}

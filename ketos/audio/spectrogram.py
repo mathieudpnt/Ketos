@@ -52,11 +52,9 @@
 """
 import os
 import copy
-import librosa
 import warnings
 import numpy as np
 from scipy.signal import get_window
-from scipy.fftpack import dct
 from scipy import ndimage
 from skimage.transform import resize
 import matplotlib.pyplot as plt
@@ -458,7 +456,7 @@ class Spectrogram(BaseAudioTime):
         spec = super().crop(start=start, end=end, length=length, make_copy=make_copy) #crop time axis
 
         # crop frequency axis
-        b1, b2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
+        b1, b2 = spec.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
         # add frequency information to log
         if not make_copy:
@@ -469,7 +467,8 @@ class Spectrogram(BaseAudioTime):
         spec.data = spec.data[:, b1:b2+1]
 
         # crop annotations, if any
-        if self.annot: self.annot.crop(freq_min=freq_min, freq_max=freq_max)
+        if spec.annot is not None: 
+            spec.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
                 
@@ -713,7 +712,8 @@ class Spectrogram(BaseAudioTime):
         transf.update(kwargs)
         self.transform_log.append(transf)
 
-    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None, 
+        annot_color="C1"):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -736,6 +736,13 @@ class Spectrogram(BaseAudioTime):
                     When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
                     By default, the colormap covers the complete value range of the supplied data. 
                     vmin, vmax are ignored if the norm parameter is used.            
+                color: str or dict
+                    Annotation box color. Only relevant if show_annot is True. 
+                    A dictionary may be used to specify different colors for 
+                    different label values. For example, {1: "C0", 3: "C2"} 
+                    would assign the color "C0" to label value 1 and "C2" to 
+                    label value 3. The default color is "C1".
+
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
@@ -768,30 +775,43 @@ class Spectrogram(BaseAudioTime):
             fig.colorbar(img, ax=ax, label='Amplitude')# colobar
 
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax)
+        if show_annot: self._draw_annot_boxes(ax, color=annot_color)
             
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax):
+    def _draw_annot_boxes(self, ax, color="C1"):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
+                color: str or dict
+                    Box color. 
+                    A dictionary may be used to specify different colors for 
+                    different label values. For example, {1: "C0", 3: "C2"} 
+                    would assign the color "C0" to label value 1 and "C2" to 
+                    label value 3. The default color is "C1".
         """
         annots = self.get_annotations()
         if annots is None: return
         y1 = self.freq_min()
         y2 = self.freq_max()
         for idx,annot in annots.iterrows():
+            l = annot['label']
             x1 = annot['start']
             x2 = annot['end']
             if not np.isnan(annot['freq_min']): y1 = annot['freq_min']
             if not np.isnan(annot['freq_max']): y2 = annot['freq_max']
-            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            if isinstance(color, str):
+                c = color
+            elif isinstance(color, dict) and l in color.keys():
+                c = color[l]
+            else:
+                c = "C1"
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor=c,facecolor='none')
             ax.add_patch(box)
-            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color=c)
 
 
 class MagSpectrogram(Spectrogram):

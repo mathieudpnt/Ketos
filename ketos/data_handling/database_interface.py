@@ -39,7 +39,6 @@ from email.mime import audio
 import os
 import warnings
 import tables
-import librosa
 import datetime as dt
 import numpy as np
 import pandas as pd
@@ -819,7 +818,7 @@ def create_database(output_file, data_dir, selections, channel=0,
                 If the file does not exist, it will be created.
                 If the file already exists, new data will be appended to it.
             data_dir:str
-                Path to folder containing \*.wav files.
+                Path to folder containing \*.wav files, or .tar archive file.
             selections: pandas DataFrame or list
                 Selection table. 
             channel: int
