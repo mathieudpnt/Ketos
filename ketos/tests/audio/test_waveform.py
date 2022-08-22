@@ -26,10 +26,14 @@
 
 """ Unit tests for the 'audio' module within the ketos library
 """
+import os
 import pytest
 from ketos.audio.waveform import Waveform, merge, get_duration
 import numpy as np
 import warnings
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 
 
 def test_init_audio_signal():
@@ -296,3 +300,11 @@ def test_infer_shape(sine_wave_file):
     kwargs = {'duration':17.2, 'rate':8000}
     wf = Waveform.from_wav(path=sine_wave_file, **kwargs)
     assert Waveform.infer_shape(**kwargs) == wf.get_data().shape
+
+def test_load_flac():
+    """Test that we can load data from FLAC that is consistent with WAV"""
+    flac = Waveform.from_wav(os.path.join(path_to_assets, 'grunt1.flac'))
+    wav = Waveform.from_wav(os.path.join(path_to_assets, 'grunt1.wav'))
+    assert flac.duration() == wav.duration()
+    assert flac.rate == wav.rate   
+    assert np.all(np.abs(flac.get_data() - wav.get_data()) < 1e-9 * np.std(wav.get_data()))

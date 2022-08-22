@@ -107,12 +107,12 @@
 """
 
 import os
-import librosa
 import warnings
 import numpy as np
 import pandas as pd
 from ketos.utils import str_is_int, fractional_overlap
 from ketos.data_handling.data_handling import find_wave_files, parse_datetime
+from ketos.audio.waveform import get_duration
 
 
 def unfold(table, sep=','):
@@ -926,7 +926,7 @@ def file_duration_table(path, search_subdirs=False, datetime_format=None):
                 File duration table. Columns: filename, duration, (datetime)
     """
     paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
-    durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
+    durations = get_duration([os.path.join(path,p) for p in paths])
     df = pd.DataFrame({'filename':paths, 'duration':durations})
     if datetime_format is None:
         return df
