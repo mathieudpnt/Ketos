@@ -135,6 +135,21 @@ f2.wav   1             1    5.0  8.3'''
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 
+def test_standardize_map_to_existing_column(annot_table_std):
+    #start labels at 0 (default)
+    annot_table_std["path"] = [f"file{i}.flac" for i in range(len(annot_table_std))]
+    res = st.standardize(annot_table_std, mapper={"filename": "path"})
+    d = '''filename annot_id label filename_orig start  end                   
+file0.flac   0             2   f0.wav  0.0  3.3
+file1.flac   0             3   f1.wav  1.0  4.3
+file2.flac   0             4   f2.wav  2.0  5.3
+file3.flac   0             1   f0.wav  3.0  6.3
+file4.flac   0             1   f1.wav  4.0  7.3
+file5.flac   0             0   f2.wav  5.0  8.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
+
 def test_standardize_with_labels(annot_table_std):
     res = st.standardize(annot_table_std, labels=[-1,0,1,2,3])
     d = '''filename annot_id label  start  end                   

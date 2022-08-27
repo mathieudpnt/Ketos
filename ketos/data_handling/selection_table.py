@@ -254,12 +254,15 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     # map columns
     if mapper is not None:
-        for key,value in mapper.items():
+        for key,value in mapper.items(): #first, map mathematical/logical operations
             if value not in df.columns.values:
-                df[key] = df.apply(lambda x: eval(value), axis=1) #first, map mathematical/logical operations
-        for key,value in mapper.items():
+                df[key] = df.apply(lambda x: eval(value), axis=1) 
+        for key,value in mapper.items(): #second, map 1-to-1 mappings
             if value in df.columns.values:
-                df = df.rename(columns={value:key}) #second, map 1-to-1 mappings
+                if key in df.columns.values:
+                    df = df.rename(columns={key:f"{key}_orig"})  #if the table already has a column with this name, append _orig to its name
+
+                df = df.rename(columns={value:key}) 
 
     # if user has provided duration instead of end time, compute end time
     if 'start' in df.columns.values and 'duration' in df.columns.values and 'end' not in df.columns.values:
