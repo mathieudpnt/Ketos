@@ -1,4 +1,4 @@
-image: meridiancfi/ketos:v2.4.2
+image: meridiancfi/ketos:v2.6.1
 
 stages:
 - build
