@@ -30,16 +30,21 @@
     structures.
 """
 import os
+import sys
 import json
 from pint import UnitRegistry
+from ketos.audio.waveform import Waveform
+from ketos.audio.gammatone import GammatoneFilterBank,AuralFeatures
+from ketos.audio.spectrogram import MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram,Spectrogram
+import importlib
+import inspect
 
 ureg = UnitRegistry()
 
 
 """ Standard audio-representation parameters recognized by Ketos.
 """
-audio_std_params = {'type':                     {'type':str,   'unit':None},
-                    'rate':                     {'type':float, 'unit':'Hz'},
+audio_std_params = {'rate':                     {'type':float, 'unit':'Hz'},
                     'window':                   {'type':float, 'unit':'s'},
                     'step':                     {'type':float, 'unit':'s'},
                     'bins_per_oct':             {'type':int,   'unit':None},
@@ -60,6 +65,23 @@ audio_std_params = {'type':                     {'type':str,   'unit':None},
                     'decibel':                  {'type':bool,  'unit':None},
                     'input_shape':              {'type':list,  'unit':None}
                     }
+
+audio_repres_dict = {'Waveform':Waveform,
+                     'Spectrogram':Spectrogram,
+                     'MagSpectrogram':MagSpectrogram, 
+                     'Mag':MagSpectrogram,
+                     'PowerSpectrogram':PowerSpectrogram,
+                     'Power':PowerSpectrogram,
+                     'Pow':PowerSpectrogram,
+                     'MelSpectrogram':MelSpectrogram,
+                     'Mel':MelSpectrogram,
+                     'CQTSpectrogram':CQTSpectrogram,
+                     'CQT':CQTSpectrogram,
+                     'AuralFeatures': AuralFeatures,
+                     'Aural': AuralFeatures,
+                     'GammatoneFilterBank': GammatoneFilterBank,
+                     'Gammatone': GammatoneFilterBank}
+
 
 
 def is_encoded(s):
@@ -110,6 +132,7 @@ def load_audio_representation(path, name=None, return_unparsed=False):
 
         Example:
             >>> import json
+            >>> import os
             >>> from ketos.data_handling.parsing import load_audio_representation
             >>> # create json file with spectrogram settings
             >>> json_str = '{"spectrogram": {"type": "MagSpectrogram", "rate": "20 kHz", "window": "0.1 s", "step": "0.025 s", "window_func": "hamming", "freq_min": "30Hz", "freq_max": "3000Hz"}}'
@@ -120,9 +143,22 @@ def load_audio_representation(path, name=None, return_unparsed=False):
             >>> # load settings back from json file
             >>> settings = load_audio_representation(path=path, name='spectrogram')
             >>> print(settings)
-            {'type': 'MagSpectrogram', 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'window_func': 'hamming', 'freq_min': 30, 'freq_max': 3000}
+            {'type': <class 'ketos.audio.spectrogram.MagSpectrogram'>, 'rate': 20000.0, 'window': 0.1, 'step': 0.025, 'window_func': 'hamming', 'freq_min': 30, 'freq_max': 3000}
             >>> # clean up
             >>> os.remove(path)
+
+            It is also possible to pass a custom audio representation class to this function. In this case, include a key/value pair indicating the path to the module you are loading the class from.
+            For instance:
+
+            >>> import json # doctest: +SKIP
+            >>> import os # doctest: +SKIP
+            >>> from ketos.data_handling.parsing import load_audio_representation # doctest: +SKIP
+            >>> # create json file with spectrogram settings
+            >>> json_str = '{"custom_representation": {"type": "Cepstrum", "module": "path/to/my/audio_representation.py", "any": "parameter", "for": "the", "custom": "representation"}}' # doctest: +SKIP
+            >>> path = 'my/custom/config.py' # doctest: +SKIP
+            >>> settings = load_audio_representation(path=path, name='custom_representation') # doctest: +SKIP
+            >>> print(settings) # doctest: +SKIP
+            {'type': <class 'audio_representation.Cepstrum'>, "module": "path/to/my/audio_representation.py", "any": "parameter", "for": "the", "custom": "representation"}
     """
     with open(path, 'r') as fil:
         data = json.load(fil)
@@ -133,31 +169,50 @@ def load_audio_representation(path, name=None, return_unparsed=False):
 
     return data
 
-def parse_audio_representation(s):
+def parse_audio_representation(audio_representations):
     """ Parse audio representation parameters.
     
         Args:
-            s: dict
+            audio_representation: dict
                 Unparsed audio representation  
 
         Returns:
-            s: dict
+            audio_representation: dict
                 Parsed audio representation
     """
     # Determines if the input is a nested dictionary.    
-    is_nested = isinstance(s, dict) and isinstance(list(s.values())[0], dict)
+    is_nested = isinstance(audio_representations, dict) and isinstance(list(audio_representations.values())[0], dict)
 
     if not is_nested:
-        s = {0: s}
+        audio_representations = {0: audio_representations}
 
-    for name,params in s.items():
+    for name,params in audio_representations.items():
+        # check if audio representation type is a class included in ketos and return the class
+        if params['type'] in audio_repres_dict:
+            audio_representations[name]['type'] = audio_repres_dict[params['type']]
+        else:
+            try:
+                # If not, try to load a custom module provided by the user
+                # See docs https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+                module_name = os.path.basename(params['module']).split('.')[0]
+                spec = importlib.util.spec_from_file_location(module_name, params['module'])
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+
+                # Now we load the class
+                audio_representation_class = getattr(module, params['type'])
+                audio_representations[name]['type'] = audio_representation_class
+            except KeyError as ex:   
+                raise Exception(f'The audio representation "{audio_representations[name]["type"]}" is not included with ketos. However, it is possible to use a custom audio representation. Consult the documentation in "data_handling.parsing.load_audio_representation" for examples.') from None
+
         for key,value in params.items():
-            s[name][key] = parse_parameter(name=key, value=value)
+            audio_representations[name][key] = parse_parameter(name=key, value=value)
 
     if not is_nested:
-        s = s[0]
+        audio_representations = audio_representations[0]
 
-    return s
+    return audio_representations
 
 def parse_parameter(name, value):
     """ Parse the parameter value according to the type and unit specified 
@@ -190,7 +245,7 @@ def parse_parameter(name, value):
         typ  = param['type'] 
         unit = param['unit']
 
-        if unit is not None: 
+        if unit is not None and Q(value).check(unit): 
             parsed_value = Q(value).m_as(unit)
 
         if typ in ['int', int]:
@@ -199,7 +254,7 @@ def parse_parameter(name, value):
         elif unit in ['float', float]:
             parsed_value = float(parsed_value)
 
-        elif typ in ['str', str]:
+        elif typ in ['str', str] and value is not None:
             parsed_value = str(parsed_value)
 
         elif typ in ['bool', bool]:
@@ -281,11 +336,13 @@ def encode_parameter(name, value):
         if typ == bool:
             encoded_value = str(value).lower()
 
-    else:
-        if isinstance(value, tuple):
-            encoded_value = ','.join([str(x) for x in value])
-            encoded_value = '(' + encoded_value + ')'
-
+    elif isinstance(value, tuple):
+        encoded_value = ','.join([str(x) for x in value])
+        encoded_value = '(' + encoded_value + ')'
+    
+    elif name == 'type':
+        if inspect.isclass(value):
+            encoded_value = value.__name__
     return encoded_value
 
 def str2bool(v):

@@ -26,11 +26,11 @@
 
 """ Unit tests for the 'parsing' module within the ketos library
 """
-import pytest
 import json
 import ketos.data_handling.parsing as jp
 
 def test_parse_audio_representation(spectr_settings):
+    from ketos.audio.spectrogram import MagSpectrogram
     data = json.loads(spectr_settings)
     data['spectrogram']['dummy'] = 'hest'
     d = jp.parse_audio_representation(data['spectrogram'])
@@ -42,7 +42,35 @@ def test_parse_audio_representation(spectr_settings):
     assert d['freq_max'] == 3000
     assert d['duration'] == 1.0
     assert d['resample_method'] == 'scipy'
-    assert d['type'] == 'MagSpectrogram'
+    assert d['type'] == MagSpectrogram
+    assert not d['normalize_wav']
+    assert d['transforms'] == [{"name":"enhance_signal", "enhancement":1.0}, {"name":"adjust_range", "range":(0,1)}]
+    assert d['waveform_transforms'] == [{"name":"add_gaussian_noise", "sigma":0.2}]
+    assert d['decibel']
+    assert d['dummy'] == 'hest'
+
+def test_parse_audio_with_custom_representation(custom_audio_representation_module, spectr_settings):
+    import os
+    data = json.loads(spectr_settings)
+    data['spectrogram']['type'] = 'CustomRepresentation'
+    data['spectrogram']['module'] = custom_audio_representation_module
+    data['spectrogram']['dummy'] = 'hest'
+    class CustomRepresentation():
+        def __init__(self):
+            self.window = '0.2'
+    obj2 = CustomRepresentation()
+    d = jp.parse_audio_representation(data['spectrogram'])
+    assert d['rate'] == 20000
+    assert d['window'] == 0.1
+    assert d['step'] == 0.025
+    assert d['window_func'] == 'hamming'
+    assert d['freq_min'] == 30
+    assert d['freq_max'] == 3000
+    assert d['duration'] == 1.0
+    assert d['resample_method'] == 'scipy'
+    obj1 = d['type']()
+    assert obj1.window == obj2.window
+    assert d['module'] == os.path.abspath("ketos/tests/assets/custom_representation.py")
     assert not d['normalize_wav']
     assert d['transforms'] == [{"name":"enhance_signal", "enhancement":1.0}, {"name":"adjust_range", "range":(0,1)}]
     assert d['waveform_transforms'] == [{"name":"add_gaussian_noise", "sigma":0.2}]

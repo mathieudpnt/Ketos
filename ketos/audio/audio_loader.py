@@ -33,7 +33,6 @@
         AudioSequenceLoader class
 """
 import os
-import copy
 import pandas as pd
 import numpy as np
 import soundfile as sf
@@ -41,29 +40,9 @@ import tarfile
 import warnings
 import shutil
 from ketos.audio.waveform import Waveform, get_duration
-from ketos.audio.gammatone import GammatoneFilterBank,AuralFeatures
-from ketos.audio.spectrogram import Spectrogram,MagSpectrogram,PowerSpectrogram,MelSpectrogram,CQTSpectrogram
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
 from ketos.utils import floor_round_up, ceil_round_down
-
-
-""" Audio representation dictionary 
-"""
-audio_repres_dict = {'Waveform':Waveform,
-                     'MagSpectrogram':MagSpectrogram, 
-                     'Mag':MagSpectrogram,
-                     'PowerSpectrogram':PowerSpectrogram,
-                     'Power':PowerSpectrogram,
-                     'Pow':PowerSpectrogram,
-                     'MelSpectrogram':MelSpectrogram,
-                     'Mel':MelSpectrogram,
-                     'CQTSpectrogram':CQTSpectrogram,
-                     'CQT':CQTSpectrogram,
-                     'AuralFeatures': AuralFeatures,
-                     'Aural': AuralFeatures,
-                     'GammatoneFilterBank': GammatoneFilterBank,
-                     'Gammatone': GammatoneFilterBank}
 
 
 class ArchiveManager():
@@ -165,7 +144,6 @@ class ArchiveManager():
         """
         if os.path.exists(self.extract_dir):
             shutil.rmtree(self.extract_dir)
-
 
 class SelectionGenerator():
     """ Template class for selection generators.
@@ -543,28 +521,29 @@ class AudioLoader():
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
                 Annotation table
-            repres: dict
-                Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the `from_wav` method.  
+            representation: class or list of classes
+                Audio data representation. This is a class that must receive the raw audio data and will transform the data 
+                into the specified audio representation object.
                 
+                Classes available in ketos:
+
                     * Waveform: 
                         (rate), (resample_method)
                     
                     * MagSpectrogram, PowerSpectrogram, MelSpectrogram: 
-                        window, step, (window_func), (rate), (resample_method)
+                        audio, window, step, (window_func), (rate), (resample_method)
                     
                     * CQTSpectrogram:
-                        step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
+                        audio, step, bins_per_oct, (freq_min), (freq_max), (window_func), (rate), (resample_method)
 
-                It is also possible to specify multiple audio presentations as a list or a nested dictionary.
+                It is also possible to specify multiple audio presentations as a list.
+            representation_params: dict or list of dict
+                Dictionary containing any required and optional arguments for the representation class. If more than one
+                representation is given `representation_params` must be a list of the same length and in the same order.
             batch_size: int
                 Load segments in batches rather than one at the time. 
             stop: bool
                 Raise StopIteration when all selections have been loaded. Default is True.
-
-        Attributes:
-            cfg: list(dict)
-                Audio representation dictionaries.
         
         Examples:
 
@@ -573,15 +552,17 @@ class AudioLoader():
             >>> from ketos.audio.audio_loader import AudioLoader, SelectionTableIterator
             >>> from ketos.data_handling.selection_table import use_multi_indexing
             >>> import pandas as pd
+            >>> # Load the audio representation you want to pass
+            >>> from ketos.audio.spectrogram import MagSpectrogram
             >>> # specify the audio representation
-            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming'}
+            >>> rep = {'window':0.2, 'step':0.02, 'window_func':'hamming'}
             >>> # Load selections
             >>> sel = pd.DataFrame({'filename':["2min.wav", "2min.wav"],'start':[0.10,0.12],'end':[0.46,0.42]})
             >>> sel = use_multi_indexing(sel, 'sel_id')
             >>> # create a generator for iterating over all the selections 
             >>> generator = SelectionTableIterator(data_dir="ketos/tests/assets/", selection_table=sel)
             >>> # Create a loader by passing the generator and the representation to the AudioLoader
-            >>> loader = AudioLoader(selection_gen=generator, repres=rep)
+            >>> loader = AudioLoader(selection_gen=generator, representation=MagSpectrogram, representation_params=rep)
             >>> # print number of segments
             >>> print(loader.num())
             2
@@ -600,8 +581,10 @@ class AudioLoader():
             >>> from ketos.audio.audio_loader import AudioLoader, SelectionTableIterator
             >>> from ketos.data_handling.selection_table import standardize
             >>> import pandas as pd
+            >>> # Load the audio representation you want to pass
+            >>> from ketos.audio.spectrogram import MagSpectrogram
             >>> # specify the audio representation
-            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming'}
+            >>> rep = {'window':0.2, 'step':0.02, 'window_func':'hamming'}
             >>> # Load selections
             >>> annot = pd.DataFrame([{"filename":"2min.wav", "start":2.0, "end":3.0, "label":0},
             ...         {"filename":"2min.wav", "start":5.0, "end":6.0, "label":0},
@@ -611,7 +594,7 @@ class AudioLoader():
             >>> # create a generator for iterating over all the selections 
             >>> generator = SelectionTableIterator(data_dir="ketos/tests/assets/", selection_table=annot_std)
             >>> # Create a loader by passing the generator and the representation to the AudioLoader
-            >>> loader = AudioLoader(selection_gen=generator, repres=rep)
+            >>> loader = AudioLoader(selection_gen=generator, representation=MagSpectrogram, representation_params=rep)
             >>> # print number of segments
             >>> print(loader.num())
             4
@@ -628,24 +611,23 @@ class AudioLoader():
             For more examples see child class :class:`audio.audio_loader.AudioFrameLoader`   
 
     """
-    def __init__(self, selection_gen, channel=0, annotations=None, repres={'type': 'Waveform'}, 
+    def __init__(self, selection_gen, channel=0, annotations=None, representation=Waveform, representation_params=None, 
                         batch_size=1, stop=True, **kwargs):
-        repres = copy.deepcopy(repres)
 
-        if isinstance(repres, list):
-            repres = {i: r for i,r in enumerate(repres)} #convert list to dict with keys 0,1,2...
-        if not isinstance(list(repres.values())[0], dict): #if not a nested dict, make it nested with key 0
-            repres = {0: repres}
+        self.representation = representation
+        self.representation_params = representation_params
 
-        self.typ, self.cfg, self.repr_duration = [], [], [] #type, config, duration        
-        for r in repres.values():
-            self.typ.append(r.pop('type'))
-            r.pop('duration', None)
-            self.cfg.append(r)
-
+        if not isinstance(self.representation, list):
+            self.representation = [self.representation]
+            self.representation_params = [self.representation_params]
+        
+        for i in range(len(self.representation)):
+            if self.representation_params[i] == None: # If no parameters are given then create an empty dict (this will use the default params)
+                self.representation_params[i] = {}
         self.channel = channel
         self.selection_gen = selection_gen
         self.annot = annotations
+        # QUESTION: kwargs is carrying more optional arguments. such as compute phase... it feels very wrong. shouldnt the phase be another representation? or an arugment of the spectrogram class?
         self.kwargs = kwargs
         self.batch_size = batch_size
         self.stop = stop
@@ -667,19 +649,19 @@ class AudioLoader():
 
             Some examples:
 
-             * If the loader was initialized with the audio representation `repres={'type':'Waveform'}` 
-               and with `batch_size=1` (default), the return value will be a single 
-               instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
+             * If the loader was initialized with the audio representation `representation=Waveform`,   
+               `representation_params=None` (default) and with `batch_size=1` (default), the return  
+               value will be a single instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
 
              * If the loader was initialized with the audio representation 
-               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               `representation=[Waveform, MagSpectrogram]`, `representation_params=[None, {'window':0.1,'step':0.02}]` 
                and with `batch_size=1` (default), the return value will be a list 
                of length 2, where the first entry holds an instance of 
                :class:`Waveform <ketos.audio.waveform.Waveform>` and the second entry holds an instance 
                of :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`.
 
              * If the loader was initialized with the audio representation 
-               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               `representation=[Waveform, MagSpectrogram]`, `representation_params=[None, {'window':0.1,'step':0.02}]` 
                and with `batch_size>1`, the return value will be a nested list with outer 
                length equal to `batch_size` and inner length 2, corresponding to the number of 
                audio representations.
@@ -738,7 +720,7 @@ class AudioLoader():
         """
         return self.selection_gen.num()
 
-    def load(self, data_dir, filename, offset=0, duration=None, label=None, apply_transforms=True, **kwargs):
+    def load(self, data_dir, filename, offset=0, duration=None, label=None, **kwargs):
         """ Load audio segment for specified file and time.
 
             Args:
@@ -753,8 +735,6 @@ class AudioLoader():
                     Duration of segment in seconds.
                 label: int
                     Integer label
-                apply_transforms: bool
-                    Apply transforms. Default is True.
         
             Returns: 
                 seg: BaseAudio or list(BaseAudio)
@@ -789,19 +769,9 @@ class AudioLoader():
 
         # load audio
         segs = []
-        for i in range(len(self.typ)):
-
-            typ = self.typ[i]
-            cfg = self.cfg[i]
-
-            _kwargs = kwargs.copy()
-            _kwargs.update(cfg)
-            if not apply_transforms:
-                _kwargs.pop('transforms', None)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore") 
-                seg = audio_repres_dict[typ].from_wav(path=path, channel=self.channel, offset=offset, duration=duration, id=id, **_kwargs)
+        for i in range(len(self.representation)): # For each representation
+            self.representation_params[i]['duration'] = duration # The duration for the representation is defined by each segment
+            seg = self.representation[i].from_wav(path=path, channel=self.channel, offset=offset, id=id, **self.representation_params[i], **kwargs) 
 
             # add label
             if label is not None:
@@ -851,11 +821,14 @@ class AudioFrameLoader(AudioLoader):
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
                 Annotation table
-            repres: dict
-                Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.  
+            representation: class or list of classes
+                Audio data representation. This is a class that must receive the raw audio data 
+                and will transform the data into the specified audio representation object.  
                 It is also possible to specify multiple audio presentations as a list. These 
                 presentations must have the same duration.
+            representation_params: dict or list of dict
+                Dictionary containing any required and optional arguments for the representation class. If more than one
+                representation is given `representation_params` must be a list of the same length and in the same order.
             batch_size: int
                 Load segments in batches rather than one at the time. 
             stop: bool
@@ -865,16 +838,18 @@ class AudioFrameLoader(AudioLoader):
 
         Examples:
             >>> from ketos.audio.audio_loader import AudioFrameLoader
+            >>> # Load the audio representation you want to pass
+            >>> from ketos.audio.spectrogram import MagSpectrogram
             >>> # specify path to wav file
             >>> filename = 'ketos/tests/assets/2min.wav'
             >>> # check the duration of the audio file
             >>> from ketos.audio.waveform import get_duration
             >>> print(get_duration(filename)[0])
             120.832
-            >>> # specify the audio representation
-            >>> rep = {'type':'MagSpectrogram', 'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
+            >>> # specify the audio representation parameters
+            >>> rep = {'window':0.2, 'step':0.02, 'window_func':'hamming', 'freq_max':1000.}
             >>> # create an object for loading 30-s long spectrogram segments, using a step size of 15 s (50% overlap) 
-            >>> loader = AudioFrameLoader(duration=30., step=15., filename=filename, repres=rep)
+            >>> loader = AudioFrameLoader(duration=30., step=15., filename=filename, representation=MagSpectrogram, representation_params=rep)
             >>> # print number of segments
             >>> print(loader.num())
             8
@@ -889,15 +864,16 @@ class AudioFrameLoader(AudioLoader):
             .. image:: ../../../ketos/tests/assets/tmp/spec_2min_0.png
     """
     def __init__(self, duration, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}, batch_size=1, 
-                    stop=True, pad=True, **kwargs):
+                    annotations=None, representation=Waveform, representation_params=None, batch_size=1, 
+                    stop=True, pad=True):
 
         if batch_size > 1:
             print("Warning: batch_size > 1 results in different behaviour for ketos versions >= 2.4.2 than earlier \
                    versions. You may want to check out the AudioFrameEfficientLoader class.")
 
         super().__init__(selection_gen=FrameStepper(duration=duration, step=step, path=path, pad=pad, filename=filename), 
-            channel=channel, annotations=annotations, repres=repres, batch_size=batch_size, stop=stop, **kwargs)
+            channel=channel, annotations=annotations, representation=representation, representation_params=representation_params, 
+            batch_size=batch_size, stop=stop)
 
     def get_file_paths(self, fullpath=True):
         """ Get the paths to the audio files associated with this instance.
@@ -953,11 +929,14 @@ class AudioFrameEfficientLoader(AudioFrameLoader):
                 For stereo recordings, this can be used to select which channel to read from
             annotations: pandas DataFrame
                 Annotation table. Optional.
-            repres: dict
-                Audio data representation. Must contain the key 'type' as well as any arguments 
-                required to initialize the class using the from_wav method.  
+            representation: class or list of classes
+                Audio data representation. This is a class that must receive the raw audio data 
+                and will transform the data into the specified audio representation object.  
                 It is also possible to specify multiple audio presentations as a list. These 
                 presentations must have the same duration.
+            representation_params: dict or list of dict
+                Dictionary containing any required and optional arguments for the representation class. If more than one
+                representation is given `representation_params` must be a list of the same length and in the same order.
             num_frames: int
                 Load segments in batches of size `num_frames` rather than one at the time. 
                 Increasing `num_frames` can help reduce computational time.
@@ -967,23 +946,20 @@ class AudioFrameEfficientLoader(AudioFrameLoader):
                 The default behaviour is to return the segments individually.
     """
     def __init__(self, duration=None, step=None, path=None, filename=None, channel=0, 
-                    annotations=None, repres={'type': 'Waveform'}, num_frames=12, 
-                    return_as_batch=False, **kwargs):
+                    annotations=None, representation=Waveform, representation_params=None,
+                    num_frames=12, return_as_batch=False):
 
         assert (isinstance(num_frames, int) and num_frames >= 1) or \
             (isinstance(num_frames, str) and num_frames.lower() == 'file'), \
             'Argument `num_frames` must be a positive integer or have the string value `file`'
 
         super().__init__(duration=duration, step=step, path=path, filename=filename, 
-                    channel=channel, annotations=annotations, repres=repres, **kwargs)
+                    channel=channel, annotations=annotations, representation=representation, 
+                    representation_params=representation_params)
 
         self.return_as_batch = return_as_batch
-
         self.transforms_list = []
-        for config in self.cfg:
-            transforms = config['transforms'] if 'transforms' in config.keys() else []
-            self.transforms_list.append(transforms)
-
+        
         if isinstance(num_frames, int):
             self.max_batch_size = num_frames
         else:
@@ -1004,21 +980,19 @@ class AudioFrameEfficientLoader(AudioFrameLoader):
             :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`
             classes), a list of such objects, or a nested listed of such objects. 
 
-            Some examples:
-
-             * If the loader was initialized with the audio representation `repres={'type':'Waveform'}` 
-               and with `return_as_batch=False` (default), the return value will be a single 
-               instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
+             * If the loader was initialized with the audio representation `representation=Waveform`,   
+               `representation_params=None` (default) and with `return_as_batch=False` (default), 
+               the return value will be a single instance of :class:`Waveform <ketos.audio.waveform.Waveform>`.
 
              * If the loader was initialized with the audio representation 
-               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               `representation=[Waveform, MagSpectrogram]`, `representation_params=[None, {'window':0.1,'step':0.02}]` 
                and with `return_as_batch=False` (default), the return value will be a list 
                of length 2, where the first entry holds an instance of 
                :class:`Waveform <ketos.audio.waveform.Waveform>` and the second entry holds an instance 
                of :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`.
 
              * If the loader was initialized with the audio representation 
-               `repres=[{'type':'Waveform'}, {'type':'MagSpectrogram', 'window':0.1,'step':0.02}]` 
+               `representation=[Waveform, MagSpectrogram]`, `representation_params=[None, {'window':0.1,'step':0.02}]` 
                and with `return_as_batch=True`, the return value will be a nested list with outer 
                length equal to `num_frames` and inner length 2, corresponding to the number of 
                audio representations.
@@ -1066,13 +1040,14 @@ class AudioFrameEfficientLoader(AudioFrameLoader):
 
         # load the data without applying transforms
         self.batch = self.load(data_dir=self.data_dir, filename=self.filename, offset=self.offset, 
-            duration=duration, label=None, apply_transforms=False, **self.kwargs)
+            duration=duration, label=None)
 
         if not isinstance(self.batch, list): self.batch = [self.batch]
 
         # loop over the representations
-        for i in range(len(self.transforms_list)):
-
+        for i in range(len(self.representation)):
+            transforms = self.representation_params[i]['transforms'] if 'transforms' in self.representation_params[i].keys() else []
+            self.transforms_list.append(transforms)
             # segment the data
             self.batch[i] = self.batch[i].segment(window=self.selection_gen.duration, step=self.selection_gen.step)
 

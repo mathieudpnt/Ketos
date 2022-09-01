@@ -15,6 +15,12 @@ Change log
  * :meth:`select <ketos.data_handling.selection_table.select>` will now check for inconsistent start and end times and give appropriate warnings. This fixes a previous infinite loop when the start time was greater than the end time.
  * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
  * Removed class :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` in favor of using more primitive classes. See :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` for examples on how to achieve the same functionality.
+ * Class :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` replaces `repres` arguments with two new arguments `representation` and `representation_params`. This allows custom audio representation to be passed. Reference,
+   the documentation of :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` and :meth:`load_audio_representation <ketos.data_handling.parsing.load_audio_representation>` on ways of using a custom audio representation.
+ * Classes :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and :class:`AudioEfficientFrameLoader <ketos.audio.audio_loader.AudioEfficientFrameLoader>` followed the same changes made to the AudioLoader class.
+ * Method :meth:`create_database <ketos.data_feeding.database_interface.create_database>` now requires a dict to be passed with an audio_repres containing a class rather than simply a string with the name of the class.
+ * Changes made to :meth:`encode_parameter <ketos.data_handling.parsing.encode_parameter>` and :meth:`parse_audio_representation <ketos.data_handling.parsing.parse_audio_representation>`. These functions will now properly
+   parse a json string or unparsed dict with strings into a python dict with classes and correct types and vice-versa.
 
 **Version 2.6.1** (June 3, 2022)
 
