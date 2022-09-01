@@ -42,7 +42,7 @@ import shutil
 from ketos.audio.waveform import Waveform, get_duration
 from ketos.data_handling.data_handling import find_wave_files
 from ketos.data_handling.selection_table import query
-from ketos.utils import floor_round_up, ceil_round_down
+from ketos.utils import floor_round_up, ceil_round_down, user_format_warning
 
 
 class ArchiveManager():
@@ -102,7 +102,8 @@ class ArchiveManager():
                 self.tar.extract(member=path, path=self.extract_dir)
                 self.extracted_files.append(path)
             except KeyError as e:
-                warnings.warn(f"{path} not found in {self.tar_path}", UserWarning)
+                warnings.formatwarning = user_format_warning
+                warnings.warn(f"{path} not found in {self.tar_path}")
 
     def _remove_files(self, paths):
         """ Helper function for removing files from the extraction directory.
@@ -484,27 +485,25 @@ def _file_limits_warning(start, end, file_path, file_duration):
     len_tot = end - start
     # determine how much of the selection is outside the file
     len_outside = max(0, -start) + max(0, end - file_duration)
-    
+
+    warnings.formatwarning = user_format_warning
+
     # print warnings if selection end is zero or negative
+    file_info = f"While processing {os.path.basename(file_path)}"
     if (end <= 0):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: selection end time ({end:.2f}s) is earlier than the start of the file", category=UserWarning)
+        warnings.warn(f"{file_info}: selection has negative end time ({end:.2f}s).")
 
     # print warnings if selection start is later than the file end time
-    if (start > file_duration):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: selection start time ({start:.2f}s) is later than the end of the file", category=UserWarning)
+    elif (start > file_duration):
+        warnings.warn(f"{file_info}: selection start time exceeds file duration ({start:.2f}s).")
 
     #print a warning that the selection has 0 or negative length (end before start)
-    if (len_tot <= 0):
-         warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            "Message: selection end time is less than or equal to the selection start time.", category=UserWarning)
+    elif (len_tot <= 0):
+        warnings.warn(f"{file_info}: selection has negative duration ({start:.2f},{end:.2f}).")
          
     # print a warning that a fraction larger than 50% of the selection is outside the file
-    if (len_outside > 0.5 * len_tot):
-        warnings.warn(f"Warning: while processing {os.path.basename(file_path)}, " \
-            f"Message: at least half of the selection ({start:.2f}s,{end:.2f}s) does not " \
-            "fall within the file", category=UserWarning)
+    elif (len_outside > 0.5 * len_tot):
+        warnings.warn(f"{file_info}: over 50% of the selection falls outside the audio file ({start:.2f}s,{end:.2f}s).")
 
 
 class AudioLoader():
@@ -676,7 +675,8 @@ class AudioLoader():
         try:
             return self._next_batch(load=True)
         except Exception as e:
-            warnings.warn(f"While loading entry no. {self.counter}, Message: {str(e)}", category=UserWarning)
+            warnings.formatwarning = user_format_warning
+            warnings.warn(f"While loading entry no. {self.counter}: {str(e)}", category=UserWarning)
             
     def skip(self):
         """ Skip to the next audio segment or batch of audio segments

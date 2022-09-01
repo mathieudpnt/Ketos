@@ -169,12 +169,12 @@ def test_standardize_from_file(annot_table_file):
     ans = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
     assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
-f0.wav   0             1      0    1
-f1.wav   0            -1      1    3
-f2.wav   0             2      2    5
-f3.wav   0             0      3    7
-f4.wav   0             0      4    9
-f5.wav   0            -1      5    11'''
+f0.wav   0             1      0.    1.
+f1.wav   0            -1      1.    3.
+f2.wav   0             2      2.    5.
+f3.wav   0             0      3.    7.
+f4.wav   0             0      4.    9.
+f5.wav   0            -1      5.    11.'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
@@ -185,12 +185,12 @@ def test_standardize_with_nested_list(annot_table_file):
     ans = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
     assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
-f0.wav   0             1      0    1
-f1.wav   0            -1      1    2
-f2.wav   0             2      2    3
-f3.wav   0             0      3    4
-f4.wav   0             1      4    5
-f5.wav   0            -1      5    6'''
+f0.wav   0             1      0.    1.
+f1.wav   0            -1      1.    2.
+f2.wav   0             2      2.    3.
+f3.wav   0             0      3.    4.
+f4.wav   0             1      4.    5.
+f5.wav   0            -1      5.    6.'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
