@@ -111,7 +111,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from ketos.utils import str_is_int, fractional_overlap
-from ketos.data_handling.data_handling import find_wave_files, parse_datetime
+from ketos.data_handling.data_handling import find_wave_files, find_files, parse_datetime
 from ketos.audio.waveform import get_duration
 
 
@@ -341,6 +341,12 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     df.attrs["start_labels_at_1"] = start_labels_at_1
 
+    # enforce float for select columns
+    float_cols = ['start','end','freq_min','freq_max']
+    for c in float_cols:
+        if c in df.columns.values:
+            df[c] = df[c].astype(float)
+        
     return df
 
 
@@ -914,7 +920,7 @@ def file_duration_table(path, search_subdirs=False, datetime_format=None):
 
         Args:
             path: str
-                Path to folder with audio files (\*.wav)
+                Path to folder with audio files with extensions wav, WAV, flac, FLAC.
             search_subdirs: bool
                 If True, search include also any audio files in subdirectories.
                 Default is False.
@@ -928,7 +934,7 @@ def file_duration_table(path, search_subdirs=False, datetime_format=None):
             df: pandas DataFrame
                 File duration table. Columns: filename, duration, (datetime)
     """
-    paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
+    paths = find_files(path=path, return_path=True, search_subdirs=search_subdirs, substr=['.wav', '.WAV', '.flac', '.FLAC'])
     durations = get_duration([os.path.join(path,p) for p in paths])
     df = pd.DataFrame({'filename':paths, 'duration':durations})
     if datetime_format is None:

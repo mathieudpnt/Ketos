@@ -36,6 +36,70 @@ from scipy.signal import find_peaks
 from functools import reduce
 
 
+def user_format_warning(message, category, filename, lineno, line=None):
+    ''' Warning message formatted for users. 
+
+        https://docs.python.org/3/library/warnings.html
+
+        Args:
+            message: str
+                Warning message
+            category: warnings.Warning
+                Warning category.
+            filename: str
+                Path to the source code file.
+            lineno: int
+                Line in the source code that triggered the warning.
+            line: str
+                @line is a line of source code to be included in the warning message; 
+                if line is not supplied, formatwarning() will try to read the line 
+                specified by filename and lineno.
+
+        Returns:
+            : str
+                Formatted warning message
+
+        Example:
+            >>> import warnings
+            >>> from ketos.utils import user_format_warning
+            >>> warnings.formatwarning = user_format_warning #switch format
+            >>> warnings.warn("This is a warning intended for users") #print a warning
+    '''
+    return '%s: %s\n' % (category.__name__, message)
+
+
+def dev_format_warning(message, category, filename, lineno, line=None):
+    ''' Warning message formatted for developers. 
+    
+        https://docs.python.org/3/library/warnings.html
+
+        Args:
+            message: str
+                Warning message
+            category: warnings.Warning
+                Warning category.
+            filename: str
+                Path to the source code file.
+            lineno: int
+                Line in the source code that triggered the warning.
+            line: str
+                @line is a line of source code to be included in the warning message; 
+                if line is not supplied, formatwarning() will try to read the line 
+                specified by filename and lineno.
+
+        Returns:
+            : str
+                Formatted warning message
+
+        Example:
+            >>> import warnings
+            >>> from ketos.utils import dev_format_warning
+            >>> warnings.formatwarning = dev_format_warning #switch format
+            >>> warnings.warn("This is a warning intended for developers") #print a warning    
+    '''
+    return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
+
+
 def fractional_overlap(a, b):
     ''' Compute the fractional overlap of two intervals, defined as
         (length of overlap) / (length of the shortest interval of the two).
