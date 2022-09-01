@@ -35,8 +35,8 @@
     frequecy. 
 """
 
-from email.mime import audio
 import os
+import copy
 import warnings
 import tables
 import datetime as dt
@@ -44,10 +44,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from skimage.transform import resize
-from ketos.utils import tostring, ensure_dir
+from ketos.utils import ensure_dir
 from ketos.audio.base_audio import BaseAudio
-from ketos.audio.waveform import Waveform
-from ketos.audio.spectrogram import Spectrogram, MagSpectrogram, PowerSpectrogram, CQTSpectrogram, MelSpectrogram
+from ketos.audio.spectrogram import Waveform
+from ketos.data_handling.parsing import parse_audio_representation, audio_repres_dict
 import ketos.audio.audio_loader as al
 
 
@@ -143,7 +143,6 @@ def open_table(h5file, table_path):
     except tables.NoSuchNodeError:  
         print('Attempt to open non-existing table {0} in file {1}'.format(table_path, h5file))
         raise
-        table = None
 
     return table
 
@@ -311,8 +310,8 @@ def table_description(data_shape, data_name=None, include_label=True, include_so
     for i in range(len(data_shape_list)):
         ds = data_shape_list[i]
         if isinstance(ds, np.ndarray): _data_shape_list.append(ds.shape)
-        elif isinstance(ds, BaseAudio): _data_shape_list.append(ds.data.shape)
         elif isinstance(ds, tuple): _data_shape_list.append(ds)
+        else: _data_shape_list.append(ds.data.shape)
 
     class TableDescription(tables.IsDescription):
         id = create_table_col('uint32')
@@ -382,9 +381,7 @@ def write_repres_attrs(table, x):
             table: tables.Table
                 Table in which the spectrogram will be stored
                 (described by spec_description()).
-            x: instance of :class:`spectrogram.MagSpectrogram`, \
-                :class:`spectrogram.PowerSpectrogram`, :class:`spectrogram.MelSpectrogram`, \
-                :class:`spectrogram.CQTSpectrogram`, numpy.array    
+            x: instance of a class or numpy.array    
                 The audio object to be stored in the table.
 
         Returns:
@@ -394,11 +391,12 @@ def write_repres_attrs(table, x):
 
     attrs = []
     for xx in x:
-        if isinstance(xx, BaseAudio): attrs.append(xx.get_repres_attrs())
-        elif isinstance(xx, np.ndarray): attrs.append({'type': 'numpy.ndarray'})
+        if isinstance(xx, BaseAudio): 
+            attrs.append(xx.get_repres_attrs())
+        elif isinstance(xx, np.ndarray): 
+            attrs.append({'type': 'numpy.ndarray'})
         else:
-            print('Warning: Unknown format. Data could not be written to disk.')
-            return
+            attrs.append({'type': xx.__class__.__name__})
 
     if len(attrs) == 1: attrs = attrs[0]
 
@@ -568,19 +566,23 @@ def write(x, table, table_annot=None, id=None):
     """
     if not isinstance(x, list): x = [x]
 
-    if table.nrows == 0: write_repres_attrs(table, x)
+    if table.nrows == 0: 
+        write_repres_attrs(table, x)
 
     data, attrs = [], []
     for xx in x:
         if isinstance(xx, BaseAudio): 
-            data.append(xx.get_data())
+            data.append(xx.data)
             attrs.append(xx.get_instance_attrs())
         elif isinstance(xx, np.ndarray): 
             data.append(xx)
             attrs.append({})
         else:
-            print('Warning: Unknown format. Data could not be written to disk.')
-            return
+            data.append(xx.data)
+            if hasattr(xx.__class__, 'get_columns') and callable(getattr(xx.__class__, 'get_columns')): # checking if the class has a method called get columns
+                attrs.append(xx.get_columns())
+            else:
+                attrs.append({})
 
     data_index = write_audio(table=table, data=data, attrs=attrs[0], id=id)
 
@@ -642,7 +644,7 @@ def filter_by_label(table, label):
     indices = np.unique(indices).tolist()    
     return indices
 
-def load_audio(table, indices=None, table_annot=None, stack=False):
+def load_audio(table, representation=Waveform, representation_params=None, indices=None, table_annot=None, stack=False):
     """ Retrieve all the audio objects in a table or a subset specified by the index_list
 
         Warnings: Loading all objects in a table might cause memory problems.
@@ -650,6 +652,11 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
         Args:
             table: tables.Table
                 The table containing the audio objects
+            representation: class or 'numpy.ndarray' or list of classes
+                Audio data representation. This class will transform the raw data into the specified audio representation object.
+            representation_params: dict or list of dict
+                Dictionary containing any required and optional arguments for the representation class. If more than one
+                representation is given `representation_params` must be a list of the same length and in the same order.
             indices: list of ints or None
                 A list with the indices of the audio objects that will be retrieved.
                 If set to None, loads all objects in the table.
@@ -671,7 +678,8 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
             >>> tbl_data = open_table(h5file,"/group_1/table_data")
             >>> tbl_annot = open_table(h5file,"/group_1/table_annot")    
             >>> # Load the spectrograms stored on rows 0, 3 and 10, including their annotations
-            >>> selected_specs = load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+            >>> from ketos.audio.spectrogram import MagSpectrogram
+            >>> selected_specs = load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
             >>> # The resulting list has the 3 spectrogram objects
             >>> len(selected_specs)
             3
@@ -680,20 +688,25 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
             >>>
             >>> h5file.close()
     """
-    res = list()
     if indices is None: indices = list(range(table.nrows))
 
     # keyword arguments needed for initializing object
     if 'audio_repres' in table._v_attrs._f_list():
         data_name = table.attrs.data_name
         kwargs = table.attrs.audio_repres
-    else: #include this option for backward compatability (OK 2021-01-12)
-        data_name = ['data']
-        kwargs = {}
-        for name in table._v_attrs._f_list():
-            kwargs[name] = table._v_attrs[name]
+        
+    if not isinstance(kwargs, list): 
+        kwargs = [kwargs]
+    if not isinstance(representation, list):
+        representation = [representation]
 
-    if not isinstance(kwargs, list): kwargs = [kwargs]
+    for i in range(len(representation)):
+        if representation[i] in audio_repres_dict.values():
+            kwargs[i] = parse_audio_representation(kwargs[i])
+        elif representation[i] != 'numpy.ndarray':
+            if representation_params[i] == None: # If no parameters are given then create an empty dict (this will use the default params)
+                representation_params[i] = {}
+            kwargs[i] = representation_params[i]
 
     # get the names of all columns except the data column(s) and the id column
     col_names = table.colnames.copy()
@@ -717,6 +730,7 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
                     if col_name in table_annot.colnames: annot[col_name] = annot_data[col_name] 
 
         obj = []
+        i = 0
         for kwa, dn in zip(kwargs, data_name):
             for col_name in col_names:
                 val = it[col_name]
@@ -724,18 +738,18 @@ def load_audio(table, indices=None, table_annot=None, stack=False):
                 kwa[col_name] = val
 
             # initialize audio object
-            if kwa['type'] == 'numpy.ndarray':
+            if representation[i] == 'numpy.ndarray':
                 obj.append(it[dn])
             else:
-                audio_class = al.audio_repres_dict[kwa['type']]
-                obj.append(audio_class(data=it[dn], annot=annot, **kwa))
+                obj.append(representation[i](data=it[dn], annot=annot, **kwa))
+            i+=1
 
         if len(obj) == 1: obj = obj[0]
 
         audio_objs.append(obj)
 
     if stack:
-        audio_objs = audio_class.stack(audio_objs)
+        audio_objs = representation.stack(audio_objs)
 
     return audio_objs
 
@@ -782,7 +796,7 @@ def _is_nested_dict(x):
 
 
 def create_database(output_file, data_dir, selections, channel=0, 
-    audio_repres={'type': 'Waveform'}, annotations=None, unique_labels=None, 
+    audio_repres={'type': Waveform}, annotations=None, unique_labels=None, 
     dataset_name=None, table_name='data', max_size=None, verbose=True, progress_bar=True, 
     discard_wrong_shape=False, allow_resizing=1, include_source=True, 
     include_label=True, include_attrs=False, attrs=None, 
@@ -888,19 +902,29 @@ def create_database(output_file, data_dir, selections, channel=0,
     if unique_labels is None:
         unique_labels = _infer_unique_labels(selections)
 
-    # if audio_repres is a nested dictionary, use the keys as names for the data fields
+    audio_repres = copy.deepcopy(audio_repres)
+
+    # if audio_repres is a nested dictionary, 
     if _is_nested_dict(audio_repres):
-        data_name = [key for key in audio_repres.keys()]
+        data_name = [key for key in audio_repres.keys()] # use the keys as names for the data fields
+        representation = [audio_repres[key].pop("type") for key in audio_repres.keys()] # retrieve the type (class) to pass to the Audio Loader
+        representation_params = [values for values in audio_repres.values()] # retrieve the parameters for each class
     else:
         data_name = None
-
+        if isinstance(audio_repres, list): # these are dicts in a list
+            representation = [repres.pop("type") for repres in audio_repres] # retrieve the type (class) to pass to the Audio Loader
+            representation_params = [repres for repres in audio_repres] # retrieve the parameters for each class
+        else:    
+            representation = audio_repres.pop("type") # retrieve the type (class) to pass to the Audio Loader
+            representation_params = audio_repres # the parameters for the single class
+            
     #Convert the DataFrame to use best possible dtypes (to avoid mixed types)
     selections = selections.convert_dtypes() 
 
     # initialize an audio loader
     loader = al.AudioLoader(selection_gen=al.SelectionTableIterator(data_dir=data_dir, 
         selection_table=selections, include_attrs=include_attrs, 
-        attrs=attrs), channel=channel, annotations=annotations, repres=audio_repres)
+        attrs=attrs), channel=channel, annotations=annotations, representation=representation, representation_params=representation_params)
 
     # if the group path is not specified, use the name of the data directory
     if dataset_name is None: dataset_name = os.path.basename(data_dir)
@@ -912,7 +936,7 @@ def create_database(output_file, data_dir, selections, channel=0,
         discard_wrong_shape=discard_wrong_shape, allow_resizing=allow_resizing, 
         include_source=include_source, include_label=include_label, data_name=data_name, 
         index_cols=index_cols, create_dir=create_dir, table_path=path_to_dataset, table_name=table_name,
-        annot_type=annot_type)
+        annot_type=annot_type, include_attrs=include_attrs)
     
     # loop over all selections and write to database
     for i in tqdm(range(loader.num()), disable = not progress_bar):
@@ -1183,8 +1207,8 @@ class AudioWriter():
         """
         self.data_shape = []
         for xx in x:
-            if isinstance(xx, BaseAudio): self.data_shape.append(xx.get_data().shape)
-            elif isinstance(xx, np.ndarray): self.data_shape.append(xx.shape)
+            if isinstance(xx, np.ndarray): self.data_shape.append(xx.shape)
+            else: self.data_shape.append(xx.data.shape)
 
     def close(self, final=True):
         """ Close the currently open database file, if any

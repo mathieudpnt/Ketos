@@ -63,7 +63,7 @@ def load_model_file(model_file, new_model_folder,  overwrite=True, load_audio_re
 
         try:
             nn_interface = recipe_dict['interface']
-            loaded = interface_names_in_recipes[nn_interface].load_model_file(model_file=model_file, new_model_folder=new_model_folder,  overwrite=True, load_audio_repr=load_audio_repr,  replace_top=replace_top, diff_n_classes=diff_n_classes)
+            loaded = interface_names_in_recipes[nn_interface].load(model_file=model_file, new_model_folder=new_model_folder,  overwrite=True, load_audio_repr=load_audio_repr,  replace_top=replace_top, diff_n_classes=diff_n_classes)
         except KeyError:
             raise ValueError("The model recipe does not indicate a valid interface")
 

@@ -36,6 +36,7 @@ import pandas as pd
 from io import StringIO
 import ketos.data_handling.database_interface as di
 import ketos.data_handling.data_handling as dh
+from ketos.data_handling.parsing import parse_audio_representation
 from ketos.data_handling.selection_table import use_multi_indexing 
 from ketos.audio.spectrogram import MagSpectrogram, Spectrogram, CQTSpectrogram
 from ketos.audio.waveform import Waveform
@@ -350,11 +351,11 @@ def test_write_multiple_audio_objects(sine_audio):
     assert tbl.attrs.audio_repres[1]['rate'] == sine_audio.rate
     assert tbl.attrs.audio_repres[1]['type'] == 'Waveform'
     # test load audio
-    selected_obj = di.load_audio(table=tbl)
-    assert len(selected_obj) == 3
-    assert len(selected_obj[0]) == 2
-    assert isinstance(selected_obj[0][0], MagSpectrogram)
-    assert isinstance(selected_obj[0][1], Waveform)
+
+    assert len(tbl) == 3
+    assert len(tbl[0]) == 6
+    np.testing.assert_array_almost_equal(tbl[0]['spec'], spec.data.data, decimal=3)
+    np.testing.assert_array_almost_equal(tbl[0]['waveform'], sine_audio.data)
     # clean up
     h5file.close()
     os.remove(fpath)
@@ -392,27 +393,26 @@ def test_write_spectrogram_and_numpy_array(sine_audio):
     # check that numpy array has been properly saved
     assert tbl.attrs.audio_repres[1]['type'] == 'numpy.ndarray'
     # test load audio
-    selected_obj = di.load_audio(table=tbl)
-    assert len(selected_obj) == 2
-    assert len(selected_obj[0]) == 2
-    assert isinstance(selected_obj[0][0], MagSpectrogram)
-    assert isinstance(selected_obj[0][1], np.ndarray)
+    assert len(tbl) == 2
+    assert len(tbl[0]) == 6
+    np.testing.assert_array_almost_equal(tbl[0]['spec'], spec.data.data, decimal=3)
+    np.testing.assert_array_almost_equal(tbl[0]['features'], np.ones(shape=(6,12)))
     # clean up
     h5file.close()
     os.remove(fpath)
 
-def test_write_spectrogram_with_attrs(sine_audio):
-    """Test if an audio objects with additional attributes can be written to 
+def test_write_spectrogram_with_extra_columns(sine_audio):
+    """Test if an audio objects with additional columns can be written to 
         an HDF5 table"""
     # create spectrogram    
-    kwargs = {'confidence':0.3, 'comment':'funny', 'vector':np.array([1,2,3], dtype=np.int32), 'extra_attr':0.9}
-    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1, **kwargs)
+    extra_columns = {'confidence':0.3, 'comment':'funny', 'vector':np.array([1,2,3], dtype=np.int32)}
+    spec = MagSpectrogram.from_waveform(sine_audio, 0.5, 0.1, **extra_columns)
     spec.filename = 'file.wav'
     spec.offset = 0.1
     # open h5 file
     fpath = os.path.join(path_to_tmp, 'tmp34_db.h5')
     h5file = di.open_file(fpath, 'w')
-    # additiona attributes that we want to save
+    # additiona columns that we want to save
     attrs = [{'name':'confidence', 'shape':(), 'type':'float'},
              {'name':'comment', 'shape':120, 'type':'str'},
              {'name':'vector', 'shape':(3), 'type':'int'}]
@@ -442,17 +442,19 @@ def test_write_spectrogram_with_attrs(sine_audio):
     # check that numpy array has been properly saved
     assert tbl.attrs.audio_repres[1]['type'] == 'numpy.ndarray'
     # test load audio
-    selected_obj = di.load_audio(table=tbl)
-    assert len(selected_obj) == 2
-    assert len(selected_obj[0]) == 2
-    assert isinstance(selected_obj[0][0], MagSpectrogram)
-    assert isinstance(selected_obj[0][1], np.ndarray)
-    spec_attrs = selected_obj[0][0].get_instance_attrs()
+    # selected_obj = di.load_audio(table=tbl)
+    assert len(tbl) == 2
+    assert len(tbl[0]) == 9
+    np.testing.assert_array_almost_equal(tbl[0]['spec'], spec.data.data, decimal=3)
+    np.testing.assert_array_almost_equal(tbl[0]['features'], np.ones(shape=(6,12)))
     expected = {'filename':'file.wav', 'offset':0.1, 'label':0}
-    expected.update(**kwargs)
-    expected.pop('extra_attr', None)
-    assert np.all(spec_attrs.pop('vector') == expected.pop('vector'))
-    assert spec_attrs == expected
+    expected.update(extra_columns)
+
+    assert expected['filename'] == tbl[0]['filename'].decode('latin-1')
+    assert expected['offset'] == tbl[0]['offset']
+    assert expected['confidence'] == tbl[0]['confidence']
+    np.testing.assert_array_almost_equal(expected['vector'], tbl[0]['vector'])
+    assert expected['comment'] == tbl[0]['comment'].decode('latin-1')
     # clean up
     h5file.close()
     os.remove(fpath)
@@ -525,12 +527,12 @@ def test_filter_by_label_raises_exception(sine_audio):
     h5file.close()
 
 def test_load_audio_no_index_list():
-    """Test if load specs loads the entire table if index_list is None""" 
+    """Test if load audio loads the entire table if index_list is None""" 
     fpath = os.path.join(path_to_assets, '11x_same_spec.h5')
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot)
+    selected_specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot)
     assert len(selected_specs) == tbl_data.nrows
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)    
@@ -542,7 +544,7 @@ def test_load_audio_with_index_list():
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    selected_specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
     assert len(selected_specs) == 3
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
@@ -554,7 +556,7 @@ def test_load_audio_also_loads_annotations():
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
+    specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
     # check annotations for 1st spec
     d = '''label  start  end  freq_min  freq_max
 0      2    1.0  1.4      50.0     300.0
@@ -583,10 +585,10 @@ def test_audio_writer_can_write_one_spec(sine_wave_file):
     fname = os.path.join(path_to_assets, 'tmp/db5.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_audio(fil.root.audio)
-    assert len(specs) == 1
-    assert specs[0].transform_log == transforms
-    assert specs[0].waveform_transform_log == wf_transforms
+    table = di.open_table(fil, '/audio')
+    assert len(table) == 1
+    assert table.attrs.audio_repres['transform_log'] == transforms
+    assert table.attrs.audio_repres['waveform_transform_log'] == wf_transforms
     fil.close()
 
 def test_audio_writer_can_write_one_gammatone_filter_bank(sine_audio):
@@ -598,12 +600,12 @@ def test_audio_writer_can_write_one_gammatone_filter_bank(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db14.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    gfbs = di.load_audio(fil.root.audio)
-    assert len(gfbs) == 1
-    assert gfbs[0].weight_func == True
-    assert len(gfbs[0].freqs) == 20
-    assert np.min(gfbs[0].freqs) == pytest.approx(10., abs=1e-6)
-    assert gfbs[0].get_data().shape[1] == 20
+    table = di.open_table(fil, '/audio')
+    assert len(table) == 1
+    assert table.attrs.audio_repres['weight_func'] == True
+    assert len(table.attrs.audio_repres['freqs']) == 20
+    assert np.min(table.attrs.audio_repres['freqs']) == pytest.approx(10., abs=1e-6)
+    assert table[0][0].shape[1] == 20
     fil.close()
 
 def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
@@ -616,8 +618,8 @@ def test_audio_writer_can_write_two_specs_to_same_node(sine_audio):
     fname = os.path.join(path_to_assets, 'tmp/db6.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_audio(fil.root.audio)
-    assert len(specs) == 2
+    table = di.open_table(fil, '/audio')
+    assert len(table) == 2
     fil.close()
 
 def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
@@ -634,10 +636,10 @@ def test_audio_writer_can_write_several_specs_to_different_nodes(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/first/test' in fil
     assert '/second/temp' in fil
-    specs = di.load_audio(fil.root.first.test)
-    assert len(specs) == 2
-    specs = di.load_audio(fil.root.second.temp)
-    assert len(specs) == 3
+    node1 = di.open_table(fil, '/first/test')
+    node2 = di.open_table(fil, '/second/temp')
+    assert len(node1) == 2
+    assert len(node2) == 3
     fil.close()
 
 def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_audio):
@@ -652,15 +654,15 @@ def test_audio_writer_splits_into_several_files_when_max_size_is_reached(sine_au
     fname = os.path.join(path_to_assets, 'tmp/db8_000.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_audio(fil.root.audio)
-    assert len(specs) == 2
+    table = di.open_table(fil, '/audio')
+    assert len(table) == 2
     fil.close()
 
     fname = os.path.join(path_to_assets, 'tmp/db8_001.h5')
     fil = di.open_file(fname, 'r')
     assert '/audio' in fil
-    specs = di.load_audio(fil.root.audio)
-    assert len(specs) == 1
+    table = di.open_table(fil, '/audio')
+    assert len(table) == 1
     fil.close()
 
 def test_audio_writer_change_directory(sine_audio):
@@ -679,10 +681,10 @@ def test_audio_writer_change_directory(sine_audio):
     fil = di.open_file(fname, 'r')
     assert '/home/fish' in fil
     assert '/home/whale' in fil
-    specs = di.load_audio(fil.root.home.fish)
-    assert len(specs) == 3
-    specs = di.load_audio(fil.root.home.whale)
-    assert len(specs) == 2
+    table = di.open_table(fil, '/home/fish')
+    assert len(table) == 3
+    table = di.open_table(fil, '/home/whale')
+    assert len(table) == 2
     fil.close()
 
 def test_two_audio_writers_simultaneously(sine_audio):
@@ -707,28 +709,28 @@ def test_two_audio_writers_simultaneously(sine_audio):
     # check file 1
     fil1 = di.open_file(out1, 'r')
     assert '/home/fish' in fil1
-    specs = di.load_audio(fil1.root.home.fish)
-    assert len(specs) == 3
+    table = di.open_table(fil1, '/home/fish')
+    assert len(table) == 3
     fil1.close()
     # check file 2
     fil2 = di.open_file(out2, 'r')
     assert '/home/whale' in fil2
-    specs = di.load_audio(fil2.root.home.whale)
-    assert len(specs) == 2
+    table = di.open_table(fil2, '/home/whale')
+    assert len(table) == 2
     fil2.close()
 
 def test_create_database_with_single_wav_file(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db12.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep = parse_audio_representation({'type': 'Mag', 'window':0.5, 'step':0.1})
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    specs = di.load_audio(table=fil.root.assets.data)
-    assert len(specs) == 2
+    table = di.open_table(fil, '/assets/data')
+    assert len(table) == 2
     assert np.all(di.open_table(fil, "/assets/data").attrs.unique_labels == [1,2])
     fil.close()
     os.remove(out)
@@ -736,7 +738,7 @@ def test_create_database_with_single_wav_file(sine_wave_file):
 def test_create_database_specify_labels(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db12.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep = parse_audio_representation({'type': 'Mag', 'window':0.5, 'step':0.1})
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, progress_bar=False, unique_labels=[3,4,5])
@@ -749,7 +751,7 @@ def test_create_database_specify_labels(sine_wave_file):
 def test_create_database_ids(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db13.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep = parse_audio_representation({'type': 'Mag', 'window':0.5, 'step':0.1})
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav', 'sine_wave.wav','sine_wave.wav'], 'start':[0.1, 0.2, 0.1, 0.2], 'end':[2.0, 2.1, 2.0, 2.1], 'label':[1, 2, 1, 2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, dataset_name='test', selections=sel, audio_repres=rep, verbose=False, progress_bar=False)
@@ -764,18 +766,21 @@ def test_create_database_ids(sine_wave_file):
 def test_create_database_with_single_wav_file_mult_repres(sine_wave_file):
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db14.h5')
-    rep1 = {'type': 'Waveform'}
-    rep2 = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep1 = {'type': Waveform}
+    rep2 = {'type': MagSpectrogram, 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'label':[1,2]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, selections=sel, audio_repres={'wf':rep1,'spec':rep2}, verbose=False, progress_bar=False)
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    specs = di.load_audio(table=fil.root.assets.data)
-    assert len(specs) == 2
-    assert type(specs[0][0]) == Waveform
-    assert type(specs[0][1]) == MagSpectrogram
+    table = di.open_table(fil, '/assets/data')
+    assert len(table) == 2
+
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.5, step=0.1, duration=1.9, offset=0.1)
+    waveform = Waveform.from_wav(sine_wave_file, duration=1.9, offset=0.1)
+    np.testing.assert_array_almost_equal(table[0]['wf'], waveform.data)
+    np.testing.assert_array_almost_equal(table[0]['spec'], spec.data.data, decimal=3)
     assert fil.root.assets.data.attrs.data_name == ['wf','spec']
     fil.close()
     os.remove(out)
@@ -784,19 +789,21 @@ def test_create_database_with_single_wav_file_mult_repres(sine_wave_file):
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    specs = di.load_audio(table=fil.root.assets.data)
-    assert len(specs) == 2
-    assert type(specs[0][0]) == Waveform
-    assert type(specs[0][1]) == MagSpectrogram
+    table = di.open_table(fil, '/assets/data')
+    assert len(table) == 2
+    spec = MagSpectrogram.from_wav(sine_wave_file, window=0.5, step=0.1, duration=1.9, offset=0.1)
+    waveform = Waveform.from_wav(sine_wave_file, duration=1.9, offset=0.1)
+    np.testing.assert_array_almost_equal(table[0][0], waveform.data)
+    np.testing.assert_array_almost_equal(table[0][1], spec.data.data, decimal=3)
     assert fil.root.assets.data.attrs.data_name == ['data0','data1']
     fil.close()
     os.remove(out)
 
-def test_create_database_with_attrs(sine_wave_file):
-    """ Create a database including extra attributes from the selection table"""
+def test_create_database_with_extra_columns(sine_wave_file):
+    """ Create a database including extra columns from the selection table"""
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db16.h5')
-    rep = {'type': 'Waveform'}
+    rep = {'type': Waveform}
     t = [dt.datetime(2002,2,23,14,20,30), dt.datetime(2012,2,23,14,20,30)]
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'comment':['big','bigger'], 't':t})
     sel = use_multi_indexing(sel, 'sel_id')
@@ -804,24 +811,13 @@ def test_create_database_with_attrs(sine_wave_file):
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-
-    wfs = di.load_audio(table=fil.root.assets.data)
-    wf = wfs[0]
-    assert type(wf) == Waveform
-    attrs = wf.get_instance_attrs()
-    assert 'comment' in attrs.keys()
-    assert attrs['comment'] == 'big'
-    wf = wfs[1]
-    attrs = wf.get_instance_attrs()
-    assert attrs['comment'] == 'bigger'
-
-    wf = wfs[0]
-    attrs = wf.get_instance_attrs()
-    assert 't' in attrs.keys()
-    assert attrs['t'] == t[0].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
-    wf = wfs[1]
-    attrs = wf.get_instance_attrs()
-    assert attrs['t'] == t[1].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
+    table = di.open_table(fil, '/assets/data')
+    waveform = Waveform.from_wav(sine_wave_file, duration=1.9, offset=0.1)
+    np.testing.assert_array_almost_equal(table[0]['data'], waveform.data)
+    assert table[0]['comment'].decode('latin-1') == 'big'
+    assert table[1]['comment'].decode('latin-1') == 'bigger'
+    assert table[0]['t'].decode('latin-1') == t[0].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
+    assert table[1]['t'].decode('latin-1') == t[1].strftime("%Y%m%d_%H:%M:%S")  #currently, we are not converting string to datetime object when loading
 
     fil.close()
     os.remove(out)
@@ -830,7 +826,7 @@ def test_create_database_with_indices(sine_wave_file):
     """ Create a database with indices for some columns"""
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db17.h5')
-    rep = {'type': 'Waveform'}
+    rep = {'type': Waveform}
     sel = pd.DataFrame({'filename':['sine_wave.wav','sine_wave.wav'], 'start':[0.1,0.2], 'end':[2.0,2.1], 'extra_id':[13,14]})
     sel = use_multi_indexing(sel, 'sel_id')
     di.create_database(out, data_dir=data_dir, selections=sel, audio_repres=rep, verbose=False, 
@@ -838,15 +834,12 @@ def test_create_database_with_indices(sine_wave_file):
     # check database contents
     fil = di.open_file(out, 'r')
     assert '/assets/data' in fil
-    wfs = di.load_audio(table=fil.root.assets.data)
-    wf = wfs[0]
-    assert type(wf) == Waveform
-    attrs = wf.get_instance_attrs()
-    assert 'extra_id' in attrs.keys()
-    assert attrs['extra_id'] == 13
-    wf = wfs[1]
-    attrs = wf.get_instance_attrs()
-    assert attrs['extra_id'] == 14
+    table = di.open_table(fil, '/assets/data')
+
+    waveform = Waveform.from_wav(sine_wave_file, duration=1.9, offset=0.1)
+    np.testing.assert_array_almost_equal(table[0]['data'], waveform.data)
+    assert table[0]['extra_id'] == 13
+    assert table[1]['extra_id'] == 14
     fil.close()
     os.remove(out)
 
@@ -854,7 +847,7 @@ def test_create_database_with_exception_handling(sine_wave_file):
     """ Check if database can be created if file does not exist """
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db18.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep = {'type': MagSpectrogram, 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav', 'unknown_file_1.wav', 'sine_wave.wav', 'unknown_file_2.wav'], 
                         'start':[0.1, 0.2, 0.3, 0.4], 
                         'end':[2.0, 2.1, 2.2, 2.3], 
@@ -864,16 +857,16 @@ def test_create_database_with_exception_handling(sine_wave_file):
     # check database contents
     db = di.open_file(out, 'r')
     assert '/assets/data' in db
-    specs = di.load_audio(table=db.root.assets.data)
+    table = di.open_table(db, '/assets/data')
+    assert len(table) == 2
     db.close()
     os.remove(out)
-    assert len(specs) == 2
     
 def test_create_database_check_file_duration(sine_wave_file):
     """ Check if database can be created if selections are outside file """
     data_dir = os.path.dirname(sine_wave_file)
     out = os.path.join(path_to_assets, 'tmp/db19.h5')
-    rep = {'type': 'Mag', 'window':0.5, 'step':0.1}
+    rep = {'type': MagSpectrogram, 'window':0.5, 'step':0.1}
     sel = pd.DataFrame({'filename':['sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav', 'sine_wave.wav'], 
                         'start':[2.6, 0.1, -11.0, 4.5, -0.7],
                         'end':[3.6, 1.1, -8.0, 5.5, 0.3],
@@ -883,7 +876,8 @@ def test_create_database_check_file_duration(sine_wave_file):
     # check database contents
     db = di.open_file(out, 'r')
     assert '/assets/data' in db
-    specs = di.load_audio(table=db.root.assets.data)
+    table = di.open_table(db, '/assets/data')
+    assert len(table) == 3
     db.close()
     os.remove(out)
-    assert len(specs) == 3
+    

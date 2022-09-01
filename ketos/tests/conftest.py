@@ -531,6 +531,27 @@ def spectr_settings():
     return j
 
 @pytest.fixture
+def custom_audio_representation_module():
+    """Creates a .py file with a custom audio representation class
+    
+        The file is saved as tests/assets/custom_representation.py.
+        When the tests using this fixure are dones, the file is deleted.
+
+        Yields:
+            python_file : str
+                A string containing the path to the .py file.
+    """
+    python_file =  os.path.join(path_to_assets, "custom_representation.py")
+    class_string = "class CustomRepresentation():\n\
+        def __init__(self):\n\
+            self.window = '0.2'"
+    file = open(python_file, "w+")
+    file.write(class_string)
+    file.close()
+    yield python_file
+    os.remove(python_file)
+
+@pytest.fixture
 def sample_data():
     data = np.vstack([np.zeros((10,64,64,1)), np.ones((10,64,64,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
