@@ -185,7 +185,7 @@ class AnnotationHandler():
         if df is None:
             # initialize empty DataFrame
             self._df = pd.DataFrame(columns=['label', 'start', 'end', 'freq_min', 'freq_max'], dtype='float')
-            self._df['label'] = pd.Series(dtype='int')
+            self._df['label'] = pd.Series(dtype=int)
         
         else:
             self._df = df
@@ -360,7 +360,7 @@ class AnnotationHandler():
 
         self._df = pd.concat([self._df, df], sort=False)
 
-        self._df = self._df.astype({'label': 'int'}) #cast label column to int
+        self._df = self._df.astype({'label': int}) #cast label column to int
 
     def add(self, label=None, start=None, end=None, freq_min=None, freq_max=None, df=None, id=0):
         """ Add an annotation or a collection of annotations to the handler module.
