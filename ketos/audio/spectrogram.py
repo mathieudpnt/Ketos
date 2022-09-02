@@ -713,7 +713,7 @@ class Spectrogram(BaseAudioTime):
         self.transform_log.append(transf)
 
     def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None, 
-        annot_color="C1"):
+        annot_kwargs=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -736,11 +736,22 @@ class Spectrogram(BaseAudioTime):
                     When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
                     By default, the colormap covers the complete value range of the supplied data. 
                     vmin, vmax are ignored if the norm parameter is used.            
-                color: str or dict
-                    Annotation box color. Only relevant if show_annot is True. 
-                    A dictionary may be used to specify different colors for 
-                    different label values. For example, {1: "C0", 3: "C2"} 
-                    would assign the color "C0" to label value 1 and "C2" to 
+                annot_kwargs: dict
+                    Annotation box extra parameters following matplotlib values. Only relevant if show_annot is True. 
+                    The following matplotlib options are currently supported:
+
+                    ==============  ========================================================
+                    Property        description
+                    ==============  ========================================================
+                    color           color for the annotation box and text. See matplotlib for color options
+                    linewidth       width for the annotaiton box. float or None
+                    fontsize        float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
+                    fontweight      {a numeric value in range 0-1000, 'ultralight', 'light', 'normal', 'regular', 'book', 'medium', 'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy', 'extra bold', 'black'}
+                    ==============  ========================================================
+
+                    A dictionary may be used to specify different options for 
+                    different label values. For example, {1: {"color": "C0", "fontweight": "bold"},3: {"color": "C2",}} 
+                    would assign the color "C0" and fontweight bold to label value 1 and "C2" to 
                     label value 3. The default color is "C1".
 
             Returns:
@@ -775,22 +786,33 @@ class Spectrogram(BaseAudioTime):
             fig.colorbar(img, ax=ax, label='Amplitude')# colobar
 
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax, color=annot_color)
+        if show_annot: self._draw_annot_boxes(ax, annot_kwargs=annot_kwargs)
             
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax, color="C1"):
+    def _draw_annot_boxes(self, ax, annot_kwargs=None):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
-                color: str or dict
-                    Box color. 
-                    A dictionary may be used to specify different colors for 
-                    different label values. For example, {1: "C0", 3: "C2"} 
-                    would assign the color "C0" to label value 1 and "C2" to 
+                annot_kwargs: dict
+                    Annotation box extra parameters following matplotlib values. Only relevant if show_annot is True. 
+                    The following matplotlib options are currently supported:
+
+                    ==============  ========================================================
+                    Property        description
+                    ==============  ========================================================
+                    color           color for the annotation box and text. See matplotlib for color options
+                    linewidth       width for the annotaiton box. float or None
+                    fontsize        float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
+                    fontweight      {a numeric value in range 0-1000, 'ultralight', 'light', 'normal', 'regular', 'book', 'medium', 'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy', 'extra bold', 'black'}
+                    ==============  ========================================================
+
+                    A dictionary may be used to specify different options for 
+                    different label values. For example, {1: {"color": "C0", "fontweight": "bold"},3: {"color": "C2",}} 
+                    would assign the color "C0" and fontweight bold to label value 1 and "C2" to 
                     label value 3. The default color is "C1".
         """
         annots = self.get_annotations()
@@ -798,20 +820,29 @@ class Spectrogram(BaseAudioTime):
         y1 = self.freq_min()
         y2 = self.freq_max()
         for idx,annot in annots.iterrows():
-            l = annot['label']
+            l = int(annot['label']) # obs: iterrows does not preserve dtypes across the rows!
             x1 = annot['start']
             x2 = annot['end']
             if not np.isnan(annot['freq_min']): y1 = annot['freq_min']
             if not np.isnan(annot['freq_max']): y2 = annot['freq_max']
-            if isinstance(color, str):
-                c = color
-            elif isinstance(color, dict) and l in color.keys():
-                c = color[l]
-            else:
-                c = "C1"
-            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor=c,facecolor='none')
+            
+            kwargs = {}
+            if annot_kwargs is not None:
+                if isinstance(annot_kwargs, dict) and l in annot_kwargs.keys(): # checking if dict is nested
+                    kwargs = annot_kwargs[l]
+                elif isinstance(annot_kwargs, dict):
+                    kwargs = annot_kwargs
+                else:
+                    raise TypeError("annot_kwargs must be a dict or nested dict.")
+
+            color = kwargs.get("color", "C1")
+            linewidth = kwargs.get("linewidth", 1)
+            fontsize = kwargs.get("fontsize", None)
+            fontweight = kwargs.get("fontweight", None)
+
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=linewidth, edgecolor=color, facecolor='none')
             ax.add_patch(box)
-            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color=c)
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color=color, fontweight=fontweight, fontsize=fontsize)
 
 
 class MagSpectrogram(Spectrogram):
