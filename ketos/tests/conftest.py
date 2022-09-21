@@ -31,6 +31,7 @@ import numpy as np
 import scipy.signal as sg
 import soundfile as sf
 import pandas as pd
+import tarfile
 import ketos.audio.utils.misc as ap
 from ketos.data_handling.data_handling import to1hot
 from ketos.data_handling.data_feeding import BatchGenerator
@@ -530,6 +531,27 @@ def spectr_settings():
     return j
 
 @pytest.fixture
+def custom_audio_representation_module():
+    """Creates a .py file with a custom audio representation class
+    
+        The file is saved as tests/assets/custom_representation.py.
+        When the tests using this fixure are dones, the file is deleted.
+
+        Yields:
+            python_file : str
+                A string containing the path to the .py file.
+    """
+    python_file =  os.path.join(path_to_assets, "custom_representation.py")
+    class_string = "class CustomRepresentation():\n\
+        def __init__(self):\n\
+            self.window = '0.2'"
+    file = open(python_file, "w+")
+    file.write(class_string)
+    file.close()
+    yield python_file
+    os.remove(python_file)
+
+@pytest.fixture
 def sample_data():
     data = np.vstack([np.zeros((10,64,64,1)), np.ones((10,64,64,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
@@ -540,3 +562,25 @@ def sample_data_1d():
     data = np.vstack([np.zeros((10,20000,1)), np.ones((10,20000,1))])
     labels = np.concatenate([np.array([[1,0] for i in range(10)]), np.array([[0,1] for i in range(10)])])
     return (data, labels)
+
+@pytest.fixture
+def tar_archive_with_wav_files():
+    """Create a .tar file containing several wav files.
+    
+       The file is saved as tests/assets/audio_archive.tar.
+       When the tests using this fixture are done, 
+       the file is deleted.
+
+       Yields:
+            tar_path : str
+                A string containing the path to the .tar file.
+    """
+    tar_path = os.path.join(path_to_assets, "audio_archive.tar")
+    tar = tarfile.open(tar_path , "w") 
+    tar.add(os.path.join(path_to_assets, os.path.join('wav_files','w1.wav')), arcname="w1.wav")
+    tar.add(os.path.join(path_to_assets, os.path.join('wav_files','w1.wav')), arcname=os.path.join("a","w2.wav"))        
+    tar.add(os.path.join(path_to_assets, os.path.join('wav_files','w1.wav')), arcname=os.path.join("a","w3.wav"))        
+    tar.add(os.path.join(path_to_assets, os.path.join('wav_files','w1.wav')), arcname=os.path.join("a",os.path.join("b","w1.wav")))        
+    tar.close()
+    yield tar_path
+    os.remove(tar_path)

@@ -26,10 +26,14 @@
 
 """ Unit tests for the 'audio' module within the ketos library
 """
+import os
 import pytest
 from ketos.audio.waveform import Waveform, merge, get_duration
 import numpy as np
 import warnings
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+path_to_assets = os.path.join(os.path.dirname(current_dir),"assets")
 
 
 def test_init_audio_signal():
@@ -77,7 +81,7 @@ def test_from_wav_zero_pad(sine_wave_file, sine_wave):
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
-        assert "Waveform padded with zeros to achieve desired length" in str(w[-1].message)
+        assert "Waveform padded with zeros to achieve the required length to compute the stft. 0 samples were padded on the left and 132300 samples were padded on the right" in str(w[-1].message)
         # Verify some things about the waveform
         sig = sine_wave[1][2*44100:] #the last 1 second of the sine wave
         sig = np.concatenate([sig,np.zeros(3*44100)]) #append 3 seconds of zeros
@@ -97,7 +101,7 @@ def test_from_wav_negative_offset(sine_wave_file, sine_wave):
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
-        assert "Waveform padded with zeros to achieve desired length" in str(w[-1].message)
+        assert "Waveform padded with zeros to achieve the required length to compute the stft. 88200 samples were padded on the left and 0 samples were padded on the right" in str(w[-1].message)
         # Verify some things about the waveform
         sig = sine_wave[1][:2*44100] #first 2 seconds of the sine wave
         sig = np.concatenate([np.zeros(2*44100),sig]) #append 2 seconds of zeros
@@ -117,7 +121,7 @@ def test_from_wav_negative_offset_pad_with_reflection(sine_wave_file, sine_wave)
         # Verify some things about the warning
         assert len(w) == 1
         assert issubclass(w[-1].category, RuntimeWarning)
-        assert "Waveform padded with its own reflection to achieve desired length" in str(w[-1].message)
+        assert "Waveform padded with its own reflection to achieve required length to compute the stft. 44100 samples were padded on the left and 0 samples were padded on the right" in str(w[-1].message)
         # Verify some things about the waveform
         sig = sine_wave[1][:2*44100] #first 2 seconds of the sine wave
         sig = np.concatenate([sig[44100:0:-1],sig[:]]) #pre-pend reflection
@@ -296,3 +300,11 @@ def test_infer_shape(sine_wave_file):
     kwargs = {'duration':17.2, 'rate':8000}
     wf = Waveform.from_wav(path=sine_wave_file, **kwargs)
     assert Waveform.infer_shape(**kwargs) == wf.get_data().shape
+
+def test_load_flac():
+    """Test that we can load data from FLAC that is consistent with WAV"""
+    flac = Waveform.from_wav(os.path.join(path_to_assets, 'grunt1.flac'))
+    wav = Waveform.from_wav(os.path.join(path_to_assets, 'grunt1.wav'))
+    assert flac.duration() == wav.duration()
+    assert flac.rate == wav.rate   
+    assert np.all(np.abs(flac.get_data() - wav.get_data()) < 1e-9 * np.std(wav.get_data()))

@@ -33,5 +33,5 @@ RUN pip install aural-features
 
 # Install ketos
 RUN python setup.py sdist
-RUN pip install dist/ketos-2.4.2.tar.gz
+RUN pip install dist/ketos-2.6.1.tar.gz
 

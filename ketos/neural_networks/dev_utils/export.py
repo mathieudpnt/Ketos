@@ -32,7 +32,7 @@
 import ketos.data_handling.parsing as pa
 from ketos.audio.waveform import Waveform
 from tensorflow.saved_model import save as save_pb
-from ketos.audio.audio_loader import audio_repres_dict
+# from ketos.audio.audio_loader import audio_repres_dict
 from ketos.utils import ensure_dir
 from zipfile import ZipFile
 import warnings
@@ -42,6 +42,7 @@ import os
 from glob import glob
 import numpy as np
 import tensorflow as tf
+import pathlib
 
 
 def get_export_function(output_name):
@@ -311,7 +312,7 @@ def _infer_shape(params):
                 Inferred shape. If the shape could not be inferred,
                 a None value is returned.
     """
-    return audio_repres_dict[params['type']].infer_shape(**params)
+    return params['type'].infer_shape(**params)
 
 
 def export_to_protobuf(model, output_name=None, output_folder=None, tmp_folder="tmp_export_folder", **kwargs):
@@ -420,7 +421,7 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
 
     # save audio representation to tmp folder
     if audio_repr is not None:
-        if isinstance(audio_repr, str) and audio_repr[-4:] == "json":
+        if isinstance(audio_repr, str) and pathlib.Path(audio_repr).suffix == ".json":
             audio_repr = pa.load_audio_representation(audio_repr, return_unparsed=True)
 
         if isinstance(audio_repr, dict) and not pa.is_encoded(audio_repr):

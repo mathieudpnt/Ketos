@@ -1,6 +1,32 @@
 Change log
 ==========
 
+
+**Version 2.6.2** (Sept 21, 2022)
+
+ * :meth:`MagSpectrogram:plot <ketos.audio.spectrogram.MagSpectrogram.plot>` and :meth:`PowerSpectrogram:plot <ketos.audio.spectrogram.PowerSpectrogram.plot>` will no longer display a label dB when `decibel`` is set to False.
+ * `pad_mode="reflect"` is now correctly set as the default instead of `zero`.
+ * The `pad_mode` argument is now correctly propagated from the spectrograms methods.
+ * The code will now give a better more descriptive warning when this pad process occurs. 
+ * pad argument in :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` now works as expected when set to False.
+ * New method :meth:`ceil <ketos.utils.ceil>`. Allows to ceil to a given decimal instead of to the next integer
+ * New method :meth:`floor <ketos.utils.floor>`. Allows to floor to a given decimal instead of to the previous integer
+ * New method :meth:`ceil_round_down <ketos.utils.ceil_round_down>`. This method will floor instead of ceil when the number is very close to the previous integer. Useful when dealing with floating point arithmetics.
+ * New method :meth:`floor_round_up <ketos.utils.floor_round_up>`. This method will ceil instead of floor when the number is very close to the next integer. Useful when dealing with floating point arithmetics.
+ * :meth:`select <ketos.data_handling.selection_table.select>` will now check for inconsistent start and end times and give appropriate warnings. This fixes a previous infinite loop when the start time was greater than the end time.
+ * Fixed bug in :meth:`standardize <ketos.data_handling.selection_table.standardize>` where setting `trim_table=True` and `mapper=None` would give an error.
+ * Removed class :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` in favor of using more primitive classes. See :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` for examples on how to achieve the same functionality.
+ * Added option for user to configure formatting of annotation boxes in :meth:`MagSpectrogram:plot <ketos.audio.spectrogram.MagSpectrogram.plot>` method
+ * Fixed a minor bug in spectrogram crop method (the frequency axis of the original instance was being modified when calling crop with make_copy=True)
+ * Added :class:`ArchiveManager <ketos.audio.audio_loader.ArchiveManager>` allowing for audio files to be loaded from within tar archive files using the :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` class. 
+ * Class :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` replaces `repres` arguments with two new arguments `representation` and `representation_params`. This allows custom audio representation to be passed. Reference,
+   the documentation of :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` and :meth:`load_audio_representation <ketos.data_handling.parsing.load_audio_representation>` on ways of using a custom audio representation.
+ * Classes :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` and :class:`AudioEfficientFrameLoader <ketos.audio.audio_loader.AudioEfficientFrameLoader>` followed the same changes made to the AudioLoader class.
+ * Method :meth:`create_database <ketos.data_feeding.database_interface.create_database>` now requires a dict to be passed with an audio_repres containing a class rather than simply a string with the name of the class.
+ * Changes made to :meth:`encode_parameter <ketos.data_handling.parsing.encode_parameter>` and :meth:`parse_audio_representation <ketos.data_handling.parsing.parse_audio_representation>`. These functions will now properly
+   parse a json string or unparsed dict with strings into a python dict with classes and correct types and vice-versa.
+
+
 **Version 2.6.1** (June 3, 2022)
 
  * In :meth:`AudioWriter:close <ketos.data_handling.database_interface.AudioWriter.close>` remove any existing column indices before attempting to reindex them. (Only relevant if appending to an existing database.)

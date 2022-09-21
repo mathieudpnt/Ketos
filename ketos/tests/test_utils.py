@@ -33,7 +33,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from ketos.utils import tostring, morlet_func, octave_bands, random_floats, nearest_values,\
-    detect_peaks, str_is_int, signif, ensure_dir, fractional_overlap
+    detect_peaks, str_is_int, signif, ensure_dir, fractional_overlap, floor, ceil, floor_round_up, ceil_round_down
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -129,3 +129,33 @@ def test_ensure_dir():
     ensure_dir(file_path)
     os.path.isdir(folder)
     shutil.rmtree(folder)
+
+def test_floor():
+    assert 2.0 == floor(2, 0)
+    assert 2.0 == floor(2.999, 0)
+    assert 2.24 == floor(2.2499999, 2)
+    assert 2.24 == floor(2.24, 2)
+     
+def test_ceil():    
+    assert 2.0 == ceil(2, 0)
+    assert 3.0 == ceil(2.001, 0)
+    assert 2.25 == ceil(2.2499999, 2)
+    assert 2.25 == ceil(2.24, 2)
+
+def test_floor_round_up(): 
+    assert 2.0 == floor_round_up(2.999, 0)
+    assert 2.0 == floor_round_up(2.0, 0)
+    assert 3.0 == floor_round_up(2.999, 1)
+    assert 3.0 == floor_round_up(2.999, 2)
+    assert 3.0 == floor_round_up(2.999, 3)
+    assert 3.0 == floor_round_up(2.9998888, 3)
+    assert 2.0 == floor_round_up(2.9989999, 3)
+    
+def test_ceil_round_down():
+    assert 3.0 == ceil_round_down(2.001, 0)
+    assert 3.0 == ceil_round_down(3.0, 0)
+    assert 2.0 == ceil_round_down(2.001, 1)
+    assert 2.0 == ceil_round_down(2.001, 2)
+    assert 2.0 == ceil_round_down(2.001, 3)
+    assert 2.0 == ceil_round_down(2.0009999, 3)
+    assert 3.0 == ceil_round_down(2.0010001, 3)

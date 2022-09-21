@@ -135,6 +135,21 @@ f2.wav   1             1    5.0  8.3'''
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
 
+def test_standardize_map_to_existing_column(annot_table_std):
+    #start labels at 0 (default)
+    annot_table_std["path"] = [f"file{i}.flac" for i in range(len(annot_table_std))]
+    res = st.standardize(annot_table_std, mapper={"filename": "path"})
+    d = '''filename annot_id label filename_orig start  end                   
+file0.flac   0             2   f0.wav  0.0  3.3
+file1.flac   0             3   f1.wav  1.0  4.3
+file2.flac   0             4   f2.wav  2.0  5.3
+file3.flac   0             1   f0.wav  3.0  6.3
+file4.flac   0             1   f1.wav  4.0  7.3
+file5.flac   0             0   f2.wav  5.0  8.3'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
+
 def test_standardize_with_labels(annot_table_std):
     res = st.standardize(annot_table_std, labels=[-1,0,1,2,3])
     d = '''filename annot_id label  start  end                   
@@ -154,12 +169,12 @@ def test_standardize_from_file(annot_table_file):
     ans = {-99: 0, 'whale':0, 2: -1, 'zebra': -1, 1: 1, 'k':2}
     assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
-f0.wav   0             1      0    1
-f1.wav   0            -1      1    3
-f2.wav   0             2      2    5
-f3.wav   0             0      3    7
-f4.wav   0             0      4    9
-f5.wav   0            -1      5    11'''
+f0.wav   0             1      0.    1.
+f1.wav   0            -1      1.    3.
+f2.wav   0             2      2.    5.
+f3.wav   0             0      3.    7.
+f4.wav   0             0      4.    9.
+f5.wav   0            -1      5.    11.'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
@@ -170,12 +185,12 @@ def test_standardize_with_nested_list(annot_table_file):
     ans = {-99: 0, 2: -1, 'zebra': -1, 1: 1, 'whale':1, 'k':2}
     assert res.attrs["label_dict"] == ans
     d = '''filename annot_id label  start  end                   
-f0.wav   0             1      0    1
-f1.wav   0            -1      1    2
-f2.wav   0             2      2    3
-f3.wav   0             0      3    4
-f4.wav   0             1      4    5
-f5.wav   0            -1      5    6'''
+f0.wav   0             1      0.    1.
+f1.wav   0            -1      1.    2.
+f2.wav   0             2      2.    3.
+f3.wav   0             0      3.    4.
+f4.wav   0             1      4.    5.
+f5.wav   0            -1      5.    6.'''
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
@@ -334,6 +349,27 @@ def test_select_step(annot_table_std):
     M = len(df_new)
     assert M == (N - K) * (2 * int((3.3/2+0.5-0.4)/0.5) + 1) + K * (2 * int((3.3/2-0.5)/0.5) + 1)
 
+def test_select_warning_annotation_error(annot_table_std):
+    """ Test that a warning is given when an annotation contains a start time greater than end time
+    and that select ignores the annotation
+    """
+    np.random.seed(2)
+    df = annot_table_std
+    df["end"][1] = 0.23
+    df = st.standardize(df, start_labels_at_1=True)
+
+    with pytest.warns(UserWarning):
+        res = st.select(annotations=df, length=1.0, center=False)
+
+    d ='''filename sel_id label start end                            
+f0.wav   0           3  1.002788  2.002788
+f0.wav   1           2  3.059630  4.059630
+f1.wav   1           2  5.264224  6.264224
+f2.wav   0           5  3.001242  4.001242
+f2.wav   1           1  5.966846  6.966846'''
+    ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0,1])
+    pd.testing.assert_frame_equal(ans, res[ans.columns.values])
+
 
 def test_time_shift():
     row = pd.Series({'label':3.00,'start':0.00,'end':3.30,'annot_id':0.00,'length':3.30,'start_new':-0.35})
@@ -347,6 +383,23 @@ def test_time_shift():
     ans = pd.read_csv(StringIO(d), delim_whitespace=True, index_col=[0])
     pd.testing.assert_frame_equal(ans, res[ans.columns.values])
 
+def test_time_shift_negative_length_raises_exception():
+    """ Test that the assertion error for a length smaller than 0 is thrown
+    """
+    annot = {'filename':'file1.wav', 'label':1, 'start':12.0, 'end':14.0}
+
+    with pytest.raises(AssertionError):
+        st.time_shift(annot, time_ref=13.0, length=-1.0, step=0.2, min_overlap=0.5)
+
+def test_time_shift_positive_length_doesnt_raises_exception():
+    """ Test that the assertion error is not thrown for good values
+    """
+    annot = {'filename':'file1.wav', 'label':1, 'start':12.0, 'end':14.0}
+
+    try:
+        st.time_shift(annot, time_ref=13.0, length=1.0, step=0.2, min_overlap=0.5)
+    except AssertionError as exc:
+        assert False, f"'time_shift' raised an exception {exc}"
 
 def test_select_with_varying_overlap(annot_table_std):
     """ Test that the number of selections increases as the 

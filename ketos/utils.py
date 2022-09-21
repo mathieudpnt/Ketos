@@ -36,6 +36,70 @@ from scipy.signal import find_peaks
 from functools import reduce
 
 
+def user_format_warning(message, category, filename, lineno, line=None):
+    ''' Warning message formatted for users. 
+
+        https://docs.python.org/3/library/warnings.html
+
+        Args:
+            message: str
+                Warning message
+            category: warnings.Warning
+                Warning category.
+            filename: str
+                Path to the source code file.
+            lineno: int
+                Line in the source code that triggered the warning.
+            line: str
+                @line is a line of source code to be included in the warning message; 
+                if line is not supplied, formatwarning() will try to read the line 
+                specified by filename and lineno.
+
+        Returns:
+            : str
+                Formatted warning message
+
+        Example:
+            >>> import warnings
+            >>> from ketos.utils import user_format_warning
+            >>> warnings.formatwarning = user_format_warning #switch format
+            >>> warnings.warn("This is a warning intended for users") #print a warning
+    '''
+    return '%s: %s\n' % (category.__name__, message)
+
+
+def dev_format_warning(message, category, filename, lineno, line=None):
+    ''' Warning message formatted for developers. 
+    
+        https://docs.python.org/3/library/warnings.html
+
+        Args:
+            message: str
+                Warning message
+            category: warnings.Warning
+                Warning category.
+            filename: str
+                Path to the source code file.
+            lineno: int
+                Line in the source code that triggered the warning.
+            line: str
+                @line is a line of source code to be included in the warning message; 
+                if line is not supplied, formatwarning() will try to read the line 
+                specified by filename and lineno.
+
+        Returns:
+            : str
+                Formatted warning message
+
+        Example:
+            >>> import warnings
+            >>> from ketos.utils import dev_format_warning
+            >>> warnings.formatwarning = dev_format_warning #switch format
+            >>> warnings.warn("This is a warning intended for developers") #print a warning    
+    '''
+    return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, message)
+
+
 def fractional_overlap(a, b):
     ''' Compute the fractional overlap of two intervals, defined as
         (length of overlap) / (length of the shortest interval of the two).
@@ -532,3 +596,165 @@ def signif(x, p):
     x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
     mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
     return np.round(x * mags) / mags
+
+def ceil(a, decimals=0):
+    """ This function adds the ability to ceil to a decimal precision instead of to the nearest integer. 
+        Similar to `np.round()` `precision` argument.
+
+        Args:
+            a: array_like
+                Input data.
+            decimals: int
+                Number of decimal places to round to (default: 0).
+
+        Returns:
+            : array_like
+                The ceil of a
+
+        Example:
+            >>> from ketos.utils import ceil
+            >>> ceil(13.84)
+            14.0
+            >>> ceil(13.36)
+            14.0
+            >>> ceil(13.84, decimals=1)
+            13.9
+            >>> ceil(13.844444, decimals=3)
+            13.845
+    """
+    return np.true_divide(np.ceil(np.asarray(a) * 10**decimals), 10**decimals)
+
+def floor(a, decimals=0):
+    """ This function adds the ability to floor to a decimal precision instead of to the nearest integer. 
+        Similar to `np.round()` `precision` argument.
+
+        Args:
+            a: array_like
+                Input data.
+            decimals: int
+                Number of decimal places to round to (default: 0).
+
+        Returns:
+            : array_like
+                The floor of a
+
+        Example:
+            >>> from ketos.utils import floor
+            >>> floor(13.84)
+            13.0
+            >>> floor(13.36)
+            13.0
+            >>> floor(13.36, decimals=1)
+            13.3
+            >>> floor(13.3669999, decimals=3)
+            13.366
+    """
+    return np.true_divide(np.floor(np.asarray(a) * 10**decimals), 10**decimals)
+
+def ceil_round_down(a, decimals=6):
+    """ Provides a convenient way to use ceil while specifying a decimal precision to floor instead
+        This helps deal with imprecision of finite number of floating points arithmetics
+
+        For instance: `2.8/0.2` can be displayed as `14.00000000001` instead of `14`. And this leads to `np.ceil(2.8/0.2) == 15`
+
+        With this function we can specify a decimal point to round down values that are very close to the previous integer.
+        For instance with the default `decimals=6`, any number with decimals equal or smaller than .000001 is rounded down to the previous integer 
+        otherwise ceil is used.
+        
+        `ceil_round_down(13.000001, decimals=6) == 13` while ceil_round_down(13.0000011, decimals=6) == 14`
+
+        More examples below.
+    
+        Args:
+            a: array_like
+                Input data.
+            decimals: int
+                Decimal places. decimals == 0 is the same as `np.ceil()`
+        
+        Returns
+            : ndarray or scalar
+                The ceil of each element in x. This is a scalar if x is a scalar. Floor is used depending on decimals
+
+        Example:
+            >>> from ketos.utils import ceil_round_down
+            >>> ceil_round_down(13.000001, decimals=6)
+            13.0
+            >>> ceil_round_down(13.0000011, decimals=6)
+            14.0
+            >>> ceil_round_down(13.0000010000001, decimals=6)
+            14.0
+            >>> ceil_round_down(13.00000000001, decimals=0)
+            14.0
+            >>> ceil_round_down(13.1, decimals=1)
+            13.0
+            >>> ceil_round_down(13.10000001, decimals=1)
+            14.0
+    """
+    if decimals == 0:
+        return np.ceil(a)
+
+    p = 1*(10**-decimals)
+    is_scalar = False
+
+    if np.isscalar(a):
+        is_scalar = True
+    # Forcing the array to have 1-dim even if scalar so that we can iterate through it
+    a = np.array(a, copy=False, ndmin=1)
+    a = np.asarray([np.floor(x) if floor(x - np.floor(x), decimals) < p else np.ceil(x) for x in a])
+    if is_scalar:
+        return a.item()
+    return a 
+
+def floor_round_up(a, decimals=6):
+    """ Provides a convenient way to use floor while specifying a decimal precision to ceil instead
+        This helps deal with imprecision of finite number of floating points arithmetics
+
+        For instance: `2.8/0.2` can be displayed as `13.99999999998` instead of `14`. And this leads to `np.floor(2.8/0.2) == 13`
+
+        With this function we can specify a decimal point to round up values that are very close to the next integer.
+        For instance with the default `decimals=6`, any number with decimals equal or bigger than .999999 is rounded up to the next integer 
+        otherwise floor is used.
+        
+        `floor_round_up(13.999999, decimals=6) == 14` while floor_round_up(13.999998, decimals=6) == 13`
+
+        More examples below.
+    
+        Args:
+            a: array_like
+                Input data.
+            decimals: int
+                Decimal places. decimals == 0 is the same as `np.floor()`
+        
+        Returns
+            : ndarray or scalar
+                The floor of each element in x. This is a scalar if x is a scalar. Ceil is used depending on decimals
+
+        Example:
+            >>> from ketos.utils import floor_round_up
+            >>> floor_round_up(13.999998, decimals=6)
+            13.0
+            >>> floor_round_up(13.999999, decimals=6)
+            14.0
+            >>> floor_round_up(13.9999989999, decimals=6)
+            13.0
+            >>> floor_round_up(13.9999998, decimals=0)
+            13.0
+            >>> floor_round_up(13.9, decimals=1)
+            14.0
+            >>> floor_round_up(13.8999999, decimals=1)
+            13.0
+    """
+    if decimals == 0:
+        return np.floor(a)
+    
+    p = 1*(10**-decimals)
+    is_scalar = False
+
+    if np.isscalar(a):
+        is_scalar = True
+    # Forcing the array to have 1-dim even if scalar so that we can iterate through it
+    a = np.array(a, copy=False, ndmin=1)
+    a = np.asarray([np.ceil(x) if floor(np.ceil(x) - x, decimals) < p else np.floor(x) for x in a])
+    if is_scalar:
+        return a.item()
+    return a 

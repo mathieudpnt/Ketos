@@ -32,7 +32,6 @@ import numpy as np
 import shutil
 from zipfile import ZipFile
 from ketos.neural_networks import load_model_file
-from ketos.audio.audio_loader import audio_repres_dict
 from ketos.data_handling.parsing import load_audio_representation
 import ketos.neural_networks.dev_utils.export as exp
 
