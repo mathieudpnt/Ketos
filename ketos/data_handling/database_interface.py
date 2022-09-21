@@ -644,19 +644,28 @@ def filter_by_label(table, label):
     indices = np.unique(indices).tolist()    
     return indices
 
-def load_audio(table, representation=Waveform, representation_params=None, indices=None, table_annot=None, stack=False):
+def load_audio(table, indices=None, table_annot=None, stack=False):
     """ Retrieve all the audio objects in a table or a subset specified by the index_list
+
+        Note that the method only can load audio representations recognized by Ketos. 
+        Available audio representations in Ketos are listed in :ref:`audio_overview`. 
+
+        However, custom audio representations can easily be loaded with a few lines of 
+        code, using pytables directly:
+
+        >>> import tables # doctest: +SKIP
+        >>> import MyCustomRepresentation # doctest: +SKIP
+        >>> db = tables.open_file("my_db.h5") # doctest: +SKIP
+        >>> tbl = db.get_node('/path/to/data/') # doctest: +SKIP
+        >>> audio_obj = MyCustomRepresentation(data=tbl[0]['data']) # doctest: +SKIP
+
+        Any other required parameters for the custom representation would need to be passed when calling the class. 
 
         Warnings: Loading all objects in a table might cause memory problems.
 
         Args:
             table: tables.Table
                 The table containing the audio objects
-            representation: class or 'numpy.ndarray' or list of classes
-                Audio data representation. This class will transform the raw data into the specified audio representation object.
-            representation_params: dict or list of dict
-                Dictionary containing any required and optional arguments for the representation class. If more than one
-                representation is given `representation_params` must be a list of the same length and in the same order.
             indices: list of ints or None
                 A list with the indices of the audio objects that will be retrieved.
                 If set to None, loads all objects in the table.
@@ -679,7 +688,7 @@ def load_audio(table, representation=Waveform, representation_params=None, indic
             >>> tbl_annot = open_table(h5file,"/group_1/table_annot")    
             >>> # Load the spectrograms stored on rows 0, 3 and 10, including their annotations
             >>> from ketos.audio.spectrogram import MagSpectrogram
-            >>> selected_specs = load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
+            >>> selected_specs = load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
             >>> # The resulting list has the 3 spectrogram objects
             >>> len(selected_specs)
             3
@@ -697,16 +706,6 @@ def load_audio(table, representation=Waveform, representation_params=None, indic
         
     if not isinstance(kwargs, list): 
         kwargs = [kwargs]
-    if not isinstance(representation, list):
-        representation = [representation]
-
-    for i in range(len(representation)):
-        if representation[i] in audio_repres_dict.values():
-            kwargs[i] = parse_audio_representation(kwargs[i])
-        elif representation[i] != 'numpy.ndarray':
-            if representation_params[i] == None: # If no parameters are given then create an empty dict (this will use the default params)
-                representation_params[i] = {}
-            kwargs[i] = representation_params[i]
 
     # get the names of all columns except the data column(s) and the id column
     col_names = table.colnames.copy()
@@ -730,7 +729,6 @@ def load_audio(table, representation=Waveform, representation_params=None, indic
                     if col_name in table_annot.colnames: annot[col_name] = annot_data[col_name] 
 
         obj = []
-        i = 0
         for kwa, dn in zip(kwargs, data_name):
             for col_name in col_names:
                 val = it[col_name]
@@ -738,18 +736,18 @@ def load_audio(table, representation=Waveform, representation_params=None, indic
                 kwa[col_name] = val
 
             # initialize audio object
-            if representation[i] == 'numpy.ndarray':
+            if kwa['type'] == 'numpy.ndarray':
                 obj.append(it[dn])
             else:
-                obj.append(representation[i](data=it[dn], annot=annot, **kwa))
-            i+=1
+                audio_class = audio_repres_dict[kwa['type']]
+                obj.append(audio_class(data=it[dn], annot=annot, **kwa))
 
         if len(obj) == 1: obj = obj[0]
 
         audio_objs.append(obj)
 
     if stack:
-        audio_objs = representation.stack(audio_objs)
+        audio_objs = audio_class.stack(audio_objs)
 
     return audio_objs
 

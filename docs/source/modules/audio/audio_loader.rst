@@ -11,7 +11,6 @@ Audio Loader
 
     AudioFrameLoader
     AudioLoader
-    AudioSelectionLoader
     FrameStepper
     SelectionGenerator
     SelectionTableIterator

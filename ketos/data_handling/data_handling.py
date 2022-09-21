@@ -91,8 +91,8 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
                 See https://pypi.org/project/datetime-glob/ for a list of valid directives. 
                 In addition to the directives allowed by the datetime-glob package, it is 
                 also possible to specify %S.%ms for milliseconds. Note that the milliseconds
-                (%ms) must follow the seconds (%S) separated by a period (.) and can only be 
-                followed by an asterisk (*) or nothing.            
+                (%ms) must follow the seconds (%S) separated by a period (.) or underscore (_) 
+                and can only be followed by an asterisk (*) or nothing.            
             replace_spaces: str
                 If string contains spaces, replaces them with this string
 
@@ -131,11 +131,11 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             3
     """
     # millisecond
-    if '%S.%ms' in fmt:
-        millisecond = True
-        fmt = fmt.replace('%S.%ms', '%S*')
-    else:
-        millisecond = False
+    millisecond = False
+    for sep in [".","_"]:
+        if f'%S{sep}%ms' in fmt:
+            millisecond = True
+            fmt = fmt.replace(f'%S{sep}%ms', '%S*')
 
     # replace spaces
     to_parse = to_parse.replace(' ', replace_spaces)
