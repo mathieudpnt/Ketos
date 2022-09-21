@@ -1,10 +1,25 @@
+.. _audio_overview:
+
 Overview
 =========
 
 The audio modules provide high-level interfaces for loading and manipulating audio data 
-and computing various spectral representations such as magnitude spectrograms and CQT spectrograms. 
+and computing various audio representations such as magnitude spectrograms and CQT spectrograms. 
 For the implementation of these functionalities, we rely extensively on 
 `LibROSA <https://librosa.github.io/librosa/>`_ and `SoundFile <https://pysoundfile.readthedocs.io/en/latest/index.html>`_ .
+
+The following audio representations are supported by Ketos:
+
+- :class:`Waveform <ketos.audio.waveform.Waveform>`
+- :class:`magnitude spectrogram <ketos.audio.spectrogram.MagSpectrogram>`
+- :class:`power spectrogram <ketos.audio.spectrogram.PowSpectrogram>`
+- :class:`mel spectrogram <ketos.audio.spectrogram.MelSpectrogram>`
+- :class:`CQT spectrogram <ketos.audio.spectrogram.CQTSpectrogram>`
+- :class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>`
+- :class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`
+
+Aditional detail on these representations can be found below or by accessing each class. 
+In addition, Ketos also supports custom audio repsentations passed by the user.
 
 
 Waveforms
@@ -81,7 +96,7 @@ See the documentation of the :ref:`spectrogram` module for the complete list.
 Loading multiple audio segments
 --------------------------------
 
-The :class:`AudioSelectionLoader <ketos.audio.audio_loader.AudioSelectionLoader>` and 
+The :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>` and 
 :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` classes provide 
 convenient interfaces for loading a selection or sequence of audio segments into memory, 
 one at a time. For example,::
@@ -97,6 +112,28 @@ one at a time. For example,::
 
 See the documentation of the :ref:`audio_loader` module for more examples and details.
 
+Custom audio representations
+----------------------------
+
+Custom audio representations are user defined classes that take as input the raw data or a path to an audio file and creates an audio object.
+
+They can be used in ketos in a number of different ways, most notably, as an Audio representation for the :class:`AudioLoader <ketos.audio.audio_loader.AudioLoader>`
+and :class:`AudioFrameLoader <ketos.audio.audio_loader.AudioFrameLoader>` classes. For instance using the AudioLoader:
+
+    >>> import MyCustomAudioRepresentation
+    >>> from ketos.audio.audio_loader import SelectionTableIterator, AudioLoader
+    >>> rep = {'any':'parameter', 'for':'the', 'custom':'representation'}
+    >>> generator = SelectionTableIterator(data_dir="ketos/tests/assets/", selection_table=sel)
+    >>> loader = AudioLoader(selection_gen=generator, representation=MyCustomAudioRepresentation, representation_params=rep)
+
+Using the :meth:`create_database <ketos.database_interface.create_database>` function.
+
+    >>> import ketos.data_handling.database_interface as dbi
+    >>> import MyCustomAudioRepresentation
+    >>> config = {'type':MyCustomAudioRepresentation, 'any':'parameter', 'for':'the', 'custom':'representation'}
+    >>> dbi.create_database(output_file, data_dir, selections, audio_repres=config)
+
+For more information on how to pass custom audio representations through a configuration file, see below.
 
 Configuration files
 -------------------
@@ -105,16 +142,14 @@ As shown in the example above, the audio representation can be configured with a
 Python dictionary. Furthemore, this dictionary can be saved to a JSON file (\*.json), which 
 can be helpful for storing configurations for later use or for sharing with collaborators.
 
-The audio representations currently implemented in Ketos are: 
-:class:`Waveform <ketos.audio.waveform.Waveform>`, 
-:class:`Magspectrogram <ketos.audio.spectrogram.MagSpectrogram>` , 
-:class:`PowSpectrogram <ketos.audio.spectrogram.PowSpectrogram>`, 
-:class:`MelSpectrogram <ketos.audio.spectrogram.MelSpectrogram>`, 
-:class:`CQTSpectrogram <ketos.audio.spectrogram.CQTSpectrogram>`, 
-:class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>`, and
-:class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`. 
-These are also listed in the :ref:`audio_loader` module 
-along with convenient, shorthand names (e.g. `Mag` for `MagSpectrogram`).
+The audio representations also contain convenient, shorthand names (e.g. `Mag` for `MagSpectrogram`):
+
+- `Mag` -> :class:`MagSpectrogram <ketos.audio.spectrogram.MagSpectrogram>`
+- `Power` -> :class:`PowerSpectrogram <ketos.audio.spectrogram.PowSpectrogram>`
+- `Mel` -> :class:`MelSpectrogram <ketos.audio.spectrogram.MelSpectrogram>`
+- `CQT` -> :class:`CQT Spectrogram <ketos.audio.spectrogram.CQTSpectrogram>`
+- `Gammatone` -> :class:`Gammatone Filter Bank <ketos.audio.gammatone.GammatoneFilterBank>`
+- `Aural` -> :class:`Aural Features <ketos.audio.gammatone.AuralFeatures>`
 
 With the dictionary approach, you can specify the type of audio representation 
 you wish to work with and supply parameter values for the class constructor. 
@@ -157,3 +192,20 @@ class,
     >>> spec = MagSpectrogram.from_wav(path='sound.wav', window=0.2, step=0.01)
     >>> spec.allowed_transforms.keys()   
     dict_keys(['normalize', 'adjust_range', 'crop', 'blur', 'enhance_signal', 'reduce_tonal_noise', 'resize'])
+
+
+It is also possible to pass a custom audio representaion through a configuration file. To do that, 
+simply define a key-value pair pointing to the location of your module with a `"module": "path_to_the_module"` format: 
+
+.. code-block:: json
+
+    {
+        "custom_prepresentation": {
+            "type": "MyCustomAudioRepresentation", 
+            "module": "path/to/my/audio_representation.py", 
+            "any": "parameter", 
+            "for": "the", 
+            "custom": "representation"
+        }
+    }
+

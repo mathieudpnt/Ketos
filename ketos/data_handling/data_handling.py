@@ -30,18 +30,15 @@
 """
 import numpy as np
 import pandas as pd
-import librosa
 import os
 import math
 import errno
-import tables
 from subprocess import call
 import soundfile as sf
 from ketos.utils import tostring
 import datetime
 import datetime_glob
 import re
-import soundfile
 
 
 def rel_path_unix(path, start=None):
@@ -91,7 +88,11 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             fmt: str
                 String defining the date-time format. 
                 Example: %d_%m_%Y* would capture "14_3_1999.txt"
-                See https://pypi.org/project/datetime-glob/ for a list of valid directives                
+                See https://pypi.org/project/datetime-glob/ for a list of valid directives. 
+                In addition to the directives allowed by the datetime-glob package, it is 
+                also possible to specify %S.%ms for milliseconds. Note that the milliseconds
+                (%ms) must follow the seconds (%S) separated by a period (.) or underscore (_) 
+                and can only be followed by an asterisk (*) or nothing.            
             replace_spaces: str
                 If string contains spaces, replaces them with this string
 
@@ -129,6 +130,13 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
             >>> result.second
             3
     """
+    # millisecond
+    millisecond = False
+    for sep in [".","_"]:
+        if f'%S{sep}%ms' in fmt:
+            millisecond = True
+            fmt = fmt.replace(f'%S{sep}%ms', '%S*')
+
     # replace spaces
     to_parse = to_parse.replace(' ', replace_spaces)
     
@@ -140,6 +148,14 @@ def parse_datetime(to_parse, fmt=None, replace_spaces='0'):
         else:
             dt = match.as_datetime()
             if dt > datetime.datetime.now() and "%y" in fmt: dt = dt.replace(year=dt.year-100)
+
+            if millisecond:
+                dt_str = dt.strftime(fmt)
+                dt_str = dt_str.replace('*','')
+                i = to_parse.rfind(dt_str) + len(dt_str) + 1
+                ms_str = to_parse[i:i+3]
+                ms = int(ms_str)
+                dt += datetime.timedelta(microseconds=1e3*ms)
 
             return dt
 

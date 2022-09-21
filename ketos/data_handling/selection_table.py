@@ -107,12 +107,12 @@
 """
 
 import os
-import librosa
 import warnings
 import numpy as np
 import pandas as pd
 from ketos.utils import str_is_int, fractional_overlap
-from ketos.data_handling.data_handling import find_wave_files, parse_datetime
+from ketos.data_handling.data_handling import find_wave_files, find_files, parse_datetime
+from ketos.audio.waveform import get_duration
 
 
 def unfold(table, sep=','):
@@ -254,12 +254,15 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     # map columns
     if mapper is not None:
-        for key,value in mapper.items():
+        for key,value in mapper.items(): #first, map mathematical/logical operations
             if value not in df.columns.values:
-                df[key] = df.apply(lambda x: eval(value), axis=1) #first, map mathematical/logical operations
-        for key,value in mapper.items():
+                df[key] = df.apply(lambda x: eval(value), axis=1) 
+        for key,value in mapper.items(): #second, map 1-to-1 mappings
             if value in df.columns.values:
-                df = df.rename(columns={value:key}) #second, map 1-to-1 mappings
+                if key in df.columns.values:
+                    df = df.rename(columns={key:f"{key}_orig"})  #if the table already has a column with this name, append _orig to its name
+
+                df = df.rename(columns={value:key}) 
 
     # if user has provided duration instead of end time, compute end time
     if 'start' in df.columns.values and 'duration' in df.columns.values and 'end' not in df.columns.values:
@@ -267,8 +270,11 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     # keep only relevant columns
     if trim_table:
-        df = trim(df, list(mapper.keys()))
-
+        if mapper is not None:
+            df = trim(df, list(mapper.keys()))
+        else:
+            df = trim(df)
+            
     # check that dataframe has minimum required columns
     mis = missing_columns(df)
     assert len(mis) == 0, 'Column(s) {0} missing from input table'.format(mis)
@@ -335,6 +341,12 @@ def standardize(table=None, path=None, sep=',', mapper=None, labels=None,
 
     df.attrs["start_labels_at_1"] = start_labels_at_1
 
+    # enforce float for select columns
+    float_cols = ['start','end','freq_min','freq_max']
+    for c in float_cols:
+        if c in df.columns.values:
+            df[c] = df[c].astype(float)
+        
     return df
 
 
@@ -717,15 +729,25 @@ def select(annotations, length, step=0, min_overlap=0, center=False, discard_lon
     # discard annotations with label -1
     df = df[df['label'] != -1]
 
-    # number of annotations
-    N = len(df)
-
     # compute length of every annotation
     df['length'] = df['end'] - df['start']
 
     # discard annotations longer than the requested length
     if discard_long:
         df = df[df['length'] <= length]
+
+    # We need to ensure that the annotation is valid, that is, the start time must be smaller than end time. 
+    # Otherwise we skip (remove) the annotation and throw a warning
+    negative_length = df[df['length'] < 0] # select rows with the issue to issue warnings
+    
+    if (len(negative_length.index) > 0):
+        df = df[df['length'] >= 0] # remove the rows from the dataframe
+
+        for idx,row in negative_length.iterrows():
+            warnings.warn("File {0}, annotation {1} has a start time ({2}) greater than end time ({3}). Skipping annotation".format(idx[0], idx[1], row['start'], row['end']), category=UserWarning, stacklevel=2)  
+
+    # number of annotations
+    N = len(df)
 
     # alignment of new annotations relative to original ones
     if center:
@@ -861,6 +883,9 @@ def time_shift(annot, time_ref, length, step, min_overlap):
             8  file1.wav      1   12.0  14.0       13.2
             9  file1.wav      1   12.0  14.0       13.4
     """
+    if length <= 0:
+        raise AssertionError("Length must be positive and greater than zero, found {0}".format(length))
+
     if isinstance(annot, dict):
         row = pd.Series(annot)
     elif isinstance(annot, pd.Series):
@@ -895,7 +920,7 @@ def file_duration_table(path, search_subdirs=False, datetime_format=None):
 
         Args:
             path: str
-                Path to folder with audio files (\*.wav)
+                Path to folder with audio files with extensions wav, WAV, flac, FLAC.
             search_subdirs: bool
                 If True, search include also any audio files in subdirectories.
                 Default is False.
@@ -909,8 +934,8 @@ def file_duration_table(path, search_subdirs=False, datetime_format=None):
             df: pandas DataFrame
                 File duration table. Columns: filename, duration, (datetime)
     """
-    paths = find_wave_files(path=path, return_path=True, search_subdirs=search_subdirs)
-    durations = [librosa.get_duration(filename=os.path.join(path,p)) for p in paths]
+    paths = find_files(path=path, return_path=True, search_subdirs=search_subdirs, substr=['.wav', '.WAV', '.flac', '.FLAC'])
+    durations = get_duration([os.path.join(path,p) for p in paths])
     df = pd.DataFrame({'filename':paths, 'duration':durations})
     if datetime_format is None:
         return df

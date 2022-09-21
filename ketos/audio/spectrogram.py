@@ -52,11 +52,9 @@
 """
 import os
 import copy
-import librosa
 import warnings
 import numpy as np
 from scipy.signal import get_window
-from scipy.fftpack import dct
 from scipy import ndimage
 from skimage.transform import resize
 import matplotlib.pyplot as plt
@@ -135,7 +133,7 @@ def add_specs(a, b, offset=0, scale=1, make_copy=False):
 
 def load_audio_for_spec(path, channel, rate, window, step, offset, duration, 
     resample_method, id=None, normalize_wav=False, waveform_transforms=None, 
-    smooth=0.01):
+    smooth=0.01, **kwargs):
     """ Load audio data from a wav file for the specific purpose of computing 
         the spectrogram.
 
@@ -172,7 +170,8 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
             duration: float
                 Length of spectrogrma in seconds.
             resample_method: str
-                Resampling method. Only relevant if `rate` is specified. Options are
+                Resampling method. Only relevant if `rate` is specified. Options are:
+
                     * kaiser_best
                     * kaiser_fast
                     * scipy (default)
@@ -187,6 +186,8 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
                 deviation of unity (std=1). Default is False.
             smooth: float
                 Width in seconds of the smoothing region used for stitching together audio files.
+            \**kwargs: additional keyword arguments
+                    Keyword arguments to be passed to :meth:`ketos.audio.Waveform.from_wav`.
 
         Returns:
             audio: Waveform
@@ -219,12 +220,11 @@ def load_audio_for_spec(path, channel, rate, window, step, offset, duration,
     right_ext = total_duration_ext - total_duration - left_ext
     duration_ext[0]  += left_ext
     duration_ext[-1] += right_ext
-
     # now load extended audio with from_wav method
     audio = Waveform.from_wav(path=path, rate=rate, channel=channel,
         offset=offset_ext, duration=duration_ext, resample_method=resample_method, 
         id=id, normalize_wav=normalize_wav, transforms=waveform_transforms,
-        smooth=smooth)
+        smooth=smooth, **kwargs)
 
     if len(audio.get_data()) == 0:
         return None, None
@@ -326,6 +326,7 @@ class Spectrogram(BaseAudioTime):
 
         self.freq_ax = freq_ax
         self.type = type
+        self.decibel = True
 
         self.allowed_transforms.update({'blur': self.blur, 
                                         'enhance_signal': self.enhance_signal,
@@ -455,7 +456,7 @@ class Spectrogram(BaseAudioTime):
         spec = super().crop(start=start, end=end, length=length, make_copy=make_copy) #crop time axis
 
         # crop frequency axis
-        b1, b2 = self.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
+        b1, b2 = spec.freq_ax.cut(x_min=freq_min, x_max=freq_max, bins=height)
 
         # add frequency information to log
         if not make_copy:
@@ -466,7 +467,8 @@ class Spectrogram(BaseAudioTime):
         spec.data = spec.data[:, b1:b2+1]
 
         # crop annotations, if any
-        if self.annot: self.annot.crop(freq_min=freq_min, freq_max=freq_max)
+        if spec.annot is not None: 
+            spec.annot.crop(freq_min=freq_min, freq_max=freq_max)
 
         return spec
                 
@@ -710,7 +712,8 @@ class Spectrogram(BaseAudioTime):
         transf.update(kwargs)
         self.transform_log.append(transf)
 
-    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None):
+    def plot(self, show_annot=False, figsize=(5,4), cmap='viridis', label_in_title=True, vmin=None, vmax=None, 
+        annot_kwargs=None):
         """ Plot the spectrogram with proper axes ranges and labels.
 
             Optionally, also display annotations as boxes superimposed on the spectrogram.
@@ -733,6 +736,24 @@ class Spectrogram(BaseAudioTime):
                     When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
                     By default, the colormap covers the complete value range of the supplied data. 
                     vmin, vmax are ignored if the norm parameter is used.            
+                annot_kwargs: dict
+                    Annotation box extra parameters following matplotlib values. Only relevant if show_annot is True. 
+                    The following matplotlib options are currently supported:
+
+                    ==============  ========================================================
+                    Property        description
+                    ==============  ========================================================
+                    color           color for the annotation box and text. See matplotlib for color options
+                    linewidth       width for the annotaiton box. float or None
+                    fontsize        float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
+                    fontweight      {a numeric value in range 0-1000, 'ultralight', 'light', 'normal', 'regular', 'book', 'medium', 'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy', 'extra bold', 'black'}
+                    ==============  ========================================================
+
+                    A dictionary may be used to specify different options for 
+                    different label values. For example, {1: {"color": "C0", "fontweight": "bold"},3: {"color": "C2",}} 
+                    would assign the color "C0" and fontweight bold to label value 1 and "C2" to 
+                    label value 3. The default color is "C1".
+
             Returns:
                 fig: matplotlib.figure.Figure
                 A figure object.
@@ -757,34 +778,71 @@ class Spectrogram(BaseAudioTime):
         x = self.get_data() # select image data        
         extent = (0., self.duration(), self.freq_min(), self.freq_max()) # axes ranges        
         img = ax.imshow(x.T, aspect='auto', origin='lower', cmap=cmap, extent=extent, vmin=vmin, vmax=vmax)# draw image
-        ax.set_ylabel(self.freq_ax.label) # axis label        
-        fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
+        ax.set_ylabel(self.freq_ax.label) # axis label
+        
+        if self.decibel:       
+            fig.colorbar(img, ax=ax, format='%+2.0f dB')# colobar
+        else:
+            fig.colorbar(img, ax=ax, label='Amplitude')# colobar
 
         # superimpose annotation boxes
-        if show_annot: self._draw_annot_boxes(ax)
+        if show_annot: self._draw_annot_boxes(ax, annot_kwargs=annot_kwargs)
             
         #fig.tight_layout()
         return fig
 
-    def _draw_annot_boxes(self, ax):
+    def _draw_annot_boxes(self, ax, annot_kwargs=None):
         """Draws annotations boxes on top of the spectrogram
 
             Args:
                 ax: matplotlib.axes.Axes
                     Axes object
+                annot_kwargs: dict
+                    Annotation box extra parameters following matplotlib values. Only relevant if show_annot is True. 
+                    The following matplotlib options are currently supported:
+
+                    ==============  ========================================================
+                    Property        description
+                    ==============  ========================================================
+                    color           color for the annotation box and text. See matplotlib for color options
+                    linewidth       width for the annotaiton box. float or None
+                    fontsize        float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
+                    fontweight      {a numeric value in range 0-1000, 'ultralight', 'light', 'normal', 'regular', 'book', 'medium', 'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy', 'extra bold', 'black'}
+                    ==============  ========================================================
+
+                    A dictionary may be used to specify different options for 
+                    different label values. For example, {1: {"color": "C0", "fontweight": "bold"},3: {"color": "C2",}} 
+                    would assign the color "C0" and fontweight bold to label value 1 and "C2" to 
+                    label value 3. The default color is "C1".
         """
         annots = self.get_annotations()
         if annots is None: return
         y1 = self.freq_min()
         y2 = self.freq_max()
         for idx,annot in annots.iterrows():
+            l = int(annot['label']) # obs: iterrows does not preserve dtypes across the rows!
             x1 = annot['start']
             x2 = annot['end']
             if not np.isnan(annot['freq_min']): y1 = annot['freq_min']
             if not np.isnan(annot['freq_max']): y2 = annot['freq_max']
-            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=1,edgecolor='C1',facecolor='none')
+            
+            kwargs = {}
+            if annot_kwargs is not None:
+                if isinstance(annot_kwargs, dict) and l in annot_kwargs.keys(): # checking if dict is nested
+                    kwargs = annot_kwargs[l]
+                elif isinstance(annot_kwargs, dict):
+                    kwargs = annot_kwargs
+                else:
+                    raise TypeError("annot_kwargs must be a dict or nested dict.")
+
+            color = kwargs.get("color", "C1")
+            linewidth = kwargs.get("linewidth", 1)
+            fontsize = kwargs.get("fontsize", None)
+            fontweight = kwargs.get("fontweight", None)
+
+            box = patches.Rectangle((x1,y1),x2-x1,y2-y1,linewidth=linewidth, edgecolor=color, facecolor='none')
             ax.add_patch(box)
-            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color='C1')
+            ax.text(x1, y2, int(annot['label']), ha='left', va='bottom', color=color, fontweight=fontweight, fontsize=fontsize)
 
 
 class MagSpectrogram(Spectrogram):
@@ -947,6 +1005,9 @@ class MagSpectrogram(Spectrogram):
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
             waveform_transform_log=audio.transform_log, transforms=transforms, phase_angle=phase, **kwargs)
 
+        # Saving decibel option
+        spec.decibel = decibel
+
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
@@ -1023,6 +1084,8 @@ class MagSpectrogram(Spectrogram):
                     Convert to dB scale
                 smooth: float
                     Width in seconds of the smoothing region used for stitching together audio files.
+                \**kwargs: additional keyword arguments
+                    Keyword arguments to be passed to :meth:`ketos.audio.spectrogram.load_audio_for_spec` and :meth:`ketos.audio.waveform.from_waveform`.
 
             Returns:
                 : MagSpectrogram
@@ -1044,7 +1107,7 @@ class MagSpectrogram(Spectrogram):
         # load audio
         audio = load_audio_for_spec(path=path, channel=channel, rate=rate, window=window, step=step,
             offset=offset, duration=duration, resample_method=resample_method, id=id, normalize_wav=normalize_wav,
-            waveform_transforms=waveform_transforms, smooth=smooth)
+            waveform_transforms=waveform_transforms, smooth=smooth, **kwargs)
 
         if audio is None:
             warnings.warn("Empty spectrogram returned", RuntimeWarning)
@@ -1291,6 +1354,9 @@ class PowerSpectrogram(Spectrogram):
             filename=audio.filename, offset=audio.offset, label=audio.label, annot=audio.annot, 
             waveform_transform_log=audio.transform_log, transforms=transforms, **kwargs)
 
+        # Saving decibel choice
+        spec.decibel = decibel
+
         if freq_min is not None or freq_max is not None:
             spec = spec.crop(freq_min=freq_min, freq_max=freq_max)
 
@@ -1447,7 +1513,7 @@ class MelSpectrogram(Spectrogram):
 
         # create frequency axis
         ax = MelAxis(num_filters=num_filters, freq_max=freq_max, start_bin=start_bin, bins=bins, label='Frequency (Hz)')
-
+        
         # create spectrogram
         kwargs.pop('type', None)
         super().__init__(data=data, time_res=time_res, type=self.__class__.__name__, freq_ax=ax,

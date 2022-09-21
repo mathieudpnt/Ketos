@@ -36,7 +36,6 @@
 import sys
 import os
 import copy
-import librosa
 import warnings
 import numpy as np
 from version_parser.version import Version

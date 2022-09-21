@@ -232,3 +232,35 @@ def test_parse_datetime_with_non_matching_format():
     dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
     os.remove(full_path)
     assert dt == None
+
+def test_parse_datetime_with_onc_format():
+    fname = 'ICLISTENHF1251_20130813T063620.983Z.wav'
+    full_path = os.path.join(path_to_assets, fname)
+    wave.write(full_path, rate=1000, data=np.array([0.]))
+    fmt = '*_%Y%m%dT%H%M%S.%ms*'
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
+    os.remove(full_path)
+    assert dt is not None
+    assert dt.year == 2013
+    assert dt.month == 8
+    assert dt.day == 13
+    assert dt.hour == 6
+    assert dt.minute == 36
+    assert dt.second == 20
+    assert dt.microsecond == 983000
+
+def test_parse_datetime_with_smru_format():
+    fname = 'LK_20130813_063620_983.wav'
+    full_path = os.path.join(path_to_assets, fname)
+    wave.write(full_path, rate=1000, data=np.array([0.]))
+    fmt = '*_%Y%m%d_%H%M%S_%ms*'
+    dt = dh.parse_datetime(to_parse=fname, fmt=fmt)
+    os.remove(full_path)
+    assert dt is not None
+    assert dt.year == 2013
+    assert dt.month == 8
+    assert dt.day == 13
+    assert dt.hour == 6
+    assert dt.minute == 36
+    assert dt.second == 20
+    assert dt.microsecond == 983000

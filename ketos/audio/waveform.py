@@ -33,10 +33,9 @@
 """
 import os
 import numpy as np
-import librosa
+import soundfile as sf
 import warnings
 import scipy.io.wavfile as wave
-from scipy import interpolate
 import scipy.signal
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -91,8 +90,13 @@ def get_sampling_rate(path):
     '''
     if np.ndim(path) == 0:
         path = [path]
-        
-    rates = [librosa.get_samplerate(p) for p in path if p is not None]
+
+    # get the sampling rates of the audio file(s)
+    rates = []
+    for p in path:
+         if p is not None:
+            with sf.SoundFile(p, "r") as f:
+                rates.append(f.samplerate)
 
     if len(rates) == 0:
         warnings.warn("Sampling rate could not be inferred. This may cause problems.", UserWarning)
@@ -131,7 +135,8 @@ def get_duration(path, offset=0, duration=None):
     for i in range(len(path)):
         if duration[i] is None:
             assert path[i] is not None, "duration must be specified if path is None"
-            d = librosa.get_duration(filename=path[i]) - offset[i] 
+            with sf.SoundFile(path[i], "r") as f:
+                d = f.frames / f.samplerate - offset[i]
         else:
             d = duration[i]
 
@@ -292,13 +297,18 @@ class Waveform(BaseAudioTime):
 
     @classmethod
     def from_wav(cls, path, channel=0, rate=None, offset=0, duration=None, resample_method='scipy',
-        id=None, normalize_wav=False, transforms=None, pad_mode="zero", smooth=0.01, **kwargs):
+        id=None, normalize_wav=False, transforms=None, pad_mode="reflect", smooth=0.01, **kwargs):
         """ Load audio data from one or several audio files.
 
             When loading from several audio files, the waveforms are stitched together in 
             the order in which they are provided using the `append` method. Note that only 
             the name and offset of the first file are stored in the `filename` and `offset` 
             attributes.  
+
+            Note that - despite the misleading name - this method can load other audio formats 
+            than WAV. In particular, it also handles FLAC quite well. 
+
+            TODO: Rename this function and document in greater detail which formats are supported.
 
             Args:
                 path: str or list(str)
@@ -385,6 +395,8 @@ class Waveform(BaseAudioTime):
             If `path` is None a waveform with length `int(rate * duration)` with purely zero 
             values will be returned. (Requires that both `rate` and `duration` are specified.)
 
+            TODO: If possible, remove librosa dependency
+
             Args:
                 path: str
                     Path to input audio file
@@ -438,10 +450,10 @@ class Waveform(BaseAudioTime):
         if id is None: id = os.path.basename(path)
 
         # original sampling rate in Hz
-        rate_orig = librosa.get_samplerate(path)
+        rate_orig = get_sampling_rate(path)
 
         # file duration in seconds
-        file_duration = librosa.get_duration(filename=path)
+        file_duration = get_duration(path)[0]
 
         # if the offset exceeds the file duration, return an empty array
         # and issue a warning
@@ -490,7 +502,8 @@ class Waveform(BaseAudioTime):
 
         # if necessary, re-sample
         if rate is not None and rate != rate_orig:
-            data = librosa.core.resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
+            from librosa.core import resample
+            data = resample(data, orig_sr=rate_orig, target_sr=rate, res_type=resample_method)
         else:
             rate = rate_orig
 
@@ -500,10 +513,10 @@ class Waveform(BaseAudioTime):
             if num_pad_right > 0 or num_pad_left > 0:
                 if pad_mode.lower() == 'reflect':
                     data = aum.pad_reflect(data, pad_left=num_pad_left, pad_right=num_pad_right)
-                    warnings.warn("Waveform padded with its own reflection to achieve desired length", RuntimeWarning)
+                    warnings.warn("Waveform padded with its own reflection to achieve required length to compute the stft. {0} samples were padded on the left and {1} samples were padded on the right".format(num_pad_left, num_pad_right), RuntimeWarning)
                 else:
                     data = aum.pad_zero(data, pad_left=num_pad_left, pad_right=num_pad_right)
-                    warnings.warn("Waveform padded with zeros to achieve desired length", RuntimeWarning)
+                    warnings.warn("Waveform padded with zeros to achieve the required length to compute the stft. {0} samples were padded on the left and {1} samples were padded on the right".format(num_pad_left, num_pad_right), RuntimeWarning)
 
         if normalize_wav: 
             transforms.append({'name':'normalize','mean':0.0,'std':1.0})
@@ -969,6 +982,8 @@ class Waveform(BaseAudioTime):
     def resample(self, new_rate, resample_method='scipy'):
         """ Resample the acoustic signal with an arbitrary sampling rate.
 
+            TODO: If possible, remove librosa dependency
+
         Args:
             new_rate: int
                 New sampling rate in Hz
@@ -982,6 +997,8 @@ class Waveform(BaseAudioTime):
                 See https://librosa.github.io/librosa/generated/librosa.core.resample.html 
                 for details on the individual methods.
         """
+        import librosa.core
+
         if len(self.data) < 2:
             self.rate = new_rate
 
