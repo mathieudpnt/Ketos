@@ -2,7 +2,7 @@ Change log
 ==========
 
 
-**Version 2.6.2** (Month Day, Year)
+**Version 2.6.2** (Sept 21, 2022)
 
  * :meth:`MagSpectrogram:plot <ketos.audio.spectrogram.MagSpectrogram.plot>` and :meth:`PowerSpectrogram:plot <ketos.audio.spectrogram.PowerSpectrogram.plot>` will no longer display a label dB when `decibel`` is set to False.
  * `pad_mode="reflect"` is now correctly set as the default instead of `zero`.
