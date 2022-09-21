@@ -147,8 +147,9 @@ def load_audio_representation(path, name=None, return_unparsed=False):
             >>> # clean up
             >>> os.remove(path)
 
-            It is also possible to pass a custom audio representation class to this function. In this case, include a key/value pair indicating the path to the module you are loading the class from.
-            For instance:
+            It is also possible to pass a custom audio representation class to this function. 
+            In this case, include a key/value pair indicating the path to the module you are 
+            loading the class from. For instance:
 
             >>> import json # doctest: +SKIP
             >>> import os # doctest: +SKIP

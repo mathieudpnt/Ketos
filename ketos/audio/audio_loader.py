@@ -28,9 +28,16 @@
 
     This module contains the utilities for loading waveforms and computing spectrograms.
 
-    Contents:
-        AudioLoader class:
-        AudioSequenceLoader class
+    The audio representations currently implemented in Ketos are: 
+
+    - :class:`Waveform <ketos.audio.waveform.Waveform>`
+    - :class:`magnitude spectrogram <ketos.audio.spectrogram.MagSpectrogram>`
+    - :class:`power spectrogram <ketos.audio.spectrogram.PowSpectrogram>`
+    - :class:`mel spectrogram <ketos.audio.spectrogram.MelSpectrogram>`
+    - :class:`CQT spectrogram <ketos.audio.spectrogram.CQTSpectrogram>`
+    - :class:`CQTSpectrogram <ketos.audio.spectrogram.CQTSpectrogram>`
+    - :class:`GammatoneFilterBank <ketos.audio.gammatone.GammatoneFilterBank>`
+    - :class:`AuralFeatures <ketos.audio.gammatone.AuralFeatures>`
 """
 import os
 import pandas as pd

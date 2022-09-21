@@ -173,7 +173,7 @@ def reduce_tonal_noise(img, method='MEDIAN', **kwargs):
             .. image:: ../../../ketos/tests/assets/tmp/image_tonal_noise_red1.png
     """
     if method == 'MEDIAN':
-        img_new = img - np.median(img, axis=0)
+        img_new = img - np.ma.median(img, axis=0)
     
     elif method == 'RUNNING_MEAN':
         assert 'time_const_len' in kwargs.keys(), 'method RUNNING_MEAN requires time_constant input argument'

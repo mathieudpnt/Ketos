@@ -532,7 +532,7 @@ def test_load_audio_no_index_list():
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot)
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot)
     assert len(selected_specs) == tbl_data.nrows
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)    
@@ -544,7 +544,7 @@ def test_load_audio_with_index_list():
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    selected_specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
+    selected_specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     assert len(selected_specs) == 3
     is_spec = [isinstance(item, Spectrogram) for item in selected_specs]
     assert all(is_spec)
@@ -556,7 +556,7 @@ def test_load_audio_also_loads_annotations():
     h5file = di.open_file(fpath, 'r')
     tbl_data = di.open_table(h5file,"/group_1/table_data")
     tbl_annot = di.open_table(h5file,"/group_1/table_annot")    
-    specs = di.load_audio(table=tbl_data, representation=MagSpectrogram, table_annot=tbl_annot, indices=[0,3,10])
+    specs = di.load_audio(table=tbl_data, table_annot=tbl_annot, indices=[0,3,10])
     # check annotations for 1st spec
     d = '''label  start  end  freq_min  freq_max
 0      2    1.0  1.4      50.0     300.0
