@@ -25,9 +25,9 @@ notebook version of the tutorial and sample data which will allow you to run the
 **CLI**
 
 
-You can download the program from here: :download:`detector.py <https://gitlab.meridian.cs.dal.ca/public_projects/ketos_tutorials/-/blob/master/tutorials/create_a_narw_detector/detector.py>`
-The pre-trained narw model from here : :download:`narw.kt <https://gitlab.meridian.cs.dal.ca/public_projects/ketos_tutorials/-/blob/master/tutorials/create_a_narw_detector/narw.kt>`
-And sample data can be download from here :download:`data <https://gitlab.meridian.cs.dal.ca/public_projects/ketos_tutorials/-/blob/master/tutorials/create_a_narw_detector/data.zip>`
+You can download the program from here: :download:`detector.py <https://git-dev.cs.dal.ca/meridian/ketos-tutorials/-/blob/main/tutorials/create_a_narw_detector/detector.py>`
+The pre-trained narw model from here : :download:`narw.kt <https://git-dev.cs.dal.ca/meridian/ketos-tutorials/-/blob/main/tutorials/create_a_narw_detector/narw.kt>`
+And sample data can be download from here :download:`data <https://git-dev.cs.dal.ca/meridian/ketos-tutorials/-/blob/main/tutorials/create_a_narw_detector/data.zip>`
 
 
 The detector program has a few parameters that can be used to adjust its bahavior.

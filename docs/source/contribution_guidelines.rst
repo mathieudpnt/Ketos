@@ -16,7 +16,7 @@ You can help by:
 How to Report Issues and Ask Questions
 ---------------------------------------
 
-We use GitLab as a repository, so the best way to submit issues and questions is through the `issues system <https://gitlab.meridian.cs.dal.ca/public_projects/ketos/issues>`_.
+We use GitLab as a repository, so the best way to submit issues and questions is through the `issues system <https://git-dev.cs.dal.ca/meridian/ketos/-/issues>`_.
 
 
 

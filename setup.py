@@ -8,7 +8,7 @@ from ketos.__init__ import __version__
 setup(name='ketos',
       version=__version__,
       description="MERIDIAN Python package for deep-learning based acoustic detectors and classifiers",
-      url='https://gitlab.meridian.cs.dal.ca/public_projects/ketos',
+      url='https://git-dev.cs.dal.ca/meridian/ketos',
       author='Fabio Frazao, Oliver Kirsebom',
       author_email='fsfrazao@dal.ca, oliver.kirsebom@dal.ca',
       license='GNU General Public License v3.0',
