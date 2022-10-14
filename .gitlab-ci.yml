@@ -13,12 +13,12 @@ after_script:
   - rm -rf ketos/tests/assets/tmp/*
 
 run-tests:
- type: test
+ stage: test
  script:
   - pytest --doctest-modules --ignore=docs
 
 create-docs:
- type: deploy
+ stage: deploy
  before_script: # overwrites global before_script
   - pip install --upgrade pip
   - pip install sphinx
@@ -29,7 +29,7 @@ create-docs:
   - master
 
 create-package:
- type: deploy
+ stage: deploy
  script:
   - python setup.py sdist
   - pip install dist/ketos-*.tar.gz
