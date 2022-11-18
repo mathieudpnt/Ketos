@@ -391,13 +391,7 @@ class NNInterface():
                 (10, 2)
         """
         X = cls._transform_input(x)      
- 
-        if y.dtype.names is not None:
-            # Keeping for now for backwards compatibility
-            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y['label']])
-            warnings.warn("Deprecation warning: In a future version, the label parameter y will be a numpy aray or list and will not accept ['label'] keyword")
-        else:    
-            Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y])
+        Y = np.array([cls._to1hot(class_label=label, n_classes=n_classes) for label in y])
         return (X,Y)
 
 
@@ -746,21 +740,6 @@ class NNInterface():
         instance.checkpoint_dir = weights_path
         return instance
 
-
-    @classmethod
-    def load_model_file(cls, model_file, new_model_folder='kt-tmp', overwrite=True, load_audio_repr=False, 
-            replace_top=False, diff_n_classes=None):
-        """ Same as :meth:`NNInterface.load`.
-
-            Only included for backward compatibility.
-            Will be removed in future versions.
-        """
-        warnings.warn("load_model_file is deprecated and will be removed in future versions. Use load instead.", category=DeprecationWarning)
-
-        return cls.load(model_file=model_file, new_model_folder=new_model_folder, overwrite=overwrite, 
-            load_audio_repr=load_audio_repr, replace_top=replace_top, diff_n_classes=diff_n_classes)
-
-
     @classmethod
     def load(cls, model_file, new_model_folder='kt-tmp', overwrite=True, load_audio_repr=False, 
             replace_top=False, diff_n_classes=None):
@@ -851,19 +830,6 @@ class NNInterface():
         metrics = recipe['metrics']
         instance = cls(optimizer=optimizer, loss_function=loss_function, metrics=metrics)
         return instance
-    
-
-    @classmethod
-    def build_from_recipe_file(cls, recipe_file):
-        """ Same as :meth:`NNInterface.build`.
-
-            Only included for backward compatibility.
-            Will be removed in future versions.
-        """
-        warnings.warn("build_from_recipe_file is deprecated and will be removed in future versions. Use build instead.", category=DeprecationWarning)
-
-        return cls.build(recipe_file)
-
 
     @classmethod
     def build(cls, recipe_file):
@@ -944,19 +910,7 @@ class NNInterface():
         recipe = self._extract_recipe_dict()
         self._write_recipe_file(json_file=recipe_file, recipe=recipe)
 
-
-    def save_model(self, model_file=None, output_name=None, **kwargs):
-        """ Same as :meth:`NNInterface.save`.
-
-            Only included for backward compatibility.
-            Will be removed in future versions.
-        """
-        warnings.warn("save_model is deprecated and will be removed in future versions. Use save instead.", category=DeprecationWarning)
-
-        self.save(model_file=model_file, output_name=output_name, **kwargs)
-
-
-    def save(self, model_file=None, output_name=None, checkpoint_name=None, **kwargs):
+    def save(self, output_name=None, checkpoint_name=None, **kwargs):
         """ Save the trained model to a file.
 
             The model can be saved to three different formats: 
@@ -979,8 +933,6 @@ class NNInterface():
              * protobuf: :func:`export.export_to_protobuf`
              * ketos-protobuf: :func:`export.export_to_ketos_protobuf`
 
-            TODO: remove deprecated argument model_file
-
             Args:
                 output_name: str
                     Path to the output file
@@ -993,11 +945,6 @@ class NNInterface():
                     the protobuf (.pb) format. It is also possible to specify the path 
                     to a json file containing the audio representation.
         """
-        if model_file is not None:
-            warnings.warn("model_file is deprecated and will be removed in future versions. Use output_name instead.", category=DeprecationWarning)
-            if output_name is None:
-                output_name = model_file
-
         # attempt to load weights from checkpoint
         if isinstance(self.checkpoint_dir, str) and os.path.isdir(self.checkpoint_dir):
             if checkpoint_name == None:

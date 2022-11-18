@@ -527,7 +527,7 @@ def test_train_loop(instance_of_MLPInterface):
 def test_save_model_latest(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
-    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"))
+    instance_of_MLPInterface.save(os.path.join(path_to_tmp, "test_save_model_latest.kt"))
     extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
     with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
             zip.extractall(path=extraction_path)
@@ -539,7 +539,7 @@ def test_save_model_latest(instance_of_MLPInterface):
 def test_save_model_checkpoint_name(instance_of_MLPInterface):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
-    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"), checkpoint_name="cp-0003.ckpt")
+    instance_of_MLPInterface.save(os.path.join(path_to_tmp, "test_save_model_latest.kt"), checkpoint_name="cp-0003.ckpt")
     extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
     with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
             zip.extractall(path=extraction_path)
@@ -551,7 +551,7 @@ def test_save_model_checkpoint_name(instance_of_MLPInterface):
 def test_save_model_with_audio_repr(instance_of_MLPInterface, spectr_settings):
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
-    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"), audio_repr=spectr_settings)
+    instance_of_MLPInterface.save(os.path.join(path_to_tmp, "test_save_model_latest.kt"), audio_repr=spectr_settings)
     extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
     with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
             zip.extractall(path=extraction_path)
@@ -565,7 +565,7 @@ def test_save_model_with_audio_repr_file(instance_of_MLPInterface):
     audio_repr_file = os.path.join(path_to_assets, "audio_repr.json")
     instance_of_MLPInterface.checkpoint_dir = os.path.join(path_to_tmp, "test_save_model_latest_checkpoints")
     instance_of_MLPInterface.train_loop(n_epochs=5, checkpoint_freq=1)
-    instance_of_MLPInterface.save_model(os.path.join(path_to_tmp, "test_save_model_latest.kt"), audio_repr_file=audio_repr_file)
+    instance_of_MLPInterface.save(os.path.join(path_to_tmp, "test_save_model_latest.kt"), audio_repr_file=audio_repr_file)
     extraction_path = os.path.join(path_to_tmp, "test_save_model_latest_tmp_folder")
     with ZipFile(os.path.join(path_to_tmp, "test_save_model_latest.kt"), 'r') as zip:
             zip.extractall(path=extraction_path)

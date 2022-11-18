@@ -429,32 +429,19 @@ def test_create_rndm_selections_with_label(file_duration_table):
     assert len(df_bgr) == num
     # assert selections have uniform length
     assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
-    # assert all selection have label = 0
+    # assert all selection have label = 6
     assert np.all(df_bgr.label.values == 6)
 
 
-def test_create_rndm_backgr_selections(file_duration_table):
-    """ Test if can generate a random selection of background 
-        selections"""
-    np.random.seed(1)
-    dur = file_duration_table 
-    num = 5
-    df_bgr = st.create_rndm_backgr_selections(files=dur, length=2.0, num=num)
-    assert len(df_bgr) == num
-    # assert selections have uniform length
-    assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
-    # assert all selection have label = 0
-    assert np.all(df_bgr.label.values == 0)
 
 
-def test_create_rndm_backgr_selections_with_empty_annot(file_duration_table):
-    """ Test if can generate a random selection of background 
-        selections with an empty annotation table"""
+def test_create_rndm_selections_with_empty_annot(file_duration_table):
+    """ Test if can generate a random selection with an empty annotation table"""
     np.random.seed(1)
     dur = file_duration_table 
     num = 5
     df = st.empty_annot_table()
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == num
     # assert selections have uniform length
     assert np.all(np.isclose(df_bgr.end.values - df_bgr.start.values, 2.0, atol=1e-9))
@@ -462,25 +449,23 @@ def test_create_rndm_backgr_selections_with_empty_annot(file_duration_table):
     assert np.all(df_bgr.label.values == 0)
 
 
-def test_create_rndm_backgr_selections_with_empty_file_duration_table(file_duration_table):
-    """ Test if can generate a random selection of background 
-        selections with an empty annotation table"""
+def test_create_rndm_selections_with_empty_file_duration_table():
+    """ Test if can generate a random selection with an empty annotation table"""
     np.random.seed(1)
     num = 5
     df = st.empty_annot_table()
     dur = pd.DataFrame(columns=['filename','duration'])
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == 0
 
 
-def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration_table):
-    """ Test if can generate a random selection of background 
-        selections while avoiding annotated regions of the recording"""
+def test_create_rndm_selections_with_annot(annot_table_std, file_duration_table):
+    """ Test if can generate a random selection while avoiding annotated regions of the recording"""
     np.random.seed(1)
     df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     num = 5
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=num)
     assert len(df_bgr) == num
     # assert selections have uniform length
     assert np.all(np.abs(df_bgr.end.values - df_bgr.start.values - 2.0) < 1e-9)
@@ -495,44 +480,44 @@ def test_create_rndm_backgr_selections_with_annot(annot_table_std, file_duration
         assert len(q) == 0
 
 
-def test_create_rndm_backgr_keeps_misc_cols(annot_table_std, file_duration_table):
-    """ Check that the random background selection creation method keeps 
+def test_create_rndm_keeps_misc_cols(annot_table_std, file_duration_table):
+    """ Check that the random selection creation method keeps 
         any miscellaneous columns"""
     np.random.seed(1)
     df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     dur['extra'] = 'testing'
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=5)
     assert np.all(df_bgr['extra'].values == 'testing')
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=5, trim_table=True)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=5, trim_table=True)
     assert 'extra' not in df_bgr.columns.values.tolist()
 
 
-def test_create_rndm_backgr_files_missing_duration(annot_table_std, file_duration_table):
-    """ Check that the random background selection creation method works even when 
+def test_create_rndm_files_missing_duration(annot_table_std, file_duration_table):
+    """ Check that the random selection creation method works even when 
         some of the files are missing from the file duration list"""
     np.random.seed(1)
     df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table.drop(0) 
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=11)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=11)
 
 
-def test_create_rndm_backgr_nonzero_offset(annot_table_std, file_duration_table):
-    """ Check that the random background selection creation method works when file duration 
+def test_create_rndm_nonzero_offset(annot_table_std, file_duration_table):
+    """ Check that the random selection creation method works when file duration 
         table includes offsets"""
     np.random.seed(1)
     df = st.standardize(annot_table_std, start_labels_at_1=True)
     file_duration_table['offset'] = [1, 2, 3, 4, 5, 6]
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=file_duration_table, length=2.0, num=11)
+    df_bgr = st.create_rndm_selections(annotations=df, files=file_duration_table, length=2.0, num=11)
 
 
-def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration_table):
+def test_create_rndm_selections_no_overlap(annot_table_std, file_duration_table):
     """ Check that random selections have no overlap"""
     np.random.seed(1)
     df = st.standardize(annot_table_std, start_labels_at_1=True)
     dur = file_duration_table 
     num = 30
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=num)
     num_overlap = 0
     for idx,row in df_bgr.iterrows():
         q = st.query(df_bgr, filename=idx[0], start=row['start'], end=row['end'])
@@ -540,7 +525,7 @@ def test_create_rndm_backgr_selections_no_overlap(annot_table_std, file_duration
     
     assert num_overlap > 0
 
-    df_bgr = st.create_rndm_backgr_selections(annotations=df, files=dur, length=2.0, num=num, no_overlap=True)
+    df_bgr = st.create_rndm_selections(annotations=df, files=dur, length=2.0, num=num, no_overlap=True)
     num_overlap = 0
     for idx,row in df_bgr.iterrows():
         q = st.query(df_bgr, filename=idx[0], start=row['start'], end=row['end'])

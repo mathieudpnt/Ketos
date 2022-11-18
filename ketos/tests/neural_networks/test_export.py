@@ -115,7 +115,7 @@ def test_export_to_ketos_protobuf_infer_shape():
     shutil.rmtree(tmp_path) #clean up
 
 
-def test_export_to_ketos_protobuf_audio_repr_file():
+def test_export_to_ketos_protobuf_audio_repr():
     """Test export resnet to ketos-protobuf format using audio representation file path"""
     model_path = os.path.join(path_to_assets, 'narw_resnet.kt')
     audio_repr_path = os.path.join(path_to_assets, 'audio_repr.json')
@@ -123,7 +123,7 @@ def test_export_to_ketos_protobuf_audio_repr_file():
     model = load_model_file(model_path, tmp_path)
     output_path = os.path.join(path_to_tmp, 'narw2.ktpb')
 
-    exp.export_to_ketos_protobuf(model=model, output_name=output_path, audio_repr_file=audio_repr_path, 
+    exp.export_to_ketos_protobuf(model=model, output_name=output_path, audio_repr=audio_repr_path, 
         overwrite=True, duration=3.0)
 
     assert os.path.isfile(output_path)

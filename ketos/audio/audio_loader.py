@@ -358,17 +358,8 @@ class FrameStepper(SelectionGenerator):
                 Relative path to a single .wav file or a list of .wav files. Optional.
             pad: bool
                 If True (default), the last segment is allowed to extend beyond the endpoint of the audio file.
-            frame: float
-                Same as duration. Only included for backward compatibility. Will be removed in future versions.
     """
-    def __init__(self, duration=None, step=None, path=None, filename=None, pad=True, frame=None):
-        assert duration is not None or frame is not None, "Either duration or frame must be specified"
-        
-        if frame is not None:
-            print("Warning: frame is deprecated and will be removed in a future versions. Use duration instead")
-            if duration is None:
-                duration = frame
-            
+    def __init__(self, duration, step=None, path=None, filename=None, pad=True):            
         self.duration = duration
         if step is None: self.step = duration
         else: self.step = step

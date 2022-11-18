@@ -75,9 +75,9 @@ def get_export_function(output_name):
         return export_to_ketos
 
 
-def export_to_ketos_protobuf(model, output_name, input_shape=None, audio_repr=None, 
-                            audio_repr_file=None, tmp_folder="tmp_export_folder", overwrite=True, 
-                            duration=None, input_duration=None, backward_compat=True, **kwargs):
+def export_to_ketos_protobuf(model, output_name, audio_repr, input_shape=None,
+                            tmp_folder="tmp_export_folder", overwrite=True, 
+                            duration=None, backward_compat=True, **kwargs):
     r""" Export a ketos model to Ketos-Protobuf format. 
 
         Saving your ketos model in Ketos-Protobuf format makes it easier to share it with 
@@ -100,8 +100,6 @@ def export_to_ketos_protobuf(model, output_name, input_shape=None, audio_repr=No
         A warning will be printed if the method is unable to infer values for the parameters 
         `duration` and `step`. The model will be saved, but it will not be possible to load 
         it into PAMGuard. 
-
-        TODO: Remove deprecated argument input_duration and audio_repr_file
 
         Args:
             model: 
@@ -146,11 +144,6 @@ def export_to_ketos_protobuf(model, output_name, input_shape=None, audio_repr=No
         Raises:
             AssertionError if the input shape cannot be inferred.
     """
-    if input_duration != None:
-        print("Warning: input_duration is deprecated and will be removed in future versions. " \
-                + "Use duration instead.")
-        if duration == None: 
-            duration = input_duration
 
     if input_shape != None and len(input_shape) == 4 and input_shape[0] == 1 and backward_compat:
         print("Warning: ketos is using the following interpretation of the input_shape:" \
@@ -158,13 +151,6 @@ def export_to_ketos_protobuf(model, output_name, input_shape=None, audio_repr=No
                 + "If this is not the correct interpretation, you should call the " \
                 + "export_to_ketos_protobuf function with backward_compat=False.")
         input_shape = input_shape[1:]
-
-    if audio_repr_file != None:
-        print("Warning: audio_repr_file is deprecated and will be removed in future versions. Use audio_repr instead.")
-        if audio_repr == None:
-            audio_repr = audio_repr_file
-
-    assert audio_repr != None, 'audio_repr must be specified'
 
     # if the path to a json file containing the audio representation(s) 
     # has been specified, load its contents
@@ -315,14 +301,12 @@ def _infer_shape(params):
     return params['type'].infer_shape(**params)
 
 
-def export_to_protobuf(model, output_name=None, output_folder=None, tmp_folder="tmp_export_folder", **kwargs):
+def export_to_protobuf(model, output_name):
     r""" Export a ketos model to Protobuf format (\*.pb).
 
         See also the related fuction :func:`export_to_ketos_protobuf`.
 
         Note that the model must be built before it can be saved.
-
-        TODO: remove deprecated argument output_folder
 
         Args:
             model: 
@@ -333,18 +317,13 @@ def export_to_protobuf(model, output_name=None, output_folder=None, tmp_folder="
     """
     assert model.model.built, "The model must be built. Call model.run_on_instance() on a sample input"
 
-    if output_folder is not None:
-        warnings.warn("output_folder is deprecated and will be removed in future versions. Use output_name instead.", category=DeprecationWarning)
-        if output_name is None:
-            output_name = output_folder
-
     # if the output directory does not already exist, create it
     ensure_dir(output_name)
 
     save_pb(obj=model.model, export_dir=output_name)
 
 
-def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=None, audio_repr_file=None, 
+def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=None, 
                  tmp_folder="tmp_export_folder", overwrite=True, metadata=None, extra=None, **kwargs):
     r""" Export a ketos model to ketos format (\*.kt).
 
@@ -355,8 +334,6 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
          * the model weights (\*.ckpt)
          * the audio representation (audio_repr.json)
          * the ketos model recipe (recipe.json)
-
-        TODO: Remove deprecated argument audio_repr_file
 
         Args:
             model: 
@@ -397,11 +374,6 @@ def export_to_ketos(model, output_name, checkpoint_name="cp-0000", audio_repr=No
         extra = []
     elif isinstance(extra, str):
         extra = [extra]
-
-    if audio_repr_file != None:
-        print("Warning: audio_repr_file is deprecated and will be removed in future versions. Use audio_repr instead.")
-        if audio_repr == None:
-            audio_repr = audio_repr_file
 
     # create tmp folder
     if os.path.exists(tmp_folder):
