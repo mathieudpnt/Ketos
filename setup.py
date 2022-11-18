@@ -28,6 +28,7 @@ setup(name='ketos',
           'tqdm',
           'pint',
           'psutil',
+          'soundfile>=0.11'
           'version-parser',
           'protobuf==3.20.*',
           ],
