@@ -1,6 +1,9 @@
 Change log
 ==========
 
+**Version 2.6.3** ()
+
+ * Updated supported Python version up to 3.10.8
 
 **Version 2.6.2** (Sept 21, 2022)
 
