@@ -7,13 +7,13 @@ cp ../../setup.py .
 cp ../../requirements.txt .
 
 # build image
-docker build --tag=ketos_v2.6.1 .
+docker build --tag=ketos_v2.6.2 .
 
 # tag image
-docker tag ketos_v2.6.1 meridiancfi/ketos:v2.6.1
+docker tag ketos_v2.6.2 meridiancfi/ketos:v2.6.2
 
 # push image to repository
-docker push meridiancfi/ketos:v2.6.1
+docker push meridiancfi/ketos:v2.6.2
 
 # clean
 rm -rf ketos
